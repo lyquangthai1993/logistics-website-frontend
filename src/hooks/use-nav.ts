@@ -1,23 +1,15 @@
 'use client';
 
 /**
- * Fully client-side hook for filtering navigation items based on RBAC
+ * Client-side hook for filtering navigation items based on RBAC.
  *
- * This hook uses Clerk's client-side hooks to check permissions, roles, and organization
- * without any server calls. This is perfect for navigation visibility (UX only).
- *
- * Performance:
- * - All checks are synchronous (no server calls)
- * - Instant filtering
- * - No loading states
- * - No UI flashing
- *
- * Note: For actual security (API routes, server actions), always use server-side checks.
- * This is only for UI visibility.
+ * Uses the Zustand auth store to check user roles for navigation visibility.
+ * This is for UI filtering only — actual security is enforced by backend guards
+ * and the Next.js middleware.
  */
 
 import { useMemo } from 'react';
-import { useOrganization, useUser } from '@clerk/nextjs';
+import { useAuthStore } from '@/stores/use-auth-store';
 import type { NavItem, NavGroup } from '@/types';
 
 /**
@@ -27,23 +19,14 @@ import type { NavItem, NavGroup } from '@/types';
  * @returns Filtered items
  */
 export function useFilteredNavItems(items: NavItem[]) {
-  const { organization, membership } = useOrganization();
-  const { user } = useUser();
+  const user = useAuthStore((s) => s.user);
 
-  // Memoize context and permissions
   const accessContext = useMemo(() => {
-    const permissions = membership?.permissions || [];
-    const role = membership?.role;
-
     return {
-      organization: organization ?? undefined,
-      user: user ?? undefined,
-      permissions: permissions as string[],
-      role: role ?? undefined,
-      hasOrg: !!organization
+      role: user?.role ?? undefined,
+      hasUser: !!user
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- using stable primitives to avoid infinite re-renders from unstable Clerk object refs
-  }, [organization?.id, user?.id, membership?.permissions, membership?.role]);
+  }, [user?.role, user]);
 
   // Filter items synchronously (all client-side)
   const filteredItems = useMemo(() => {
@@ -54,46 +37,16 @@ export function useFilteredNavItems(items: NavItem[]) {
           return true;
         }
 
-        // Check requireOrg
-        if (item.access.requireOrg && !accessContext.hasOrg) {
-          return false;
-        }
-
-        // Check permission
-        if (item.access.permission) {
-          if (!accessContext.hasOrg) {
-            return false;
-          }
-          if (!accessContext.permissions.includes(item.access.permission)) {
-            return false;
-          }
-        }
-
         // Check role
         if (item.access.role) {
-          if (!accessContext.hasOrg) {
+          if (!accessContext.hasUser) {
             return false;
           }
-          if (accessContext.role !== item.access.role) {
+          // Support single role or comma-separated roles
+          const allowedRoles = item.access.role.split(',').map((r) => r.trim());
+          if (!allowedRoles.includes(accessContext.role!)) {
             return false;
           }
-        }
-
-        // Note: Plans and features require server-side checks with Clerk's has() function
-        // For navigation visibility, you can either:
-        // 1. Store plan/feature info in organization metadata (client-accessible)
-        // 2. Use server actions (current approach)
-        // 3. Skip plan/feature checks for navigation (recommended for performance)
-
-        // For now, if plan/feature is specified, we'll need to handle it differently
-        // Most navigation items won't need plan/feature checks anyway
-        if (item.access.plan || item.access.feature) {
-          // Option: Return true and let the page handle it, or use server action
-          // For now, we'll show it (page-level protection should handle it)
-          console.warn(
-            `Plan/feature checks for navigation items require server-side verification. ` +
-              `Item "${item.title}" will be shown, but page-level protection should be implemented.`
-          );
         }
 
         return true;
@@ -102,42 +55,18 @@ export function useFilteredNavItems(items: NavItem[]) {
         // Recursively filter child items
         if (item.items && item.items.length > 0) {
           const filteredChildren = item.items.filter((childItem) => {
-            // No access restrictions
             if (!childItem.access) {
               return true;
             }
 
-            // Check requireOrg
-            if (childItem.access.requireOrg && !accessContext.hasOrg) {
-              return false;
-            }
-
-            // Check permission
-            if (childItem.access.permission) {
-              if (!accessContext.hasOrg) {
-                return false;
-              }
-              if (!accessContext.permissions.includes(childItem.access.permission)) {
-                return false;
-              }
-            }
-
-            // Check role
             if (childItem.access.role) {
-              if (!accessContext.hasOrg) {
+              if (!accessContext.hasUser) {
                 return false;
               }
-              if (accessContext.role !== childItem.access.role) {
+              const allowedRoles = childItem.access.role.split(',').map((r) => r.trim());
+              if (!allowedRoles.includes(accessContext.role!)) {
                 return false;
               }
-            }
-
-            // Plan/feature checks (same warning as above)
-            if (childItem.access.plan || childItem.access.feature) {
-              console.warn(
-                `Plan/feature checks for navigation items require server-side verification. ` +
-                  `Item "${childItem.title}" will be shown, but page-level protection should be implemented.`
-              );
             }
 
             return true;

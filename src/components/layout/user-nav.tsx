@@ -10,11 +10,26 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
-import { SignOutButton, useUser } from '@clerk/nextjs';
+import { useAuthStore } from '@/stores/use-auth-store';
+import { apiClient } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
+
 export function UserNav() {
-  const { user } = useUser();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await apiClient.post('/api/v1/auth/logout');
+    } catch {
+      // Ignore logout API errors
+    }
+    logout();
+    document.cookie = 'access_token=; path=/; max-age=0';
+    router.push('/auth/sign-in');
+  };
+
   if (user) {
     return (
       <DropdownMenu>
@@ -27,10 +42,8 @@ export function UserNav() {
           <DropdownMenuGroup>
             <DropdownMenuLabel className='font-normal'>
               <div className='flex flex-col space-y-1'>
-                <p className='text-sm leading-none font-medium'>{user.fullName}</p>
-                <p className='text-muted-foreground text-xs leading-none'>
-                  {user.emailAddresses[0].emailAddress}
-                </p>
+                <p className='text-sm leading-none font-medium'>{user.name}</p>
+                <p className='text-muted-foreground text-xs leading-none'>{user.email}</p>
               </div>
             </DropdownMenuLabel>
           </DropdownMenuGroup>
@@ -39,15 +52,11 @@ export function UserNav() {
             <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem>Billing</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>New Team</DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <SignOutButton redirectUrl='/auth/sign-in' />
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
