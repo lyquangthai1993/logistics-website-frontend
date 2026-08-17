@@ -43,9 +43,9 @@ test.describe('[Login Page] UI baseline', () => {
     await page.click('button[type="submit"]');
 
     // Error div should appear
-    await expect(
-      page.locator('div.bg-destructive\\/10, [data-testid="login-error"]')
-    ).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('div.bg-destructive\\/10, [data-testid="login-error"]')).toBeVisible({
+      timeout: 8000
+    });
   });
 });
 
@@ -77,7 +77,9 @@ for (const user of TEST_USERS) {
       expect(errors, `${user.role}: browser errors found after login`).toHaveLength(0);
     });
 
-    test(`🔒 ${user.role} is redirected to /auth/sign-in when unauthenticated`, async ({ page }) => {
+    test(`🔒 ${user.role} is redirected to /auth/sign-in when unauthenticated`, async ({
+      page
+    }) => {
       await clearSession(page);
       await page.goto('/dashboard/overview');
       await expect(page).toHaveURL(/\/auth\/sign-in/);

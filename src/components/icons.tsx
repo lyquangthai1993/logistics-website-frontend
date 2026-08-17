@@ -98,6 +98,7 @@ import {
   IconTruckOff,
   IconFileInvoice
 } from '@tabler/icons-react';
+import { BrandLogoIcon } from './brand-logo';
 
 export type Icon = React.ComponentType<IconProps>;
 
@@ -149,7 +150,7 @@ export const Icons = {
   // Brand
   github: IconBrandGithub,
   twitter: IconBrandTwitter,
-  logo: IconCommand,
+  logo: BrandLogoIcon,
 
   // Communication
   chat: IconMessage,

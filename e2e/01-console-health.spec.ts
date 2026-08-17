@@ -38,9 +38,7 @@ for (const { path, label } of PAGES_TO_CHECK) {
       'Failed to find font override values for font',
       'Skipping generating a fallback font'
     ];
-    const criticalErrors = errors.filter(
-      (e) => !KNOWN_WARNINGS.some((kw) => e.text.includes(kw))
-    );
+    const criticalErrors = errors.filter((e) => !KNOWN_WARNINGS.some((kw) => e.text.includes(kw)));
 
     if (criticalErrors.length > 0) {
       console.log('\n🔴 CRITICAL BROWSER ERRORS:');
@@ -69,7 +67,9 @@ test('[Console Health] Detect known font warning – Google Sans Flex', async ({
   await page.goto('/auth/sign-in');
   await page.waitForLoadState('networkidle');
 
-  const fontWarning = logs.find((l) => l.includes('Google Sans Flex') || l.includes('font override'));
+  const fontWarning = logs.find(
+    (l) => l.includes('Google Sans Flex') || l.includes('font override')
+  );
 
   if (fontWarning) {
     console.log(`\n⚠️  KNOWN ISSUE DETECTED: ${fontWarning}`);

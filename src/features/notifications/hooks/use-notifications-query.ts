@@ -24,7 +24,7 @@ type NotificationsResponse = {
 
 async function fetchNotifications(page: number, limit: number): Promise<NotificationsResponse> {
   const res = await apiClient.get<NotificationsResponse>('/api/v1/notifications', {
-    params: { page, limit },
+    params: { page, limit }
   });
   return res.data;
 }
@@ -43,7 +43,7 @@ export function useNotificationsQuery(page: number = 1, limit: number = 20) {
     queryKey: ['notifications', { page, limit }],
     queryFn: () => fetchNotifications(page, limit),
     staleTime: 30 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: true
   });
 }
 
@@ -53,7 +53,7 @@ export function useUnreadCountQuery() {
     queryKey: ['notifications', 'unread-count'],
     queryFn: fetchUnreadCount,
     staleTime: 30 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: true
   });
 }
 
@@ -61,11 +61,10 @@ export function useUnreadCountQuery() {
 export function useMarkAsReadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) =>
-      apiClient.patch(`/api/v1/notifications/${id}/read`),
+    mutationFn: (id: number) => apiClient.patch(`/api/v1/notifications/${id}/read`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    }
   });
 }
 
@@ -76,6 +75,6 @@ export function useMarkAllAsReadMutation() {
     mutationFn: () => apiClient.patch('/api/v1/notifications/read-all'),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    }
   });
 }

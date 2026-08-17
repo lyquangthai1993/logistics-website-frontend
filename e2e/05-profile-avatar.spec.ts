@@ -50,7 +50,10 @@ test.describe('Profile Avatar Upload & Removal Flow', () => {
       (resp) => resp.url().includes('/api/v1/files/upload') && resp.status() === 201
     );
     const updateAuthPromise = page.waitForResponse(
-      (resp) => resp.url().includes('/api/v1/auth/me') && resp.request().method() === 'PATCH' && resp.status() === 200
+      (resp) =>
+        resp.url().includes('/api/v1/auth/me') &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200
     );
 
     // 4. Click Save
@@ -68,7 +71,9 @@ test.describe('Profile Avatar Upload & Removal Flow', () => {
     expect(updateJson.photo.id).toBe(uploadJson.file.id);
 
     // 6. Verify toast notification
-    await expect(page.getByText('Cập nhật ảnh đại diện thành công!')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Cập nhật ảnh đại diện thành công!')).toBeVisible({
+      timeout: 10_000
+    });
 
     // 7. Reload page and check avatar persists
     await page.reload({ waitUntil: 'networkidle' });
@@ -77,7 +82,10 @@ test.describe('Profile Avatar Upload & Removal Flow', () => {
 
     // 8. Test removing avatar
     const removeAuthPromise = page.waitForResponse(
-      (resp) => resp.url().includes('/api/v1/auth/me') && resp.request().method() === 'PATCH' && resp.status() === 200
+      (resp) =>
+        resp.url().includes('/api/v1/auth/me') &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200
     );
 
     await removeBtn.click();

@@ -30,7 +30,7 @@ export function useNotificationSocket() {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
+        reconnectionDelay: 2000
       });
 
       sharedSocket.on('connect', () => {
@@ -45,24 +45,27 @@ export function useNotificationSocket() {
         console.log('[WS] Notifications disconnected:', reason);
       });
 
-      sharedSocket.on('notification:new', (notification: {
-        id: number;
-        title: string;
-        body: string;
-        type: string;
-        isRead: boolean;
-        createdAt: string;
-      }) => {
-        // Invalidate cache → TanStack Query tự refetch
-        const queryClient = getQueryClient();
-        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      sharedSocket.on(
+        'notification:new',
+        (notification: {
+          id: number;
+          title: string;
+          body: string;
+          type: string;
+          isRead: boolean;
+          createdAt: string;
+        }) => {
+          // Invalidate cache → TanStack Query tự refetch
+          const queryClient = getQueryClient();
+          void queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
-        // Toast thông báo
-        toast(notification.title, {
-          description: notification.body,
-          duration: 5000,
-        });
-      });
+          // Toast thông báo
+          toast(notification.title, {
+            description: notification.body,
+            duration: 5000
+          });
+        }
+      );
     }
 
     return () => {
