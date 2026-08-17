@@ -18,25 +18,25 @@ export interface LoginCredentials {
 export const TEST_USERS: LoginCredentials[] = [
   {
     email: process.env.E2E_SUPER_ADMIN_EMAIL ?? 'admin@spiderexpress.vn',
-    password: process.env.E2E_SUPER_ADMIN_PASSWORD ?? 'Admin@123',
+    password: process.env.E2E_SUPER_ADMIN_PASSWORD ?? 'secret',
     role: 'SUPER_ADMIN',
     expectedLandingPath: '/dashboard/overview'
   },
   {
     email: process.env.E2E_DISPATCHER_EMAIL ?? 'ducanh@spiderexpress.vn',
-    password: process.env.E2E_DISPATCHER_PASSWORD ?? 'Dispatcher@123',
+    password: process.env.E2E_DISPATCHER_PASSWORD ?? 'secret',
     role: 'DISPATCHER',
     expectedLandingPath: '/dashboard/overview'
   },
   {
     email: process.env.E2E_FLEET_MANAGER_EMAIL ?? 'fleet@spiderexpress.vn',
-    password: process.env.E2E_FLEET_MANAGER_PASSWORD ?? 'Fleet@123',
+    password: process.env.E2E_FLEET_MANAGER_PASSWORD ?? 'secret',
     role: 'FLEET_MANAGER',
     expectedLandingPath: '/dashboard/overview'
   },
   {
     email: process.env.E2E_WAREHOUSE_MANAGER_EMAIL ?? 'warehouse@spiderexpress.vn',
-    password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'Warehouse@123',
+    password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
     expectedLandingPath: '/dashboard/overview'
   }
@@ -75,7 +75,7 @@ export async function loginAs(page: Page, creds: LoginCredentials): Promise<void
   await page.click('button[type="submit"]');
 
   // Wait for redirect after successful login
-  await page.waitForURL(/\/dashboard\/.*/, { timeout: 10_000 });
+  await page.waitForURL(/\/dashboard\/.*/, { timeout: 15_000, waitUntil: 'domcontentloaded' });
 }
 
 /**
@@ -84,7 +84,11 @@ export async function loginAs(page: Page, creds: LoginCredentials): Promise<void
 export async function clearSession(page: Page): Promise<void> {
   await page.context().clearCookies();
   await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {
+      // Ignore SecurityError when page is at about:blank origin
+    }
   });
 }

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { getInitials } from '@/lib/utils';
 
 const roleLabels: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -35,7 +36,7 @@ export default function ProfileViewPage() {
             <Avatar className='h-16 w-16'>
               <AvatarImage src={user.avatarUrl || ''} alt={user.name} />
               <AvatarFallback className='text-lg'>
-                {user.name?.slice(0, 2)?.toUpperCase() || 'U'}
+                {getInitials(user.name, 'U')}
               </AvatarFallback>
             </Avatar>
             <div>

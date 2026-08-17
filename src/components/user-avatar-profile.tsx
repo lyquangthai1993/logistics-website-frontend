@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils';
 
 interface UserAvatarProfileProps {
   className?: string;
@@ -16,7 +17,7 @@ export function UserAvatarProfile({ className, showInfo = false, user }: UserAva
       <Avatar className={className}>
         <AvatarImage src={user?.avatarUrl || ''} alt={user?.name || ''} />
         <AvatarFallback className='rounded-lg'>
-          {user?.name?.slice(0, 2)?.toUpperCase() || 'CN'}
+          {getInitials(user?.name, 'CN')}
         </AvatarFallback>
       </Avatar>
 
