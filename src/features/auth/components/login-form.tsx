@@ -288,7 +288,7 @@ export function LoginForm() {
             id='email'
             name='email'
             type='text'
-            placeholder='admin hoặc lyquangthai1993+admin@gmail.com'
+            placeholder='Nhập email hoặc tên đăng nhập...'
             required
             autoComplete='username'
             disabled={isLoading}
