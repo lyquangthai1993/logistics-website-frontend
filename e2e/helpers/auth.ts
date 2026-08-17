@@ -1,0 +1,90 @@
+/**
+ * e2e/helpers/auth.ts
+ * Reusable helpers for login/logout in Playwright tests
+ */
+import type { Page } from '@playwright/test';
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+  role: 'SUPER_ADMIN' | 'DISPATCHER' | 'FLEET_MANAGER' | 'WAREHOUSE_MANAGER';
+  expectedLandingPath?: string;
+}
+
+/**
+ * Seed credentials – update when real users are seeded in DB
+ * Keep aligned with backend/src/database/seeds/users.seed.ts
+ */
+export const TEST_USERS: LoginCredentials[] = [
+  {
+    email: process.env.E2E_SUPER_ADMIN_EMAIL ?? 'admin@spiderexpress.vn',
+    password: process.env.E2E_SUPER_ADMIN_PASSWORD ?? 'Admin@123',
+    role: 'SUPER_ADMIN',
+    expectedLandingPath: '/dashboard/overview'
+  },
+  {
+    email: process.env.E2E_DISPATCHER_EMAIL ?? 'ducanh@spiderexpress.vn',
+    password: process.env.E2E_DISPATCHER_PASSWORD ?? 'Dispatcher@123',
+    role: 'DISPATCHER',
+    expectedLandingPath: '/dashboard/overview'
+  },
+  {
+    email: process.env.E2E_FLEET_MANAGER_EMAIL ?? 'fleet@spiderexpress.vn',
+    password: process.env.E2E_FLEET_MANAGER_PASSWORD ?? 'Fleet@123',
+    role: 'FLEET_MANAGER',
+    expectedLandingPath: '/dashboard/overview'
+  },
+  {
+    email: process.env.E2E_WAREHOUSE_MANAGER_EMAIL ?? 'warehouse@spiderexpress.vn',
+    password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'Warehouse@123',
+    role: 'WAREHOUSE_MANAGER',
+    expectedLandingPath: '/dashboard/overview'
+  }
+];
+
+/**
+ * Collect browser console errors/warnings during a page session.
+ * Returns a cleanup function that, when called, returns collected messages.
+ */
+export function collectConsoleLogs(page: Page) {
+  const logs: Array<{ type: string; text: string }> = [];
+
+  const handler = (msg: import('@playwright/test').ConsoleMessage) => {
+    const type = msg.type();
+    if (type === 'error' || type === 'warning') {
+      logs.push({ type, text: msg.text() });
+    }
+  };
+  page.on('console', handler);
+
+  return {
+    getLogs: () => logs,
+    stop: () => page.off('console', handler)
+  };
+};
+
+/**
+ * Perform login via UI and wait for redirect.
+ */
+export async function loginAs(page: Page, creds: LoginCredentials): Promise<void> {
+  await page.goto('/auth/sign-in');
+  await page.waitForLoadState('networkidle');
+
+  await page.fill('input[name="email"]', creds.email);
+  await page.fill('input[name="password"]', creds.password);
+  await page.click('button[type="submit"]');
+
+  // Wait for redirect after successful login
+  await page.waitForURL(/\/dashboard\/.*/, { timeout: 10_000 });
+}
+
+/**
+ * Clear auth cookies and local storage to simulate logout.
+ */
+export async function clearSession(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+}
