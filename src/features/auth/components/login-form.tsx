@@ -93,6 +93,7 @@ export function LoginForm() {
       });
 
       const token = data.token || data.access_token;
+      const refreshToken = data.refreshToken || data.refresh_token;
       const rawUser = data.user || {};
 
       // Map numerical or object role to string role enum used in frontend
@@ -115,10 +116,13 @@ export function LoginForm() {
       };
 
       // Store auth state
-      setAuth(user, token);
+      setAuth(user, token, refreshToken);
 
-      // Also set access_token as cookie for middleware to read
-      document.cookie = `access_token=${token}; path=/; max-age=${15 * 60}; SameSite=Lax`;
+      // Also set cookies for SSR middleware to read
+      document.cookie = `access_token=${token}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
+      if (refreshToken) {
+        document.cookie = `refreshToken=${refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      }
 
       router.push('/dashboard/overview');
     } catch (err: any) {

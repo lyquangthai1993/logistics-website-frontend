@@ -97,7 +97,11 @@
     "sharp": "^0.35.3"
   },
   "lint-staged": {
-    "!(scripts)/**/*.{js,jsx,tsx,ts,css,less,scss,sass}": [
+    "!(scripts)/**/*.{js,jsx,tsx,ts}": [
+      "oxfmt --write",
+      "oxlint --fix"
+    ],
+    "!(scripts)/**/*.{css,less,scss,sass}": [
       "oxfmt --write"
     ]
   }

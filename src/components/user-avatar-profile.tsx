@@ -6,16 +6,19 @@ interface UserAvatarProfileProps {
   showInfo?: boolean;
   user: {
     avatarUrl?: string;
+    photo?: { path?: string } | null;
     name?: string | null;
     email: string;
   } | null;
 }
 
 export function UserAvatarProfile({ className, showInfo = false, user }: UserAvatarProfileProps) {
+  const avatarSrc = user?.avatarUrl || user?.photo?.path || '';
+
   return (
     <div className='flex items-center gap-2'>
       <Avatar className={className}>
-        <AvatarImage src={user?.avatarUrl || ''} alt={user?.name || ''} />
+        <AvatarImage src={avatarSrc} alt={user?.name || ''} />
         <AvatarFallback className='rounded-lg'>
           {getInitials(user?.name, 'CN')}
         </AvatarFallback>

@@ -12,15 +12,20 @@ export interface User {
   role: UserRole;
   warehouseId?: string;
   avatarUrl?: string;
+  photo?: { id: string; path: string } | null;
+  firstName?: string;
+  lastName?: string;
 }
 
 interface AuthState {
   user: User | null;
   accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
 
-  setAuth: (user: User, accessToken: string) => void;
-  setAccessToken: (token: string) => void;
+  setAuth: (user: User, accessToken: string, refreshToken?: string | null) => void;
+  setAccessToken: (token: string, refreshToken?: string | null) => void;
+  updateUser: (partialUser: Partial<User>) => void;
   logout: () => void;
   hasRole: (...roles: UserRole[]) => boolean;
 }
@@ -30,13 +35,21 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
+      refreshToken: null,
       isAuthenticated: false,
 
-      setAuth: (user, accessToken) => set({ user, accessToken, isAuthenticated: true }),
+      setAuth: (user, accessToken, refreshToken = null) =>
+        set({ user, accessToken, refreshToken: refreshToken || get().refreshToken, isAuthenticated: true }),
 
-      setAccessToken: (accessToken) => set({ accessToken }),
+      setAccessToken: (accessToken, refreshToken = null) =>
+        set((state) => ({ accessToken, refreshToken: refreshToken || state.refreshToken })),
 
-      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+      updateUser: (partialUser) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...partialUser } : null
+        })),
+
+      logout: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
 
       hasRole: (...roles) => {
         const { user } = get();
@@ -49,6 +62,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated
       })
     }

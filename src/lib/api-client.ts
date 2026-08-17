@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-  withCredentials: true, // Send cookies (refresh token)
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -11,7 +11,13 @@ const apiClient = axios.create({
 
 // Attach access token to every request
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
+  let token = useAuthStore.getState().accessToken;
+  if (!token && typeof document !== 'undefined') {
+    const match = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
+    if (match) {
+      token = decodeURIComponent(match[1]);
+    }
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -55,14 +61,42 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        let refreshToken = useAuthStore.getState().refreshToken;
+        if (!refreshToken && typeof document !== 'undefined') {
+          const match = document.cookie.match(/(?:^|; )refreshToken=([^;]*)/);
+          if (match) {
+            refreshToken = decodeURIComponent(match[1]);
+          }
+        }
+
+        const headers: Record<string, string> = {};
+        if (refreshToken) {
+          headers.Authorization = `Bearer ${refreshToken}`;
+        }
+
         const { data } = await axios.post(
           `${apiClient.defaults.baseURL}/api/v1/auth/refresh`,
           {},
-          { withCredentials: true }
+          {
+            withCredentials: true,
+            headers
+          }
         );
 
-        const newToken = data.data.access_token;
-        useAuthStore.getState().setAccessToken(newToken);
+        const newToken = data?.token || data?.access_token || data?.data?.token || data?.data?.access_token;
+        const newRefreshToken = data?.refreshToken || data?.refresh_token || data?.data?.refreshToken;
+
+        if (!newToken) {
+          throw new Error('Refresh response missing token');
+        }
+
+        useAuthStore.getState().setAccessToken(newToken, newRefreshToken);
+        if (typeof document !== 'undefined') {
+          document.cookie = `access_token=${newToken}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
+          if (newRefreshToken) {
+            document.cookie = `refreshToken=${newRefreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          }
+        }
 
         processQueue(null, newToken);
 
@@ -71,7 +105,9 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError);
         useAuthStore.getState().logout();
-        if (typeof window !== 'undefined') {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
+          document.cookie = 'refreshToken=; path=/; max-age=0; SameSite=Lax';
           window.location.href = '/auth/sign-in';
         }
         return Promise.reject(refreshError);

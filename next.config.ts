@@ -8,8 +8,23 @@ const baseConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'api.slingacademy.com',
-        port: ''
+        hostname: '**.supabase.co'
+      },
+      {
+        protocol: 'https',
+        hostname: '**.amazonaws.com'
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost'
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1'
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.slingacademy.com'
       }
     ]
   },

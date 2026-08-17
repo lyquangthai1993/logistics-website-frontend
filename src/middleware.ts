@@ -34,7 +34,32 @@ function parseJwt(token: string) {
   }
 }
 
-export function middleware(request: NextRequest) {
+async function refreshAccessToken(refreshToken: string): Promise<{ token: string; refreshToken?: string } | null> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${refreshToken}`
+      }
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const token = data?.token || data?.access_token || data?.data?.token || data?.data?.access_token;
+    if (!token) return null;
+
+    return {
+      token,
+      refreshToken: data?.refreshToken || data?.refresh_token
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
@@ -42,24 +67,30 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check auth token from cookie
-  const token = request.cookies.get('access_token')?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL('/auth/sign-in', request.url));
+  let token = request.cookies.get('access_token')?.value;
+  const refreshToken = request.cookies.get('refreshToken')?.value || request.cookies.get('refresh_token')?.value;
+  let payload = token ? parseJwt(token) : null;
+  let isRefreshed = false;
+  let newRefreshToken: string | undefined;
+
+  // Check if token is missing or expired
+  const isExpired = !payload || (payload.exp && payload.exp * 1000 < Date.now());
+
+  if (isExpired && refreshToken) {
+    const refreshResult = await refreshAccessToken(refreshToken);
+    if (refreshResult?.token) {
+      token = refreshResult.token;
+      payload = parseJwt(token);
+      isRefreshed = true;
+      newRefreshToken = refreshResult.refreshToken;
+    }
   }
 
-  // Decode JWT payload safely
-  const payload = parseJwt(token);
-  if (!payload) {
+  // If token is still invalid after refresh attempt, redirect to sign-in
+  if (!token || !payload || (payload.exp && payload.exp * 1000 < Date.now())) {
     const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
     response.cookies.delete('access_token');
-    return response;
-  }
-
-  // Check token expiration
-  if (payload.exp && payload.exp * 1000 < Date.now()) {
-    const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
-    response.cookies.delete('access_token');
+    response.cookies.delete('refreshToken');
     return response;
   }
 
@@ -72,11 +103,27 @@ export function middleware(request: NextRequest) {
   // Check role-based route access
   for (const [route, roles] of Object.entries(roleRouteMap)) {
     if (pathname.startsWith(route) && !roles.includes(userRole)) {
-      return NextResponse.redirect(new URL('/dashboard/overview', request.url));
+      const redirectUrl = new URL('/dashboard/overview', request.url);
+      const response = NextResponse.redirect(redirectUrl);
+      if (isRefreshed) {
+        response.cookies.set('access_token', token, { path: '/', maxAge: 24 * 60 * 60, sameSite: 'lax' });
+        if (newRefreshToken) {
+          response.cookies.set('refreshToken', newRefreshToken, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', httpOnly: true });
+        }
+      }
+      return response;
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (isRefreshed) {
+    response.cookies.set('access_token', token, { path: '/', maxAge: 24 * 60 * 60, sameSite: 'lax' });
+    if (newRefreshToken) {
+      response.cookies.set('refreshToken', newRefreshToken, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', httpOnly: true });
+    }
+  }
+
+  return response;
 }
 
 export const config = {

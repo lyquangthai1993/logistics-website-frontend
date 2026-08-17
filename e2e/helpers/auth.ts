@@ -68,14 +68,14 @@ export function collectConsoleLogs(page: Page) {
  */
 export async function loginAs(page: Page, creds: LoginCredentials): Promise<void> {
   await page.goto('/auth/sign-in');
-  await page.waitForLoadState('networkidle');
+  await page.locator('input[name="email"]').waitFor({ state: 'visible', timeout: 15_000 });
 
   await page.fill('input[name="email"]', creds.email);
   await page.fill('input[name="password"]', creds.password);
   await page.click('button[type="submit"]');
 
   // Wait for redirect after successful login
-  await page.waitForURL(/\/dashboard\/.*/, { timeout: 15_000, waitUntil: 'domcontentloaded' });
+  await page.waitForURL(/\/dashboard\/.*/, { timeout: 15_000 });
 }
 
 /**
