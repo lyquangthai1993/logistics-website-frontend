@@ -11,7 +11,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getInitials } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { IconCamera, IconUpload, IconTrash, IconLoader, IconUserOff, IconLock } from '@tabler/icons-react';
+import {
+  IconCamera,
+  IconUpload,
+  IconTrash,
+  IconLoader,
+  IconUserOff,
+  IconLock
+} from '@tabler/icons-react';
 
 const roleLabels: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -55,14 +62,17 @@ export default function ProfileViewPage() {
 
           const avatarPath = meData.photo?.path || meData.avatarUrl || '';
           const fullAvatarUrl = avatarPath
-            ? (avatarPath.startsWith('http')
-                ? avatarPath
-                : `${apiClient.defaults.baseURL || 'http://localhost:3001'}${avatarPath.startsWith('/') ? '' : '/'}${avatarPath}`)
+            ? avatarPath.startsWith('http')
+              ? avatarPath
+              : `${apiClient.defaults.baseURL || 'http://localhost:3001'}${avatarPath.startsWith('/') ? '' : '/'}${avatarPath}`
             : '';
 
           updateUser({
             ...meData,
-            name: meData.name || `${meData.firstName || ''} ${meData.lastName || ''}`.trim() || meData.email,
+            name:
+              meData.name ||
+              `${meData.firstName || ''} ${meData.lastName || ''}`.trim() ||
+              meData.email,
             role: roleCode,
             avatarUrl: fullAvatarUrl
           });
@@ -240,12 +250,26 @@ export default function ProfileViewPage() {
       <Card className='mx-auto max-w-lg w-full shadow-sm'>
         <CardHeader>
           <CardTitle>Thông tin tài khoản</CardTitle>
-          <CardDescription>Thông tin cá nhân và vai trò của bạn trong hệ thống Logistics TMS</CardDescription>
+          <CardDescription>
+            Thông tin cá nhân và vai trò của bạn trong hệ thống Logistics TMS
+          </CardDescription>
         </CardHeader>
         <CardContent className='space-y-6'>
           {/* Avatar Section */}
           <div className='flex flex-col items-center sm:flex-row sm:items-center gap-6 pb-6 border-b border-border/40'>
-            <div className='relative group cursor-pointer' onClick={handleTriggerSelect} title='Click để thay đổi ảnh đại diện'>
+            <div
+              role='button'
+              tabIndex={0}
+              className='relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary rounded-full'
+              onClick={handleTriggerSelect}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleTriggerSelect();
+                }
+              }}
+              title='Click để thay đổi ảnh đại diện'
+            >
               <Avatar className='h-24 w-24 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-transform group-hover:scale-105'>
                 <AvatarImage src={currentAvatarSrc} alt={user.name} className='object-cover' />
                 <AvatarFallback className='text-2xl font-bold bg-primary/10 text-primary'>

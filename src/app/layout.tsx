@@ -18,31 +18,31 @@ const META_THEME_COLORS = {
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
-    default: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
-    template: '%s | Shadcn Dashboard'
+    default: 'Logistics TMS - Hệ Thống Quản Lý Vận Tải',
+    template: '%s | Logistics TMS'
   },
   description:
-    'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
+    'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
   openGraph: {
-    title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
+    title: 'Logistics TMS - Hệ Thống Quản Lý Vận Tải',
     description:
-      'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
-    siteName: 'Shadcn Dashboard',
+      'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
+    siteName: 'Logistics TMS',
     type: 'website',
     images: [
       {
         url: '/shadcn-dashboard.png',
         width: 3200,
         height: 1600,
-        alt: 'Shadcn Dashboard overview page'
+        alt: 'Logistics TMS Dashboard'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
+    title: 'Logistics TMS - Hệ Thống Quản Lý Vận Tải',
     description:
-      'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
+      'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
     images: ['/shadcn-dashboard.png']
   }
 };
