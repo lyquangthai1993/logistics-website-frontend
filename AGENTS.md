@@ -4,7 +4,7 @@
 - Base: `Kiranism/next-shadcn-dashboard-starter` (Next.js App Router, Tailwind, Shadcn UI).
 - REMOVAL: Xóa bỏ hoàn toàn Clerk Auth dependencies (`@clerk/nextjs`, Clerk Middleware, Clerk Components).
 - ADDITION: Tự dựng JWT Auth Flow:
-  - `middleware.ts`: Chặn route theo Token & Role trong Cookie/Session.
+  - `src/proxy.ts`: Chặn route theo Token & Role trong Cookie/Session (Next.js 16+ proxy convention).
   - `src/lib/api-client.ts`: Axios / Fetch instance tự động attach `Authorization: Bearer <token>` và xử lý Refresh Token interceptor.
   - State: `useAuthStore` (Zustand) lưu User profile & Roles.
 

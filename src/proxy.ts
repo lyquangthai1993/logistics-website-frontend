@@ -34,7 +34,9 @@ function parseJwt(token: string) {
   }
 }
 
-async function refreshAccessToken(refreshToken: string): Promise<{ token: string; refreshToken?: string } | null> {
+async function refreshAccessToken(
+  refreshToken: string
+): Promise<{ token: string; refreshToken?: string } | null> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
@@ -47,7 +49,8 @@ async function refreshAccessToken(refreshToken: string): Promise<{ token: string
 
     if (!res.ok) return null;
     const data = await res.json();
-    const token = data?.token || data?.access_token || data?.data?.token || data?.data?.access_token;
+    const token =
+      data?.token || data?.access_token || data?.data?.token || data?.data?.access_token;
     if (!token) return null;
 
     return {
@@ -59,7 +62,7 @@ async function refreshAccessToken(refreshToken: string): Promise<{ token: string
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
@@ -68,7 +71,8 @@ export async function middleware(request: NextRequest) {
   }
 
   let token = request.cookies.get('access_token')?.value;
-  const refreshToken = request.cookies.get('refreshToken')?.value || request.cookies.get('refresh_token')?.value;
+  const refreshToken =
+    request.cookies.get('refreshToken')?.value || request.cookies.get('refresh_token')?.value;
   let payload = token ? parseJwt(token) : null;
   let isRefreshed = false;
   let newRefreshToken: string | undefined;
@@ -106,9 +110,18 @@ export async function middleware(request: NextRequest) {
       const redirectUrl = new URL('/dashboard/overview', request.url);
       const response = NextResponse.redirect(redirectUrl);
       if (isRefreshed) {
-        response.cookies.set('access_token', token, { path: '/', maxAge: 24 * 60 * 60, sameSite: 'lax' });
+        response.cookies.set('access_token', token, {
+          path: '/',
+          maxAge: 24 * 60 * 60,
+          sameSite: 'lax'
+        });
         if (newRefreshToken) {
-          response.cookies.set('refreshToken', newRefreshToken, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', httpOnly: true });
+          response.cookies.set('refreshToken', newRefreshToken, {
+            path: '/',
+            maxAge: 30 * 24 * 60 * 60,
+            sameSite: 'lax',
+            httpOnly: true
+          });
         }
       }
       return response;
@@ -117,9 +130,18 @@ export async function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   if (isRefreshed) {
-    response.cookies.set('access_token', token, { path: '/', maxAge: 24 * 60 * 60, sameSite: 'lax' });
+    response.cookies.set('access_token', token, {
+      path: '/',
+      maxAge: 24 * 60 * 60,
+      sameSite: 'lax'
+    });
     if (newRefreshToken) {
-      response.cookies.set('refreshToken', newRefreshToken, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', httpOnly: true });
+      response.cookies.set('refreshToken', newRefreshToken, {
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60,
+        sameSite: 'lax',
+        httpOnly: true
+      });
     }
   }
 
