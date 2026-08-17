@@ -1,30 +1,47 @@
 'use client';
 
+import { useState } from 'react';
 import { Icons } from '@/components/icons';
 import PageContainer from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
 import { NotificationCard } from '@/components/ui/notification-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useRouter } from 'next/navigation';
-import { useNotificationStore } from '../utils/store';
+import { useNotificationSocket } from '../hooks/use-notification-socket';
+import {
+  useNotificationsQuery,
+  useMarkAsReadMutation,
+  useMarkAllAsReadMutation,
+  type NotificationItem,
+} from '../hooks/use-notifications-query';
 
-const actionRoutes: Record<string, string> = {
-  view: '/dashboard/workspaces',
-  'view-product': '/dashboard/product',
-  billing: '/dashboard/billing',
-  open: '/dashboard/kanban',
-  'open-chat': '/dashboard/chat'
-};
+const PAGE_SIZE = 20;
 
 export default function NotificationsPage() {
-  const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotificationStore();
-  const router = useRouter();
-  const count = unreadCount();
+  // Kết nối WebSocket real-time (singleton)
+  useNotificationSocket();
 
-  const unreadNotifications = notifications.filter((n) => n.status === 'unread');
-  const readNotifications = notifications.filter((n) => n.status === 'read');
+  const [page, setPage] = useState(1);
+  const { data, isLoading, isFetching } = useNotificationsQuery(page, PAGE_SIZE);
+  const markAsRead = useMarkAsReadMutation();
+  const markAllAsRead = useMarkAllAsReadMutation();
 
-  const renderList = (items: typeof notifications) => {
+  const notifications = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
+  const readNotifications = notifications.filter((n) => n.isRead);
+  const unreadCount = unreadNotifications.length;
+
+  const renderList = (items: NotificationItem[]) => {
+    if (isLoading) {
+      return (
+        <div className='flex items-center justify-center py-16'>
+          <Icons.spinner className='text-muted-foreground h-6 w-6 animate-spin' />
+        </div>
+      );
+    }
+
     if (items.length === 0) {
       return (
         <div className='flex flex-col items-center justify-center py-16'>
@@ -39,20 +56,12 @@ export default function NotificationsPage() {
         {items.map((notification) => (
           <NotificationCard
             key={notification.id}
-            id={notification.id}
+            id={String(notification.id)}
             title={notification.title}
             body={notification.body}
-            status={notification.status}
+            status={notification.isRead ? 'read' : 'unread'}
             createdAt={notification.createdAt}
-            actions={notification.actions}
-            onMarkAsRead={markAsRead}
-            onAction={(notifId, actionId) => {
-              const route = actionRoutes[actionId];
-              if (route) {
-                markAsRead(notifId);
-                router.push(route);
-              }
-            }}
+            onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
           />
         ))}
       </div>
@@ -64,8 +73,13 @@ export default function NotificationsPage() {
       pageTitle='Notifications'
       pageDescription='View and manage all your notifications.'
       pageHeaderAction={
-        count > 0 ? (
-          <Button variant='outline' size='sm' onClick={markAllAsRead}>
+        unreadCount > 0 ? (
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => markAllAsRead.mutate()}
+            disabled={markAllAsRead.isPending}
+          >
             Mark all as read
           </Button>
         ) : undefined
@@ -73,8 +87,8 @@ export default function NotificationsPage() {
     >
       <Tabs defaultValue='all'>
         <TabsList>
-          <TabsTrigger value='all'>All ({notifications.length})</TabsTrigger>
-          <TabsTrigger value='unread'>Unread ({unreadNotifications.length})</TabsTrigger>
+          <TabsTrigger value='all'>All ({total})</TabsTrigger>
+          <TabsTrigger value='unread'>Unread ({unreadCount})</TabsTrigger>
           <TabsTrigger value='read'>Read ({readNotifications.length})</TabsTrigger>
         </TabsList>
         <TabsContent value='all' className='mt-4'>
@@ -87,6 +101,33 @@ export default function NotificationsPage() {
           {renderList(readNotifications)}
         </TabsContent>
       </Tabs>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className='mt-6 flex items-center justify-center gap-2'>
+          <Button
+            variant='outline'
+            size='sm'
+            disabled={page <= 1 || isFetching}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <Icons.chevronLeft className='h-4 w-4' />
+            Prev
+          </Button>
+          <span className='text-muted-foreground text-sm'>
+            Page {page} / {totalPages}
+          </span>
+          <Button
+            variant='outline'
+            size='sm'
+            disabled={page >= totalPages || isFetching}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+            <Icons.chevronRight className='h-4 w-4' />
+          </Button>
+        </div>
+      )}
     </PageContainer>
   );
 }
