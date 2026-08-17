@@ -654,7 +654,7 @@ export default function FleetPage() {
                 <select
                   id="select-vehicle-status"
                   value={vStatus}
-                  onChange={(e) => setVStatus(e.target.value as unknown as string)}
+                  onChange={(e) => setVStatus(e.target.value as 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE')}
                   className="w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer"
                 >
                   <option value="AVAILABLE">Sẵn Sàng</option>
@@ -790,7 +790,7 @@ export default function FleetPage() {
                 <select
                   id="select-driver-status"
                   value={dStatus}
-                  onChange={(e) => setDStatus(e.target.value as unknown as string)}
+                  onChange={(e) => setDStatus(e.target.value as 'AVAILABLE' | 'ON_TRIP' | 'OFF_DUTY')}
                   className="w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer"
                 >
                   <option value="AVAILABLE">Sẵn Sàng</option>
