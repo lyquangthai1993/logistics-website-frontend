@@ -3,19 +3,19 @@
 import { useTheme } from 'next-themes';
 import { toast, Toaster as Sonner, ToasterProps } from 'sonner';
 
+const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const toastEl = (e.target as HTMLElement).closest('[data-sonner-toast]');
+  if (toastEl) {
+    const id = toastEl.getAttribute('data-id');
+    if (id) toast.dismiss(id);
+  }
+};
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = 'system' } = useTheme();
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const toastEl = (e.target as HTMLElement).closest('[data-sonner-toast]');
-    if (toastEl) {
-      const id = toastEl.getAttribute('data-id');
-      if (id) toast.dismiss(id);
-    }
-  };
-
   return (
-    <div onClick={handleClick}>
+    <div onClick={handleClick} onKeyDown={() => {}} role='presentation'>
       <Sonner
         theme={theme as ToasterProps['theme']}
         className='toaster group'
