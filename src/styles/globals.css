@@ -19,6 +19,49 @@
     @apply bg-background text-foreground;
   }
 
+  /* Universal Interactive Element Cursor Baseline */
+  button,
+  [role='button'],
+  a[href],
+  select,
+  summary,
+  label[for],
+  input[type='submit'],
+  input[type='reset'],
+  input[type='button'],
+  input[type='checkbox'],
+  input[type='radio'],
+  [data-slot='button'],
+  [data-slot='dropdown-menu-trigger'],
+  [data-slot='dropdown-menu-item'],
+  [data-slot='select-trigger'],
+  [data-slot='select-item'],
+  [data-slot='tabs-trigger'],
+  [data-slot='accordion-trigger'],
+  [data-slot='dialog-close'],
+  [data-slot='sheet-close'],
+  [data-slot='popover-trigger'],
+  [data-slot='tooltip-trigger'],
+  [data-slot='checkbox'],
+  [data-slot='switch'],
+  [data-slot='radio-group-item'],
+  [data-slot='slider'],
+  [data-slot='breadcrumb-link'],
+  [data-interactive='true'] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [role='button'][aria-disabled='true'],
+  [data-disabled],
+  [aria-disabled='true'],
+  :disabled {
+    cursor: not-allowed !important;
+  }
+
   /* Global scrollbar styling to match ScrollArea */
   * {
     scrollbar-width: thin;
