@@ -10,6 +10,8 @@ export interface Vehicle {
   currentHub?: string | null;
   status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE';
   assignedDriverId?: number | null;
+  isExternal?: boolean;
+  externalProvider?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -35,6 +37,8 @@ export interface CreateVehiclePayload {
   currentHub?: string;
   status?: string;
   assignedDriverId?: number;
+  isExternal?: boolean;
+  externalProvider?: string;
 }
 
 export interface CreateDriverPayload {
@@ -79,5 +83,5 @@ export const fleetApi = {
   },
   deleteDriver: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/v1/drivers/${id}`);
-  },
+  }
 };

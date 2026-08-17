@@ -17,25 +17,25 @@ export interface LoginCredentials {
  */
 export const TEST_USERS: LoginCredentials[] = [
   {
-    email: process.env.E2E_SUPER_ADMIN_EMAIL ?? 'admin@spiderexpress.vn',
+    email: process.env.E2E_SUPER_ADMIN_EMAIL ?? 'lyquangthai1993+1@gmail.com',
     password: process.env.E2E_SUPER_ADMIN_PASSWORD ?? 'secret',
     role: 'SUPER_ADMIN',
     expectedLandingPath: '/dashboard/overview'
   },
   {
-    email: process.env.E2E_DISPATCHER_EMAIL ?? 'ducanh@spiderexpress.vn',
+    email: process.env.E2E_DISPATCHER_EMAIL ?? 'lyquangthai1993+2@gmail.com',
     password: process.env.E2E_DISPATCHER_PASSWORD ?? 'secret',
     role: 'DISPATCHER',
     expectedLandingPath: '/dashboard/overview'
   },
   {
-    email: process.env.E2E_FLEET_MANAGER_EMAIL ?? 'fleet@spiderexpress.vn',
+    email: process.env.E2E_FLEET_MANAGER_EMAIL ?? 'lyquangthai1993+3@gmail.com',
     password: process.env.E2E_FLEET_MANAGER_PASSWORD ?? 'secret',
     role: 'FLEET_MANAGER',
     expectedLandingPath: '/dashboard/overview'
   },
   {
-    email: process.env.E2E_WAREHOUSE_MANAGER_EMAIL ?? 'warehouse@spiderexpress.vn',
+    email: process.env.E2E_WAREHOUSE_MANAGER_EMAIL ?? 'lyquangthai1993+4@gmail.com',
     password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
     expectedLandingPath: '/dashboard/overview'
@@ -61,7 +61,7 @@ export function collectConsoleLogs(page: Page) {
     getLogs: () => logs,
     stop: () => page.off('console', handler)
   };
-};
+}
 
 /**
  * Perform login via UI and wait for redirect.

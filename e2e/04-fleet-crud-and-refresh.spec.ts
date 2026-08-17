@@ -6,9 +6,9 @@ import { test, expect } from '@playwright/test';
 import { loginAs, clearSession, TEST_USERS } from './helpers/auth';
 
 const fleetUser = TEST_USERS.find((u) => u.role === 'FLEET_MANAGER') ?? {
-  email: 'fleet@spiderexpress.vn',
+  email: 'lyquangthai1993+3@gmail.com',
   password: 'secret',
-  role: 'FLEET_MANAGER' as const,
+  role: 'FLEET_MANAGER' as const
 };
 
 test.describe('[Fleet Management] CRUD Operations & Refresh Token', () => {
@@ -24,7 +24,9 @@ test.describe('[Fleet Management] CRUD Operations & Refresh Token', () => {
   });
 
   test('1. Renders Fleet Dashboard & Seeded Data', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /Quản Lý Đội Xe/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Quản Lý Đội Xe/i })).toBeVisible({
+      timeout: 10_000
+    });
     // Check seeded vehicle
     await expect(page.locator('table')).toContainText('75H-051.21', { timeout: 10_000 });
     await expect(page.locator('table')).toContainText('43H-212.48', { timeout: 10_000 });
@@ -140,8 +142,12 @@ test.describe('[Fleet Management] CRUD Operations & Refresh Token', () => {
 
     // Verify Next.js middleware automatically refreshes access token and preserves session
     await expect(page).not.toHaveURL(/\/auth\/sign-in/);
-    await expect(page.getByRole('heading', { name: /Quản Lý Đội Xe/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /Quản Lý Đội Xe/i })).toBeVisible({
+      timeout: 15_000
+    });
     await expect(page.locator('table')).toContainText('75H-051.21', { timeout: 10_000 });
-    console.log('✅ Page Reload (F5) Middleware Refresh Token rotation successfully renewed session!');
+    console.log(
+      '✅ Page Reload (F5) Middleware Refresh Token rotation successfully renewed session!'
+    );
   });
 });

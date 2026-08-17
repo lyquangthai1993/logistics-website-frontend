@@ -29,6 +29,42 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
+        title: 'Lệnh điều vận',
+        url: '/dashboard/orders',
+        icon: 'forms',
+        shortcut: ['o', 'r'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,DISPATCHER' }
+      },
+      {
+        title: 'Phân công xe',
+        url: '/dashboard/trips',
+        icon: 'truck',
+        shortcut: ['t', 'r'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,FLEET_MANAGER,DISPATCHER' }
+      },
+      {
+        title: 'Quản lý đội xe',
+        url: '/dashboard/fleet',
+        icon: 'truck',
+        shortcut: ['f', 'l'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,FLEET_MANAGER' }
+      },
+      {
+        title: 'Inbound Kho',
+        url: '/dashboard/warehouse',
+        icon: 'product',
+        shortcut: ['w', 'h'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
+      },
+      {
         title: 'Product',
         url: '/dashboard/product',
         icon: 'product',
@@ -44,15 +80,6 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         items: [],
         access: { role: 'SUPER_ADMIN' }
-      },
-      {
-        title: 'Quản lý đội xe',
-        url: '/dashboard/fleet',
-        icon: 'product',
-        shortcut: ['f', 'l'],
-        isActive: false,
-        items: [],
-        access: { role: 'SUPER_ADMIN,FLEET_MANAGER' }
       },
       {
         title: 'Kanban',

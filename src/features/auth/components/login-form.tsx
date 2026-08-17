@@ -15,7 +15,15 @@ import {
   PopoverTrigger
 } from '@/components/ui/popover';
 import { Icons } from '@/components/icons';
-import { IconKey, IconCopy, IconCheck, IconUserCheck, IconEye, IconEyeOff } from '@tabler/icons-react';
+import {
+  IconKey,
+  IconCopy,
+  IconCheck,
+  IconUserCheck,
+  IconEye,
+  IconEyeOff,
+  IconUser
+} from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { apiClient } from '@/lib/api-client';
 
@@ -23,7 +31,8 @@ const DEMO_ACCOUNTS = [
   {
     role: 'Super Admin',
     roleCode: 'SUPER_ADMIN',
-    email: 'admin@spiderexpress.vn',
+    username: 'admin',
+    email: 'lyquangthai1993+1@gmail.com',
     password: 'secret',
     altPassword: 'Admin@123',
     badgeVariant: 'destructive' as const,
@@ -32,7 +41,8 @@ const DEMO_ACCOUNTS = [
   {
     role: 'Điều phối viên',
     roleCode: 'DISPATCHER',
-    email: 'ducanh@spiderexpress.vn',
+    username: 'dispatcher',
+    email: 'lyquangthai1993+2@gmail.com',
     password: 'secret',
     altPassword: 'Dispatcher@123',
     badgeVariant: 'default' as const,
@@ -41,7 +51,8 @@ const DEMO_ACCOUNTS = [
   {
     role: 'Quản lý Đội xe',
     roleCode: 'FLEET_MANAGER',
-    email: 'fleet@spiderexpress.vn',
+    username: 'fleet',
+    email: 'lyquangthai1993+3@gmail.com',
     password: 'secret',
     altPassword: 'Fleet@123',
     badgeVariant: 'secondary' as const,
@@ -50,7 +61,8 @@ const DEMO_ACCOUNTS = [
   {
     role: 'Quản lý Kho',
     roleCode: 'WAREHOUSE_MANAGER',
-    email: 'warehouse@spiderexpress.vn',
+    username: 'warehouse',
+    email: 'lyquangthai1993+4@gmail.com',
     password: 'secret',
     altPassword: 'Warehouse@123',
     badgeVariant: 'outline' as const,
@@ -69,8 +81,8 @@ export function LoginForm() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const handleQuickFill = (accEmail: string, accPass: string) => {
-    setEmail(accEmail);
+  const handleQuickFill = (identifier: string, accPass: string) => {
+    setEmail(identifier);
     setPassword(accPass);
     setPopoverOpen(false);
   };
@@ -111,7 +123,11 @@ export function LoginForm() {
 
       const user = {
         ...rawUser,
-        name: rawUser.name || `${rawUser.firstName || ''} ${rawUser.lastName || ''}`.trim() || rawUser.email,
+        name:
+          rawUser.name ||
+          `${rawUser.firstName || ''} ${rawUser.lastName || ''}`.trim() ||
+          rawUser.username ||
+          rawUser.email,
         role: roleCode
       };
 
@@ -127,7 +143,7 @@ export function LoginForm() {
       router.push('/dashboard/overview');
     } catch (err: any) {
       const message =
-        err?.response?.data?.message || 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
+        err?.response?.data?.message || 'Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại.';
       setError(message);
     } finally {
       setIsLoading(false);
@@ -157,35 +173,39 @@ export function LoginForm() {
             Xem tài khoản Demo
           </PopoverTrigger>
 
-          <PopoverContent className='w-80 p-4 sm:w-96' align='end' sideOffset={8}>
+          <PopoverContent className='w-84 p-4 sm:w-96' align='end' sideOffset={8}>
             <PopoverHeader className='pb-2 border-b border-border/40'>
               <PopoverTitle className='flex items-center gap-2 text-sm font-semibold'>
                 <IconKey className='h-4 w-4 text-amber-500' />
                 Tài khoản Demo có sẵn
               </PopoverTitle>
               <PopoverDescription className='text-xs text-muted-foreground'>
-                Click &quot;Điền form&quot; để tự động điền email và mật khẩu
+                Hỗ trợ đăng nhập bằng <b>Username</b> hoặc <b>Email</b>
               </PopoverDescription>
             </PopoverHeader>
 
-            <div className='mt-3 space-y-2.5 max-h-[320px] overflow-y-auto pr-1'>
+            <div className='mt-3 space-y-2.5 max-h-[340px] overflow-y-auto pr-1'>
               {DEMO_ACCOUNTS.map((acc) => (
                 <div
                   key={acc.email}
                   className='group relative flex flex-col justify-between rounded-lg border border-border/60 bg-muted/30 p-2.5 transition-all hover:bg-muted/70 hover:border-border'
                 >
                   <div className='flex items-center justify-between mb-1.5'>
-                    <div className='flex items-center gap-2'>
+                    <div className='flex items-center gap-1.5'>
                       <Badge variant={acc.badgeVariant} className='text-[10px] px-1.5 py-0'>
                         {acc.role}
                       </Badge>
+                      <span className='inline-flex items-center gap-1 text-[11px] font-mono font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded'>
+                        <IconUser className='h-3 w-3' />
+                        {acc.username}
+                      </span>
                     </div>
                     <Button
                       type='button'
                       variant='ghost'
                       size='sm'
                       className='h-7 px-2 text-xs gap-1 text-primary font-medium hover:bg-primary/10'
-                      onClick={() => handleQuickFill(acc.email, acc.password)}
+                      onClick={() => handleQuickFill(acc.username, acc.password)}
                     >
                       <IconUserCheck className='h-3.5 w-3.5' />
                       Điền form
@@ -194,21 +214,35 @@ export function LoginForm() {
 
                   <div className='space-y-1 text-xs'>
                     <div className='flex items-center justify-between text-muted-foreground'>
-                      <span className='font-mono text-foreground font-medium selection:bg-amber-500/20'>
+                      <span className='font-mono text-[11px] text-foreground font-medium selection:bg-amber-500/20 truncate max-w-[200px]'>
                         {acc.email}
                       </span>
-                      <button
-                        type='button'
-                        onClick={() => handleCopy(acc.email, `email-${acc.email}`)}
-                        className='text-muted-foreground hover:text-foreground transition-colors p-0.5 cursor-pointer'
-                        title='Copy email'
-                      >
-                        {copiedField === `email-${acc.email}` ? (
-                          <IconCheck className='h-3.5 w-3.5 text-emerald-500' />
-                        ) : (
-                          <IconCopy className='h-3.5 w-3.5' />
-                        )}
-                      </button>
+                      <div className='flex items-center gap-1'>
+                        <button
+                          type='button'
+                          onClick={() => handleCopy(acc.username, `user-${acc.username}`)}
+                          className='text-muted-foreground hover:text-foreground transition-colors p-0.5 cursor-pointer text-[10px] font-mono bg-background px-1 rounded border border-border/40'
+                          title='Copy username'
+                        >
+                          {copiedField === `user-${acc.username}` ? (
+                            <span className='text-emerald-500 font-semibold'>Copied</span>
+                          ) : (
+                            'user'
+                          )}
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => handleCopy(acc.email, `email-${acc.email}`)}
+                          className='text-muted-foreground hover:text-foreground transition-colors p-0.5 cursor-pointer text-[10px] font-mono bg-background px-1 rounded border border-border/40'
+                          title='Copy email'
+                        >
+                          {copiedField === `email-${acc.email}` ? (
+                            <span className='text-emerald-500 font-semibold'>Copied</span>
+                          ) : (
+                            'email'
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <div className='flex items-center justify-between text-muted-foreground text-[11px]'>
                       <span>
@@ -249,14 +283,14 @@ export function LoginForm() {
           <div className='bg-destructive/10 text-destructive rounded-md p-3 text-sm'>{error}</div>
         )}
         <div className='space-y-2'>
-          <Label htmlFor='email'>Email</Label>
+          <Label htmlFor='email'>Email hoặc Tên đăng nhập</Label>
           <Input
             id='email'
             name='email'
-            type='email'
-            placeholder='name@company.com'
+            type='text'
+            placeholder='admin hoặc lyquangthai1993+admin@gmail.com'
             required
-            autoComplete='email'
+            autoComplete='username'
             disabled={isLoading}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -284,11 +318,7 @@ export function LoginForm() {
               title={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
               tabIndex={-1}
             >
-              {showPassword ? (
-                <IconEyeOff className='h-4 w-4' />
-              ) : (
-                <IconEye className='h-4 w-4' />
-              )}
+              {showPassword ? <IconEyeOff className='h-4 w-4' /> : <IconEye className='h-4 w-4' />}
             </button>
           </div>
         </div>

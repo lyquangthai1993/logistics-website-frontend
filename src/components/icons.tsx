@@ -231,3 +231,5 @@ export const Icons = {
   package: IconPackage,
   mapPin: IconMapPin
 };
+
+export { IconTruck, IconMapPin };

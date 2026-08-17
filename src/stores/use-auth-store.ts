@@ -7,6 +7,7 @@ export type UserRole = 'SUPER_ADMIN' | 'DISPATCHER' | 'FLEET_MANAGER' | 'WAREHOU
 
 export interface User {
   id: string;
+  username?: string | null;
   name: string;
   email: string;
   role: UserRole;
@@ -39,7 +40,12 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setAuth: (user, accessToken, refreshToken = null) =>
-        set({ user, accessToken, refreshToken: refreshToken || get().refreshToken, isAuthenticated: true }),
+        set({
+          user,
+          accessToken,
+          refreshToken: refreshToken || get().refreshToken,
+          isAuthenticated: true
+        }),
 
       setAccessToken: (accessToken, refreshToken = null) =>
         set((state) => ({ accessToken, refreshToken: refreshToken || state.refreshToken })),
@@ -49,7 +55,8 @@ export const useAuthStore = create<AuthState>()(
           user: state.user ? { ...state.user, ...partialUser } : null
         })),
 
-      logout: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+      logout: () =>
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
 
       hasRole: (...roles) => {
         const { user } = get();

@@ -9,9 +9,9 @@ import { test, expect } from '@playwright/test';
 import { loginAs, clearSession } from './helpers/auth';
 
 const DISPATCHER = {
-  email: process.env.E2E_DISPATCHER_EMAIL ?? 'ducanh@spiderexpress.vn',
+  email: process.env.E2E_DISPATCHER_EMAIL ?? 'lyquangthai1993+2@gmail.com',
   password: process.env.E2E_DISPATCHER_PASSWORD ?? 'secret',
-  role: 'DISPATCHER' as const,
+  role: 'DISPATCHER' as const
 };
 
 test.describe('[Notifications] Visual UI – Dispatcher', () => {
@@ -35,9 +35,10 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
     });
 
     // Badge phải hiển thị số > 0
-    const badge = page.locator('header').getByText(/^[1-9]\d*$/).or(
-      page.locator('span').filter({ hasText: /^[1-9]$|^[1-9]\+$/ })
-    );
+    const badge = page
+      .locator('header')
+      .getByText(/^[1-9]\d*$/)
+      .or(page.locator('span').filter({ hasText: /^[1-9]$|^[1-9]\+$/ }));
 
     // Verify bell button visible
     const bellBtn = page.getByRole('button', { name: /notifications/i });
@@ -62,19 +63,19 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
 
     // Screenshot popover
     await page.screenshot({
-      path: 'test-results/noti-02-bell-popover.png',
+      path: 'test-results/noti-02-bell-popover.png'
     });
 
     // Kiểm tra có notification items
-    const popoverContent = page.locator('[data-radix-popper-content-wrapper], [role="dialog"]').or(
-      page.locator('.PopoverContent, [class*="popover"]')
-    );
+    const popoverContent = page
+      .locator('[data-radix-popper-content-wrapper], [role="dialog"]')
+      .or(page.locator('.PopoverContent, [class*="popover"]'));
 
     // Tìm text notification trong trang
     await expect(
-      page.getByText('Đơn hàng mới NDA2607-001').or(
-        page.getByText('Cảnh báo tuyến xe TRIP-2607-002')
-      )
+      page
+        .getByText('Đơn hàng mới NDA2607-001')
+        .or(page.getByText('Cảnh báo tuyến xe TRIP-2607-002'))
     ).toBeVisible({ timeout: 10_000 });
 
     console.log('✅ Notification items visible in popover');
@@ -89,7 +90,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
     // Screenshot full page
     await page.screenshot({
       path: 'test-results/noti-03-page-all-tab.png',
-      fullPage: true,
+      fullPage: true
     });
 
     // Tabs phải hiện
@@ -98,9 +99,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
     await expect(page.getByRole('tab', { name: /read/i }).last()).toBeVisible();
 
     // Có ít nhất 1 notification item
-    await expect(
-      page.getByText('Đơn hàng mới NDA2607-001')
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Đơn hàng mới NDA2607-001')).toBeVisible({ timeout: 10_000 });
 
     console.log('✅ All tab shows notification list');
   });
@@ -117,21 +116,15 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
 
     await page.screenshot({
       path: 'test-results/noti-04-unread-tab.png',
-      fullPage: true,
+      fullPage: true
     });
 
     // 2 unread notifications seeded
-    await expect(
-      page.getByText('Đơn hàng mới NDA2607-001')
-    ).toBeVisible({ timeout: 8_000 });
-    await expect(
-      page.getByText('Cảnh báo tuyến xe TRIP-2607-002')
-    ).toBeVisible();
+    await expect(page.getByText('Đơn hàng mới NDA2607-001')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText('Cảnh báo tuyến xe TRIP-2607-002')).toBeVisible();
 
     // Read item không hiện ở tab Unread
-    await expect(
-      page.getByText('Lịch giao hàng cập nhật')
-    ).not.toBeVisible();
+    await expect(page.getByText('Lịch giao hàng cập nhật')).not.toBeVisible();
 
     console.log('✅ Unread tab shows 2 unread items, hides read items');
   });
@@ -155,7 +148,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
 
       await page.screenshot({
         path: 'test-results/noti-05-after-mark-read.png',
-        fullPage: true,
+        fullPage: true
       });
       console.log('✅ Marked first notification as read');
     } else {
@@ -180,13 +173,11 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
 
     await page.screenshot({
       path: 'test-results/noti-06-read-tab.png',
-      fullPage: true,
+      fullPage: true
     });
 
     // Ít nhất 1 read item
-    await expect(
-      page.getByText('Lịch giao hàng cập nhật')
-    ).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText('Lịch giao hàng cập nhật')).toBeVisible({ timeout: 8_000 });
 
     console.log('✅ Read tab shows read notifications');
   });
