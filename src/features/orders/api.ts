@@ -75,8 +75,8 @@ export const ordersApi = {
     return res.data;
   },
 
-  markNoVehicle: async (id: number): Promise<Order> => {
-    const res = await apiClient.patch(`/api/v1/orders/${id}/no-vehicle`);
+  markNoVehicle: async (id: number, reason?: string): Promise<Order> => {
+    const res = await apiClient.patch(`/api/v1/orders/${id}/no-vehicle`, { reason });
     return res.data;
   },
 

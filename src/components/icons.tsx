@@ -91,7 +91,12 @@ import {
   IconUsers,
   IconVideo,
   IconCrown,
-  IconX
+  IconX,
+  IconBuildingWarehouse,
+  IconTruckDelivery,
+  IconSteeringWheel,
+  IconTruckOff,
+  IconFileInvoice
 } from '@tabler/icons-react';
 
 export type Icon = React.ComponentType<IconProps>;
@@ -226,10 +231,25 @@ export const Icons = {
   moreHorizontal: IconDots,
 
   // Logistics
+  orders: IconFileInvoice,
+  trips: IconRoute,
+  fleet: IconTruck,
+  warehouse: IconBuildingWarehouse,
   truck: IconTruck,
   route: IconRoute,
   package: IconPackage,
-  mapPin: IconMapPin
+  mapPin: IconMapPin,
+  steeringWheel: IconSteeringWheel,
+  truckDelivery: IconTruckDelivery,
+  truckOff: IconTruckOff
 };
 
-export { IconTruck, IconMapPin };
+export {
+  IconTruck,
+  IconMapPin,
+  IconRoute,
+  IconBuildingWarehouse,
+  IconTruckOff,
+  IconSteeringWheel,
+  IconFileInvoice
+};

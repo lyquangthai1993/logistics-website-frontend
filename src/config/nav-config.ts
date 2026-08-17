@@ -31,7 +31,7 @@ export const navGroups: NavGroup[] = [
       {
         title: 'Lệnh điều vận',
         url: '/dashboard/orders',
-        icon: 'forms',
+        icon: 'orders',
         shortcut: ['o', 'r'],
         isActive: false,
         items: [],
@@ -40,7 +40,7 @@ export const navGroups: NavGroup[] = [
       {
         title: 'Phân công xe',
         url: '/dashboard/trips',
-        icon: 'truck',
+        icon: 'trips',
         shortcut: ['t', 'r'],
         isActive: false,
         items: [],
@@ -49,7 +49,7 @@ export const navGroups: NavGroup[] = [
       {
         title: 'Quản lý đội xe',
         url: '/dashboard/fleet',
-        icon: 'truck',
+        icon: 'fleet',
         shortcut: ['f', 'l'],
         isActive: false,
         items: [],
@@ -58,7 +58,7 @@ export const navGroups: NavGroup[] = [
       {
         title: 'Inbound Kho',
         url: '/dashboard/warehouse',
-        icon: 'product',
+        icon: 'warehouse',
         shortcut: ['w', 'h'],
         isActive: false,
         items: [],

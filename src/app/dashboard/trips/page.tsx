@@ -28,7 +28,8 @@ import {
   IconSearch,
   IconClock,
   IconCircleCheck,
-  IconAlertCircle
+  IconAlertCircle,
+  IconTruckOff
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
@@ -57,6 +58,13 @@ export default function TripsPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal No Vehicle state
+  const [isNoVehicleModalOpen, setIsNoVehicleModalOpen] = useState(false);
+  const [noVehicleOrder, setNoVehicleOrder] = useState<Order | null>(null);
+  const [noVehicleReasonCategory, setNoVehicleReasonCategory] = useState('BUSY');
+  const [noVehicleCustomReason, setNoVehicleCustomReason] = useState('');
+  const [submittingNoVehicle, setSubmittingNoVehicle] = useState(false);
 
   // Single Trip form states
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | ''>('');
@@ -105,9 +113,9 @@ export default function TripsPage() {
       setOrders(ordersData);
       setVehicles(vehiclesData);
       setDrivers(driversData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Không thể tải dữ liệu điều phối', {
-        description: err.response?.data?.message || err.message
+        description: (err as Error).message
       });
     } finally {
       setLoading(false);
@@ -173,17 +181,43 @@ export default function TripsPage() {
     setIsAssignModalOpen(true);
   };
 
-  // Mark No Vehicle action
-  const handleMarkNoVehicle = async (orderId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn thông báo ĐỘI XE KHÔNG CÒN XE cho đơn hàng này?')) return;
+  // Mark No Vehicle Modal Handlers
+  const handleOpenNoVehicleModal = (order: Order) => {
+    setNoVehicleOrder(order);
+    setNoVehicleReasonCategory('BUSY');
+    setNoVehicleCustomReason('');
+    setIsNoVehicleModalOpen(true);
+  };
+
+  const handleConfirmNoVehicle = async () => {
+    if (!noVehicleOrder) return;
     try {
-      await ordersApi.markNoVehicle(orderId);
-      toast.warning('Đã cập nhật trạng thái đơn: Không có xe');
-      loadAllData();
-    } catch (err: any) {
-      toast.error('Lỗi cập nhật trạng thái', {
-        description: err.response?.data?.message || err.message
+      setSubmittingNoVehicle(true);
+      const reasonLabels: Record<string, string> = {
+        BUSY: 'Toàn bộ xe nội bộ phù hợp đang trong lộ trình vận chuyển',
+        MAINTENANCE: 'Xe đang trong kế hoạch bảo dưỡng, kiểm định kỹ thuật',
+        OVER_CAPACITY: 'Khối lượng / thể tích vượt quá tải trọng của xe khả dụng',
+        HUB_UNAVAILABLE: 'Không có xe khả dụng tại Hub xuất phát này',
+        CUSTOM: 'Khác'
+      };
+      const baseReason = reasonLabels[noVehicleReasonCategory] || 'Hết xe';
+      const finalReason = noVehicleCustomReason.trim()
+        ? `${baseReason}. Chi tiết: ${noVehicleCustomReason.trim()}`
+        : baseReason;
+
+      await ordersApi.markNoVehicle(noVehicleOrder.id, finalReason);
+      toast.warning(`Đã báo hết xe cho đơn ${noVehicleOrder.orderCode}`, {
+        description: 'Bộ phận Điều phối (Dispatcher) đã được cập nhật để chủ động thuê xe ngoài.'
       });
+      setIsNoVehicleModalOpen(false);
+      setNoVehicleOrder(null);
+      loadAllData();
+    } catch (err: unknown) {
+      toast.error('Lỗi cập nhật trạng thái hết xe', {
+        description: (err as Error).message
+      });
+    } finally {
+      setSubmittingNoVehicle(false);
     }
   };
 
@@ -246,9 +280,9 @@ export default function TripsPage() {
 
       setIsAssignModalOpen(false);
       loadAllData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Lỗi khi phân công chuyến xe', {
-        description: err.response?.data?.message || err.message
+        description: (err as Error).message
       });
     } finally {
       setSubmitting(false);
@@ -263,9 +297,9 @@ export default function TripsPage() {
         description: 'Đã cập nhật trạng thái và tự động gửi thông báo đến Inbound Kho.'
       });
       loadAllData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Không thể xác nhận chuyến xe', {
-        description: err.response?.data?.message || err.message
+        description: (err as Error).message
       });
     }
   };
@@ -372,7 +406,7 @@ export default function TripsPage() {
       {/* Tabs Layout */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as any)}
+        onValueChange={(val) => setActiveTab(val as 'pending-orders' | 'all-trips')}
         className='space-y-4'
       >
         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
@@ -497,8 +531,8 @@ export default function TripsPage() {
                           <Button
                             variant='outline'
                             size='sm'
-                            onClick={() => handleMarkNoVehicle(order.id)}
-                            className='text-xs text-rose-600 hover:bg-rose-50 border-rose-200 dark:border-rose-900'
+                            onClick={() => handleOpenNoVehicleModal(order)}
+                            className='text-xs text-rose-600 hover:bg-rose-50 border-rose-200 dark:border-rose-900 cursor-pointer'
                           >
                             <IconAlertTriangle className='h-3.5 w-3.5 mr-1' />
                             Báo hết xe
@@ -1146,6 +1180,167 @@ export default function TripsPage() {
                   </Button>
                 </DialogFooter>
               </form>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 🔴 DIALOG BÁO HẾT XE (NO VEHICLE AVAILABLE MODAL) */}
+      <Dialog open={isNoVehicleModalOpen} onOpenChange={setIsNoVehicleModalOpen}>
+        <DialogContent className='max-w-xl max-h-[90vh] overflow-y-auto'>
+          <DialogHeader>
+            <div className='flex items-center gap-3'>
+              <div className='p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'>
+                <IconTruckOff className='h-6 w-6' />
+              </div>
+              <div>
+                <DialogTitle className='text-lg font-bold text-slate-900 dark:text-slate-100'>
+                  Xác Nhận Báo Hết Xe Nội Bộ
+                </DialogTitle>
+                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
+                  Thông báo cho người điều phối (Dispatcher) rằng Đội xe không thể bố trí phương
+                  tiện nội bộ.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {noVehicleOrder && (
+            <div className='space-y-4 pt-2'>
+              {/* Order summary card */}
+              <div className='p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg space-y-2'>
+                <div className='flex items-center justify-between text-xs'>
+                  <span className='font-mono font-bold text-sm text-slate-900 dark:text-slate-100'>
+                    {noVehicleOrder.orderCode}
+                  </span>
+                  <Badge
+                    variant='outline'
+                    className='bg-amber-50 text-amber-700 border-amber-200 text-[11px] font-semibold'
+                  >
+                    Chờ phân xe
+                  </Badge>
+                </div>
+                <div className='text-xs text-slate-600 dark:text-slate-300 font-medium'>
+                  📍 Tuyến:{' '}
+                  <span className='font-semibold'>
+                    {noVehicleOrder.originHub} ➔ {noVehicleOrder.destinationHub}
+                  </span>
+                </div>
+                <div className='flex items-center gap-4 text-xs text-slate-500 font-mono'>
+                  <span>
+                    ⚖️ Khối lượng:{' '}
+                    <strong className='text-slate-700 dark:text-slate-300'>
+                      {noVehicleOrder.totalWeight.toLocaleString()} kg
+                    </strong>
+                  </span>
+                  <span>
+                    📦 Thể tích:{' '}
+                    <strong className='text-slate-700 dark:text-slate-300'>
+                      {noVehicleOrder.totalVolume} m³
+                    </strong>
+                  </span>
+                </div>
+                {noVehicleOrder.goodsDescription && (
+                  <div className='text-xs text-slate-500 italic truncate'>
+                    Loại hàng: {noVehicleOrder.goodsDescription}
+                  </div>
+                )}
+              </div>
+
+              {/* Reason options */}
+              <div className='space-y-2'>
+                <div className='text-xs font-bold text-slate-700 dark:text-slate-300 block'>
+                  Lý do không thể bố trí xe <span className='text-rose-500'>*</span>
+                </div>
+                <div className='space-y-1.5'>
+                  {[
+                    {
+                      id: 'BUSY',
+                      label: 'Toàn bộ xe nội bộ phù hợp đang trong lộ trình vận chuyển'
+                    },
+                    {
+                      id: 'MAINTENANCE',
+                      label: 'Xe đang trong kế hoạch bảo dưỡng, kiểm định kỹ thuật'
+                    },
+                    {
+                      id: 'OVER_CAPACITY',
+                      label: 'Khối lượng / thể tích vượt quá tải trọng của xe khả dụng'
+                    },
+                    { id: 'HUB_UNAVAILABLE', label: 'Không có xe khả dụng tại Hub xuất phát này' },
+                    { id: 'CUSTOM', label: 'Lý do khác / Khuyến nghị điều xe ngoài cụ thể' }
+                  ].map((item) => (
+                    <label
+                      key={item.id}
+                      className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
+                        noVehicleReasonCategory === item.id
+                          ? 'border-rose-300 bg-rose-50/60 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 font-semibold'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <input
+                        type='radio'
+                        name='noVehicleReason'
+                        value={item.id}
+                        checked={noVehicleReasonCategory === item.id}
+                        onChange={() => setNoVehicleReasonCategory(item.id)}
+                        className='text-rose-600 focus:ring-rose-500 h-3.5 w-3.5'
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom reason / detail note */}
+              <div className='space-y-1.5'>
+                <label
+                  htmlFor='no-vehicle-custom-reason'
+                  className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+                >
+                  Ghi chú chi tiết / Khuyến nghị gửi đến Người điều phối (Dispatcher):
+                </label>
+                <Textarea
+                  id='no-vehicle-custom-reason'
+                  rows={3}
+                  value={noVehicleCustomReason}
+                  onChange={(e) => setNoVehicleCustomReason(e.target.value)}
+                  placeholder='VD: Toàn bộ xe tải 15T đang chạy tuyến Huế - SG đến 20/08. Đề nghị Dispatcher chủ động thuê xe ngoài để kịp tiến độ khách hàng...'
+                  className='text-xs resize-none'
+                />
+              </div>
+
+              {/* Informative advice banner */}
+              <div className='p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-lg text-xs text-amber-800 dark:text-amber-300 space-y-1'>
+                <div className='font-bold flex items-center gap-1.5'>
+                  <span>💡 Hướng dẫn nghiệp vụ:</span>
+                </div>
+                <p className='text-[11px] leading-relaxed text-amber-700 dark:text-amber-400'>
+                  Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái{' '}
+                  <strong>"Không có xe" (NO_VEHICLE)</strong>. Người điều phối sẽ nhận được phản hồi
+                  để kịp thời liên hệ đối tác vận tải ngoài (External Fleet) hoặc đổi lịch trình.
+                </p>
+              </div>
+
+              <DialogFooter className='pt-2'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => setIsNoVehicleModalOpen(false)}
+                  disabled={submittingNoVehicle}
+                  className='cursor-pointer'
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  type='button'
+                  onClick={handleConfirmNoVehicle}
+                  disabled={submittingNoVehicle}
+                  className='bg-rose-600 hover:bg-rose-700 text-white cursor-pointer font-semibold'
+                >
+                  <IconAlertTriangle className='h-4 w-4 mr-1.5' />
+                  {submittingNoVehicle ? 'Đang gửi...' : 'Xác nhận báo hết xe'}
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
