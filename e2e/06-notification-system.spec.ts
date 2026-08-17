@@ -24,7 +24,7 @@ const ADMIN = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
 async function getAdminToken(): Promise<{ token: string; userId: number }> {
   const ctx = await request.newContext();
   const res = await ctx.post(`${API_BASE}/api/v1/auth/email/login`, {
-    data: { email: ADMIN.email, password: ADMIN.password },
+    data: { email: ADMIN.email, password: ADMIN.password }
   });
   expect(res.status(), 'Login API should return 200').toBe(200);
   const body = await res.json();
@@ -35,17 +35,12 @@ async function getAdminToken(): Promise<{ token: string; userId: number }> {
 }
 
 // ── Helper: tạo notification qua REST API ───────────────────────────────────
-async function createNotification(
-  token: string,
-  userId: number,
-  title: string,
-  body: string,
-) {
+async function createNotification(token: string, userId: number, title: string, body: string) {
   const ctx = await request.newContext({
-    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` }
   });
   const res = await ctx.post(`${API_BASE}/api/v1/notifications`, {
-    data: { userId, title, body, type: 'GENERIC' },
+    data: { userId, title, body, type: 'GENERIC' }
   });
   await ctx.dispose();
   return res;
@@ -65,7 +60,7 @@ test.describe('[Notifications] API Contract', () => {
   test('GET /api/v1/notifications → 200 with valid token (paginated)', async () => {
     const { token } = await getAdminToken();
     const ctx = await request.newContext({
-      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
     const res = await ctx.get(`${API_BASE}/api/v1/notifications?page=1&limit=5`);
@@ -84,7 +79,7 @@ test.describe('[Notifications] API Contract', () => {
   test('GET /api/v1/notifications/unread-count → 200 returns number', async () => {
     const { token } = await getAdminToken();
     const ctx = await request.newContext({
-      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
     const res = await ctx.get(`${API_BASE}/api/v1/notifications/unread-count`);
@@ -101,10 +96,10 @@ test.describe('[Notifications] API Contract', () => {
 
     // 1. Tạo notification
     const createCtx = await request.newContext({
-      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
     const createRes = await createCtx.post(`${API_BASE}/api/v1/notifications`, {
-      data: { userId, title: uniqueTitle, body: 'Test body from E2E', type: 'GENERIC' },
+      data: { userId, title: uniqueTitle, body: 'Test body from E2E', type: 'GENERIC' }
     });
     // Controller hiện chưa có POST endpoint — nếu 404 thì skip gracefully
     if (createRes.status() === 404) {
@@ -121,7 +116,7 @@ test.describe('[Notifications] API Contract', () => {
 
     // 2. Xác nhận notification có trong list
     const listCtx = await request.newContext({
-      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
     const listRes = await listCtx.get(`${API_BASE}/api/v1/notifications?page=1&limit=20`);
     const listBody = await listRes.json();
@@ -132,7 +127,7 @@ test.describe('[Notifications] API Contract', () => {
 
     // 3. Mark as read
     const markCtx = await request.newContext({
-      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
     const markRes = await markCtx.patch(`${API_BASE}/api/v1/notifications/${notifId}/read`);
     expect(markRes.status()).toBe(200);
@@ -144,7 +139,7 @@ test.describe('[Notifications] API Contract', () => {
   test('PATCH /api/v1/notifications/read-all → 200 { affected: number }', async () => {
     const { token } = await getAdminToken();
     const ctx = await request.newContext({
-      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
     const res = await ctx.patch(`${API_BASE}/api/v1/notifications/read-all`);
@@ -170,14 +165,18 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
     await page.waitForURL(/\/dashboard\/.+/);
 
     // Bell button trong header
-    const bell = page.locator('button:has(svg):near(header)', {
-      hasText: '',
-    }).or(page.locator('[aria-label="Notifications"]'))
+    const bell = page
+      .locator('button:has(svg):near(header)', {
+        hasText: ''
+      })
+      .or(page.locator('[aria-label="Notifications"]'))
       .or(page.locator('button .sr-only:text("Notifications")').locator('..'));
 
     // Hoặc tìm bằng sr-only text
     const bellByA11y = page.getByRole('button', { name: /notifications/i });
-    await expect(bellByA11y.or(page.locator('button:has([class*="notification"])'))).toBeVisible({ timeout: 10_000 });
+    await expect(bellByA11y.or(page.locator('button:has([class*="notification"])'))).toBeVisible({
+      timeout: 10_000
+    });
   });
 
   test('Click bell → notification popover opens', async ({ page }) => {
@@ -204,12 +203,8 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
     await expect(page).not.toHaveURL(/\/auth\/sign-in/);
 
     // Có tabs All/Unread/Read
-    await expect(
-      page.getByRole('tab', { name: /all/i })
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByRole('tab', { name: /unread/i })
-    ).toBeVisible();
+    await expect(page.getByRole('tab', { name: /all/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('tab', { name: /unread/i })).toBeVisible();
   });
 
   test('Notification page shows real data or empty state (no crash)', async ({ page }) => {
@@ -218,7 +213,9 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
     await page.waitForLoadState('networkidle');
 
     // Hoặc có danh sách notification, hoặc empty state — không crash
-    const hasItems = await page.locator('[class*="notification"], [data-testid="notification-item"]').count();
+    const hasItems = await page
+      .locator('[class*="notification"], [data-testid="notification-item"]')
+      .count();
     const hasEmpty = await page.locator('text=No notifications').count();
     const hasTab = await page.getByRole('tab', { name: /all/i }).count();
 
@@ -242,7 +239,9 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
       await expect(markAllBtn).not.toBeVisible({ timeout: 12_000 });
     } else {
       // Không có unread → test pass (empty state)
-      test.info().annotations.push({ type: 'info', description: 'No unread notifications to mark' });
+      test
+        .info()
+        .annotations.push({ type: 'info', description: 'No unread notifications to mark' });
     }
   });
 });
@@ -273,7 +272,7 @@ test.describe('[Notifications] WebSocket smoke', () => {
       (e) =>
         e.toLowerCase().includes('websocket') ||
         e.toLowerCase().includes('socket') ||
-        e.toLowerCase().includes('notification'),
+        e.toLowerCase().includes('notification')
     );
 
     if (wsErrors.length > 0) {
@@ -289,7 +288,7 @@ test.describe('[Notifications] WebSocket smoke', () => {
         !e.includes('ECONNREFUSED') &&
         !e.includes('connect_error') &&
         !e.includes('websocket error') &&
-        !e.includes('transport'),
+        !e.includes('transport')
     );
     expect(criticalErrors).toHaveLength(0);
   });

@@ -11,7 +11,7 @@ import {
   useNotificationsQuery,
   useMarkAsReadMutation,
   useMarkAllAsReadMutation,
-  type NotificationItem,
+  type NotificationItem
 } from '../hooks/use-notifications-query';
 
 const PAGE_SIZE = 20;

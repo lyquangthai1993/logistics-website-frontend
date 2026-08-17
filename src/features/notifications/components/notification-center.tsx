@@ -11,7 +11,7 @@ import { useNotificationSocket } from '../hooks/use-notification-socket';
 import {
   useNotificationsQuery,
   useMarkAsReadMutation,
-  useMarkAllAsReadMutation,
+  useMarkAllAsReadMutation
 } from '../hooks/use-notifications-query';
 
 const MAX_VISIBLE = 5;

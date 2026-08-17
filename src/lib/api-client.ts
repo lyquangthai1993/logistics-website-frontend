@@ -83,8 +83,10 @@ apiClient.interceptors.response.use(
           }
         );
 
-        const newToken = data?.token || data?.access_token || data?.data?.token || data?.data?.access_token;
-        const newRefreshToken = data?.refreshToken || data?.refresh_token || data?.data?.refreshToken;
+        const newToken =
+          data?.token || data?.access_token || data?.data?.token || data?.data?.access_token;
+        const newRefreshToken =
+          data?.refreshToken || data?.refresh_token || data?.data?.refreshToken;
 
         if (!newToken) {
           throw new Error('Refresh response missing token');

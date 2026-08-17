@@ -32,5 +32,5 @@ type NotificationState = {
 };
 
 export const useNotificationStore = create<NotificationState>()(() => ({
-  _placeholder: null,
+  _placeholder: null
 }));

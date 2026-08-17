@@ -34,4 +34,3 @@ export function getInitials(name?: string | null, fallback = 'CN'): string {
   const last = Array.from(parts[parts.length - 1])[0] || '';
   return (first + last).toUpperCase();
 }
-

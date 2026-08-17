@@ -19,9 +19,7 @@ export function UserAvatarProfile({ className, showInfo = false, user }: UserAva
     <div className='flex items-center gap-2'>
       <Avatar className={className}>
         <AvatarImage src={avatarSrc} alt={user?.name || ''} />
-        <AvatarFallback className='rounded-lg'>
-          {getInitials(user?.name, 'CN')}
-        </AvatarFallback>
+        <AvatarFallback className='rounded-lg'>{getInitials(user?.name, 'CN')}</AvatarFallback>
       </Avatar>
 
       {showInfo && (

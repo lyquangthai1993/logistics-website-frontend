@@ -38,7 +38,7 @@ export interface NotificationCardProps {
 const TYPE_CONFIG: Record<
   NotificationType,
   {
-    cssVar: string;          // e.g. 'var(--chart-1)'
+    cssVar: string; // e.g. 'var(--chart-1)'
     icon: React.ReactNode;
     label: string;
   }
@@ -47,28 +47,27 @@ const TYPE_CONFIG: Record<
   DISPATCHER: {
     cssVar: 'var(--chart-1)',
     icon: <Icons.truck size={14} strokeWidth={2} />,
-    label: 'Dispatcher',
+    label: 'Dispatcher'
   },
   // Xe cộ / cảnh báo → chart-2
   FLEET: {
     cssVar: 'var(--chart-2)',
     icon: <Icons.warning size={14} strokeWidth={2} />,
-    label: 'Fleet',
+    label: 'Fleet'
   },
   // Kho hàng → chart-3
   WAREHOUSE: {
     cssVar: 'var(--chart-3)',
     icon: <Icons.package size={14} strokeWidth={2} />,
-    label: 'Warehouse',
+    label: 'Warehouse'
   },
   // Hệ thống → muted-foreground (neutral, luôn readable)
   GENERIC: {
     cssVar: 'var(--muted-foreground)',
     icon: <Icons.notification size={14} strokeWidth={2} />,
-    label: 'System',
-  },
+    label: 'System'
+  }
 };
-
 
 const formatDate = (date: string | Date): string => {
   const d = new Date(date);
@@ -130,7 +129,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
         className
       )}
       style={{
-        borderLeft: `3px solid ${color}`,
+        borderLeft: `3px solid ${color}`
       }}
     >
       <div className='px-4 py-3.5'>
@@ -140,7 +139,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
             className='mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg'
             style={{
               backgroundColor: `color-mix(in oklch, ${color} 12%, transparent)`,
-              color: color,
+              color: color
             }}
           >
             {cfg.icon}
@@ -179,7 +178,6 @@ export const NotificationCard: FC<NotificationCardProps> = ({
 
           {/* Mark as read button */}
           {isUnread && onMarkAsRead && (
-
             <button
               type='button'
               onClick={() => onMarkAsRead(id)}
