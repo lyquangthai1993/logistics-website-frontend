@@ -46,6 +46,15 @@ export const navGroups: NavGroup[] = [
         access: { role: 'SUPER_ADMIN' }
       },
       {
+        title: 'Quản lý đội xe',
+        url: '/dashboard/fleet',
+        icon: 'product',
+        shortcut: ['f', 'l'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,FLEET_MANAGER' }
+      },
+      {
         title: 'Kanban',
         url: '/dashboard/kanban',
         icon: 'kanban',
