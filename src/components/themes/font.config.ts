@@ -4,7 +4,7 @@ import {
   Fira_Code,
   Geist,
   Geist_Mono,
-  Google_Sans_Flex,
+  Plus_Jakarta_Sans,
   Instrument_Sans,
   Inter,
   JetBrains_Mono,
@@ -29,7 +29,7 @@ const fontMono = Geist_Mono({
   variable: '--font-mono'
 });
 
-const fontGoogleSansFlex = Google_Sans_Flex({
+const fontGoogleSansFlex = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-google-sans-flex'
 });

@@ -16,9 +16,7 @@ const META_THEME_COLORS = {
 };
 
 export const metadata: Metadata = {
-  ...(process.env.NEXT_PUBLIC_APP_URL
-    ? { metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL) }
-    : {}),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
     default: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
     template: '%s | Shadcn Dashboard'
@@ -80,6 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           'bg-background overflow-x-hidden overscroll-none font-sans antialiased',
           fontVariables
         )}
+        suppressHydrationWarning
       >
         <NextTopLoader color='var(--primary)' showSpinner={false} />
         <NuqsAdapter>
