@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { FC } from 'react';
 import { Icons } from '@/components/icons';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ import { cn } from '@/lib/utils';
 export type NotificationStatus = 'unread' | 'read' | 'archived';
 export type ActionType = 'redirect' | 'api_call' | 'workflow' | 'modal';
 export type ActionStyle = 'primary' | 'danger' | 'default';
+export type NotificationType = 'DISPATCHER' | 'FLEET' | 'WAREHOUSE' | 'GENERIC';
 
 export interface NotificationAction {
   id: string;
@@ -20,6 +22,7 @@ export interface NotificationCardProps {
   id: string;
   title: string;
   body: string;
+  type?: NotificationType;
   status?: NotificationStatus;
   createdAt?: string | Date;
   actions?: NotificationAction[];
@@ -28,6 +31,44 @@ export interface NotificationCardProps {
   loadingActionId?: string;
   className?: string;
 }
+
+// Color config per notification type
+// Dùng CSS variables từ theme thay vì hardcode Tailwind colors
+// --chart-1..5 thay đổi theo từng theme (Claude, Discord, Zen, etc.)
+const TYPE_CONFIG: Record<
+  NotificationType,
+  {
+    cssVar: string;          // e.g. 'var(--chart-1)'
+    icon: React.ReactNode;
+    label: string;
+  }
+> = {
+  // Điều phối / đơn hàng → chart-1 (màu đặc trưng #1 của theme)
+  DISPATCHER: {
+    cssVar: 'var(--chart-1)',
+    icon: <Icons.truck size={14} strokeWidth={2} />,
+    label: 'Dispatcher',
+  },
+  // Xe cộ / cảnh báo → chart-2
+  FLEET: {
+    cssVar: 'var(--chart-2)',
+    icon: <Icons.warning size={14} strokeWidth={2} />,
+    label: 'Fleet',
+  },
+  // Kho hàng → chart-3
+  WAREHOUSE: {
+    cssVar: 'var(--chart-3)',
+    icon: <Icons.package size={14} strokeWidth={2} />,
+    label: 'Warehouse',
+  },
+  // Hệ thống → muted-foreground (neutral, luôn readable)
+  GENERIC: {
+    cssVar: 'var(--muted-foreground)',
+    icon: <Icons.notification size={14} strokeWidth={2} />,
+    label: 'System',
+  },
+};
+
 
 const formatDate = (date: string | Date): string => {
   const d = new Date(date);
@@ -68,6 +109,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   id,
   title,
   body,
+  type = 'GENERIC',
   status = 'unread',
   createdAt,
   actions = [],
@@ -77,6 +119,8 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   className
 }) => {
   const isUnread = status === 'unread';
+  const cfg = TYPE_CONFIG[type] ?? TYPE_CONFIG.GENERIC;
+  const color = cfg.cssVar;
 
   return (
     <div
@@ -85,9 +129,23 @@ export const NotificationCard: FC<NotificationCardProps> = ({
         isUnread ? 'bg-muted' : 'bg-muted/40',
         className
       )}
+      style={{
+        borderLeft: `3px solid ${color}`,
+      }}
     >
       <div className='px-4 py-3.5'>
         <div className='flex items-start justify-between gap-3'>
+          {/* Type icon — màu và nền theo theme */}
+          <div
+            className='mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg'
+            style={{
+              backgroundColor: `color-mix(in oklch, ${color} 12%, transparent)`,
+              color: color,
+            }}
+          >
+            {cfg.icon}
+          </div>
+
           {/* Main content */}
           <div className='min-w-0 flex-1 space-y-1'>
             {/* Title with unread indicator */}
@@ -100,7 +158,12 @@ export const NotificationCard: FC<NotificationCardProps> = ({
               >
                 {title}
               </h3>
-              {isUnread && <div className='h-1.5 w-1.5 flex-shrink-0 rounded-full bg-sky-500' />}
+              {isUnread && (
+                <div
+                  className='h-1.5 w-1.5 flex-shrink-0 rounded-full'
+                  style={{ backgroundColor: color }}
+                />
+              )}
             </div>
 
             {/* Description */}
@@ -116,6 +179,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
 
           {/* Mark as read button */}
           {isUnread && onMarkAsRead && (
+
             <button
               type='button'
               onClick={() => onMarkAsRead(id)}

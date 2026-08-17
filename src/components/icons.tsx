@@ -52,10 +52,12 @@ import {
   IconLock,
   IconLogin,
   IconLogout,
+  IconMapPin,
   IconMessage,
   IconMinus,
   IconMoon,
   IconMusic,
+  IconPackage,
   IconPalette,
   IconPaperclip,
   IconPhone,
@@ -63,6 +65,7 @@ import {
   IconPizza,
   IconPlus,
   IconProps,
+  IconRoute,
   IconRosetteDiscountCheck,
   IconSearch,
   IconSelector,
@@ -77,6 +80,7 @@ import {
   IconTrash,
   IconTrendingDown,
   IconTrendingUp,
+  IconTruck,
   IconTypography,
   IconUnderline,
   IconUpload,
@@ -219,5 +223,11 @@ export const Icons = {
   slash: IconSlash,
   calendar: IconCalendar,
   galleryVerticalEnd: IconStack2,
-  moreHorizontal: IconDots
+  moreHorizontal: IconDots,
+
+  // Logistics
+  truck: IconTruck,
+  route: IconRoute,
+  package: IconPackage,
+  mapPin: IconMapPin
 };

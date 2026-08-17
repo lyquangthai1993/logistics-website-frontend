@@ -59,6 +59,7 @@ export default function NotificationsPage() {
             id={String(notification.id)}
             title={notification.title}
             body={notification.body}
+            type={notification.type as 'DISPATCHER' | 'FLEET' | 'WAREHOUSE' | 'GENERIC'}
             status={notification.isRead ? 'read' : 'unread'}
             createdAt={notification.createdAt}
             onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
