@@ -15,7 +15,8 @@ import {
   IconSend,
   IconClock,
   IconMapPin,
-  IconFileText
+  IconFileText,
+  IconTrash
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
@@ -124,6 +125,19 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleDeleteOrder = async () => {
+    if (!confirm('Bạn có chắc chắn muốn hủy / xóa lệnh điều vận này?')) return;
+    try {
+      await ordersApi.deleteOrder(orderId);
+      toast.success('Đã hủy lệnh điều vận thành công');
+      router.push('/dashboard/orders');
+    } catch (err: any) {
+      toast.error('Lỗi khi hủy lệnh điều vận', {
+        description: (err as Error).message
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className='p-8 text-center text-slate-400'>Đang tải thông tin chi tiết đơn hàng...</div>
@@ -179,6 +193,17 @@ export default function OrderDetailPage() {
         </div>
 
         <div className='flex items-center gap-2'>
+          {order.status === 'DRAFT' && (
+            <Button
+              onClick={handleDeleteOrder}
+              variant='outline'
+              className='text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+            >
+              <IconTrash className='mr-2 h-4 w-4' />
+              Hủy lệnh điều vận
+            </Button>
+          )}
+
           {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
             <Button
               onClick={handleSubmitToFleet}
