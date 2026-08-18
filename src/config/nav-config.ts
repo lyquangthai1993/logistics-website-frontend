@@ -44,7 +44,7 @@ export const navGroups: NavGroup[] = [
         shortcut: ['t', 'r'],
         isActive: false,
         items: [],
-        access: { role: 'SUPER_ADMIN,FLEET_MANAGER,DISPATCHER' }
+        access: { role: 'SUPER_ADMIN,FLEET_MANAGER' }
       },
       {
         title: 'Quản lý đội xe',

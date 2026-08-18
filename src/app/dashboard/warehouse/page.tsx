@@ -36,13 +36,12 @@ export default function WarehouseInboundPage() {
   const loadInboundTrips = async () => {
     try {
       setLoading(true);
-      const data = await tripsApi.getTrips();
+      const res = await tripsApi.getTrips({ limit: 100 });
       // Only show confirmed or in transit trips
-      setTrips(data.filter((t) => t.status === 'CONFIRMED' || t.status === 'IN_TRANSIT'));
+      setTrips(res.data.filter((t) => t.status === 'CONFIRMED' || t.status === 'IN_TRANSIT'));
     } catch (err: any) {
-      toast.error('Không thể tải danh sách chuyến xe Inbound', {
-        description: err.response?.data?.message || err.message
-      });
+      const apiMessage = err?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể tải danh sách chuyến xe Inbound. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }

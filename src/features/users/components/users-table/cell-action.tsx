@@ -28,11 +28,12 @@ export function CellAction({ data }: CellActionProps) {
   const deleteMutation = useMutation({
     ...deleteUserMutation,
     onSuccess: () => {
-      toast.success('User deleted successfully');
+      toast.success('Đã xóa người dùng thành công');
       setDeleteOpen(false);
     },
-    onError: () => {
-      toast.error('Failed to delete user');
+    onError: (err: any) => {
+      const apiMessage = err?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể xóa người dùng. Vui lòng thử lại.');
     }
   });
 

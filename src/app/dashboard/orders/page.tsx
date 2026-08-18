@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+
 import Link from 'next/link';
-import { ordersApi, Order, OrderStatus } from '@/features/orders/api';
+import { ordersApi, Order, OrderStatus, OrderStats } from '@/features/orders/api';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -28,9 +31,14 @@ import {
   IconFileText,
   IconAlertTriangle,
   IconCircleCheck,
-  IconClock
+  IconClock,
+  IconLoader2,
+  IconCalendar,
+  IconRefresh,
+  IconSparkles,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
+
 
 const HUBS = [
   'Andromeda Hub (Hà Nội)',
@@ -48,7 +56,7 @@ function renderStatusBadge(status: OrderStatus) {
           variant='secondary'
           className='bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
         >
-          Nháp (Draft)
+          Nháp
         </Badge>
       );
     case 'PENDING_FLEET':
@@ -107,6 +115,44 @@ function renderStatusBadge(status: OrderStatus) {
   }
 }
 
+// ── Date helpers ─────────────────────────────────────────────────────────────
+/** Trả về chuỗi YYYY-MM-DD theo local time (tránh timezone offset khi dùng toISOString) */
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getThisMonthRange() {
+  const now = new Date();
+  return {
+    from: toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: toLocalDateString(now),
+  };
+}
+
+function getLastMonthRange() {
+  const now = new Date();
+  const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  return { from: toLocalDateString(firstOfLastMonth), to: toLocalDateString(lastOfLastMonth) };
+}
+
+function getLast7DaysRange() {
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(from.getDate() - 6);
+  return { from: toLocalDateString(from), to: toLocalDateString(now) };
+}
+
+function getTodayRange() {
+  const t = toLocalDateString(new Date());
+  return { from: t, to: t };
+}
+
+type DatePreset = 'today' | '7days' | 'thisMonth' | 'lastMonth' | 'custom';
+
 export default function OrdersPage() {
   const { user } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -115,14 +161,35 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [hubFilter, setHubFilter] = useState<string>('ALL');
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 20;
+
+  // Stats state (metric cards)
+  const [stats, setStats] = useState<OrderStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+  const [dateRange, setDateRange] = useState(getThisMonthRange());
+
+  // Debounced search (300ms) để tránh spam request khi gõ
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   // Modal create order state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [generatingCode, setGeneratingCode] = useState(false);
+
+  // Per-row submit loading state — track by order id to avoid disabling all rows
+  const [submittingOrderIds, setSubmittingOrderIds] = useState<Set<number>>(new Set());
 
   // Form states
   const [orderCode, setOrderCode] = useState('');
   const [originHub, setOriginHub] = useState(HUBS[0]);
   const [destinationHub, setDestinationHub] = useState(HUBS[2]);
+  const [totalQuantity, setTotalQuantity] = useState<number | ''>('');
   const [totalWeight, setTotalWeight] = useState<number | ''>('');
   const [totalVolume, setTotalVolume] = useState<number | ''>('');
   const [goodsDescription, setGoodsDescription] = useState('');
@@ -130,17 +197,26 @@ export default function OrdersPage() {
   const [isExternalNeeded, setIsExternalNeeded] = useState(false);
   const [externalNote, setExternalNote] = useState('');
 
-  // Suggested initials for placeholder
+  // Suggested initials for placeholder (loại bỏ dấu tiếng Việt)
   const suggestedInitials = useMemo(() => {
     const name = (user?.firstName || '') + ' ' + (user?.lastName || '');
     const cleanName = name.trim();
-    if (!cleanName) return 'NDA';
-    const parts = cleanName.split(/\s+/);
+    if (!cleanName) return 'ORD';
+    
+    // Loại bỏ dấu tiếng Việt
+    const unaccented = cleanName
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const parts = unaccented.split(/\s+/).filter(Boolean);
     return (
       parts
         .map((p) => p[0]?.toUpperCase())
         .join('')
-        .slice(0, 3) || 'NDA'
+        .replace(/[^A-Z0-9]/gi, '')
+        .slice(0, 3) || 'ORD'
     );
   }, [user]);
 
@@ -148,26 +224,99 @@ export default function OrdersPage() {
     const date = new Date();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const yy = String(date.getFullYear()).slice(-2);
-    return `${suggestedInitials}${yy}${mm}-xxxx`;
+    return `${suggestedInitials}-${mm}${yy}-001`;
   }, [suggestedInitials]);
 
-  const loadOrders = async () => {
+  // Debounce search input — reset page về 1 khi search thay đổi
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(value);
+    }, 300);
+  };
+
+  const loadOrders = async (currentPage = page) => {
     try {
       setLoading(true);
-      const data = await ordersApi.getOrders();
-      setOrders(data);
-    } catch (err: any) {
-      toast.error('Không thể tải danh sách đơn hàng', {
-        description: err.response?.data?.message || err.message
+      const result = await ordersApi.getOrders({
+        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        search: debouncedSearch.trim() || undefined,
+        originHub: hubFilter !== 'ALL' ? hubFilter : undefined,
+        fromDate: dateRange.from,
+        toDate: dateRange.to,
+        page: currentPage,
+        limit: PAGE_SIZE,
       });
+      setOrders(result.data);
+      setTotal(result.meta.total);
+      setTotalPages(result.meta.totalPages);
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể tải danh sách đơn hàng. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    loadOrders(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, hubFilter, debouncedSearch, dateRange]);
+
+  // Khi đổi filter (không phải page), reset về trang 1
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  const handleHubChange = (value: string) => {
+    setHubFilter(value);
+    setPage(1);
+  };
+
+  // ── Stats / Metric cards ───────────────────────────────────────────────────
+  const loadStats = useCallback(async (from: string, to: string) => {
+    try {
+      setStatsLoading(true);
+      const data = await ordersApi.getOrderStats(from, to);
+      setStats(data);
+    } catch {
+      // Stats failure không block UI chính
+    } finally {
+      setStatsLoading(false);
+    }
   }, []);
+
+  // Load stats khi dateRange thay đổi
+  useEffect(() => {
+    loadStats(dateRange.from, dateRange.to);
+  }, [dateRange, loadStats]);
+
+  // Preset selector
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    setPage(1);
+    if (preset === 'today') setDateRange(getTodayRange());
+    else if (preset === '7days') setDateRange(getLast7DaysRange());
+    else if (preset === 'thisMonth') setDateRange(getThisMonthRange());
+    else if (preset === 'lastMonth') setDateRange(getLastMonthRange());
+    // 'custom' — user nhập trực tiếp, không thay dateRange ở đây
+  };
+
+  // Custom date input handler
+  const handleCustomDateChange = (field: 'from' | 'to', value: string) => {
+    setDatePreset('custom');
+    setPage(1);
+    setDateRange((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Format hiển thị ngày theo VI
+  const formatDateVi = (iso: string) => {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,6 +351,7 @@ export default function OrdersPage() {
         route,
         originHub,
         destinationHub,
+        totalQuantity: totalQuantity ? Number(totalQuantity) : undefined,
         totalWeight: Number(totalWeight),
         totalVolume: Number(totalVolume),
         goodsDescription: goodsDescription.trim() || undefined,
@@ -214,6 +364,7 @@ export default function OrdersPage() {
       setIsCreateModalOpen(false);
       // Reset form
       setOrderCode('');
+      setTotalQuantity('');
       setTotalWeight('');
       setTotalVolume('');
       setGoodsDescription('');
@@ -221,23 +372,33 @@ export default function OrdersPage() {
       setIsExternalNeeded(false);
       setExternalNote('');
       loadOrders();
-    } catch (err: any) {
-      toast.error('Lỗi tạo lệnh điều vận', {
-        description: err.response?.data?.message || err.message
-      });
+      refreshStats();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi tạo lệnh điều vận. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleSubmitToFleet = async (id: number) => {
+    // Guard: prevent double-click / duplicate request
+    if (submittingOrderIds.has(id)) return;
+
+    setSubmittingOrderIds((prev) => new Set(prev).add(id));
     try {
       await ordersApi.submitOrder(id);
       toast.success('Đã gửi lệnh điều vận lên Đội xe (Fleet)!');
       loadOrders();
-    } catch (err: any) {
-      toast.error('Không thể gửi lệnh điều vận', {
-        description: err.response?.data?.message || err.message
+      refreshStats();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể gửi lệnh điều vận. Vui lòng thử lại.');
+    } finally {
+      setSubmittingOrderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
       });
     }
   };
@@ -248,40 +409,24 @@ export default function OrdersPage() {
       await ordersApi.deleteOrder(id);
       toast.success('Đã xóa đơn hàng thành công');
       loadOrders();
-    } catch (err: any) {
-      toast.error('Không thể xóa đơn hàng', {
-        description: err.response?.data?.message || err.message
-      });
+      refreshStats();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể xóa đơn hàng. Vui lòng thử lại.');
     }
   };
 
-  // Metrics
-  const metrics = useMemo(() => {
-    const total = orders.length;
-    const pending = orders.filter((o) => o.status === 'PENDING_FLEET').length;
-    const assigned = orders.filter(
-      (o) => o.status === 'ASSIGNED' || o.status === 'IN_TRANSIT'
-    ).length;
-    const noVehicle = orders.filter((o) => o.status === 'NO_VEHICLE').length;
-    return { total, pending, assigned, noVehicle };
-  }, [orders]);
+  // Refresh stats sau mỗi action (create/delete/submit) để metric cards cập nhật đúng
+  const refreshStats = useCallback(() => {
+    loadStats(dateRange.from, dateRange.to);
+  }, [dateRange, loadStats]);
 
-  // Filtered orders
-  const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
-      const matchSearch =
-        o.orderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.route && o.route.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (o.goodsDescription && o.goodsDescription.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchStatus = statusFilter === 'ALL' || o.status === statusFilter;
-      const matchHub =
-        hubFilter === 'ALL' || o.originHub === hubFilter || o.destinationHub === hubFilter;
-      return matchSearch && matchStatus && matchHub;
-    });
-  }, [orders, searchTerm, statusFilter, hubFilter]);
+  // orders đã được filter từ server — dùng trực tiếp không cần client filter
+  // metrics lấy từ API /orders/stats theo dateRange
 
   const handleOpenCreateModal = () => {
     setOrderCode('');
+    setTotalQuantity('');
     setTotalWeight('');
     setTotalVolume('');
     setGoodsDescription('');
@@ -289,6 +434,21 @@ export default function OrdersPage() {
     setIsExternalNeeded(false);
     setExternalNote('');
     setIsCreateModalOpen(true);
+  };
+
+  const handleGenerateCode = async () => {
+    if (generatingCode) return;
+    setGeneratingCode(true);
+    try {
+      const { orderCode: generated } = await ordersApi.generateOrderCode(suggestedInitials);
+      setOrderCode(generated);
+      toast.success(`Đã sinh mã: ${generated}`, { duration: 2000 });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Không thể sinh mã đơn hàng. Vui lòng thử lại.');
+    } finally {
+      setGeneratingCode(false);
+    }
   };
 
   return (
@@ -312,8 +472,83 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* Metric Cards */}
+      {/* ── Date Range Filter Bar (cho thống kê metric cards) ────────────── */}
+      <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
+        <CardContent className='pt-4 pb-3'>
+          <div className='flex flex-wrap items-center gap-3'>
+            {/* Label */}
+            <div className='flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 shrink-0'>
+              <IconCalendar className='h-4 w-4' />
+              Thống kê theo:
+            </div>
+
+            {/* Preset buttons */}
+            <div className='flex items-center gap-1.5 flex-wrap'>
+              {(
+                [
+                  { key: 'today', label: 'Hôm nay' },
+                  { key: '7days', label: '7 ngày qua' },
+                  { key: 'thisMonth', label: 'Tháng này' },
+                  { key: 'lastMonth', label: 'Tháng trước' },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => handlePresetChange(key)}
+                  className={cn(
+                    'px-3 py-1 text-xs font-medium rounded-md border transition-all duration-150 cursor-pointer',
+                    datePreset === key
+                      ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-50 dark:text-slate-900 dark:border-slate-50'
+                      : 'bg-transparent text-slate-600 border-slate-200 hover:bg-slate-100 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom date range */}
+            <div className='flex items-center gap-2 ml-auto'>
+              <span className='text-xs text-slate-400 hidden sm:inline'>Tùy chọn:</span>
+              <input
+                type='date'
+                value={dateRange.from}
+                max={dateRange.to}
+                onChange={(e) => handleCustomDateChange('from', e.target.value)}
+                className='px-2 py-1 text-xs bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer'
+              />
+              <span className='text-xs text-slate-400'>→</span>
+              <input
+                type='date'
+                value={dateRange.to}
+                min={dateRange.from}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => handleCustomDateChange('to', e.target.value)}
+                className='px-2 py-1 text-xs bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer'
+              />
+              <button
+                onClick={() => loadStats(dateRange.from, dateRange.to)}
+                disabled={statsLoading}
+                title='Làm mới thống kê'
+                className='p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                <IconRefresh className={cn('h-3.5 w-3.5 text-slate-500', statsLoading && 'animate-spin')} />
+              </button>
+            </div>
+          </div>
+
+          {/* Period label */}
+          {stats && !statsLoading && (
+            <p className='text-[11px] text-slate-400 dark:text-slate-500 mt-2 ml-0.5'>
+              Kỳ thống kê: {formatDateVi(stats.fromDate)} – {formatDateVi(stats.toDate)}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Metric Cards — data từ API /orders/stats */}
       <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        {/* Tổng đơn hàng */}
         <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium text-slate-600 dark:text-slate-400'>
@@ -323,12 +558,17 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-slate-900 dark:text-slate-50'>
-              {metrics.total}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse' />
+              ) : (
+                stats?.total ?? '—'
+              )}
             </div>
-            <p className='text-xs text-slate-500 mt-1'>Tổng cộng các lệnh đã tạo</p>
+            <p className='text-xs text-slate-500 mt-1'>Tổng trong kỳ đã chọn</p>
           </CardContent>
         </Card>
 
+        {/* Chờ điều xe */}
         <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium text-blue-600 dark:text-blue-400'>
@@ -338,12 +578,17 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
-              {metrics.pending}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-blue-100 dark:bg-blue-950/50 rounded animate-pulse' />
+              ) : (
+                stats?.pending ?? '—'
+              )}
             </div>
             <p className='text-xs text-slate-500 mt-1'>Đã gửi yêu cầu lên Fleet</p>
           </CardContent>
         </Card>
 
+        {/* Đã phân xe */}
         <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium text-emerald-600 dark:text-emerald-400'>
@@ -353,12 +598,17 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-emerald-600 dark:text-emerald-400'>
-              {metrics.assigned}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-emerald-100 dark:bg-emerald-950/50 rounded animate-pulse' />
+              ) : (
+                (stats ? stats.assigned + stats.inTransit : null) ?? '—'
+              )}
             </div>
-            <p className='text-xs text-slate-500 mt-1'>Đã xác nhận phương tiện</p>
+            <p className='text-xs text-slate-500 mt-1'>Đã xác nhận + Đang vận chuyển</p>
           </CardContent>
         </Card>
 
+        {/* Không có xe */}
         <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium text-rose-600 dark:text-rose-400'>
@@ -368,7 +618,11 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-rose-600 dark:text-rose-400'>
-              {metrics.noVehicle}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-rose-100 dark:bg-rose-950/50 rounded animate-pulse' />
+              ) : (
+                stats?.noVehicle ?? '—'
+              )}
             </div>
             <p className='text-xs text-slate-500 mt-1'>Cần tìm xe thuê ngoài</p>
           </CardContent>
@@ -383,15 +637,16 @@ export default function OrdersPage() {
             <Input
               placeholder='Tìm theo mã đơn, tuyến đường, hàng hóa...'
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className='pl-9 bg-slate-50/50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+
             />
           </div>
 
           <div className='flex flex-wrap items-center gap-3'>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className='px-3 py-2 text-sm bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400'
             >
               <option value='ALL'>Tất cả trạng thái</option>
@@ -405,7 +660,7 @@ export default function OrdersPage() {
 
             <select
               value={hubFilter}
-              onChange={(e) => setHubFilter(e.target.value)}
+              onChange={(e) => handleHubChange(e.target.value)}
               className='px-3 py-2 text-sm bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400'
             >
               <option value='ALL'>Tất cả các Hub</option>
@@ -441,14 +696,14 @@ export default function OrdersPage() {
                     Đang tải danh sách lệnh điều vận...
                   </td>
                 </tr>
-              ) : filteredOrders.length === 0 ? (
+              ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className='text-center py-12 text-slate-400'>
                     Không tìm thấy lệnh điều vận nào phù hợp.
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => {
+                orders.map((order) => {
                   const tripsCount = order.trips?.length || 0;
                   const isSplit = tripsCount > 1;
                   const hasExternalTrip =
@@ -506,7 +761,17 @@ export default function OrdersPage() {
 
                       <td className='py-3.5 px-4 text-slate-700 dark:text-slate-300 font-mono'>
                         <div className='font-medium'>{order.totalWeight.toLocaleString()} kg</div>
-                        <span className='text-xs text-slate-400'>{order.totalVolume} m³</span>
+                        <div className='text-xs text-slate-400 flex items-center gap-1.5'>
+                          <span>{order.totalVolume} m³</span>
+                          {order.totalQuantity != null && (
+                            <>
+                              <span>•</span>
+                              <span className='font-sans font-medium text-slate-600 dark:text-slate-400'>
+                                {order.totalQuantity.toLocaleString()} kiện
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </td>
 
                       <td className='py-3.5 px-4 text-slate-600 dark:text-slate-400'>
@@ -557,23 +822,49 @@ export default function OrdersPage() {
                               variant='ghost'
                               size='sm'
                               className='h-8 px-2 text-slate-600 hover:text-slate-900 dark:text-slate-400'
+                              title='Xem chi tiết đơn hàng'
                             >
                               <IconEye className='h-4 w-4' />
                             </Button>
                           </Link>
+
+                          {order.status === 'NO_VEHICLE' && (
+                            <Link href={`/dashboard/orders/${order.id}`}>
+                              <Button
+                                variant='outline'
+                                size='sm'
+                                className='h-8 px-2.5 text-xs text-amber-700 border-amber-300 bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                title='Xử lý thuê xe ngoài'
+                              >
+                                <IconTruck className='h-3.5 w-3.5 mr-1 text-amber-600' />
+                                Xe ngoài
+                              </Button>
+                            </Link>
+                          )}
 
                           {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
                             <Button
                               onClick={() => handleSubmitToFleet(order.id)}
                               variant='outline'
                               size='sm'
-                              className='h-8 px-2.5 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+                              disabled={submittingOrderIds.has(order.id)}
+                              className='h-8 px-2.5 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 disabled:cursor-not-allowed disabled:opacity-60'
                               title='Gửi lệnh điều vận lên Đội xe'
                             >
-                              <IconSend className='h-3.5 w-3.5 mr-1' />
-                              Gửi Fleet
+                              {submittingOrderIds.has(order.id) ? (
+                                <>
+                                  <IconLoader2 className='h-3.5 w-3.5 mr-1 animate-spin' />
+                                  Đang gửi...
+                                </>
+                              ) : (
+                                <>
+                                  <IconSend className='h-3.5 w-3.5 mr-1' />
+                                  Gửi Fleet
+                                </>
+                              )}
                             </Button>
                           )}
+
 
                           {order.status === 'DRAFT' && (
                             <Button
@@ -595,6 +886,19 @@ export default function OrdersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination bar — khớp style DataTablePagination của product page */}
+        {!loading && totalPages > 0 && (
+          <div className='border-t border-slate-200 dark:border-slate-800 px-4 py-2'>
+            <TablePaginationBar
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
       </Card>
 
       {/* Modal / Dialog Tạo đơn mới */}
@@ -619,19 +923,38 @@ export default function OrdersPage() {
                 </label>
                 <span className='text-xs text-slate-400 flex items-center gap-1'>
                   <IconInfoCircle className='h-3.5 w-3.5' />
-                  Format gợi ý: [Tên tắt][MMYY]-[Số]
+                  Format gợi ý: [Tên tắt]-[MMYY]-[Số]
                 </span>
               </div>
-              <Input
-                id='order-code-input'
-                placeholder={`VD: ${placeholderCode}`}
-                value={orderCode}
-                onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
-                required
-                className='font-mono uppercase text-base tracking-wide'
-              />
+              <div className='flex items-center gap-2'>
+                <Input
+                  id='order-code-input'
+                  placeholder={`VD: ${placeholderCode}`}
+                  value={orderCode}
+                  onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
+                  required
+                  className='font-mono uppercase text-base tracking-wide flex-1'
+                />
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='icon'
+                  onClick={handleGenerateCode}
+                  disabled={generatingCode || submitting}
+                  title='Sinh mã đơn hàng tự động'
+                  className='shrink-0 h-10 w-10 border-slate-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition-colors'
+                >
+                  {generatingCode ? (
+                    <IconLoader2 className='h-4 w-4 animate-spin' />
+                  ) : (
+                    <IconSparkles className='h-4 w-4' />
+                  )}
+                </Button>
+              </div>
               <p className='text-[11px] text-slate-500'>
-                User tự định nghĩa mã đơn hàng. Hệ thống kiểm tra trùng lặp tự động.
+                Tự nhập hoặc bấm{' '}
+                <IconSparkles className='inline h-3 w-3 text-blue-500' />{' '}
+                để sinh mã tạm thời tự động. Hệ thống kiểm tra trùng lặp.
               </p>
             </div>
 
@@ -680,8 +1003,31 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Trọng lượng & Thể tích */}
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+            {/* Quy cách hàng hóa: Số lượng, Trọng lượng & Thể tích */}
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
+              <div className='space-y-1.5'>
+                <div className='flex items-center justify-between'>
+                  <label
+                    htmlFor='total-quantity-input'
+                    className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                  >
+                    Số lượng
+                  </label>
+                  <span className='text-[10px] text-slate-400 font-normal'>Tùy chọn</span>
+                </div>
+                <Input
+                  id='total-quantity-input'
+                  type='number'
+                  min='1'
+                  step='1'
+                  placeholder='VD: 3000 (kiện/cái)'
+                  value={totalQuantity}
+                  onChange={(e) =>
+                    setTotalQuantity(e.target.value ? Number(e.target.value) : '')
+                  }
+                />
+              </div>
+
               <div className='space-y-1.5'>
                 <label
                   htmlFor='total-weight-input'
@@ -711,8 +1057,8 @@ export default function OrdersPage() {
                 <Input
                   id='total-volume-input'
                   type='number'
-                  min='0.1'
-                  step='0.1'
+                  min='0.01'
+                  step='0.01'
                   placeholder='VD: 45.5'
                   value={totalVolume}
                   onChange={(e) => setTotalVolume(e.target.value ? Number(e.target.value) : '')}
@@ -720,6 +1066,9 @@ export default function OrdersPage() {
                 />
               </div>
             </div>
+            <p className='text-[11px] text-slate-500 -mt-2'>
+              * Khối lượng & Thể tích bắt buộc. <strong>Số lượng:</strong> để trống nếu là hàng theo lô / chuyến không đếm chiếc lẻ.
+            </p>
 
             {/* Mô tả hàng hóa */}
             <div className='space-y-1.5'>

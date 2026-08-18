@@ -5,8 +5,17 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ordersApi, Order, OrderStatus } from '@/features/orders/api';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   IconArrowLeft,
   IconTruck,
@@ -16,7 +25,12 @@ import {
   IconClock,
   IconMapPin,
   IconFileText,
-  IconTrash
+  IconTrash,
+  IconAlertTriangle,
+  IconEdit,
+  IconCheck,
+  IconTruckOff,
+  IconInfoCircle,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
@@ -28,7 +42,7 @@ function renderStatusBadge(status: OrderStatus) {
           variant='secondary'
           className='bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
         >
-          Nháp (Draft)
+          Nháp
         </Badge>
       );
     case 'PENDING_FLEET':
@@ -95,15 +109,30 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Modal External Vehicle state
+  const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
+  const [vendorName, setVendorName] = useState('');
+  const [vendorPhone, setVendorPhone] = useState('');
+  const [vendorDetails, setVendorDetails] = useState('');
+  const [submittingExternal, setSubmittingExternal] = useState(false);
+
+  // Modal Edit Order state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editTotalQuantity, setEditTotalQuantity] = useState<number | ''>('');
+  const [editTotalWeight, setEditTotalWeight] = useState<number | ''>('');
+  const [editTotalVolume, setEditTotalVolume] = useState<number | ''>('');
+  const [editGoodsDesc, setEditGoodsDesc] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
   const loadOrder = async () => {
     try {
       setLoading(true);
       const data = await ordersApi.getOrder(orderId);
       setOrder(data);
-    } catch (err: any) {
-      toast.error('Không thể tải thông tin đơn hàng', {
-        description: err.response?.data?.message || err.message
-      });
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể tải thông tin đơn hàng. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -118,10 +147,9 @@ export default function OrderDetailPage() {
       await ordersApi.submitOrder(orderId);
       toast.success('Đã gửi lệnh điều vận lên Đội xe (Fleet)!');
       loadOrder();
-    } catch (err: any) {
-      toast.error('Lỗi khi gửi lệnh điều vận', {
-        description: (err as Error).message
-      });
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi khi gửi lệnh điều vận. Vui lòng thử lại.');
     }
   };
 
@@ -131,10 +159,93 @@ export default function OrderDetailPage() {
       await ordersApi.deleteOrder(orderId);
       toast.success('Đã hủy lệnh điều vận thành công');
       router.push('/dashboard/orders');
-    } catch (err: any) {
-      toast.error('Lỗi khi hủy lệnh điều vận', {
-        description: (err as Error).message
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi khi hủy lệnh điều vận. Vui lòng thử lại.');
+    }
+  };
+
+  // Open External Vehicle modal with prefilled data
+  const handleOpenExternalModal = () => {
+    if (!order) return;
+    setVendorName('');
+    setVendorPhone('');
+    setVendorDetails(order.externalNote || '');
+    setIsExternalModalOpen(true);
+  };
+
+  // Save external vehicle information & optionally submit to Fleet
+  const handleSaveExternalVehicle = async (autoSubmit: boolean) => {
+    if (!order) return;
+
+    const parts: string[] = [];
+    if (vendorName.trim()) parts.push(`Nhà xe: ${vendorName.trim()}`);
+    if (vendorPhone.trim()) parts.push(`Liên hệ: ${vendorPhone.trim()}`);
+    if (vendorDetails.trim()) parts.push(vendorDetails.trim());
+
+    const finalExternalNote = parts.join(' | ');
+
+    if (!finalExternalNote.trim()) {
+      toast.error('Vui lòng nhập thông tin nhà xe / đối tác hoặc ghi chú thuê xe ngoài');
+      return;
+    }
+
+    try {
+      setSubmittingExternal(true);
+      await ordersApi.updateOrder(order.id, {
+        isExternalVehicleNeeded: true,
+        externalNote: finalExternalNote,
       });
+
+      if (autoSubmit) {
+        await ordersApi.submitOrder(order.id);
+        toast.success('Đã cấu hình xe thuê ngoài và gửi lại cho Đội xe tiếp nhận!');
+      } else {
+        toast.success('Đã cập nhật thông tin xe ngoài cho đơn hàng.');
+      }
+
+      setIsExternalModalOpen(false);
+      loadOrder();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi khi cập nhật thông tin xe thuê ngoài. Vui lòng thử lại.');
+    } finally {
+      setSubmittingExternal(false);
+    }
+  };
+
+  // Open Edit Order modal
+  const handleOpenEditModal = () => {
+    if (!order) return;
+    setEditTotalQuantity(order.totalQuantity ?? '');
+    setEditTotalWeight(order.totalWeight);
+    setEditTotalVolume(order.totalVolume);
+    setEditGoodsDesc(order.goodsDescription || '');
+    setEditNotes(order.notes || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+
+    try {
+      setSubmittingEdit(true);
+      await ordersApi.updateOrder(order.id, {
+        totalQuantity: editTotalQuantity !== '' ? Number(editTotalQuantity) : null,
+        totalWeight: Number(editTotalWeight) || order.totalWeight,
+        totalVolume: Number(editTotalVolume) || order.totalVolume,
+        goodsDescription: editGoodsDesc || undefined,
+        notes: editNotes || undefined,
+      });
+      toast.success('Đã cập nhật thông tin đơn hàng');
+      setIsEditModalOpen(false);
+      loadOrder();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi khi cập nhật đơn hàng. Vui lòng thử lại.');
+    } finally {
+      setSubmittingEdit(false);
     }
   };
 
@@ -192,27 +303,49 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        <div className='flex items-center gap-2'>
-          {order.status === 'DRAFT' && (
+        <div className='flex items-center flex-wrap gap-2'>
+          {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
             <Button
-              onClick={handleDeleteOrder}
+              onClick={handleOpenEditModal}
               variant='outline'
-              className='text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+              size='sm'
+              className='text-slate-700 dark:text-slate-200'
             >
-              <IconTrash className='mr-2 h-4 w-4' />
-              Hủy lệnh điều vận
+              <IconEdit className='mr-1.5 h-4 w-4' />
+              Chỉnh sửa đơn
             </Button>
           )}
 
-          {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
+          {order.status === 'NO_VEHICLE' && (
             <Button
-              onClick={handleSubmitToFleet}
-              className='bg-blue-600 hover:bg-blue-700 text-white'
+              onClick={handleOpenExternalModal}
+              className='bg-amber-600 hover:bg-amber-700 text-white shadow-sm font-semibold'
             >
-              <IconSend className='mr-2 h-4 w-4' />
-              Gửi lên Fleet phân xe
+              <IconTruck className='mr-2 h-4 w-4' />
+              Thuê xe bên ngoài & Gửi lại Fleet
             </Button>
           )}
+
+          {order.status === 'DRAFT' && (
+            <>
+              <Button
+                onClick={handleDeleteOrder}
+                variant='outline'
+                className='text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+              >
+                <IconTrash className='mr-2 h-4 w-4' />
+                Hủy lệnh điều vận
+              </Button>
+              <Button
+                onClick={handleSubmitToFleet}
+                className='bg-blue-600 hover:bg-blue-700 text-white'
+              >
+                <IconSend className='mr-2 h-4 w-4' />
+                Gửi lên Fleet phân xe
+              </Button>
+            </>
+          )}
+
           <Link href='/dashboard/trips'>
             <Button variant='outline'>
               <IconTruck className='mr-2 h-4 w-4' />
@@ -221,6 +354,43 @@ export default function OrderDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* NO_VEHICLE Alert Banner for Dispatcher */}
+      {order.status === 'NO_VEHICLE' && (
+        <div className='p-5 rounded-xl bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50/50 dark:from-rose-950/40 dark:via-amber-950/30 dark:to-rose-950/20 border-2 border-rose-200 dark:border-rose-900 shadow-sm'>
+          <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
+            <div className='space-y-1.5'>
+              <div className='flex items-center gap-2 text-rose-800 dark:text-rose-300 font-bold text-base'>
+                <IconAlertTriangle className='h-5 w-5 text-rose-600 flex-shrink-0' />
+                <span>Đội xe báo không có xe nội bộ khả dụng</span>
+                <Badge variant='destructive' className='text-xs'>
+                  Cần điều xe ngoài
+                </Badge>
+              </div>
+              <p className='text-sm text-slate-700 dark:text-slate-300'>
+                Lệnh điều vận này đã được chuyển hoàn về cho <strong>Điều phối (Dispatcher)</strong> để liên hệ sắp xếp phương án thuê xe bên ngoài (External Vehicle).
+              </p>
+              {order.notes && (
+                <div className='mt-2 p-3 bg-white/80 dark:bg-slate-900/80 rounded-md border border-rose-200 dark:border-rose-900/50 text-xs font-mono text-rose-900 dark:text-rose-200'>
+                  <strong>Ghi chú từ Đội xe:</strong>
+                  <pre className='whitespace-pre-wrap font-sans mt-1 text-slate-700 dark:text-slate-300'>
+                    {order.notes}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className='flex-shrink-0'>
+              <Button
+                onClick={handleOpenExternalModal}
+                className='bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-md'
+              >
+                <IconTruck className='mr-2 h-4 w-4' />
+                Cấu hình đối tác xe ngoài & Gửi lại Fleet
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2 Column Details */}
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
@@ -254,7 +424,20 @@ export default function OrderDetailPage() {
                 </div>
               </div>
 
-              <div className='grid grid-cols-2 gap-4 pt-2'>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2'>
+                <div className='space-y-1'>
+                  <span className='text-xs text-slate-400'>Số lượng kiện / cái</span>
+                  <div className='text-lg font-bold text-slate-900 dark:text-slate-100 font-mono'>
+                    {order.totalQuantity != null ? (
+                      `${order.totalQuantity.toLocaleString()} kiện`
+                    ) : (
+                      <span className='text-sm text-slate-400 font-sans font-normal italic'>
+                        Hàng theo lô / xá
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 <div className='space-y-1'>
                   <span className='text-xs text-slate-400'>Tổng khối lượng hàng</span>
                   <div className='text-lg font-bold text-slate-900 dark:text-slate-100 font-mono'>
@@ -285,7 +468,7 @@ export default function OrderDetailPage() {
                     <span className='text-xs text-slate-400 block mb-1 font-medium'>
                       Ghi chú điều vận:
                     </span>
-                    <p className='text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-md border border-slate-200 dark:border-slate-800'>
+                    <p className='text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-md border border-slate-200 dark:border-slate-800 whitespace-pre-wrap'>
                       {order.notes}
                     </p>
                   </div>
@@ -294,7 +477,7 @@ export default function OrderDetailPage() {
                 {order.externalNote && (
                   <div>
                     <span className='text-xs text-amber-600 dark:text-amber-400 block mb-1 font-bold'>
-                      🚛 Ghi chú / Lý do điều xe ngoài (external_note):
+                      🚛 Ghi chú / Thông tin xe thuê ngoài (external_note):
                     </span>
                     <p className='text-sm text-amber-900 dark:text-amber-200 bg-amber-50/80 dark:bg-amber-950/40 p-2.5 rounded-md border border-amber-300 dark:border-amber-900 font-medium'>
                       {order.externalNote}
@@ -319,7 +502,9 @@ export default function OrderDetailPage() {
                   <IconClock className='h-8 w-8 mx-auto text-slate-300 dark:text-slate-600' />
                   <p>Chưa có phương tiện nào được phân bổ cho đơn hàng này.</p>
                   <p className='text-xs text-slate-500'>
-                    Đơn hàng đang chờ Quản lý Đội xe tiếp nhận và gán xe.
+                    {order.status === 'NO_VEHICLE'
+                      ? 'Đơn hàng đang chờ Điều phối cấu hình thông tin xe thuê ngoài.'
+                      : 'Đơn hàng đang chờ Quản lý Đội xe tiếp nhận và gán xe.'}
                   </p>
                 </div>
               ) : (
@@ -412,14 +597,22 @@ export default function OrderDetailPage() {
                 <div className='relative'>
                   <div
                     className={`absolute -left-6 top-0.5 h-4 w-4 rounded-full border-2 border-white dark:border-slate-900 ${
-                      order.status !== 'DRAFT' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                      order.status === 'NO_VEHICLE'
+                        ? 'bg-rose-500 ring-2 ring-rose-300'
+                        : order.status !== 'DRAFT'
+                          ? 'bg-emerald-500'
+                          : 'bg-slate-300 dark:bg-slate-600'
                     }`}
                   />
                   <div className='text-xs font-semibold text-slate-900 dark:text-slate-100'>
-                    2. Gửi yêu cầu Fleet (Pending)
+                    {order.status === 'NO_VEHICLE'
+                      ? '2. Đội xe báo hết xe (NO_VEHICLE)'
+                      : '2. Gửi yêu cầu Fleet (Pending)'}
                   </div>
                   <p className='text-[11px] text-slate-500'>
-                    Đội xe nhận thông tin và kiểm tra phương tiện sẵn sàng.
+                    {order.status === 'NO_VEHICLE'
+                      ? 'Đã trả về cho Điều phối để liên hệ đối tác xe ngoài.'
+                      : 'Đội xe nhận thông tin và kiểm tra phương tiện sẵn sàng.'}
                   </p>
                 </div>
 
@@ -431,15 +624,19 @@ export default function OrderDetailPage() {
                       order.status === 'DELIVERED'
                         ? 'bg-emerald-500'
                         : order.status === 'NO_VEHICLE'
-                          ? 'bg-rose-500'
+                          ? 'bg-amber-500'
                           : 'bg-slate-300 dark:bg-slate-600'
                     }`}
                   />
                   <div className='text-xs font-semibold text-slate-900 dark:text-slate-100'>
-                    3. Phân xe & Xác nhận (Assigned)
+                    {order.status === 'NO_VEHICLE'
+                      ? '3. Thuê xe ngoài & Gửi lại Fleet'
+                      : '3. Phân xe & Xác nhận (Assigned)'}
                   </div>
                   <p className='text-[11px] text-slate-500'>
-                    Gán xe nội bộ hoặc xe thuê ngoài. Thông báo tự động gửi đến Kho.
+                    {order.status === 'NO_VEHICLE'
+                      ? 'Điền thông tin xe ngoài và gửi lại đội xe để gán chuyến.'
+                      : 'Gán xe nội bộ hoặc xe thuê ngoài. Thông báo tự động gửi đến Kho.'}
                   </p>
                 </div>
 
@@ -463,6 +660,211 @@ export default function OrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Modal: External Vehicle Configuration */}
+      <Dialog open={isExternalModalOpen} onOpenChange={setIsExternalModalOpen}>
+        <DialogContent className='sm:max-w-[550px]'>
+          <DialogHeader>
+            <DialogTitle className='text-lg font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400'>
+              <IconTruck className='h-5 w-5' />
+              Chuyển Sang Xe Thuê Ngoài (External Vehicle)
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className='space-y-4 py-2 text-sm'>
+            <div className='p-3 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200'>
+              <div className='font-semibold mb-1 flex items-center gap-1.5'>
+                <IconInfoCircle className='h-4 w-4 text-amber-600' />
+                Quy trình thuê xe ngoài:
+              </div>
+              <p>
+                Điều phối viên liên hệ đối tác vận tải ngoài, điền thông tin nhà xe và cước phí thỏa thuận. Sau khi lưu, đơn hàng sẽ được kích hoạt cờ <strong>🚛 Yêu cầu xe ngoài</strong> để Đội xe gán xe ngoài và xác nhận chuyến.
+              </p>
+            </div>
+
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='space-y-1.5'>
+                <label htmlFor='vendorName' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                  Tên nhà xe / Đối tác ngoài <span className='text-rose-500'>*</span>
+                </label>
+                <Input
+                  id='vendorName'
+                  placeholder='VD: Nhà xe Trọng Tấn, CP Á Châu...'
+                  value={vendorName}
+                  onChange={(e) => setVendorName(e.target.value)}
+                />
+              </div>
+
+              <div className='space-y-1.5'>
+                <label htmlFor='vendorPhone' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                  Hotline / Người liên hệ
+                </label>
+                <Input
+                  id='vendorPhone'
+                  placeholder='VD: 0912 345 678 (A. Hùng)'
+                  value={vendorPhone}
+                  onChange={(e) => setVendorPhone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className='space-y-1.5'>
+              <label htmlFor='vendorDetails' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                Ghi chú chi tiết điều xe ngoài / Thỏa thuận cước phí <span className='text-rose-500'>*</span>
+              </label>
+              <Textarea
+                id='vendorDetails'
+                rows={3}
+                placeholder='Nhập chi tiết yêu cầu xe (tải trọng, thùng kín/bạt, giá cước thỏa thuận, thời gian xe ngoài có mặt...)'
+                value={vendorDetails}
+                onChange={(e) => setVendorDetails(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className='gap-2 sm:gap-0 flex-col sm:flex-row'>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => setIsExternalModalOpen(false)}
+              disabled={submittingExternal}
+            >
+              Hủy
+            </Button>
+            <div className='flex items-center gap-2'>
+              <Button
+                type='button'
+                variant='secondary'
+                onClick={() => handleSaveExternalVehicle(false)}
+                disabled={submittingExternal}
+              >
+                Chỉ lưu thông tin
+              </Button>
+              <Button
+                type='button'
+                onClick={() => handleSaveExternalVehicle(true)}
+                disabled={submittingExternal}
+                className='bg-blue-600 hover:bg-blue-700 text-white'
+              >
+                <IconSend className='mr-1.5 h-4 w-4' />
+                Lưu & Gửi lại cho Fleet
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Edit Order Information */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className='sm:max-w-[500px]'>
+          <DialogHeader>
+            <DialogTitle className='text-lg font-bold flex items-center gap-2'>
+              <IconEdit className='h-5 w-5 text-blue-500' />
+              Chỉnh Sửa Thông Tin Đơn Hàng
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEditOrder} className='space-y-4 py-2 text-sm'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
+              <div className='space-y-1.5'>
+                <div className='flex items-center justify-between'>
+                  <label htmlFor='editTotalQuantity' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                    Số lượng
+                  </label>
+                  <span className='text-[10px] text-slate-400'>Tùy chọn</span>
+                </div>
+                <Input
+                  id='editTotalQuantity'
+                  type='number'
+                  min='1'
+                  step='1'
+                  placeholder='VD: 3000'
+                  value={editTotalQuantity}
+                  onChange={(e) =>
+                    setEditTotalQuantity(e.target.value ? Number(e.target.value) : '')
+                  }
+                />
+              </div>
+
+              <div className='space-y-1.5'>
+                <label htmlFor='editTotalWeight' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                  Tổng khối lượng (kg) <span className='text-rose-500'>*</span>
+                </label>
+                <Input
+                  id='editTotalWeight'
+                  type='number'
+                  min='1'
+                  value={editTotalWeight}
+                  onChange={(e) =>
+                    setEditTotalWeight(e.target.value ? Number(e.target.value) : '')
+                  }
+                  required
+                />
+              </div>
+
+              <div className='space-y-1.5'>
+                <label htmlFor='editTotalVolume' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                  Tổng thể tích (m³) <span className='text-rose-500'>*</span>
+                </label>
+                <Input
+                  id='editTotalVolume'
+                  type='number'
+                  step='0.01'
+                  min='0.01'
+                  value={editTotalVolume}
+                  onChange={(e) =>
+                    setEditTotalVolume(e.target.value ? Number(e.target.value) : '')
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className='space-y-1.5'>
+              <label htmlFor='editGoodsDesc' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                Mô tả hàng hóa
+              </label>
+              <Input
+                id='editGoodsDesc'
+                placeholder='Mô tả quy cách, tính chất hàng...'
+                value={editGoodsDesc}
+                onChange={(e) => setEditGoodsDesc(e.target.value)}
+              />
+            </div>
+
+            <div className='space-y-1.5'>
+              <label htmlFor='editNotes' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                Ghi chú điều vận
+              </label>
+              <Textarea
+                id='editNotes'
+                rows={3}
+                placeholder='Ghi chú thêm cho đội xe...'
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => setIsEditModalOpen(false)}
+                disabled={submittingEdit}
+              >
+                Hủy
+              </Button>
+              <Button
+                type='submit'
+                disabled={submittingEdit}
+                className='bg-blue-600 hover:bg-blue-700 text-white'
+              >
+                Lưu thay đổi
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
