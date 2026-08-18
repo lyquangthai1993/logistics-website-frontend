@@ -131,7 +131,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
       return;
     }
     if (originHub === destinationHub) {
-      toast.error('Hub xuất phát và Hub đích không được trùng nhau');
+      toast.error('Điểm lấy hàng và điểm giao hàng không được trùng nhau');
       return;
     }
     if (!totalWeight || Number(totalWeight) <= 0) {
@@ -189,7 +189,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
             Tạo Lệnh Điều Vận Mới
           </DialogTitle>
           <p className='text-xs text-muted-foreground mt-1'>
-            Khởi tạo đơn hàng điều phối giữa các chi nhánh kho (Hub) và gửi yêu cầu xếp xe đến Đội xe (Fleet).
+            Khởi tạo đơn hàng điều phối giữa các chi nhánh kho và gửi yêu cầu xếp xe đến Đội xe (Fleet).
           </p>
         </DialogHeader>
 
@@ -235,14 +235,14 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
               </p>
             </div>
 
-            {/* Tuyến đường: Hub Xuất Phát & Hub Đích */}
+            {/* Tuyến đường: Điểm lấy hàng & Điểm giao hàng */}
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4 pt-1'>
               <div className='space-y-1.5'>
                 <label
                   htmlFor='origin-hub-select'
                   className='text-sm font-semibold text-slate-700 dark:text-slate-300'
                 >
-                  Hub xuất phát (Kho gửi) <span className='text-rose-500'>*</span>
+                  Điểm lấy hàng (Kho gửi) <span className='text-rose-500'>*</span>
                 </label>
                 <select
                   id='origin-hub-select'
@@ -263,7 +263,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                   htmlFor='destination-hub-select'
                   className='text-sm font-semibold text-slate-700 dark:text-slate-300'
                 >
-                  Hub đích (Kho nhận) <span className='text-rose-500'>*</span>
+                  Điểm giao hàng (Kho nhận) <span className='text-rose-500'>*</span>
                 </label>
                 <select
                   id='destination-hub-select'
