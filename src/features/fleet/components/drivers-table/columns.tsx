@@ -21,6 +21,7 @@ export const columns: ColumnDef<Driver>[] = [
       </span>
     ),
     meta: {
+      columnTitle: 'Họ Và Tên',
       label: 'Tên tài xế',
       placeholder: 'Tìm họ tên, SĐT, số GPLX...',
       variant: 'text' as const,
@@ -34,6 +35,9 @@ export const columns: ColumnDef<Driver>[] = [
     header: ({ column }: { column: Column<Driver, unknown> }) => (
       <DataTableColumnHeader column={column} title='Số Điện Thoại' />
     ),
+    meta: {
+      columnTitle: 'Số Điện Thoại'
+    },
     cell: ({ row }) => (
       <span className='font-mono text-muted-foreground'>{row.original.phone}</span>
     )
@@ -58,6 +62,7 @@ export const columns: ColumnDef<Driver>[] = [
       </div>
     ),
     meta: {
+      columnTitle: 'Số GPLX & Hạng',
       label: 'Hạng GPLX',
       variant: 'select' as const,
       options: DRIVER_LICENSE_CLASS_OPTIONS
@@ -70,6 +75,9 @@ export const columns: ColumnDef<Driver>[] = [
     header: ({ column }: { column: Column<Driver, unknown> }) => (
       <DataTableColumnHeader column={column} title='Kinh Nghiệm' />
     ),
+    meta: {
+      columnTitle: 'Kinh Nghiệm'
+    },
     cell: ({ row }) => (
       <span className='font-medium text-muted-foreground'>
         {row.original.experienceYears} Năm
@@ -108,6 +116,7 @@ export const columns: ColumnDef<Driver>[] = [
       }
     },
     meta: {
+      columnTitle: 'Trạng Thái',
       label: 'Trạng thái',
       variant: 'select' as const,
       options: DRIVER_STATUS_OPTIONS
@@ -116,6 +125,7 @@ export const columns: ColumnDef<Driver>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     header: '',
     cell: ({ row }) => <CellAction data={row.original} />
   }

@@ -65,6 +65,7 @@ export const columns: ColumnDef<Trip>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title='Chuyến Xe / Mã Đơn' />,
     meta: {
       id: 'warehouse-search-input',
+      columnTitle: 'Chuyến Xe / Mã Đơn',
       label: 'Tìm kiếm',
       placeholder: 'Tìm theo mã đơn, biển số, tài xế, nhà xe...',
       variant: 'text',
@@ -104,6 +105,9 @@ export const columns: ColumnDef<Trip>[] = [
   {
     id: 'route',
     header: 'Tuyến Đường (Gửi → Nhận)',
+    meta: {
+      columnTitle: 'Tuyến Đường (Gửi → Nhận)'
+    },
     cell: ({ row }) => {
       const order = row.original.order;
       const origin = order?.originHub?.split(' ')[0] || 'Kho gửi';
@@ -125,6 +129,9 @@ export const columns: ColumnDef<Trip>[] = [
     id: 'vehicle',
     accessorFn: (row) => row.vehicle?.licensePlate || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Phương Tiện' />,
+    meta: {
+      columnTitle: 'Phương Tiện'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       const isExternal = trip.vehicle?.isExternal;
@@ -152,6 +159,9 @@ export const columns: ColumnDef<Trip>[] = [
     id: 'driver',
     accessorFn: (row) => row.driver?.fullName || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Tài Xế & SĐT' />,
+    meta: {
+      columnTitle: 'Tài Xế & SĐT'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       return (
@@ -174,6 +184,9 @@ export const columns: ColumnDef<Trip>[] = [
     id: 'cargo',
     accessorKey: 'weightAllocated',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Tải Trọng / Thể Tích' />,
+    meta: {
+      columnTitle: 'Tải Trọng / Thể Tích'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       return (
@@ -192,6 +205,9 @@ export const columns: ColumnDef<Trip>[] = [
   {
     id: 'schedule',
     header: 'Dự Kiến Đến (ETA)',
+    meta: {
+      columnTitle: 'Dự Kiến Đến (ETA)'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       return (
@@ -219,6 +235,7 @@ export const columns: ColumnDef<Trip>[] = [
     accessorKey: 'status',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Trạng Thái' />,
     meta: {
+      columnTitle: 'Trạng Thái',
       label: 'Trạng thái',
       variant: 'select',
       options: WAREHOUSE_STATUS_OPTIONS
@@ -229,6 +246,7 @@ export const columns: ColumnDef<Trip>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     header: () => <div className='text-right'>Thao tác</div>,
     cell: ({ row }) => <CellAction data={row.original} />
   }

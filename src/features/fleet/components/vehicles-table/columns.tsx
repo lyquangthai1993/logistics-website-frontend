@@ -29,6 +29,7 @@ export const columns: ColumnDef<Vehicle>[] = [
       </div>
     ),
     meta: {
+      columnTitle: 'Biển Số Xe',
       label: 'Biển số',
       placeholder: 'Tìm biển số, mẫu xe...',
       variant: 'text' as const,
@@ -58,6 +59,7 @@ export const columns: ColumnDef<Vehicle>[] = [
       </div>
     ),
     meta: {
+      columnTitle: 'Mẫu Xe & Loại',
       label: 'Loại xe',
       variant: 'select' as const,
       options: VEHICLE_TYPE_OPTIONS
@@ -70,6 +72,9 @@ export const columns: ColumnDef<Vehicle>[] = [
     header: ({ column }: { column: Column<Vehicle, unknown> }) => (
       <DataTableColumnHeader column={column} title='Tải Trọng Tối Đa' />
     ),
+    meta: {
+      columnTitle: 'Tải Trọng Tối Đa'
+    },
     cell: ({ row }) => (
       <span className='font-mono font-medium'>
         {row.original.maxWeight.toLocaleString('vi-VN')} kg
@@ -82,6 +87,9 @@ export const columns: ColumnDef<Vehicle>[] = [
     header: ({ column }: { column: Column<Vehicle, unknown> }) => (
       <DataTableColumnHeader column={column} title='Thể Tích Tối Đa' />
     ),
+    meta: {
+      columnTitle: 'Thể Tích Tối Đa'
+    },
     cell: ({ row }) => (
       <span className='font-mono font-medium'>{row.original.maxVolume} m³</span>
     )
@@ -92,6 +100,9 @@ export const columns: ColumnDef<Vehicle>[] = [
     header: ({ column }: { column: Column<Vehicle, unknown> }) => (
       <DataTableColumnHeader column={column} title='Kho / Hub Trực Thuộc' />
     ),
+    meta: {
+      columnTitle: 'Kho / Hub Trực Thuộc'
+    },
     cell: ({ row }) => (
       <div className='flex items-center gap-1 font-medium text-foreground'>
         <IconMapPin className='h-3.5 w-3.5 text-primary/70 shrink-0' />
@@ -135,6 +146,7 @@ export const columns: ColumnDef<Vehicle>[] = [
       }
     },
     meta: {
+      columnTitle: 'Trạng Thái',
       label: 'Trạng thái',
       variant: 'select' as const,
       options: VEHICLE_STATUS_OPTIONS
@@ -143,6 +155,7 @@ export const columns: ColumnDef<Vehicle>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     header: '',
     cell: ({ row }) => <CellAction data={row.original} />
   }

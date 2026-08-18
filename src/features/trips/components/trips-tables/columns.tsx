@@ -63,6 +63,7 @@ export const columns: ColumnDef<Trip>[] = [
     accessorKey: 'sequenceNumber',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Chuyến Xe / Mã Đơn' />,
     meta: {
+      columnTitle: 'Chuyến Xe / Mã Đơn',
       label: 'Chuyến xe / Mã đơn'
     },
     cell: ({ row }) => {
@@ -98,6 +99,9 @@ export const columns: ColumnDef<Trip>[] = [
     id: 'vehicle',
     accessorFn: (row) => row.vehicle?.licensePlate || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Phương Tiện' />,
+    meta: {
+      columnTitle: 'Phương Tiện'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       const isExternal = trip.vehicle?.isExternal;
@@ -128,6 +132,9 @@ export const columns: ColumnDef<Trip>[] = [
     id: 'driver',
     accessorFn: (row) => row.driver?.fullName || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Tài Xế' />,
+    meta: {
+      columnTitle: 'Tài Xế'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       return (
@@ -142,6 +149,9 @@ export const columns: ColumnDef<Trip>[] = [
     id: 'capacity',
     accessorKey: 'weightAllocated',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Khối Lượng / m³' />,
+    meta: {
+      columnTitle: 'Khối Lượng / m³'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       return (
@@ -155,6 +165,9 @@ export const columns: ColumnDef<Trip>[] = [
   {
     id: 'schedule',
     header: 'Lịch Trình',
+    meta: {
+      columnTitle: 'Lịch Trình'
+    },
     cell: ({ row }) => {
       const trip = row.original;
       return (
@@ -174,6 +187,7 @@ export const columns: ColumnDef<Trip>[] = [
     accessorKey: 'status',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Trạng Thái' />,
     meta: {
+      columnTitle: 'Trạng Thái',
       label: 'Trạng thái',
       options: TRIP_STATUS_OPTIONS
     },
@@ -185,6 +199,7 @@ export const columns: ColumnDef<Trip>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     header: () => <div className='text-right'>Thao tác</div>,
     cell: ({ row }) => <CellAction data={row.original} />
   }

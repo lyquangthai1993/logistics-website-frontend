@@ -13,6 +13,9 @@ export const columns: ColumnDef<Hub>[] = [
     id: 'code',
     accessorKey: 'code',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Mã Hub' />,
+    meta: {
+      columnTitle: 'Mã Hub'
+    },
     cell: ({ cell }) => (
       <span className='bg-primary/10 text-primary border-primary/20 rounded-md border px-2.5 py-1 font-mono text-xs font-semibold'>
         {cell.getValue<string>()}
@@ -38,6 +41,7 @@ export const columns: ColumnDef<Hub>[] = [
     ),
     meta: {
       id: 'hub-search-input',
+      columnTitle: 'Tên Chi Nhánh & Tỉnh/Thành',
       label: 'Tìm kiếm',
       placeholder: 'Tìm mã kho, tên kho, thành phố, quản lý...',
       variant: 'text',
@@ -47,8 +51,12 @@ export const columns: ColumnDef<Hub>[] = [
     enableSorting: true
   },
   {
+    id: 'address',
     accessorKey: 'address',
     header: 'Địa Chỉ Chi Tiết',
+    meta: {
+      columnTitle: 'Địa Chỉ Chi Tiết'
+    },
     cell: ({ cell }) => {
       const address = cell.getValue<string | null | undefined>();
       return (
@@ -62,6 +70,9 @@ export const columns: ColumnDef<Hub>[] = [
     id: 'manager',
     accessorKey: 'managerName',
     header: 'Người Quản Lý & SĐT',
+    meta: {
+      columnTitle: 'Người Quản Lý & SĐT'
+    },
     cell: ({ row }) => (
       <div>
         <div className='text-foreground flex items-center gap-1 font-medium'>
@@ -81,6 +92,9 @@ export const columns: ColumnDef<Hub>[] = [
     id: 'vehicles',
     accessorKey: 'vehicles',
     header: 'Xe Trực Thuộc',
+    meta: {
+      columnTitle: 'Xe Trực Thuộc'
+    },
     cell: ({ row }) => (
       <Badge variant='outline' className='bg-blue-500/10 text-blue-600 border-blue-500/20 font-mono'>
         <Icons.truck className='mr-1 h-3 w-3' />
@@ -105,6 +119,7 @@ export const columns: ColumnDef<Hub>[] = [
       );
     },
     meta: {
+      columnTitle: 'Trạng Thái',
       label: 'Trạng thái',
       variant: 'select',
       options: HUB_STATUS_OPTIONS
@@ -113,6 +128,7 @@ export const columns: ColumnDef<Hub>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     cell: ({ row }) => <CellAction data={row.original} />
   }
 ];

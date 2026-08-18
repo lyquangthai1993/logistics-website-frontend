@@ -26,6 +26,7 @@ export const columns: ColumnDef<User>[] = [
       );
     },
     meta: {
+      columnTitle: 'Họ và tên / Email',
       label: 'Họ và tên',
       placeholder: 'Tìm kiếm người dùng...',
       variant: 'text' as const,
@@ -39,6 +40,9 @@ export const columns: ColumnDef<User>[] = [
     header: ({ column }: { column: Column<User, unknown> }) => (
       <DataTableColumnHeader column={column} title='Tên đăng nhập' />
     ),
+    meta: {
+      columnTitle: 'Tên đăng nhập'
+    },
     cell: ({ row }) => (
       <span className='text-xs font-mono text-muted-foreground'>
         {row.original.username || '—'}
@@ -91,6 +95,7 @@ export const columns: ColumnDef<User>[] = [
     },
     enableColumnFilter: true,
     meta: {
+      columnTitle: 'Vai trò',
       label: 'Vai trò',
       variant: 'multiSelect' as const,
       options: ROLE_OPTIONS
@@ -102,6 +107,9 @@ export const columns: ColumnDef<User>[] = [
     header: ({ column }: { column: Column<User, unknown> }) => (
       <DataTableColumnHeader column={column} title='Trạng thái' />
     ),
+    meta: {
+      columnTitle: 'Trạng thái'
+    },
     cell: ({ row }) => {
       const status = row.original.status;
       const statusId = status?.id;
@@ -128,6 +136,9 @@ export const columns: ColumnDef<User>[] = [
     header: ({ column }: { column: Column<User, unknown> }) => (
       <DataTableColumnHeader column={column} title='Ngày tạo' />
     ),
+    meta: {
+      columnTitle: 'Ngày tạo'
+    },
     cell: ({ row }) => {
       const dateVal = row.original.createdAt;
       if (!dateVal) return <span className='text-xs text-muted-foreground'>—</span>;
@@ -151,6 +162,7 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     cell: ({ row }) => <CellAction data={row.original} />
   }
 ];

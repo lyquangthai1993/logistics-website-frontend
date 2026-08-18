@@ -119,6 +119,7 @@ export const columns: ColumnDef<Order>[] = [
     },
     meta: {
       id: 'order-search-input',
+      columnTitle: 'Mã Đơn Hàng',
       label: 'Tìm kiếm',
       placeholder: 'Tìm theo mã đơn, tuyến đường, hàng hóa...',
       variant: 'text',
@@ -130,6 +131,9 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: 'route',
     header: 'Tuyến Đường & Hub',
+    meta: {
+      columnTitle: 'Tuyến Đường & Hub'
+    },
     cell: ({ row }) => {
       const order = row.original;
       const originShort = order.originHub?.split(' ')[0] || 'N/A';
@@ -155,6 +159,9 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: 'weights',
     header: 'Khối Lượng / Thể Tích',
+    meta: {
+      columnTitle: 'Khối Lượng / Thể Tích'
+    },
     cell: ({ row }) => {
       const order = row.original;
       const weight = order.totalWeight != null ? Number(order.totalWeight).toLocaleString() : '0';
@@ -180,6 +187,9 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: 'goods',
     header: 'Loại Hàng',
+    meta: {
+      columnTitle: 'Loại Hàng'
+    },
     cell: ({ row }) => {
       const order = row.original;
       return (
@@ -208,6 +218,7 @@ export const columns: ColumnDef<Order>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title='Trạng Thái' />,
     cell: ({ cell }) => renderStatusBadge(cell.getValue<OrderStatus>()),
     meta: {
+      columnTitle: 'Trạng Thái',
       label: 'Trạng thái',
       variant: 'select',
       options: ORDER_STATUS_OPTIONS
@@ -218,6 +229,9 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: 'trips',
     header: 'Xe Phân Công',
+    meta: {
+      columnTitle: 'Xe Phân Công'
+    },
     cell: ({ row }) => {
       const order = row.original;
       return (
@@ -247,6 +261,7 @@ export const columns: ColumnDef<Order>[] = [
   },
   {
     id: 'actions',
+    enableHiding: false,
     header: () => <div className='text-right'>Thao tác</div>,
     cell: ({ row }) => <CellAction order={row.original} />
   }
