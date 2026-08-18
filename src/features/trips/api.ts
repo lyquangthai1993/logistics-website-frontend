@@ -64,15 +64,50 @@ export interface CreateSplitTripsPayload {
   }>;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface QueryTripParams {
   status?: string;
   orderId?: string;
   hub?: string;
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface TripStats {
+  tripsTotal: number;
+  tripsPending: number;
+  tripsConfirmed: number;
+  tripsInTransit: number;
+  tripsCompleted: number;
+  tripsCancelled: number;
+  ordersAwaitingFleet: number;
+  ordersNoVehicle: number;
+  fromDate: string;
+  toDate: string;
 }
 
 export const tripsApi = {
-  getTrips: async (params?: QueryTripParams): Promise<Trip[]> => {
+  getTrips: async (params?: QueryTripParams): Promise<PaginatedResponse<Trip>> => {
     const res = await apiClient.get('/api/v1/trips', { params });
+    return res.data;
+  },
+
+  getTripStats: async (fromDate?: string, toDate?: string): Promise<TripStats> => {
+    const res = await apiClient.get('/api/v1/trips/stats', {
+      params: { fromDate, toDate },
+    });
     return res.data;
   },
 
@@ -105,3 +140,4 @@ export const tripsApi = {
     await apiClient.delete(`/api/v1/trips/${id}`);
   }
 };
+

@@ -23,7 +23,7 @@ export default function UserAuthForm() {
     },
     onSubmit: () => {
       startTransition(() => {
-        toast.success('Signed In Successfully!');
+        toast.success('Đăng nhập thành công!');
       });
     }
   });

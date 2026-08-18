@@ -17,6 +17,7 @@ export interface Order {
   route?: string | null;
   originHub?: string | null;
   destinationHub?: string | null;
+  totalQuantity?: number | null;
   totalWeight: number;
   totalVolume: number;
   goodsDescription?: string | null;
@@ -34,6 +35,7 @@ export interface CreateOrderPayload {
   route?: string;
   originHub?: string;
   destinationHub?: string;
+  totalQuantity?: number | null;
   totalWeight: number;
   totalVolume: number;
   goodsDescription?: string;
@@ -42,16 +44,49 @@ export interface CreateOrderPayload {
   notes?: string;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface QueryOrderParams {
   status?: string;
   search?: string;
   originHub?: string;
   destinationHub?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface OrderStats {
+  total: number;
+  pending: number;
+  assigned: number;
+  inTransit: number;
+  delivered: number;
+  noVehicle: number;
+  cancelled: number;
+  fromDate: string;
+  toDate: string;
 }
 
 export const ordersApi = {
-  getOrders: async (params?: QueryOrderParams): Promise<Order[]> => {
+  getOrders: async (params?: QueryOrderParams): Promise<PaginatedResponse<Order>> => {
     const res = await apiClient.get('/api/v1/orders', { params });
+    return res.data;
+  },
+
+  getOrderStats: async (fromDate?: string, toDate?: string): Promise<OrderStats> => {
+    const res = await apiClient.get('/api/v1/orders/stats', {
+      params: { fromDate, toDate },
+    });
     return res.data;
   },
 
@@ -82,5 +117,12 @@ export const ordersApi = {
 
   deleteOrder: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/v1/orders/${id}`);
-  }
+  },
+
+  generateOrderCode: async (prefix?: string): Promise<{ orderCode: string }> => {
+    const res = await apiClient.get('/api/v1/orders/generate-code', {
+      params: prefix ? { prefix } : undefined,
+    });
+    return res.data;
+  },
 };

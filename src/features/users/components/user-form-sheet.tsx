@@ -39,20 +39,26 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
   const createMutation = useMutation({
     ...createUserMutation,
     onSuccess: () => {
-      toast.success('User created');
+      toast.success('Tạo người dùng thành công!');
       onOpenChange(false);
       form.reset();
     },
-    onError: () => toast.error("Couldn't create user. Try again.")
+    onError: (err: any) => {
+      const apiMessage = err?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể tạo người dùng. Vui lòng thử lại.');
+    }
   });
 
   const updateMutation = useMutation({
     ...updateUserMutation,
     onSuccess: () => {
-      toast.success('User updated');
+      toast.success('Cập nhật người dùng thành công!');
       onOpenChange(false);
     },
-    onError: () => toast.error("Couldn't update user. Try again.")
+    onError: (err: any) => {
+      const apiMessage = err?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể cập nhật người dùng. Vui lòng thử lại.');
+    }
   });
 
   const form = useAppForm({

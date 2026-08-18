@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { tripsApi, Trip, CreateSplitTripsPayload } from '@/features/trips/api';
+import { tripsApi, Trip, TripStats, CreateSplitTripsPayload } from '@/features/trips/api';
 import { ordersApi, Order } from '@/features/orders/api';
 import { fleetApi, Vehicle, Driver } from '@/features/fleet/api';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -29,9 +31,49 @@ import {
   IconClock,
   IconCircleCheck,
   IconAlertCircle,
-  IconTruckOff
+  IconTruckOff,
+  IconCalendar,
+  IconRefresh,
+  IconFileDescription
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getThisMonthRange() {
+  const now = new Date();
+  return {
+    from: toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: toLocalDateString(now),
+  };
+}
+
+function getLastMonthRange() {
+  const now = new Date();
+  const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  return { from: toLocalDateString(firstOfLastMonth), to: toLocalDateString(lastOfLastMonth) };
+}
+
+function getLast7DaysRange() {
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(from.getDate() - 6);
+  return { from: toLocalDateString(from), to: toLocalDateString(now) };
+}
+
+function getTodayRange() {
+  const t = toLocalDateString(new Date());
+  return { from: t, to: t };
+}
+
+type DatePreset = 'today' | '7days' | 'thisMonth' | 'lastMonth' | 'custom';
 
 interface SplitRow {
   vehicleId: number | '';
@@ -46,12 +88,37 @@ interface SplitRow {
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Loading states
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [tripsLoading, setTripsLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending-orders' | 'all-trips'>('pending-orders');
+
+  // Search & Debounce
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Date Range & Stats state
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+  const [dateRange, setDateRange] = useState(getThisMonthRange());
+  const [stats, setStats] = useState<TripStats | null>(null);
+
+  // Pagination for Tab 1: Pending Orders
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingTotalPages, setPendingTotalPages] = useState(1);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const PENDING_PAGE_SIZE = 10;
+
+  // Pagination for Tab 2: Trips
+  const [tripsPage, setTripsPage] = useState(1);
+  const [tripsTotalPages, setTripsTotalPages] = useState(1);
+  const [tripsTotal, setTripsTotal] = useState(0);
+  const TRIPS_PAGE_SIZE = 10;
 
   // Modal assign vehicle state
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -100,36 +167,136 @@ export default function TripsPage() {
     }
   ]);
 
-  const loadAllData = async () => {
+  // Search input handler with debounce
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPendingPage(1);
+      setTripsPage(1);
+      setDebouncedSearch(value);
+    }, 300);
+  };
+
+  // Date preset change handler
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    setPendingPage(1);
+    setTripsPage(1);
+    if (preset === 'today') setDateRange(getTodayRange());
+    else if (preset === '7days') setDateRange(getLast7DaysRange());
+    else if (preset === 'thisMonth') setDateRange(getThisMonthRange());
+    else if (preset === 'lastMonth') setDateRange(getLastMonthRange());
+  };
+
+  // Custom date input handler
+  const handleCustomDateChange = (field: 'from' | 'to', value: string) => {
+    setDatePreset('custom');
+    setPendingPage(1);
+    setTripsPage(1);
+    setDateRange((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const formatDateVi = (iso: string) => {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
+  // Load stats
+  const loadStats = useCallback(async (from: string, to: string) => {
     try {
-      setLoading(true);
-      const [tripsData, ordersData, vehiclesData, driversData] = await Promise.all([
-        tripsApi.getTrips(),
-        ordersApi.getOrders(),
+      setStatsLoading(true);
+      const data = await tripsApi.getTripStats(from, to);
+      setStats(data);
+    } catch {
+      // Non-blocking error
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  // Load Pending Orders for Fleet
+  const loadPendingOrders = useCallback(async (pageToLoad = pendingPage) => {
+    try {
+      setPendingLoading(true);
+      const res = await ordersApi.getOrders({
+        status: 'PENDING_ASSIGNMENT',
+        search: debouncedSearch.trim() || undefined,
+        fromDate: dateRange.from,
+        toDate: dateRange.to,
+        page: pageToLoad,
+        limit: PENDING_PAGE_SIZE,
+      });
+      setPendingOrders(res.data);
+      setPendingTotal(res.meta.total);
+      setPendingTotalPages(res.meta.totalPages);
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể tải danh sách đơn hàng chờ phân xe.');
+    } finally {
+      setPendingLoading(false);
+    }
+  }, [pendingPage, debouncedSearch, dateRange]);
+
+  // Load Trips
+  const loadTrips = useCallback(async (pageToLoad = tripsPage) => {
+    try {
+      setTripsLoading(true);
+      const res = await tripsApi.getTrips({
+        search: debouncedSearch.trim() || undefined,
+        fromDate: dateRange.from,
+        toDate: dateRange.to,
+        page: pageToLoad,
+        limit: TRIPS_PAGE_SIZE,
+      });
+      setTrips(res.data);
+      setTripsTotal(res.meta.total);
+      setTripsTotalPages(res.meta.totalPages);
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể tải danh sách chuyến xe.');
+    } finally {
+      setTripsLoading(false);
+    }
+  }, [tripsPage, debouncedSearch, dateRange]);
+
+  // Load Fleet (Vehicles & Drivers)
+  const loadFleetData = async () => {
+    try {
+      const [vehiclesData, driversData] = await Promise.all([
         fleetApi.getVehicles(),
-        fleetApi.getDrivers()
+        fleetApi.getDrivers(),
       ]);
-      setTrips(tripsData);
-      setOrders(ordersData);
       setVehicles(vehiclesData);
       setDrivers(driversData);
-    } catch (err: unknown) {
-      toast.error('Không thể tải dữ liệu điều phối', {
-        description: (err as Error).message
-      });
-    } finally {
-      setLoading(false);
+    } catch {
+      // Non-blocking
     }
   };
 
+  // Initial and reactive loads
   useEffect(() => {
-    loadAllData();
+    loadFleetData();
   }, []);
 
-  // Pending orders for Fleet to assign
-  const pendingOrders = useMemo(() => {
-    return orders.filter((o) => o.status === 'PENDING_FLEET' || o.status === 'NO_VEHICLE');
-  }, [orders]);
+  useEffect(() => {
+    loadStats(dateRange.from, dateRange.to);
+  }, [dateRange, loadStats]);
+
+  useEffect(() => {
+    loadPendingOrders(pendingPage);
+  }, [pendingPage, debouncedSearch, dateRange, loadPendingOrders]);
+
+  useEffect(() => {
+    loadTrips(tripsPage);
+  }, [tripsPage, debouncedSearch, dateRange, loadTrips]);
+
+  const refreshAll = () => {
+    loadPendingOrders(pendingPage);
+    loadTrips(tripsPage);
+    loadStats(dateRange.from, dateRange.to);
+  };
+
 
   // Open Assignment Modal
   const handleOpenAssignModal = (order: Order) => {
@@ -211,11 +378,10 @@ export default function TripsPage() {
       });
       setIsNoVehicleModalOpen(false);
       setNoVehicleOrder(null);
-      loadAllData();
+      refreshAll();
     } catch (err: unknown) {
-      toast.error('Lỗi cập nhật trạng thái hết xe', {
-        description: (err as Error).message
-      });
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi cập nhật trạng thái hết xe. Vui lòng thử lại.');
     } finally {
       setSubmittingNoVehicle(false);
     }
@@ -279,11 +445,10 @@ export default function TripsPage() {
       }
 
       setIsAssignModalOpen(false);
-      loadAllData();
+      refreshAll();
     } catch (err: unknown) {
-      toast.error('Lỗi khi phân công chuyến xe', {
-        description: (err as Error).message
-      });
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Lỗi khi phân công chuyến xe. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -296,11 +461,10 @@ export default function TripsPage() {
       toast.success('Xác nhận chuyến xe thành công!', {
         description: 'Đã cập nhật trạng thái và tự động gửi thông báo đến Inbound Kho.'
       });
-      loadAllData();
+      refreshAll();
     } catch (err: unknown) {
-      toast.error('Không thể xác nhận chuyến xe', {
-        description: (err as Error).message
-      });
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(apiMessage || 'Không thể xác nhận chuyến xe. Vui lòng thử lại.');
     }
   };
 
@@ -340,7 +504,81 @@ export default function TripsPage() {
         </Link>
       </div>
 
-      {/* Summary Cards */}
+      {/* ── Date Range Filter Bar (cho thống kê & bộ lọc theo ngày) ────────────── */}
+      <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
+        <CardContent className='pt-4 pb-3'>
+          <div className='flex flex-wrap items-center gap-3'>
+            {/* Label */}
+            <div className='flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 shrink-0'>
+              <IconCalendar className='h-4 w-4' />
+              Thống kê theo:
+            </div>
+
+            {/* Preset buttons */}
+            <div className='flex items-center gap-1.5 flex-wrap'>
+              {(
+                [
+                  { key: 'today', label: 'Hôm nay' },
+                  { key: '7days', label: '7 ngày qua' },
+                  { key: 'thisMonth', label: 'Tháng này' },
+                  { key: 'lastMonth', label: 'Tháng trước' },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => handlePresetChange(key)}
+                  className={cn(
+                    'px-3 py-1 text-xs font-medium rounded-md border transition-all duration-150 cursor-pointer',
+                    datePreset === key
+                      ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-50 dark:text-slate-900 dark:border-slate-50'
+                      : 'bg-transparent text-slate-600 border-slate-200 hover:bg-slate-100 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom date range */}
+            <div className='flex items-center gap-2 ml-auto'>
+              <span className='text-xs text-slate-400 hidden sm:inline'>Tùy chọn:</span>
+              <input
+                type='date'
+                value={dateRange.from}
+                max={dateRange.to}
+                onChange={(e) => handleCustomDateChange('from', e.target.value)}
+                className='px-2 py-1 text-xs bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer'
+              />
+              <span className='text-xs text-slate-400'>→</span>
+              <input
+                type='date'
+                value={dateRange.to}
+                min={dateRange.from}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => handleCustomDateChange('to', e.target.value)}
+                className='px-2 py-1 text-xs bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer'
+              />
+              <button
+                onClick={refreshAll}
+                disabled={statsLoading || pendingLoading || tripsLoading}
+                title='Làm mới dữ liệu'
+                className='p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                <IconRefresh className={cn('h-3.5 w-3.5 text-slate-500', (statsLoading || pendingLoading || tripsLoading) && 'animate-spin')} />
+              </button>
+            </div>
+          </div>
+
+          {/* Period label */}
+          {stats && !statsLoading && (
+            <p className='text-[11px] text-slate-400 dark:text-slate-500 mt-2 ml-0.5'>
+              Kỳ thống kê: {formatDateVi(stats.fromDate)} – {formatDateVi(stats.toDate)}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards — data từ API /trips/stats */}
       <div className='grid gap-4 md:grid-cols-4'>
         <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
           <CardHeader className='flex flex-row items-center justify-between pb-2'>
@@ -351,7 +589,11 @@ export default function TripsPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
-              {pendingOrders.length}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-blue-100 dark:bg-blue-950/50 rounded animate-pulse' />
+              ) : (
+                stats?.ordersAwaitingFleet ?? '—'
+              )}
             </div>
             <p className='text-xs text-slate-500 mt-1'>Đang chờ Fleet xử lý</p>
           </CardContent>
@@ -366,9 +608,13 @@ export default function TripsPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-emerald-600 dark:text-emerald-400'>
-              {trips.filter((t) => t.status === 'CONFIRMED' || t.status === 'IN_TRANSIT').length}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-emerald-100 dark:bg-emerald-950/50 rounded animate-pulse' />
+              ) : (
+                (stats ? stats.tripsConfirmed + stats.tripsInTransit : null) ?? '—'
+              )}
             </div>
-            <p className='text-xs text-slate-500 mt-1'>Đã thông báo đến Kho</p>
+            <p className='text-xs text-slate-500 mt-1'>Trong kỳ thống kê</p>
           </CardContent>
         </Card>
 
@@ -396,12 +642,17 @@ export default function TripsPage() {
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-rose-600 dark:text-rose-400'>
-              {orders.filter((o) => o.status === 'NO_VEHICLE').length}
+              {statsLoading ? (
+                <span className='inline-block h-8 w-12 bg-rose-100 dark:bg-rose-950/50 rounded animate-pulse' />
+              ) : (
+                stats?.ordersNoVehicle ?? '—'
+              )}
             </div>
             <p className='text-xs text-slate-500 mt-1'>Cần Dispatcher thuê xe ngoài</p>
           </CardContent>
         </Card>
       </div>
+
 
       {/* Tabs Layout */}
       <Tabs
@@ -411,15 +662,17 @@ export default function TripsPage() {
       >
         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
           <TabsList className='bg-slate-100 dark:bg-slate-800'>
-            <TabsTrigger value='pending-orders' className='relative'>
+            <TabsTrigger value='pending-orders' className='relative cursor-pointer'>
               Đơn Cần Phân Xe
-              {pendingOrders.length > 0 && (
+              {pendingTotal > 0 && (
                 <span className='ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white'>
-                  {pendingOrders.length}
+                  {pendingTotal}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value='all-trips'>Danh Sách Chuyến Xe ({trips.length})</TabsTrigger>
+            <TabsTrigger value='all-trips' className='cursor-pointer'>
+              Danh Sách Chuyến Xe ({tripsTotal})
+            </TabsTrigger>
           </TabsList>
 
           <div className='relative max-w-xs w-full'>
@@ -427,7 +680,7 @@ export default function TripsPage() {
             <Input
               placeholder='Tìm kiếm mã đơn / biển số...'
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className='pl-9 bg-slate-50/50 dark:bg-slate-900 text-sm'
             />
           </div>
@@ -435,15 +688,18 @@ export default function TripsPage() {
 
         {/* Tab 1: Pending Orders for Assignment */}
         <TabsContent value='pending-orders' className='space-y-4'>
-          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
+          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 overflow-hidden'>
             <CardHeader className='pb-3 border-b border-slate-100 dark:border-slate-800'>
               <CardTitle className='text-base font-semibold text-slate-900 dark:text-slate-100'>
                 Danh Sách Đơn Hàng Chờ Phân Bổ Phương Tiện
               </CardTitle>
             </CardHeader>
             <CardContent className='p-0'>
-              {loading ? (
-                <div className='p-8 text-center text-slate-400'>Đang tải danh sách đơn hàng...</div>
+              {pendingLoading ? (
+                <div className='p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2'>
+                  <IconRefresh className='h-6 w-6 animate-spin text-blue-500' />
+                  <span>Đang tải danh sách đơn hàng...</span>
+                </div>
               ) : pendingOrders.length === 0 ? (
                 <div className='p-12 text-center text-slate-400 space-y-2'>
                   <IconCircleCheck className='h-10 w-10 text-emerald-500 mx-auto' />
@@ -451,7 +707,7 @@ export default function TripsPage() {
                     Tuyệt vời! Hiện không có đơn hàng nào chờ phân xe.
                   </p>
                   <p className='text-xs text-slate-500'>
-                    Tất cả đơn hàng đã được bố trí phương tiện vận tải đầy đủ.
+                    Tất cả đơn hàng trong kỳ đã được bố trí phương tiện vận tải đầy đủ.
                   </p>
                 </div>
               ) : (
@@ -554,6 +810,16 @@ export default function TripsPage() {
                 </div>
               )}
             </CardContent>
+
+            {!pendingLoading && pendingTotalPages > 0 && (
+              <TablePaginationBar
+                page={pendingPage}
+                totalPages={pendingTotalPages}
+                total={pendingTotal}
+                pageSize={PENDING_PAGE_SIZE}
+                onPageChange={setPendingPage}
+              />
+            )}
           </Card>
         </TabsContent>
 
@@ -574,10 +840,19 @@ export default function TripsPage() {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-slate-200 dark:divide-slate-800'>
-                  {trips.length === 0 ? (
+                  {tripsLoading ? (
                     <tr>
                       <td colSpan={7} className='text-center py-12 text-slate-400'>
-                        Chưa có chuyến xe nào được tạo.
+                        <div className='flex flex-col items-center justify-center gap-2'>
+                          <IconRefresh className='h-6 w-6 animate-spin text-blue-500' />
+                          <span>Đang tải danh sách chuyến xe...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : trips.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className='text-center py-12 text-slate-400'>
+                        Chưa có chuyến xe nào trong kỳ đã chọn.
                       </td>
                     </tr>
                   ) : (
@@ -668,7 +943,7 @@ export default function TripsPage() {
                               <Button
                                 size='sm'
                                 onClick={() => handleConfirmTrip(trip.id)}
-                                className='bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-2.5'
+                                className='bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-2.5 cursor-pointer'
                               >
                                 <IconCheck className='h-3.5 w-3.5 mr-1' />
                                 Xác nhận Trip
@@ -682,9 +957,20 @@ export default function TripsPage() {
                 </tbody>
               </table>
             </div>
+
+            {!tripsLoading && tripsTotalPages > 0 && (
+              <TablePaginationBar
+                page={tripsPage}
+                totalPages={tripsTotalPages}
+                total={tripsTotal}
+                pageSize={TRIPS_PAGE_SIZE}
+                onPageChange={setTripsPage}
+              />
+            )}
           </Card>
         </TabsContent>
       </Tabs>
+
 
       {/* Modal / Sheet Phân Công Xe & Split Shipment */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
@@ -704,33 +990,84 @@ export default function TripsPage() {
           {selectedOrder && (
             <div className='space-y-4 pt-1'>
               {/* Order quick info */}
-              <div className='p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-xs grid grid-cols-2 sm:grid-cols-4 gap-2 border border-slate-200/60 dark:border-slate-800'>
-                <div>
-                  <span className='text-slate-400 block'>Tuyến đường</span>
-                  <span className='font-semibold text-slate-800 dark:text-slate-200'>
-                    {selectedOrder.originHub?.split(' ')[0]} &rarr;{' '}
-                    {selectedOrder.destinationHub?.split(' ')[0]}
-                  </span>
+              <div className='p-3.5 bg-slate-50 dark:bg-slate-900 rounded-lg text-xs space-y-2.5 border border-slate-200/80 dark:border-slate-800'>
+                <div className='grid grid-cols-2 sm:grid-cols-4 gap-2.5'>
+                  <div>
+                    <span className='text-slate-400 block font-medium'>Tuyến đường</span>
+                    <span className='font-semibold text-slate-800 dark:text-slate-200'>
+                      {selectedOrder.originHub?.split(' ')[0]} &rarr;{' '}
+                      {selectedOrder.destinationHub?.split(' ')[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <span className='text-slate-400 block font-medium'>Tổng khối lượng</span>
+                    <span className='font-mono font-bold text-slate-800 dark:text-slate-200'>
+                      {selectedOrder.totalWeight.toLocaleString()} kg
+                    </span>
+                  </div>
+                  <div>
+                    <span className='text-slate-400 block font-medium'>Tổng thể tích</span>
+                    <span className='font-mono font-bold text-slate-800 dark:text-slate-200'>
+                      {selectedOrder.totalVolume} m³
+                    </span>
+                  </div>
+                  <div>
+                    <span className='text-slate-400 block font-medium'>Kho nhận</span>
+                    <span className='font-semibold text-slate-800 dark:text-slate-200 truncate block'>
+                      {selectedOrder.destinationHub}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className='text-slate-400 block'>Tổng khối lượng</span>
-                  <span className='font-mono font-bold text-slate-800 dark:text-slate-200'>
-                    {selectedOrder.totalWeight.toLocaleString()} kg
-                  </span>
-                </div>
-                <div>
-                  <span className='text-slate-400 block'>Tổng thể tích</span>
-                  <span className='font-mono font-bold text-slate-800 dark:text-slate-200'>
-                    {selectedOrder.totalVolume} m³
-                  </span>
-                </div>
-                <div>
-                  <span className='text-slate-400 block'>Kho nhận</span>
-                  <span className='font-semibold text-slate-800 dark:text-slate-200 truncate block'>
-                    {selectedOrder.destinationHub}
-                  </span>
-                </div>
+
+                {selectedOrder.goodsDescription && (
+                  <div className='pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs flex items-start gap-1.5'>
+                    <span className='text-slate-400 font-medium shrink-0'>Loại hàng / Mô tả:</span>
+                    <span className='text-slate-700 dark:text-slate-300 font-medium'>
+                      {selectedOrder.goodsDescription}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Ghi chú điều vận nổi bật (Nhập từ modal Điều hành khi tạo lệnh) */}
+              {selectedOrder.notes ? (
+                <div className='p-3.5 bg-gradient-to-r from-amber-50 via-amber-50 to-amber-100/60 dark:from-amber-950/60 dark:via-amber-950/40 dark:to-amber-900/40 border-2 border-amber-400 dark:border-amber-500 rounded-xl shadow-xs space-y-2 animate-in fade-in duration-200'>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-xs uppercase tracking-wide'>
+                      <IconFileDescription className='h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0' />
+                      <span>Ghi Chú Điều Vận (Từ Lệnh Điều Hành)</span>
+                    </div>
+                    <Badge
+                      variant='outline'
+                      className='bg-amber-100 dark:bg-amber-900/80 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider'
+                    >
+                      Lưu ý quan trọng
+                    </Badge>
+                  </div>
+                  <div className='text-sm font-semibold text-amber-950 dark:text-amber-100 whitespace-pre-wrap bg-white/80 dark:bg-slate-900/80 p-3 rounded-lg border border-amber-200 dark:border-amber-800/80 shadow-2xs leading-relaxed'>
+                    {selectedOrder.notes}
+                  </div>
+                </div>
+              ) : (
+                <div className='p-2.5 bg-slate-50 dark:bg-slate-900/60 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400'>
+                  <IconFileDescription className='h-4 w-4 text-slate-400 shrink-0' />
+                  <span>
+                    <strong className='font-semibold text-slate-600 dark:text-slate-300'>Ghi chú điều vận:</strong>{' '}
+                    <span className='italic text-slate-400'>Không có ghi chú đặc biệt từ Điều hành</span>
+                  </span>
+                </div>
+              )}
+
+              {/* Yêu cầu xe thuê ngoài (nếu có) */}
+              {selectedOrder.isExternalVehicleNeeded && (
+                <div className='p-2.5 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2'>
+                  <IconAlertCircle className='h-4 w-4 text-amber-600 shrink-0' />
+                  <div>
+                    <strong>Yêu cầu xe thuê ngoài:</strong>{' '}
+                    {selectedOrder.externalNote || 'Đơn hàng này được yêu cầu điều động xe đối tác bên ngoài.'}
+                  </div>
+                </div>
+              )}
 
               {/* Mode Toggle: Single vs Split Shipment */}
               <div className='flex items-center justify-between p-3 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 rounded-lg'>
