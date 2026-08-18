@@ -10,6 +10,7 @@ import { NotificationCard } from '@/components/ui/notification-card';
 import { useNotificationSocket } from '../hooks/use-notification-socket';
 import {
   useNotificationsQuery,
+  useUnreadCountQuery,
   useMarkAsReadMutation,
   useMarkAllAsReadMutation
 } from '../hooks/use-notifications-query';
@@ -21,15 +22,16 @@ export function NotificationCenter() {
   useNotificationSocket();
 
   const { data, isLoading } = useNotificationsQuery(1, MAX_VISIBLE);
+  const { data: unreadCountData } = useUnreadCountQuery();
   const markAsRead = useMarkAsReadMutation();
   const markAllAsRead = useMarkAllAsReadMutation();
 
   const notifications = data?.data ?? [];
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = typeof unreadCountData === 'number' ? unreadCountData : notifications.filter((n) => !n.isRead).length;
 
   return (
     <Popover>
-      <PopoverTrigger render={<Button variant='ghost' size='icon' className='relative h-8 w-8' />}>
+      <PopoverTrigger render={<Button variant='ghost' size='icon' className='relative h-8 w-8 cursor-pointer' />}>
         <Icons.notification className='h-4 w-4' />
         {unreadCount > 0 && (
           <span className='bg-destructive text-destructive-foreground absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium'>
@@ -40,7 +42,7 @@ export function NotificationCenter() {
       </PopoverTrigger>
       <PopoverContent align='end' className='w-[calc(100vw-2rem)] p-0 sm:w-[380px]' sideOffset={8}>
         <div className='flex items-center justify-between px-4 pt-3'>
-          <Link href='/dashboard/notifications' className='group flex items-center gap-1'>
+          <Link href='/dashboard/notifications' className='group flex items-center gap-1 cursor-pointer'>
             <h4 className='text-sm font-semibold group-hover:underline'>Notifications</h4>
             <Icons.chevronRight className='text-muted-foreground h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5' />
           </Link>
@@ -54,7 +56,7 @@ export function NotificationCenter() {
               <Button
                 variant='ghost'
                 size='sm'
-                className='text-muted-foreground h-auto px-2 py-1 text-xs'
+                className='text-muted-foreground h-auto px-2 py-1 text-xs cursor-pointer'
                 onClick={() => markAllAsRead.mutate()}
                 disabled={markAllAsRead.isPending}
               >
@@ -82,7 +84,7 @@ export function NotificationCenter() {
                   id={String(notification.id)}
                   title={notification.title}
                   body={notification.body}
-                  type={notification.type as 'DISPATCHER' | 'FLEET' | 'WAREHOUSE' | 'GENERIC'}
+                  type={notification.type}
                   status={notification.isRead ? 'read' : 'unread'}
                   createdAt={notification.createdAt}
                   onMarkAsRead={(id) => markAsRead.mutate(Number(id))}

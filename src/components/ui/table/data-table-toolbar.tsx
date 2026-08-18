@@ -79,6 +79,7 @@ function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilterProps<T
         case 'text':
           return (
             <Input
+              id={columnMeta.id}
               placeholder={columnMeta.placeholder ?? columnMeta.label}
               aria-label={columnMeta.label ?? 'Filter'}
               value={(column.getFilterValue() as string) ?? ''}

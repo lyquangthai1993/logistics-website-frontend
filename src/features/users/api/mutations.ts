@@ -2,17 +2,17 @@ import { mutationOptions } from '@tanstack/react-query';
 import { getQueryClient } from '@/lib/query-client';
 import { createUser, updateUser, deleteUser } from './service';
 import { userKeys } from './queries';
-import type { UserMutationPayload } from './types';
+import type { CreateUserPayload, UpdateUserPayload } from './types';
 
 export const createUserMutation = mutationOptions({
-  mutationFn: (data: UserMutationPayload) => createUser(data),
+  mutationFn: (data: CreateUserPayload) => createUser(data),
   onSuccess: () => {
     getQueryClient().invalidateQueries({ queryKey: userKeys.all });
   }
 });
 
 export const updateUserMutation = mutationOptions({
-  mutationFn: ({ id, values }: { id: number; values: UserMutationPayload }) =>
+  mutationFn: ({ id, values }: { id: number; values: UpdateUserPayload }) =>
     updateUser(id, values),
   onSuccess: () => {
     getQueryClient().invalidateQueries({ queryKey: userKeys.all });
