@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/ui/table/data-table-column-header';
+import { Icons } from '@/components/icons';
 import { CellAction } from './cell-action';
 import { TRIP_STATUS_OPTIONS } from './options';
 import type { Trip, TripStatus } from '../../api/types';
@@ -63,9 +64,14 @@ export const columns: ColumnDef<Trip>[] = [
     accessorKey: 'sequenceNumber',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Chuyến Xe / Mã Đơn' />,
     meta: {
+      id: 'trip-search-input',
       columnTitle: 'Chuyến Xe / Mã Đơn',
-      label: 'Chuyến xe / Mã đơn'
+      label: 'Tìm kiếm',
+      placeholder: 'Tìm theo mã chuyến, mã đơn...',
+      variant: 'text',
+      icon: Icons.search
     },
+    enableColumnFilter: true,
     cell: ({ row }) => {
       const trip = row.original;
       const isExternal = trip.vehicle?.isExternal;

@@ -25,6 +25,7 @@ export function useTripsTableFilters(columnIds: string[] = []) {
   const [params, setParams] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     perPage: parseAsInteger.withDefault(10),
+    tripSequence: parseAsString,
     search: parseAsString,
     name: parseAsString,
     status: parseAsString,
@@ -36,7 +37,7 @@ export function useTripsTableFilters(columnIds: string[] = []) {
     sort: getSortingStateParser(columnIds).withDefault([])
   });
 
-  const search = params.name || params.search || '';
+  const search = params.tripSequence || params.name || params.search || '';
   const status = params.status;
   const preset = (params.preset as DatePreset) || 'thisMonth';
 
@@ -94,6 +95,7 @@ export function useTripsTableFilters(columnIds: string[] = []) {
   const resetFilters = useCallback(() => {
     const defaultRange = getThisMonthRange();
     setParams({
+      tripSequence: null,
       name: null,
       search: null,
       status: null,
@@ -108,7 +110,8 @@ export function useTripsTableFilters(columnIds: string[] = []) {
 
   const isAnyFilterActive = useMemo(() => {
     return Boolean(
-      params.name ||
+      params.tripSequence ||
+        params.name ||
         params.search ||
         (params.status && params.status !== 'ALL') ||
         params.vehicleId ||

@@ -24,6 +24,7 @@ export function useOrdersTableFilters(columnIds: string[] = []) {
   const [params, setParams] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     perPage: parseAsInteger.withDefault(10),
+    orderCode: parseAsString,
     search: parseAsString,
     name: parseAsString,
     status: parseAsString,
@@ -36,7 +37,7 @@ export function useOrdersTableFilters(columnIds: string[] = []) {
     sort: getSortingStateParser(columnIds).withDefault([])
   });
 
-  const search = params.name || params.search || '';
+  const search = params.orderCode || params.name || params.search || '';
   const status = params.status;
   const hub = params.hub;
   const originHub = params.originHub || (hub && hub !== 'ALL' ? hub : undefined);
@@ -109,6 +110,7 @@ export function useOrdersTableFilters(columnIds: string[] = []) {
   const resetFilters = useCallback(() => {
     const defaultRange = getThisMonthRange();
     setParams({
+      orderCode: null,
       name: null,
       search: null,
       status: null,
@@ -124,7 +126,8 @@ export function useOrdersTableFilters(columnIds: string[] = []) {
 
   const isAnyFilterActive = useMemo(() => {
     return Boolean(
-      params.name ||
+      params.orderCode ||
+        params.name ||
         params.search ||
         (params.status && params.status !== 'ALL') ||
         (params.hub && params.hub !== 'ALL') ||

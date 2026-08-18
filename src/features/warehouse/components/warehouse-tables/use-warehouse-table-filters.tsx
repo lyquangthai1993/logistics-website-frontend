@@ -9,6 +9,7 @@ export function useWarehouseTableFilters(columnIds: string[] = []) {
   const [params, setParams] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     perPage: parseAsInteger.withDefault(10),
+    tripSequence: parseAsString,
     search: parseAsString,
     name: parseAsString,
     hub: parseAsString,
@@ -19,7 +20,7 @@ export function useWarehouseTableFilters(columnIds: string[] = []) {
     sort: getSortingStateParser(columnIds).withDefault([])
   });
 
-  const search = params.name || params.search || '';
+  const search = params.tripSequence || params.name || params.search || '';
   const selectedHub = params.hub || params.destinationHub || params.hubId || 'ALL';
   const selectedStatus = params.status || 'ALL';
   const currentView = (params.view as 'table' | 'cards') || 'table';
@@ -38,6 +39,7 @@ export function useWarehouseTableFilters(columnIds: string[] = []) {
 
   const resetFilters = useCallback(() => {
     setParams({
+      tripSequence: null,
       search: null,
       name: null,
       hub: null,
@@ -50,6 +52,7 @@ export function useWarehouseTableFilters(columnIds: string[] = []) {
 
   const isAnyFilterActive = useMemo(() => {
     return Boolean(
+      params.tripSequence ||
       params.search ||
       params.name ||
       (params.hub && params.hub !== 'ALL') ||
