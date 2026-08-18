@@ -9,11 +9,13 @@ export default function GlobalError({
   error,
   reset
 }: {
-  error: Error & { digest?: string };
-  reset: () => void;
+  error?: Error & { digest?: string };
+  reset?: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    if (error) {
+      Sentry.captureException(error);
+    }
   }, [error]);
 
   return (
@@ -34,7 +36,7 @@ export default function GlobalError({
             An unexpected error occurred. Please try again.
           </p>
           <button
-            onClick={() => reset()}
+            onClick={() => reset?.()}
             style={{
               padding: '0.5rem 1.25rem',
               borderRadius: '0.5rem',

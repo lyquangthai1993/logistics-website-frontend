@@ -1,28 +1,65 @@
-export type { User } from '@/constants/mock-api-users';
+export interface Role {
+  id: number;
+  name?: string;
+  displayName?: string | null;
+  description?: string | null;
+}
 
-export type UserFilters = {
+export interface Status {
+  id: number;
+  name?: string;
+}
+
+export interface UserPhoto {
+  id: string | number;
+  path: string;
+}
+
+export interface User {
+  id: number;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  username?: string | null;
+  provider?: string;
+  socialId?: string | null;
+  role?: Role | null;
+  status?: Status | null;
+  photo?: UserPhoto | null;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password?: string;
+  username?: string | null;
+  role?: { id: number } | null;
+  status?: { id: number } | null;
+  photo?: { id: string | number } | null;
+  provider?: string;
+}
+
+export interface UpdateUserPayload extends Partial<CreateUserPayload> {}
+
+export interface UsersQueryParams {
   page?: number;
   limit?: number;
   roles?: string;
   search?: string;
   sort?: string;
-};
+}
 
-export type UsersResponse = {
-  success: boolean;
-  time: string;
-  message: string;
-  total_users: number;
-  offset: number;
-  limit: number;
-  users: import('@/constants/mock-api-users').User[];
-};
+export type UserFilters = UsersQueryParams;
 
-export type UserMutationPayload = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  role: string;
-  status: string;
-};
+export interface UsersResponse {
+  data: User[];
+  hasNextPage: boolean;
+  total_users?: number;
+  users?: User[];
+}
+
+export interface UserMutationPayload extends CreateUserPayload {}

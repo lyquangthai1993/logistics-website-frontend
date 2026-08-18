@@ -2,20 +2,23 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
+
+export type NotificationType = 'WAREHOUSE' | 'FLEET' | 'DISPATCHER' | 'GENERIC';
 
 export type NotificationItem = {
   id: number;
   userId: number;
   title: string;
   body: string;
-  type: 'WAREHOUSE' | 'FLEET' | 'DISPATCHER' | 'GENERIC';
+  type: NotificationType;
   isRead: boolean;
   metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };
 
-type NotificationsResponse = {
+export type NotificationsResponse = {
   data: NotificationItem[];
   total: number;
   page: number;
@@ -64,6 +67,12 @@ export function useMarkAsReadMutation() {
     mutationFn: (id: number) => apiClient.patch(`/api/v1/notifications/${id}/read`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã đánh dấu thông báo là đã đọc');
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
+      toast.error(apiMessage || 'Không thể đánh dấu thông báo là đã đọc. Vui lòng thử lại.');
     }
   });
 }
@@ -75,6 +84,12 @@ export function useMarkAllAsReadMutation() {
     mutationFn: () => apiClient.patch('/api/v1/notifications/read-all'),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã đánh dấu tất cả thông báo là đã đọc');
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
+      toast.error(apiMessage || 'Không thể đánh dấu tất cả thông báo là đã đọc. Vui lòng thử lại.');
     }
   });
 }

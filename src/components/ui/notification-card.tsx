@@ -123,6 +123,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
 
   return (
     <div
+      data-testid='notification-item'
       className={cn(
         'group relative w-full rounded-2xl transition-all',
         isUnread ? 'bg-muted' : 'bg-muted/40',
@@ -182,7 +183,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
               type='button'
               onClick={() => onMarkAsRead(id)}
               className={cn(
-                'rounded-lg p-1.5 transition-colors',
+                'rounded-lg p-1.5 transition-colors cursor-pointer',
                 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
               aria-label='Mark as read'

@@ -27,7 +27,12 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         shortcut: ['d', 'd'],
         items: []
-      },
+      }
+    ]
+  },
+  {
+    label: 'Vận hành TMS',
+    items: [
       {
         title: 'Lệnh điều vận',
         url: '/dashboard/orders',
@@ -63,24 +68,35 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         items: [],
         access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
-      },
+      }
+    ]
+  },
+  {
+    label: 'Quản trị hệ thống',
+    items: [
       {
-        title: 'Product',
-        url: '/dashboard/product',
-        icon: 'product',
-        shortcut: ['p', 'p'],
+        title: 'Chi Nhánh Kho (Hubs)',
+        url: '/dashboard/admin/hubs',
+        icon: 'mapPin',
+        shortcut: ['h', 'b'],
         isActive: false,
-        items: []
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
       },
       {
-        title: 'Users',
+        title: 'Người dùng',
         url: '/dashboard/users',
         icon: 'teams',
         shortcut: ['u', 'u'],
         isActive: false,
         items: [],
         access: { role: 'SUPER_ADMIN' }
-      },
+      }
+    ]
+  },
+  {
+    label: 'Không gian làm việc',
+    items: [
       {
         title: 'Kanban',
         url: '/dashboard/kanban',
@@ -110,6 +126,14 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Elements',
     items: [
+      {
+        title: 'Product Table',
+        url: '/dashboard/product',
+        icon: 'product',
+        shortcut: ['p', 'p'],
+        isActive: false,
+        items: []
+      },
       {
         title: 'Forms',
         url: '#',

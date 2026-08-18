@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 const publicRoutes = ['/auth/sign-in', '/auth'];
 const roleRouteMap: Record<string, string[]> = {
   '/dashboard/admin': ['SUPER_ADMIN'],
+  '/dashboard/users': ['SUPER_ADMIN'],
   '/dashboard/orders': ['SUPER_ADMIN', 'DISPATCHER'],
   '/dashboard/trips': ['SUPER_ADMIN', 'FLEET_MANAGER'],
   '/dashboard/fleet': ['SUPER_ADMIN', 'FLEET_MANAGER'],

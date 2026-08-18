@@ -190,7 +190,7 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
 
     // Popover xuất hiện — có heading "Notifications" hoặc empty state
     await expect(
-      page.locator('text=Notifications').or(page.locator('text=No notifications yet'))
+      page.getByRole('heading', { name: 'Notifications' }).or(page.locator('text=No notifications yet'))
     ).toBeVisible({ timeout: 8_000 });
   });
 

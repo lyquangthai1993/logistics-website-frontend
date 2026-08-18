@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Icons } from '@/components/icons';
 import PageContainer from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
@@ -9,29 +8,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNotificationSocket } from '../hooks/use-notification-socket';
 import {
   useNotificationsQuery,
+  useUnreadCountQuery,
   useMarkAsReadMutation,
   useMarkAllAsReadMutation,
   type NotificationItem
 } from '../hooks/use-notifications-query';
-
-const PAGE_SIZE = 20;
+import { useNotificationsFilters } from '../hooks/use-notifications-filters';
+import { notificationsInfoContent } from '../info-content';
+import type { NotificationTab } from '../params';
 
 export default function NotificationsPage() {
   // Kết nối WebSocket real-time (singleton)
   useNotificationSocket();
 
-  const [page, setPage] = useState(1);
-  const { data, isLoading, isFetching } = useNotificationsQuery(page, PAGE_SIZE);
+  const { tab, page, perPage, setTab, setPage } = useNotificationsFilters();
+  const { data, isLoading, isFetching } = useNotificationsQuery(page, perPage);
+  const { data: unreadCountData } = useUnreadCountQuery();
   const markAsRead = useMarkAsReadMutation();
   const markAllAsRead = useMarkAllAsReadMutation();
 
   const notifications = data?.data ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(total / perPage) || 1;
 
   const unreadNotifications = notifications.filter((n) => !n.isRead);
   const readNotifications = notifications.filter((n) => n.isRead);
-  const unreadCount = unreadNotifications.length;
+  const unreadCount = typeof unreadCountData === 'number' ? unreadCountData : unreadNotifications.length;
+  const readCount = Math.max(0, total - unreadCount);
 
   const renderList = (items: NotificationItem[]) => {
     if (isLoading) {
@@ -59,7 +62,7 @@ export default function NotificationsPage() {
             id={String(notification.id)}
             title={notification.title}
             body={notification.body}
-            type={notification.type as 'DISPATCHER' | 'FLEET' | 'WAREHOUSE' | 'GENERIC'}
+            type={notification.type}
             status={notification.isRead ? 'read' : 'unread'}
             createdAt={notification.createdAt}
             onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
@@ -73,11 +76,13 @@ export default function NotificationsPage() {
     <PageContainer
       pageTitle='Notifications'
       pageDescription='View and manage all your notifications.'
+      infoContent={notificationsInfoContent}
       pageHeaderAction={
         unreadCount > 0 ? (
           <Button
             variant='outline'
             size='sm'
+            className='cursor-pointer'
             onClick={() => markAllAsRead.mutate()}
             disabled={markAllAsRead.isPending}
           >
@@ -86,11 +91,17 @@ export default function NotificationsPage() {
         ) : undefined
       }
     >
-      <Tabs defaultValue='all'>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as NotificationTab)}>
         <TabsList>
-          <TabsTrigger value='all'>All ({total})</TabsTrigger>
-          <TabsTrigger value='unread'>Unread ({unreadCount})</TabsTrigger>
-          <TabsTrigger value='read'>Read ({readNotifications.length})</TabsTrigger>
+          <TabsTrigger value='all' className='cursor-pointer'>
+            All ({total})
+          </TabsTrigger>
+          <TabsTrigger value='unread' className='cursor-pointer'>
+            Unread ({unreadCount})
+          </TabsTrigger>
+          <TabsTrigger value='read' className='cursor-pointer'>
+            Read ({readCount})
+          </TabsTrigger>
         </TabsList>
         <TabsContent value='all' className='mt-4'>
           {renderList(notifications)}
@@ -109,6 +120,7 @@ export default function NotificationsPage() {
           <Button
             variant='outline'
             size='sm'
+            className='cursor-pointer disabled:cursor-not-allowed'
             disabled={page <= 1 || isFetching}
             onClick={() => setPage((p) => p - 1)}
           >
@@ -121,6 +133,7 @@ export default function NotificationsPage() {
           <Button
             variant='outline'
             size='sm'
+            className='cursor-pointer disabled:cursor-not-allowed'
             disabled={page >= totalPages || isFetching}
             onClick={() => setPage((p) => p + 1)}
           >
