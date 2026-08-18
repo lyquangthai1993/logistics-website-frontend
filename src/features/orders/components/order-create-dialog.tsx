@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter
 } from '@/components/ui/dialog';
-import { IconPlus, IconSparkles } from '@tabler/icons-react';
+import { IconPlus, IconSparkles, IconPackage, IconRoute, IconFileText, IconTruck } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { activeHubsQueryOptions } from '@/features/hubs/api/queries';
 import { useCreateOrderMutation, useGenerateOrderCodeMutation } from '../api/mutations';
@@ -180,200 +180,230 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
         onOpenChange(val);
       }}
     >
-      <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
-        <DialogHeader>
-          <DialogTitle className='text-lg font-bold flex items-center gap-2'>
-            <IconPlus className='h-5 w-5 text-primary' />
+      <DialogContent className='sm:max-w-4xl max-h-[92vh] overflow-y-auto p-6 md:p-8'>
+        <DialogHeader className='pb-3 border-b border-slate-100 dark:border-slate-800'>
+          <DialogTitle className='text-xl font-bold flex items-center gap-2.5 text-slate-900 dark:text-slate-100'>
+            <span className='p-2 bg-primary/10 text-primary rounded-lg'>
+              <IconPlus className='h-5 w-5' />
+            </span>
             Tạo Lệnh Điều Vận Mới
           </DialogTitle>
+          <p className='text-xs text-muted-foreground mt-1'>
+            Khởi tạo đơn hàng điều phối giữa các chi nhánh kho (Hub) và gửi yêu cầu xếp xe đến Đội xe (Fleet).
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleFormSubmit} className='space-y-4 py-2'>
-          {/* Mã đơn hàng */}
-          <div className='space-y-1.5'>
-            <label
-              htmlFor='order-code-input'
-              className='text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between'
-            >
-              <span>
-                Mã đơn hàng <span className='text-rose-500'>*</span>
-              </span>
-              <button
-                type='button'
-                onClick={handleGenerateCode}
-                disabled={generateCodeMutation.isPending}
-                className='text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-normal flex items-center gap-1 cursor-pointer disabled:opacity-50'
-              >
-                <IconSparkles className='h-3.5 w-3.5' />
-                {generateCodeMutation.isPending ? 'Đang tạo...' : 'Tự động sinh mã'}
-              </button>
-            </label>
-            <div className='relative'>
-              <Input
-                id='order-code-input'
-                placeholder={placeholderCode}
-                value={orderCode}
-                onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
-                required
-                className='font-mono uppercase font-medium tracking-wide'
-              />
+        <form onSubmit={handleFormSubmit} className='space-y-6 py-3'>
+          {/* KHỐI 1: MÃ ĐƠN & TUYẾN ĐƯỜNG */}
+          <div className='bg-slate-50/70 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-4'>
+            <div className='flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400'>
+              <IconRoute className='h-4 w-4 text-primary' />
+              Thông Tin Tuyến Đường & Định Danh
             </div>
-            <p className='text-[11px] text-slate-500 dark:text-slate-400'>
-              Định dạng gợi ý: [TIỀN TỐ]-[THÁNG NĂM]-[STT], ví dụ: {placeholderCode}
-            </p>
-          </div>
 
-          {/* Tuyến đường: Hub Xuất Phát & Hub Đích */}
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            {/* Mã đơn hàng */}
             <div className='space-y-1.5'>
               <label
-                htmlFor='origin-hub-select'
-                className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                htmlFor='order-code-input'
+                className='text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between'
               >
-                Hub xuất phát (Kho gửi) <span className='text-rose-500'>*</span>
+                <span>
+                  Mã đơn hàng <span className='text-rose-500'>*</span>
+                </span>
+                <button
+                  type='button'
+                  onClick={handleGenerateCode}
+                  disabled={generateCodeMutation.isPending}
+                  className='text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors'
+                >
+                  <IconSparkles className='h-3.5 w-3.5' />
+                  {generateCodeMutation.isPending ? 'Đang tạo...' : 'Tự động sinh mã'}
+                </button>
               </label>
-              <select
-                id='origin-hub-select'
-                value={originHub}
-                onChange={(e) => setOriginHub(e.target.value)}
-                className='w-full px-3 py-2 text-sm bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer'
-              >
-                {hubOptions.map((hub) => (
-                  <option key={hub} value={hub}>
-                    {hub}
-                  </option>
-                ))}
-              </select>
+              <div className='relative'>
+                <Input
+                  id='order-code-input'
+                  placeholder={placeholderCode}
+                  value={orderCode}
+                  onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
+                  required
+                  className='font-mono uppercase font-semibold text-sm tracking-wide bg-white dark:bg-slate-950'
+                />
+              </div>
+              <p className='text-[11px] text-muted-foreground'>
+                Định dạng gợi ý: [TIỀN TỐ]-[THÁNG NĂM]-[STT], ví dụ: <span className='font-mono font-medium'>{placeholderCode}</span>
+              </p>
             </div>
 
-            <div className='space-y-1.5'>
-              <label
-                htmlFor='destination-hub-select'
-                className='text-sm font-semibold text-slate-700 dark:text-slate-300'
-              >
-                Hub đích (Kho nhận) <span className='text-rose-500'>*</span>
-              </label>
-              <select
-                id='destination-hub-select'
-                value={destinationHub}
-                onChange={(e) => setDestinationHub(e.target.value)}
-                className='w-full px-3 py-2 text-sm bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer'
-              >
-                {hubOptions.map((hub) => (
-                  <option key={hub} value={hub}>
-                    {hub}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Quy cách hàng hóa: Số lượng, Trọng lượng & Thể tích */}
-          <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
-            <div className='space-y-1.5'>
-              <div className='flex items-center justify-between'>
+            {/* Tuyến đường: Hub Xuất Phát & Hub Đích */}
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 pt-1'>
+              <div className='space-y-1.5'>
                 <label
-                  htmlFor='total-quantity-input'
+                  htmlFor='origin-hub-select'
                   className='text-sm font-semibold text-slate-700 dark:text-slate-300'
                 >
-                  Số lượng
+                  Hub xuất phát (Kho gửi) <span className='text-rose-500'>*</span>
                 </label>
-                <span className='text-[10px] text-slate-400 font-normal'>Tùy chọn</span>
+                <select
+                  id='origin-hub-select'
+                  value={originHub}
+                  onChange={(e) => setOriginHub(e.target.value)}
+                  className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
+                >
+                  {hubOptions.map((hub) => (
+                    <option key={hub} value={hub}>
+                      {hub}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <Input
-                id='total-quantity-input'
-                type='number'
-                min='1'
-                step='1'
-                placeholder='VD: 3000 (kiện/cái)'
-                value={totalQuantity}
-                onChange={(e) =>
-                  setTotalQuantity(e.target.value ? Number(e.target.value) : '')
-                }
-              />
+
+              <div className='space-y-1.5'>
+                <label
+                  htmlFor='destination-hub-select'
+                  className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                >
+                  Hub đích (Kho nhận) <span className='text-rose-500'>*</span>
+                </label>
+                <select
+                  id='destination-hub-select'
+                  value={destinationHub}
+                  onChange={(e) => setDestinationHub(e.target.value)}
+                  className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
+                >
+                  {hubOptions.map((hub) => (
+                    <option key={hub} value={hub}>
+                      {hub}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* KHỐI 2: QUY CÁCH HÀNG HÓA */}
+          <div className='bg-slate-50/70 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-4'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400'>
+                <IconPackage className='h-4 w-4 text-primary' />
+                Quy Cách & Tải Trọng Hàng Hóa
+              </div>
+              <span className='text-[11px] text-muted-foreground font-normal'>
+                Bắt buộc nhập Khối lượng & Thể tích
+              </span>
             </div>
 
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+              <div className='space-y-1.5'>
+                <div className='flex items-center justify-between'>
+                  <label
+                    htmlFor='total-quantity-input'
+                    className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                  >
+                    Số lượng kiện
+                  </label>
+                  <span className='text-[10px] text-muted-foreground font-normal bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded'>Tùy chọn</span>
+                </div>
+                <Input
+                  id='total-quantity-input'
+                  type='number'
+                  min='1'
+                  step='1'
+                  placeholder='VD: 3000 (kiện/cái)'
+                  value={totalQuantity}
+                  onChange={(e) =>
+                    setTotalQuantity(e.target.value ? Number(e.target.value) : '')
+                  }
+                  className='bg-white dark:bg-slate-950 font-medium'
+                />
+              </div>
+
+              <div className='space-y-1.5'>
+                <label
+                  htmlFor='total-weight-input'
+                  className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                >
+                  Tổng khối lượng (kg) <span className='text-rose-500'>*</span>
+                </label>
+                <Input
+                  id='total-weight-input'
+                  type='number'
+                  min='1'
+                  step='1'
+                  placeholder='VD: 18000'
+                  value={totalWeight}
+                  onChange={(e) => setTotalWeight(e.target.value ? Number(e.target.value) : '')}
+                  required
+                  className='bg-white dark:bg-slate-950 font-medium'
+                />
+              </div>
+
+              <div className='space-y-1.5'>
+                <label
+                  htmlFor='total-volume-input'
+                  className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                >
+                  Tổng thể tích (m³) <span className='text-rose-500'>*</span>
+                </label>
+                <Input
+                  id='total-volume-input'
+                  type='number'
+                  min='0.01'
+                  step='0.01'
+                  placeholder='VD: 45.5'
+                  value={totalVolume}
+                  onChange={(e) => setTotalVolume(e.target.value ? Number(e.target.value) : '')}
+                  required
+                  className='bg-white dark:bg-slate-950 font-medium'
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* KHỐI 3: MÔ TẢ & GHI CHÚ (2 CỘT RỘNG RÃI TRÊN DESKTOP) */}
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            {/* Mô tả hàng hóa */}
             <div className='space-y-1.5'>
               <label
-                htmlFor='total-weight-input'
-                className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                htmlFor='goods-desc-input'
+                className='text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5'
               >
-                Tổng khối lượng (kg) <span className='text-rose-500'>*</span>
+                <IconFileText className='h-4 w-4 text-slate-500' />
+                Mô tả loại hàng hóa
               </label>
-              <Input
-                id='total-weight-input'
-                type='number'
-                min='1'
-                step='1'
-                placeholder='VD: 18000'
-                value={totalWeight}
-                onChange={(e) => setTotalWeight(e.target.value ? Number(e.target.value) : '')}
-                required
+              <Textarea
+                id='goods-desc-input'
+                rows={4}
+                placeholder='VD: 50 kiện hàng linh kiện điện tử nguyên đai nguyên kiện, hàng giá trị cao, yêu cầu bảo quản khô ráo...'
+                value={goodsDescription}
+                onChange={(e) => setGoodsDescription(e.target.value)}
+                className='resize-y text-sm bg-white dark:bg-slate-950'
               />
             </div>
 
+            {/* Ghi chú điều vận */}
             <div className='space-y-1.5'>
               <label
-                htmlFor='total-volume-input'
-                className='text-sm font-semibold text-slate-700 dark:text-slate-300'
+                htmlFor='notes-input'
+                className='text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5'
               >
-                Tổng thể tích (m³) <span className='text-rose-500'>*</span>
+                <IconFileText className='h-4 w-4 text-slate-500' />
+                Ghi chú điều vận & giao nhận
               </label>
-              <Input
-                id='total-volume-input'
-                type='number'
-                min='0.01'
-                step='0.01'
-                placeholder='VD: 45.5'
-                value={totalVolume}
-                onChange={(e) => setTotalVolume(e.target.value ? Number(e.target.value) : '')}
-                required
+              <Textarea
+                id='notes-input'
+                rows={4}
+                placeholder='VD: Cần xe thùng kín có bửng nâng, giao trước 17h00, lái xe liên hệ thủ kho trước 30 phút...'
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className='resize-y text-sm bg-white dark:bg-slate-950'
               />
             </div>
           </div>
-          <p className='text-[11px] text-slate-500 -mt-2'>
-            * Khối lượng & Thể tích bắt buộc. <strong>Số lượng:</strong> để trống nếu là hàng theo lô / chuyến không đếm chiếc lẻ.
-          </p>
 
-          {/* Mô tả hàng hóa */}
-          <div className='space-y-1.5'>
-            <label
-              htmlFor='goods-desc-input'
-              className='text-sm font-semibold text-slate-700 dark:text-slate-300'
-            >
-              Mô tả loại hàng
-            </label>
-            <Textarea
-              id='goods-desc-input'
-              rows={3}
-              placeholder='VD: 50 kiện hàng linh kiện điện tử nguyên đai nguyên kiện, hàng giá trị cao, yêu cầu bảo quản khô ráo...'
-              value={goodsDescription}
-              onChange={(e) => setGoodsDescription(e.target.value)}
-              className='resize-y'
-            />
-          </div>
-
-          {/* Ghi chú */}
-          <div className='space-y-1.5'>
-            <label
-              htmlFor='notes-input'
-              className='text-sm font-semibold text-slate-700 dark:text-slate-300'
-            >
-              Ghi chú điều vận
-            </label>
-            <Textarea
-              id='notes-input'
-              rows={3}
-              placeholder='VD: Cần xe thùng kín có bửng nâng, giao trước 17h00, lái xe liên hệ thủ kho trước 30 phút...'
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className='resize-y'
-            />
-          </div>
-
-          {/* Flag yêu cầu xe thuê ngoài */}
-          <div className='space-y-3 p-3.5 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 rounded-lg'>
-            <div className='flex items-center gap-2.5'>
+          {/* KHỐI 4: YÊU CẦU XE NGOÀI */}
+          <div className='space-y-3.5 p-4 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-900 rounded-xl transition-all'>
+            <div className='flex items-center gap-3'>
               <input
                 type='checkbox'
                 id='isExternalNeeded'
@@ -383,14 +413,15 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
               />
               <label
                 htmlFor='isExternalNeeded'
-                className='text-xs text-amber-950 dark:text-amber-200 font-semibold cursor-pointer'
+                className='text-sm text-amber-950 dark:text-amber-200 font-semibold cursor-pointer flex items-center gap-2'
               >
-                🚚 Đơn hàng yêu cầu điều xe ngoài / thuê ngoài đối tác (External Fleet)
+                <IconTruck className='h-4 w-4 text-amber-700 dark:text-amber-400' />
+                Đơn hàng yêu cầu điều xe ngoài / thuê ngoài đối tác (External Fleet)
               </label>
             </div>
 
             {isExternalNeeded && (
-              <div className='space-y-1.5 pt-1 border-t border-amber-200/80 dark:border-amber-900/60'>
+              <div className='space-y-2 pt-2 border-t border-amber-200/80 dark:border-amber-900/60'>
                 <label
                   htmlFor='external-note-input'
                   className='text-xs font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1'
@@ -405,7 +436,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                   value={externalNote}
                   onChange={(e) => setExternalNote(e.target.value)}
                   required={isExternalNeeded}
-                  className='border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 text-sm resize-y'
+                  className='border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-950 text-sm resize-y'
                 />
                 <p className='text-[11px] text-amber-800 dark:text-amber-300'>
                   Nội dung này sẽ được chuyển trực tiếp cho Quản lý Đội xe (Fleet) để thực hiện hợp đồng thuê ngoài.
@@ -414,20 +445,20 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
             )}
           </div>
 
-          <DialogFooter className='pt-2'>
+          <DialogFooter className='pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3'>
             <Button
               type='button'
               variant='outline'
               onClick={() => onOpenChange(false)}
               disabled={createMutation.isPending}
-              className='cursor-pointer'
+              className='cursor-pointer px-5'
             >
               Hủy bỏ
             </Button>
             <Button
               type='submit'
               disabled={createMutation.isPending}
-              className='bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-50 dark:hover:bg-slate-200 dark:text-slate-900 cursor-pointer'
+              className='bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-50 dark:hover:bg-slate-200 dark:text-slate-900 cursor-pointer px-6'
             >
               {createMutation.isPending ? 'Đang tạo...' : 'Lưu & Tạo lệnh'}
             </Button>
