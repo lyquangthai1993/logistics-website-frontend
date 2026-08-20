@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { loginAs } from './helpers/auth';
+import { loginAs, TEST_USERS } from './helpers/auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -19,7 +19,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 test.describe('Order Hub FK Migration — Phase 1', () => {
   // Only DISPATCHER can create orders
   test.beforeEach(async ({ page }) => {
-    await loginAs(page, 'DISPATCHER');
+    const dispatcher = TEST_USERS.find((u) => u.role === 'DISPATCHER')!;
+    await loginAs(page, dispatcher);
     await page.goto(`${BASE_URL}/dashboard/orders`);
     await page.waitForLoadState('networkidle');
   });
@@ -197,7 +198,8 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
 // ─── Backward Compat: existing orders with null FK still display correctly ─────
 test.describe('Order Hub FK — Backward Compatibility', () => {
   test('orders list renders even when originHubId/destinationHubId are null', async ({ page }) => {
-    await loginAs(page, 'SUPER_ADMIN');
+    const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
+    await loginAs(page, superAdmin);
     await page.goto(`${BASE_URL}/dashboard/orders`);
     await page.waitForLoadState('networkidle');
 
