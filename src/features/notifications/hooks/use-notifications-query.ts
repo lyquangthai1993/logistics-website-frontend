@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { toast } from 'sonner';
+import { ApiResponse, showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 
 export type NotificationType = 'WAREHOUSE' | 'FLEET' | 'DISPATCHER' | 'GENERIC';
 
@@ -44,15 +44,37 @@ async function fetchNotifications(
   if (typeof params.isRead === 'boolean') cleanParams.isRead = params.isRead;
   if (params.search && params.search.trim()) cleanParams.search = params.search.trim();
 
-  const res = await apiClient.get<NotificationsResponse>('/api/v1/notifications', {
+  const res = await apiClient.get<ApiResponse<NotificationItem[]>>('/api/v1/notifications', {
     params: cleanParams
   });
-  return res.data;
+
+  const rawData = res.data.data;
+  const items: NotificationItem[] = Array.isArray(rawData)
+    ? rawData
+    : Array.isArray((rawData as any)?.data)
+    ? (rawData as any).data
+    : [];
+
+  const rawMeta = res.data.meta || (typeof rawData === 'object' && rawData !== null && 'total' in rawData ? (rawData as any) : null);
+  const meta = rawMeta || {
+    total: items.length,
+    page: params.page || 1,
+    limit: params.limit || 20,
+    totalPages: 1
+  };
+
+  return {
+    data: items,
+    total: meta.total ?? items.length,
+    page: meta.page ?? 1,
+    limit: meta.limit ?? 20,
+    totalPages: meta.totalPages
+  };
 }
 
 async function fetchUnreadCount(): Promise<number> {
-  const res = await apiClient.get<number>('/api/v1/notifications/unread-count');
-  return res.data;
+  const res = await apiClient.get<ApiResponse<number>>('/api/v1/notifications/unread-count');
+  return res.data.data;
 }
 
 /**
@@ -95,8 +117,8 @@ export type NotificationStats = {
 };
 
 async function fetchNotificationStats(): Promise<NotificationStats> {
-  const res = await apiClient.get<NotificationStats>('/api/v1/notifications/stats');
-  return res.data;
+  const res = await apiClient.get<ApiResponse<NotificationStats>>('/api/v1/notifications/stats');
+  return res.data.data;
 }
 
 /** Thống kê số lượng notification theo nghiệp vụ & trạng thái */
@@ -126,12 +148,10 @@ export function useMarkAsReadMutation() {
     mutationFn: (id: number) => apiClient.patch(`/api/v1/notifications/${id}/read`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      toast.success('Đã đánh dấu thông báo là đã đọc');
+      showApiSuccessToast('Đã đánh dấu thông báo là đã đọc');
     },
     onError: (err: unknown) => {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
-        ?.message;
-      toast.error(apiMessage || 'Không thể đánh dấu thông báo là đã đọc. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể đánh dấu thông báo là đã đọc. Vui lòng thử lại.');
     }
   });
 }
@@ -143,12 +163,10 @@ export function useMarkAllAsReadMutation() {
     mutationFn: () => apiClient.patch('/api/v1/notifications/read-all'),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      toast.success('Đã đánh dấu tất cả thông báo là đã đọc');
+      showApiSuccessToast('Đã đánh dấu tất cả thông báo là đã đọc');
     },
     onError: (err: unknown) => {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
-        ?.message;
-      toast.error(apiMessage || 'Không thể đánh dấu tất cả thông báo là đã đọc. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể đánh dấu tất cả thông báo là đã đọc. Vui lòng thử lại.');
     }
   });
 }

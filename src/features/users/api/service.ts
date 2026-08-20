@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import { ApiResponse } from '@/lib/api-error';
 import type {
   User,
   UserFilters,
@@ -24,30 +25,31 @@ export async function getUsers(filters: UserFilters = {}): Promise<UsersResponse
     params.sort = filters.sort;
   }
 
-  const res = await apiClient.get<UsersResponse>('/api/v1/users', { params });
-  const data = res.data;
+  const res = await apiClient.get<ApiResponse<User[]>>('/api/v1/users', { params });
+  const usersList = res.data.data ?? [];
+  const hasNextPage = res.data.meta?.hasNextPage ?? false;
 
   return {
-    data: data.data ?? [],
-    hasNextPage: data.hasNextPage ?? false,
-    total_users: data.total_users ?? data.data?.length ?? 0,
-    users: data.data ?? []
+    data: usersList,
+    hasNextPage,
+    total_users: usersList.length,
+    users: usersList
   };
 }
 
 export async function getUserById(id: number): Promise<User> {
-  const res = await apiClient.get<User>(`/api/v1/users/${id}`);
-  return res.data;
+  const res = await apiClient.get<ApiResponse<User>>(`/api/v1/users/${id}`);
+  return res.data.data;
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<User> {
-  const res = await apiClient.post<User>('/api/v1/users', payload);
-  return res.data;
+  const res = await apiClient.post<ApiResponse<User>>('/api/v1/users', payload);
+  return res.data.data;
 }
 
 export async function updateUser(id: number, payload: UpdateUserPayload): Promise<User> {
-  const res = await apiClient.patch<User>(`/api/v1/users/${id}`, payload);
-  return res.data;
+  const res = await apiClient.patch<ApiResponse<User>>(`/api/v1/users/${id}`, payload);
+  return res.data.data;
 }
 
 export async function deleteUser(id: number): Promise<void> {

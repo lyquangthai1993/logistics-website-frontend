@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import { ApiResponse } from '@/lib/api-error';
 import type {
   Vehicle,
   Driver,
@@ -79,13 +80,13 @@ function applyCustomSort<T extends { id: number; createdAt?: string }>(
 export const fleetApi = {
   // Vehicles
   getVehicles: async (): Promise<Vehicle[]> => {
-    const res = await apiClient.get<Vehicle[]>('/api/v1/vehicles');
-    return res.data;
+    const res = await apiClient.get<ApiResponse<Vehicle[]>>('/api/v1/vehicles');
+    return res.data.data ?? [];
   },
 
   getPaginatedVehicles: async (filters: VehicleFilters): Promise<VehiclesResponse> => {
-    const res = await apiClient.get<Vehicle[]>('/api/v1/vehicles');
-    const all = res.data || [];
+    const res = await apiClient.get<ApiResponse<Vehicle[]>>('/api/v1/vehicles');
+    const all = res.data.data ?? [];
 
     let filtered = [...all];
 
@@ -135,13 +136,13 @@ export const fleetApi = {
   },
 
   createVehicle: async (payload: CreateVehiclePayload): Promise<Vehicle> => {
-    const res = await apiClient.post<Vehicle>('/api/v1/vehicles', payload);
-    return res.data;
+    const res = await apiClient.post<ApiResponse<Vehicle>>('/api/v1/vehicles', payload);
+    return res.data.data;
   },
 
   updateVehicle: async (id: number, payload: Partial<CreateVehiclePayload>): Promise<Vehicle> => {
-    const res = await apiClient.patch<Vehicle>(`/api/v1/vehicles/${id}`, payload);
-    return res.data;
+    const res = await apiClient.patch<ApiResponse<Vehicle>>(`/api/v1/vehicles/${id}`, payload);
+    return res.data.data;
   },
 
   deleteVehicle: async (id: number): Promise<void> => {
@@ -150,13 +151,13 @@ export const fleetApi = {
 
   // Drivers
   getDrivers: async (): Promise<Driver[]> => {
-    const res = await apiClient.get<Driver[]>('/api/v1/drivers');
-    return res.data;
+    const res = await apiClient.get<ApiResponse<Driver[]>>('/api/v1/drivers');
+    return res.data.data ?? [];
   },
 
   getPaginatedDrivers: async (filters: DriverFilters): Promise<DriversResponse> => {
-    const res = await apiClient.get<Driver[]>('/api/v1/drivers');
-    const all = res.data || [];
+    const res = await apiClient.get<ApiResponse<Driver[]>>('/api/v1/drivers');
+    const all = res.data.data ?? [];
 
     let filtered = [...all];
 
@@ -202,13 +203,13 @@ export const fleetApi = {
   },
 
   createDriver: async (payload: CreateDriverPayload): Promise<Driver> => {
-    const res = await apiClient.post<Driver>('/api/v1/drivers', payload);
-    return res.data;
+    const res = await apiClient.post<ApiResponse<Driver>>('/api/v1/drivers', payload);
+    return res.data.data;
   },
 
   updateDriver: async (id: number, payload: Partial<CreateDriverPayload>): Promise<Driver> => {
-    const res = await apiClient.patch<Driver>(`/api/v1/drivers/${id}`, payload);
-    return res.data;
+    const res = await apiClient.patch<ApiResponse<Driver>>(`/api/v1/drivers/${id}`, payload);
+    return res.data.data;
   },
 
   deleteDriver: async (id: number): Promise<void> => {
