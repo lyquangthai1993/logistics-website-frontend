@@ -1,19 +1,21 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Check Localhost Sign-in Demo Accounts UI', () => {
-  test('Capture localhost sign-in demo accounts popover', async ({ page }) => {
+test.describe('Check Localhost Sign-in Error UI Consistency', () => {
+  test('Capture localhost sign-in error UI after invalid submit', async ({ page }) => {
     await page.goto('http://localhost:3000/auth/sign-in', {
       waitUntil: 'networkidle'
     });
 
-    const demoBtn = page.getByRole('button', { name: /Xem tài khoản Demo/i });
-    await expect(demoBtn).toBeVisible({ timeout: 15000 });
-    await demoBtn.click();
-    await page.waitForTimeout(1000);
+    await page.fill('input[name="email"]', 'admin@spiderexpress.vn');
+    await page.fill('input[name="password"]', 'WrongPassword123');
+    await page.click('button[type="submit"]');
+
+    const errorDiv = page.locator('[data-testid="login-error"]');
+    await expect(errorDiv).toBeVisible({ timeout: 8000 });
 
     // Capture screenshot
-    await page.screenshot({ path: 'e2e/screenshots/localhost_demo_popover.png', fullPage: true });
+    await page.screenshot({ path: 'e2e/screenshots/login_error_consistent.png', fullPage: true });
 
-    console.log('✅ Localhost Popover captured!');
+    console.log('✅ Localhost Error UI captured!');
   });
 });

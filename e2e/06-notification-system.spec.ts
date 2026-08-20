@@ -68,9 +68,9 @@ test.describe('[Notifications] API Contract', () => {
 
     const body = await res.json();
     expect(body).toHaveProperty('data');
-    expect(body).toHaveProperty('total');
-    expect(body).toHaveProperty('page', 1);
-    expect(body).toHaveProperty('limit', 5);
+    expect(body).toHaveProperty('meta');
+    expect(body.meta).toHaveProperty('page', 1);
+    expect(body.meta).toHaveProperty('limit', 5);
     expect(Array.isArray(body.data)).toBe(true);
 
     await ctx.dispose();
@@ -85,7 +85,8 @@ test.describe('[Notifications] API Contract', () => {
     const res = await ctx.get(`${API_BASE}/api/v1/notifications/unread-count`);
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(typeof body).toBe('number');
+    const count = typeof body.data === 'number' ? body.data : body;
+    expect(typeof count).toBe('number');
 
     await ctx.dispose();
   });
@@ -108,7 +109,8 @@ test.describe('[Notifications] API Contract', () => {
       return;
     }
     expect(createRes.status()).toBe(201);
-    const created = await createRes.json();
+    const createBody = await createRes.json();
+    const created = createBody.data || createBody;
     const notifId: number = created.id;
     expect(notifId).toBeTruthy();
     expect(created.isRead).toBe(false);
@@ -120,7 +122,8 @@ test.describe('[Notifications] API Contract', () => {
     });
     const listRes = await listCtx.get(`${API_BASE}/api/v1/notifications?page=1&limit=20`);
     const listBody = await listRes.json();
-    const found = listBody.data.find((n: { id: number }) => n.id === notifId);
+    const listData = Array.isArray(listBody.data) ? listBody.data : [];
+    const found = listData.find((n: { id: number }) => n.id === notifId);
     expect(found, 'Notification should appear in list').toBeTruthy();
     expect(found.isRead).toBe(false);
     await listCtx.dispose();
@@ -131,7 +134,8 @@ test.describe('[Notifications] API Contract', () => {
     });
     const markRes = await markCtx.patch(`${API_BASE}/api/v1/notifications/${notifId}/read`);
     expect(markRes.status()).toBe(200);
-    const marked = await markRes.json();
+    const markBody = await markRes.json();
+    const marked = markBody.data || markBody;
     expect(marked.isRead).toBe(true);
     await markCtx.dispose();
   });
@@ -145,8 +149,9 @@ test.describe('[Notifications] API Contract', () => {
     const res = await ctx.patch(`${API_BASE}/api/v1/notifications/read-all`);
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body).toHaveProperty('affected');
-    expect(typeof body.affected).toBe('number');
+    const result = body.data !== undefined ? body.data : body;
+    expect(result).toHaveProperty('affected');
+    expect(typeof result.affected).toBe('number');
 
     await ctx.dispose();
   });
@@ -165,15 +170,7 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
     await page.waitForURL(/\/dashboard\/.+/);
 
     // Bell button trong header
-    const bell = page
-      .locator('button:has(svg):near(header)', {
-        hasText: ''
-      })
-      .or(page.locator('[aria-label="Notifications"]'))
-      .or(page.locator('button .sr-only:text("Notifications")').locator('..'));
-
-    // Hoặc tìm bằng sr-only text
-    const bellByA11y = page.getByRole('button', { name: /notifications/i });
+    const bellByA11y = page.getByRole('button', { name: /notifications|thông báo/i });
     await expect(bellByA11y.or(page.locator('button:has([class*="notification"])'))).toBeVisible({
       timeout: 10_000
     });
@@ -185,12 +182,12 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
     await page.waitForLoadState('networkidle');
 
     // Click bell
-    const bellBtn = page.getByRole('button', { name: /notifications/i });
+    const bellBtn = page.getByRole('button', { name: /notifications|thông báo/i });
     await bellBtn.click();
 
-    // Popover xuất hiện — có heading "Notifications" hoặc empty state
+    // Popover xuất hiện — có heading "Thông báo" hoặc empty state
     await expect(
-      page.getByRole('heading', { name: 'Notifications' }).or(page.locator('text=No notifications yet'))
+      page.locator('h4:has-text("Thông báo")').or(page.getByRole('heading', { name: /notifications|thông báo/i })).or(page.locator('text=Chưa có thông báo'))
     ).toBeVisible({ timeout: 8_000 });
   });
 
@@ -202,9 +199,9 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
     // Không có 404 / lỗi crash
     await expect(page).not.toHaveURL(/\/auth\/sign-in/);
 
-    // Có tabs All/Unread/Read
-    await expect(page.getByRole('tab', { name: /all/i })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('tab', { name: /unread/i })).toBeVisible();
+    // Có tabs Tất cả/Chưa đọc/Đã đọc
+    await expect(page.getByRole('tab', { name: /all|tất cả/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('tab', { name: /unread|chưa đọc/i })).toBeVisible();
   });
 
   test('Notification page shows real data or empty state (no crash)', async ({ page }) => {

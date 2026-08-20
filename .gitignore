@@ -68,3 +68,5 @@ windsurf_mcp.json
 codeium_mcp.json
 .codeium/
 copilot-mcp.json
+
+e2e/screenshots/**/*

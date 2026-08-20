@@ -25,7 +25,9 @@ import {
   IconUser
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { formatApiError } from '@/lib/api-error';
 import { apiClient } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 
 const DEMO_ACCOUNTS = [
   {
@@ -84,6 +86,7 @@ export function LoginForm() {
   const handleQuickFill = (identifier: string, accPass: string) => {
     setEmail(identifier);
     setPassword(accPass);
+    setError(null);
     setPopoverOpen(false);
   };
 
@@ -104,9 +107,10 @@ export function LoginForm() {
         password
       });
 
-      const token = data.token || data.access_token;
-      const refreshToken = data.refreshToken || data.refresh_token;
-      const rawUser = data.user || {};
+      const payload = data?.data || data || {};
+      const token = payload.token || payload.access_token;
+      const refreshToken = payload.refreshToken || payload.refresh_token;
+      const rawUser = payload.user || {};
 
       // Map numerical or object role to string role enum used in frontend
       const roleMap: Record<number | string, any> = {
@@ -141,9 +145,8 @@ export function LoginForm() {
       }
 
       router.push('/dashboard/overview');
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message || 'Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại.';
+    } catch (err: unknown) {
+      const message = formatApiError(err, 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại.');
       setError(message);
     } finally {
       setIsLoading(false);
@@ -279,9 +282,6 @@ export function LoginForm() {
       </div>
 
       <form onSubmit={onSubmit} className='w-full space-y-4'>
-        {error && (
-          <div className='bg-destructive/10 text-destructive rounded-md p-3 text-sm'>{error}</div>
-        )}
         <div className='space-y-2'>
           <Label htmlFor='email'>Email hoặc Tên đăng nhập</Label>
           <Input
@@ -293,7 +293,10 @@ export function LoginForm() {
             autoComplete='username'
             disabled={isLoading}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (error) setError(null);
+            }}
           />
         </div>
         <div className='space-y-2'>
@@ -308,7 +311,10 @@ export function LoginForm() {
               autoComplete='current-password'
               disabled={isLoading}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError(null);
+              }}
               className='pr-10'
             />
             <button
@@ -326,6 +332,15 @@ export function LoginForm() {
           {isLoading && <Icons.spinner className='mr-2 h-4 w-4 animate-spin' />}
           Đăng nhập
         </Button>
+        {error && (
+          <div
+            data-testid='login-error'
+            className='bg-destructive/10 text-destructive rounded-md p-3 text-sm flex items-start gap-2 animate-in fade-in-50 duration-200'
+          >
+            <Icons.warning className='h-4 w-4 shrink-0 mt-0.5' />
+            <span>{error}</span>
+          </div>
+        )}
       </form>
     </div>
   );
