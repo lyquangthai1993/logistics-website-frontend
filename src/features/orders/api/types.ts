@@ -14,8 +14,12 @@ export interface Order {
   orderCode: string;
   status: OrderStatus;
   route?: string | null;
+  // Legacy string fields (kept for display/backward compat)
   originHub?: string | null;
   destinationHub?: string | null;
+  // Phase 1 FK fields — set when hub is selected via dropdown
+  originHubId?: number | null;
+  destinationHubId?: number | null;
   totalQuantity?: number | null;
   totalWeight: number;
   totalVolume: number;
@@ -46,8 +50,12 @@ export type PaginatedOrdersResponse = PaginatedResult<Order>;
 export interface CreateOrderPayload {
   orderCode: string;
   route?: string;
+  // String fields kept for backward compat (used for display/filter)
   originHub?: string;
   destinationHub?: string;
+  // FK fields — Phase 1: send both string + id for full targeted notification routing
+  originHubId?: number;
+  destinationHubId?: number;
   totalQuantity?: number | null;
   totalWeight: number;
   totalVolume: number;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -32,26 +32,25 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
 
   const { data: activeHubs } = useQuery(activeHubsQueryOptions());
 
-  const hubOptions = useMemo(() => {
-    if (activeHubs && activeHubs.length > 0) {
-      return activeHubs.map((hub: Hub) => {
-        if (hub.name.includes('(')) {
-          return hub.name;
-        }
-        const cityShort =
-          hub.city === 'TP. Hồ Chí Minh' || hub.city === 'Hồ Chí Minh'
-            ? 'TP.HCM'
-            : hub.city;
-        return cityShort ? `${hub.name} (${cityShort})` : hub.name;
-      });
-    }
-    return DEFAULT_HUBS;
-  }, [activeHubs]);
+  // Build display label for a hub — include city in parens if not already present
+  const getHubLabel = (hub: Hub): string => {
+    if (hub.name.includes('(')) return hub.name;
+    const cityShort =
+      hub.city === 'TP. Hồ Chí Minh' || hub.city === 'Hồ Chí Minh'
+        ? 'TP.HCM'
+        : hub.city;
+    return cityShort ? `${hub.name} (${cityShort})` : hub.name;
+  };
+
+  // Hub state now stores the full Hub object (for FK id) — falls back to null when only DEFAULT_HUBS available
+  const [selectedOriginHub, setSelectedOriginHub] = useState<Hub | null>(null);
+  const [selectedDestinationHub, setSelectedDestinationHub] = useState<Hub | null>(null);
+  // Legacy string fallback for when activeHubs not loaded yet
+  const [originHubFallback, setOriginHubFallback] = useState(DEFAULT_HUBS[0]);
+  const [destinationHubFallback, setDestinationHubFallback] = useState(DEFAULT_HUBS[2]);
 
   // Form states
   const [orderCode, setOrderCode] = useState('');
-  const [originHub, setOriginHub] = useState(DEFAULT_HUBS[0]);
-  const [destinationHub, setDestinationHub] = useState(DEFAULT_HUBS[2]);
   const [totalQuantity, setTotalQuantity] = useState<number | ''>('');
   const [totalWeight, setTotalWeight] = useState<number | ''>('');
   const [totalVolume, setTotalVolume] = useState<number | ''>('');
@@ -60,17 +59,19 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
   const [isExternalNeeded, setIsExternalNeeded] = useState(false);
   const [externalNote, setExternalNote] = useState('');
 
-  // Auto-select hubs when options load
+  // Auto-select first/third hub when activeHubs loads
   useEffect(() => {
-    if (hubOptions.length >= 2) {
-      if (!hubOptions.includes(originHub)) {
-        setOriginHub(hubOptions[0]);
-      }
-      if (!hubOptions.includes(destinationHub)) {
-        setDestinationHub(hubOptions[2] || hubOptions[1] || hubOptions[0]);
+    if (activeHubs && activeHubs.length >= 2) {
+      if (!selectedOriginHub) setSelectedOriginHub(activeHubs[0]);
+      if (!selectedDestinationHub) {
+        setSelectedDestinationHub(activeHubs[2] ?? activeHubs[1] ?? activeHubs[0]);
       }
     }
-  }, [hubOptions, originHub, destinationHub]);
+  }, [activeHubs, selectedOriginHub, selectedDestinationHub]);
+
+  // Derived display values
+  const originHubDisplay = selectedOriginHub ? getHubLabel(selectedOriginHub) : originHubFallback;
+  const destinationHubDisplay = selectedDestinationHub ? getHubLabel(selectedDestinationHub) : destinationHubFallback;
 
   const suggestedInitials = useMemo(() => {
     const name = (user?.firstName || '') + ' ' + (user?.lastName || '');
@@ -114,6 +115,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
 
   const resetForm = () => {
     setOrderCode('');
+    setSelectedOriginHub(activeHubs?.[0] ?? null);
+    setSelectedDestinationHub(activeHubs?.[2] ?? activeHubs?.[1] ?? null);
     setTotalQuantity('');
     setTotalWeight('');
     setTotalVolume('');
@@ -130,7 +133,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
       toast.error('Vui lòng nhập mã đơn hàng');
       return;
     }
-    if (originHub === destinationHub) {
+    if (originHubDisplay === destinationHubDisplay) {
       toast.error('Điểm lấy hàng và điểm giao hàng không được trùng nhau');
       return;
     }
@@ -148,12 +151,19 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
     }
 
     try {
-      const route = `${originHub.split(' ')[0]} → ${destinationHub.split(' ')[0]}`;
+      const originName = originHubDisplay;
+      const destName = destinationHubDisplay;
+      const route = `${originName.split(' ')[0]} → ${destName.split(' ')[0]}`;
+
       await createMutation.mutateAsync({
         orderCode: orderCode.trim().toUpperCase(),
         route,
-        originHub,
-        destinationHub,
+        // String fields — kept for display/filter/legacy
+        originHub: originName,
+        destinationHub: destName,
+        // FK fields — for targeted WM notification routing (Phase 1)
+        originHubId: selectedOriginHub?.id ?? undefined,
+        destinationHubId: selectedDestinationHub?.id ?? undefined,
         totalQuantity: totalQuantity ? Number(totalQuantity) : undefined,
         totalWeight: Number(totalWeight),
         totalVolume: Number(totalVolume),
@@ -244,18 +254,36 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                 >
                   Điểm lấy hàng (Kho gửi) <span className='text-rose-500'>*</span>
                 </label>
-                <select
-                  id='origin-hub-select'
-                  value={originHub}
-                  onChange={(e) => setOriginHub(e.target.value)}
-                  className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
-                >
-                  {hubOptions.map((hub) => (
-                    <option key={hub} value={hub}>
-                      {hub}
-                    </option>
-                  ))}
-                </select>
+                {activeHubs && activeHubs.length > 0 ? (
+                  <select
+                    id='origin-hub-select'
+                    data-testid='origin-hub-select'
+                    value={selectedOriginHub?.id ?? ''}
+                    onChange={(e) => {
+                      const hub = activeHubs.find((h) => h.id === Number(e.target.value)) ?? null;
+                      setSelectedOriginHub(hub);
+                    }}
+                    className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
+                  >
+                    {activeHubs.map((hub) => (
+                      <option key={hub.id} value={hub.id}>
+                        {getHubLabel(hub)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    id='origin-hub-select'
+                    data-testid='origin-hub-select'
+                    value={originHubFallback}
+                    onChange={(e) => setOriginHubFallback(e.target.value)}
+                    className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
+                  >
+                    {DEFAULT_HUBS.map((hub) => (
+                      <option key={hub} value={hub}>{hub}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className='space-y-1.5'>
@@ -265,18 +293,36 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                 >
                   Điểm giao hàng (Kho nhận) <span className='text-rose-500'>*</span>
                 </label>
-                <select
-                  id='destination-hub-select'
-                  value={destinationHub}
-                  onChange={(e) => setDestinationHub(e.target.value)}
-                  className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
-                >
-                  {hubOptions.map((hub) => (
-                    <option key={hub} value={hub}>
-                      {hub}
-                    </option>
-                  ))}
-                </select>
+                {activeHubs && activeHubs.length > 0 ? (
+                  <select
+                    id='destination-hub-select'
+                    data-testid='destination-hub-select'
+                    value={selectedDestinationHub?.id ?? ''}
+                    onChange={(e) => {
+                      const hub = activeHubs.find((h) => h.id === Number(e.target.value)) ?? null;
+                      setSelectedDestinationHub(hub);
+                    }}
+                    className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
+                  >
+                    {activeHubs.map((hub) => (
+                      <option key={hub.id} value={hub.id}>
+                        {getHubLabel(hub)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    id='destination-hub-select'
+                    data-testid='destination-hub-select'
+                    value={destinationHubFallback}
+                    onChange={(e) => setDestinationHubFallback(e.target.value)}
+                    className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
+                  >
+                    {DEFAULT_HUBS.map((hub) => (
+                      <option key={hub} value={hub}>{hub}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>
