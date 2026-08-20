@@ -69,4 +69,6 @@ codeium_mcp.json
 .codeium/
 copilot-mcp.json
 
+e2e/screenshots/
+/e2e/screenshots/
 e2e/screenshots/**/*
