@@ -66,11 +66,6 @@ async function refreshAccessToken(
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public routes
-  if (publicRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next();
-  }
-
   let token = request.cookies.get('access_token')?.value;
   const refreshToken =
     request.cookies.get('refreshToken')?.value || request.cookies.get('refresh_token')?.value;
@@ -91,8 +86,34 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  const isAuthenticated =
+    !!token && !!payload && (!payload.exp || payload.exp * 1000 >= Date.now());
+
+  // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
+  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+    if (isAuthenticated) {
+      const response = NextResponse.redirect(new URL('/dashboard/overview', request.url));
+      if (isRefreshed) {
+        response.cookies.set('access_token', token!, {
+          path: '/',
+          maxAge: 24 * 60 * 60,
+          sameSite: 'lax'
+        });
+        if (newRefreshToken) {
+          response.cookies.set('refreshToken', newRefreshToken, {
+            path: '/',
+            maxAge: 30 * 24 * 60 * 60,
+            sameSite: 'lax'
+          });
+        }
+      }
+      return response;
+    }
+    return NextResponse.next();
+  }
+
   // If token is still invalid after refresh attempt, redirect to sign-in
-  if (!token || !payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+  if (!isAuthenticated) {
     const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
     response.cookies.delete('access_token');
     response.cookies.delete('refreshToken');
@@ -110,7 +131,7 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith(route) && !roles.includes(userRole)) {
       const redirectUrl = new URL('/dashboard/overview', request.url);
       const response = NextResponse.redirect(redirectUrl);
-      if (isRefreshed) {
+      if (isRefreshed && token) {
         response.cookies.set('access_token', token, {
           path: '/',
           maxAge: 24 * 60 * 60,
@@ -120,8 +141,7 @@ export async function proxy(request: NextRequest) {
           response.cookies.set('refreshToken', newRefreshToken, {
             path: '/',
             maxAge: 30 * 24 * 60 * 60,
-            sameSite: 'lax',
-            httpOnly: true
+            sameSite: 'lax'
           });
         }
       }
@@ -130,7 +150,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  if (isRefreshed) {
+  if (isRefreshed && token) {
     response.cookies.set('access_token', token, {
       path: '/',
       maxAge: 24 * 60 * 60,
@@ -140,8 +160,7 @@ export async function proxy(request: NextRequest) {
       response.cookies.set('refreshToken', newRefreshToken, {
         path: '/',
         maxAge: 30 * 24 * 60 * 60,
-        sameSite: 'lax',
-        httpOnly: true
+        sameSite: 'lax'
       });
     }
   }

@@ -84,5 +84,40 @@ for (const user of TEST_USERS) {
       await page.goto('/dashboard/overview');
       await expect(page).toHaveURL(/\/auth\/sign-in/);
     });
+
+    test(`🛡️ ${user.role} tokens are ONLY in sessionStorage and NEVER in localStorage`, async ({
+      page
+    }) => {
+      await loginAs(page, user);
+
+      // Verify localStorage is completely free of any auth / token keys
+      const localStorageData = await page.evaluate(() => {
+        const items: Record<string, string> = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)!;
+          items[key] = localStorage.getItem(key)!;
+        }
+        return items;
+      });
+
+      expect(
+        localStorageData['auth-storage'],
+        'auth-storage MUST NOT exist in localStorage'
+      ).toBeUndefined();
+      expect(
+        JSON.stringify(localStorageData).toLowerCase(),
+        'localStorage must not contain any token strings'
+      ).not.toContain('token');
+
+      // Verify sessionStorage stores the auth session
+      const sessionStorageData = await page.evaluate(() => {
+        return sessionStorage.getItem('auth-storage');
+      });
+
+      expect(sessionStorageData, 'auth-storage MUST exist in sessionStorage').not.toBeNull();
+      const parsed = JSON.parse(sessionStorageData!);
+      expect(parsed.state.accessToken, 'sessionStorage contains valid accessToken').toBeTruthy();
+      expect(parsed.state.isAuthenticated, 'sessionStorage isAuthenticated is true').toBe(true);
+    });
   });
 }

@@ -11,13 +11,27 @@ const apiClient = axios.create({
 
 // Attach access token to every request
 apiClient.interceptors.request.use((config) => {
-  let token = useAuthStore.getState().accessToken;
-  if (!token && typeof document !== 'undefined') {
-    const match = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
-    if (match) {
-      token = decodeURIComponent(match[1]);
+  let cookieToken: string | undefined;
+  let cookieRefreshToken: string | undefined;
+
+  if (typeof document !== 'undefined') {
+    const matchToken = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
+    if (matchToken) {
+      cookieToken = decodeURIComponent(matchToken[1]);
+    }
+    const matchRefresh = document.cookie.match(/(?:^|; )refreshToken=([^;]*)/);
+    if (matchRefresh) {
+      cookieRefreshToken = decodeURIComponent(matchRefresh[1]);
     }
   }
+
+  // If cookie has a token from SSR/Proxy, sync with useAuthStore
+  const storeToken = useAuthStore.getState().accessToken;
+  if (cookieToken && cookieToken !== storeToken) {
+    useAuthStore.getState().setAccessToken(cookieToken, cookieRefreshToken);
+  }
+
+  const token = cookieToken || storeToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -62,10 +76,13 @@ apiClient.interceptors.response.use(
 
       try {
         let refreshToken = useAuthStore.getState().refreshToken;
-        if (!refreshToken && typeof document !== 'undefined') {
+        if (typeof document !== 'undefined') {
           const match = document.cookie.match(/(?:^|; )refreshToken=([^;]*)/);
           if (match) {
-            refreshToken = decodeURIComponent(match[1]);
+            const cookieRefreshToken = decodeURIComponent(match[1]);
+            if (cookieRefreshToken) {
+              refreshToken = cookieRefreshToken;
+            }
           }
         }
 
