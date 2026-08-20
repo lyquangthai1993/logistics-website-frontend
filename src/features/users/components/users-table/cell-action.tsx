@@ -21,7 +21,7 @@ import { Icons } from '@/components/icons';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
-import { UserFormSheet } from '../user-form-sheet';
+import { UserFormDialog } from '../user-form-dialog';
 
 interface CellActionProps {
   data: User;
@@ -83,7 +83,7 @@ export function CellAction({ data }: CellActionProps) {
         </DialogContent>
       </Dialog>
 
-      <UserFormSheet user={data} open={editOpen} onOpenChange={setEditOpen} />
+      <UserFormDialog user={data} open={editOpen} onOpenChange={setEditOpen} />
 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
