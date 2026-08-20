@@ -5,7 +5,7 @@ const publicRoutes = ['/auth/sign-in', '/auth'];
 const roleRouteMap: Record<string, string[]> = {
   '/dashboard/admin': ['SUPER_ADMIN'],
   '/dashboard/users': ['SUPER_ADMIN'],
-  '/dashboard/orders': ['SUPER_ADMIN', 'DISPATCHER'],
+  '/dashboard/orders': ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER'],
   '/dashboard/trips': ['SUPER_ADMIN', 'FLEET_MANAGER'],
   '/dashboard/fleet': ['SUPER_ADMIN', 'FLEET_MANAGER'],
   '/dashboard/warehouse': ['SUPER_ADMIN', 'WAREHOUSE_MANAGER']

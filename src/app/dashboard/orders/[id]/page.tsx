@@ -34,6 +34,7 @@ import {
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
+import { useRBAC } from '@/hooks/use-rbac';
 
 function renderStatusBadge(status: OrderStatus) {
   switch (status) {
@@ -105,6 +106,7 @@ function renderStatusBadge(status: OrderStatus) {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { isDispatcher, isFleetManager, isWarehouseManager } = useRBAC();
   const rawId = params?.id ? String(params.id) : '';
   const orderId = !isNaN(Number(rawId)) && Number.isInteger(Number(rawId)) ? Number(rawId) : rawId;
 
@@ -277,7 +279,19 @@ export default function OrderDetailPage() {
           <Button
             variant='ghost'
             size='sm'
-            onClick={() => router.push('/dashboard/orders')}
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back();
+              } else if (isDispatcher) {
+                router.push('/dashboard/orders');
+              } else if (isFleetManager) {
+                router.push('/dashboard/trips');
+              } else if (isWarehouseManager) {
+                router.push('/dashboard/warehouse');
+              } else {
+                router.push('/dashboard/overview');
+              }
+            }}
             className='text-slate-600 hover:text-slate-900 dark:text-slate-300'
           >
             <IconArrowLeft className='h-4 w-4 mr-1' />
@@ -305,58 +319,84 @@ export default function OrderDetailPage() {
         </div>
 
         <div className='flex items-center flex-wrap gap-2'>
-          {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
-            <Button
-              onClick={handleOpenEditModal}
-              variant='outline'
-              size='sm'
-              className='text-slate-700 dark:text-slate-200'
-            >
-              <IconEdit className='mr-1.5 h-4 w-4' />
-              Chỉnh sửa đơn
-            </Button>
-          )}
-
-          {order.status === 'NO_VEHICLE' && (
-            <Button
-              onClick={handleOpenExternalModal}
-              className='bg-amber-600 hover:bg-amber-700 text-white shadow-sm font-semibold'
-            >
-              <IconTruck className='mr-2 h-4 w-4' />
-              Thuê xe bên ngoài & Gửi lại Fleet
-            </Button>
-          )}
-
-          {order.status === 'DRAFT' && (
+          {/* Dispatcher Actions: Only visible for DISPATCHER & SUPER_ADMIN */}
+          {isDispatcher ? (
             <>
-              <Button
-                onClick={handleDeleteOrder}
-                variant='outline'
-                className='text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-              >
-                <IconTrash className='mr-2 h-4 w-4' />
-                Hủy lệnh điều vận
-              </Button>
-              <Button
-                onClick={handleSubmitToFleet}
-                className='bg-blue-600 hover:bg-blue-700 text-white'
-              >
-                <IconSend className='mr-2 h-4 w-4' />
-                Gửi lên Fleet phân xe
-              </Button>
+              {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
+                <Button
+                  onClick={handleOpenEditModal}
+                  variant='outline'
+                  size='sm'
+                  className='text-slate-700 dark:text-slate-200'
+                >
+                  <IconEdit className='mr-1.5 h-4 w-4' />
+                  Chỉnh sửa đơn
+                </Button>
+              )}
+
+              {order.status === 'NO_VEHICLE' && (
+                <Button
+                  onClick={handleOpenExternalModal}
+                  className='bg-amber-600 hover:bg-amber-700 text-white shadow-sm font-semibold'
+                >
+                  <IconTruck className='mr-2 h-4 w-4' />
+                  Thuê xe bên ngoài & Gửi lại Fleet
+                </Button>
+              )}
+
+              {order.status === 'DRAFT' && (
+                <>
+                  <Button
+                    onClick={handleDeleteOrder}
+                    variant='outline'
+                    className='text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                  >
+                    <IconTrash className='mr-2 h-4 w-4' />
+                    Hủy lệnh điều vận
+                  </Button>
+                  <Button
+                    onClick={handleSubmitToFleet}
+                    className='bg-blue-600 hover:bg-blue-700 text-white'
+                  >
+                    <IconSend className='mr-2 h-4 w-4' />
+                    Gửi lên Fleet phân xe
+                  </Button>
+                </>
+              )}
             </>
+          ) : (
+            /* Read-Only Mode indicator for FLEET_MANAGER & WAREHOUSE_MANAGER */
+            <Badge
+              variant='outline'
+              className='bg-slate-50 text-slate-600 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs px-2.5 py-1.5 flex items-center gap-1.5 font-medium'
+            >
+              <IconInfoCircle className='h-4 w-4 text-blue-500' />
+              Chế độ chỉ xem (Read-Only)
+            </Badge>
           )}
 
-          <Link href='/dashboard/trips'>
-            <Button variant='outline'>
-              <IconTruck className='mr-2 h-4 w-4' />
-              Xem bảng Phân công xe
-            </Button>
-          </Link>
+          {/* Quick role-based navigation links */}
+          {isFleetManager && (
+            <Link href='/dashboard/trips'>
+              <Button variant='outline' size='sm' className='gap-1.5 text-xs'>
+                <IconTruck className='h-3.5 w-3.5 text-amber-600' />
+                Đến Phân công xe
+              </Button>
+            </Link>
+          )}
+
+          {isWarehouseManager && (
+            <Link href='/dashboard/warehouse'>
+              <Button variant='outline' size='sm' className='gap-1.5 text-xs'>
+                <IconMapPin className='h-3.5 w-3.5 text-emerald-600' />
+                Đến Lịch Inbound Kho
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* NO_VEHICLE Alert Banner for Dispatcher */}
+      {/* NO_VEHICLE Alert Banner */}
       {order.status === 'NO_VEHICLE' && (
         <div className='p-5 rounded-xl bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50/50 dark:from-rose-950/40 dark:via-amber-950/30 dark:to-rose-950/20 border-2 border-rose-200 dark:border-rose-900 shadow-sm'>
           <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
@@ -380,15 +420,17 @@ export default function OrderDetailPage() {
                 </div>
               )}
             </div>
-            <div className='flex-shrink-0'>
-              <Button
-                onClick={handleOpenExternalModal}
-                className='bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-md'
-              >
-                <IconTruck className='mr-2 h-4 w-4' />
-                Cấu hình đối tác xe ngoài & Gửi lại Fleet
-              </Button>
-            </div>
+            {isDispatcher && (
+              <div className='flex-shrink-0'>
+                <Button
+                  onClick={handleOpenExternalModal}
+                  className='bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-md'
+                >
+                  <IconTruck className='mr-2 h-4 w-4' />
+                  Cấu hình đối tác xe ngoài & Gửi lại Fleet
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
