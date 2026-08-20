@@ -33,6 +33,7 @@ import {
   IconInfoCircle,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 
 function renderStatusBadge(status: OrderStatus) {
   switch (status) {
@@ -131,8 +132,7 @@ export default function OrderDetailPage() {
       const data = await ordersApi.getOrder(orderId);
       setOrder(data);
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể tải thông tin đơn hàng. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể tải thông tin đơn hàng. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -145,11 +145,10 @@ export default function OrderDetailPage() {
   const handleSubmitToFleet = async () => {
     try {
       await ordersApi.submitOrder(orderId);
-      toast.success('Đã gửi lệnh điều vận lên Đội xe (Fleet)!');
+      showApiSuccessToast('Đã gửi lệnh điều vận lên Đội xe (Fleet)!');
       loadOrder();
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(apiMessage || 'Lỗi khi gửi lệnh điều vận. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Lỗi khi gửi lệnh điều vận. Vui lòng thử lại.');
     }
   };
 
@@ -157,11 +156,10 @@ export default function OrderDetailPage() {
     if (!confirm('Bạn có chắc chắn muốn hủy / xóa lệnh điều vận này?')) return;
     try {
       await ordersApi.deleteOrder(orderId);
-      toast.success('Đã hủy lệnh điều vận thành công');
+      showApiSuccessToast('Đã hủy lệnh điều vận thành công');
       router.push('/dashboard/orders');
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(apiMessage || 'Lỗi khi hủy lệnh điều vận. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Lỗi khi hủy lệnh điều vận. Vui lòng thử lại.');
     }
   };
 
@@ -199,16 +197,15 @@ export default function OrderDetailPage() {
 
       if (autoSubmit) {
         await ordersApi.submitOrder(order.id);
-        toast.success('Đã cấu hình xe thuê ngoài và gửi lại cho Đội xe tiếp nhận!');
+        showApiSuccessToast('Đã cấu hình xe thuê ngoài và gửi lại cho Đội xe tiếp nhận!');
       } else {
-        toast.success('Đã cập nhật thông tin xe ngoài cho đơn hàng.');
+        showApiSuccessToast('Đã cập nhật thông tin xe ngoài cho đơn hàng.');
       }
 
       setIsExternalModalOpen(false);
       loadOrder();
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(apiMessage || 'Lỗi khi cập nhật thông tin xe thuê ngoài. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Lỗi khi cập nhật thông tin xe thuê ngoài. Vui lòng thử lại.');
     } finally {
       setSubmittingExternal(false);
     }
@@ -238,12 +235,11 @@ export default function OrderDetailPage() {
         goodsDescription: editGoodsDesc || undefined,
         notes: editNotes || undefined,
       });
-      toast.success('Đã cập nhật thông tin đơn hàng');
+      showApiSuccessToast('Đã cập nhật thông tin đơn hàng');
       setIsEditModalOpen(false);
       loadOrder();
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(apiMessage || 'Lỗi khi cập nhật đơn hàng. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Lỗi khi cập nhật đơn hàng. Vui lòng thử lại.');
     } finally {
       setSubmittingEdit(false);
     }

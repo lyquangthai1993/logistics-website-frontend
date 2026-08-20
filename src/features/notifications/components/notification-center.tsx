@@ -28,7 +28,7 @@ export function NotificationCenter() {
   const markAsRead = useMarkAsReadMutation();
   const markAllAsRead = useMarkAllAsReadMutation();
 
-  const notifications = data?.data ?? [];
+  const notifications = Array.isArray(data?.data) ? data.data : [];
   const total = data?.total ?? 0;
   const hasMore = notifications.length < total;
   const unreadCount =
@@ -49,6 +49,7 @@ export function NotificationCenter() {
           <Button
             variant='ghost'
             size='icon'
+            aria-label='Thông báo'
             className='relative h-8 w-8 cursor-pointer'
           />
         }

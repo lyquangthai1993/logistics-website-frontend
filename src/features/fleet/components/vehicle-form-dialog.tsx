@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import {
   Dialog,
   DialogContent,
@@ -71,26 +71,24 @@ export function VehicleFormDialog({ vehicle, open, onOpenChange }: VehicleFormDi
   const createMutation = useMutation({
     ...createVehicleMutation,
     onSuccess: () => {
-      toast.success('Tạo xe mới thành công!');
+      showApiSuccessToast('Tạo xe mới thành công!');
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['fleet'] });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể tạo xe mới. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể tạo xe mới. Vui lòng thử lại.');
     }
   });
 
   const updateMutation = useMutation({
     ...updateVehicleMutation,
     onSuccess: () => {
-      toast.success('Cập nhật thông tin xe thành công!');
+      showApiSuccessToast('Cập nhật thông tin xe thành công!');
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['fleet'] });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể cập nhật xe. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể cập nhật xe. Vui lòng thử lại.');
     }
   });
 

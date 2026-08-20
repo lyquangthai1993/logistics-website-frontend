@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,7 +29,7 @@ export function CellAction({ data }: CellActionProps) {
   const toggleMutation = useMutation({
     ...toggleActiveHubMutation,
     onSuccess: (updated) => {
-      toast.success(
+      showApiSuccessToast(
         updated.isActive
           ? `Đã kích hoạt hoạt động chi nhánh "${data.name}"`
           : `Đã tạm ngưng hoạt động chi nhánh "${data.name}"`
@@ -37,21 +37,19 @@ export function CellAction({ data }: CellActionProps) {
       queryClient.invalidateQueries({ queryKey: hubKeys.all });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể chuyển đổi trạng thái chi nhánh kho');
+      showApiErrorToast(err, 'Không thể chuyển đổi trạng thái chi nhánh kho');
     }
   });
 
   const deleteMutation = useMutation({
     ...deleteHubMutation,
     onSuccess: () => {
-      toast.success(`Đã xóa mềm chi nhánh "${data.name}" thành công!`);
+      showApiSuccessToast(`Đã xóa mềm chi nhánh "${data.name}" thành công!`);
       setDeleteOpen(false);
       queryClient.invalidateQueries({ queryKey: hubKeys.all });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Có lỗi xảy ra khi xóa chi nhánh');
+      showApiErrorToast(err, 'Có lỗi xảy ra khi xóa chi nhánh');
     }
   });
 

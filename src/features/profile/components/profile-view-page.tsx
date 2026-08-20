@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getInitials } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import {
   IconCamera,
   IconUpload,
@@ -47,7 +48,8 @@ export default function ProfileViewPage() {
     async function fetchMe() {
       setIsFetchingMe(true);
       try {
-        const { data: meData } = await apiClient.get('/api/v1/auth/me');
+        const { data: res } = await apiClient.get('/api/v1/auth/me');
+        const meData = res?.data || res;
         if (meData?.id) {
           const roleMap: Record<number | string, any> = {
             1: 'SUPER_ADMIN',
@@ -188,21 +190,23 @@ export default function ProfileViewPage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const { data: uploadData } = await apiClient.post('/api/v1/files/upload', formData, {
+      const { data: uploadRes } = await apiClient.post('/api/v1/files/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
 
+      const uploadData = uploadRes?.data || uploadRes;
       const uploadedFile = uploadData?.file;
       if (!uploadedFile?.id) {
         throw new Error('Tải ảnh lên thất bại, vui lòng thử lại.');
       }
 
-      const { data: updatedUser } = await apiClient.patch('/api/v1/auth/me', {
+      const { data: userRes } = await apiClient.patch('/api/v1/auth/me', {
         photo: { id: uploadedFile.id }
       });
 
+      const updatedUser = userRes?.data || userRes;
       const avatarPath = updatedUser?.photo?.path || uploadedFile.path || '';
       const fullAvatarUrl = avatarPath.startsWith('http')
         ? avatarPath
@@ -213,11 +217,10 @@ export default function ProfileViewPage() {
         avatarUrl: fullAvatarUrl
       });
 
-      toast.success('Cập nhật ảnh đại diện thành công!');
+      showApiSuccessToast('Cập nhật ảnh đại diện thành công!');
       handleCancelPreview();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi tải ảnh lên.';
-      toast.error(msg);
+    } catch (err: unknown) {
+      showApiErrorToast(err, 'Có lỗi xảy ra khi tải ảnh lên.');
     } finally {
       setIsUploading(false);
     }
@@ -236,10 +239,9 @@ export default function ProfileViewPage() {
       });
 
       handleCancelPreview();
-      toast.success('Đã xóa ảnh đại diện.');
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Không thể xóa ảnh đại diện.';
-      toast.error(msg);
+      showApiSuccessToast('Đã xóa ảnh đại diện.');
+    } catch (err: unknown) {
+      showApiErrorToast(err, 'Không thể xóa ảnh đại diện.');
     } finally {
       setIsRemoving(false);
     }

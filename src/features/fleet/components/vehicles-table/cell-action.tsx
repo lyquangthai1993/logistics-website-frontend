@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import { Button } from '@/components/ui/button';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { deleteVehicleMutation } from '../../api/mutations';
@@ -22,13 +22,12 @@ export function CellAction({ data }: CellActionProps) {
   const deleteMutation = useMutation({
     ...deleteVehicleMutation,
     onSuccess: () => {
-      toast.success('Đã xóa xe thành công!');
+      showApiSuccessToast('Đã xóa xe thành công!');
       setDeleteOpen(false);
       queryClient.invalidateQueries({ queryKey: ['fleet'] });
     },
-    onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể xóa xe. Vui lòng thử lại.');
+    onError: (err: unknown) => {
+      showApiErrorToast(err, 'Không thể xóa xe. Vui lòng thử lại.');
     }
   });
 

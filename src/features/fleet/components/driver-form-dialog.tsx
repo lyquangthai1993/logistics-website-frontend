@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ interface DriverFormDialogProps {
 
 export function DriverFormDialog({ driver, open, onOpenChange }: DriverFormDialogProps) {
   const queryClient = useQueryClient();
+  const isEditing = !!driver;
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -36,12 +37,12 @@ export function DriverFormDialog({ driver, open, onOpenChange }: DriverFormDialo
   useEffect(() => {
     if (open) {
       if (driver) {
-        setFullName(driver.fullName || '');
-        setPhone(driver.phone || '');
+        setFullName(driver.fullName);
+        setPhone(driver.phone);
         setLicenseNumber(driver.licenseNumber || '');
-        setLicenseClass(driver.licenseClass || 'FC');
-        setExperienceYears(driver.experienceYears ?? 5);
-        setStatus(driver.status || 'AVAILABLE');
+        setLicenseClass(driver.licenseClass);
+        setExperienceYears(driver.experienceYears);
+        setStatus(driver.status);
       } else {
         setFullName('');
         setPhone('');
@@ -56,26 +57,24 @@ export function DriverFormDialog({ driver, open, onOpenChange }: DriverFormDialo
   const createMutation = useMutation({
     ...createDriverMutation,
     onSuccess: () => {
-      toast.success('Tạo tài xế mới thành công!');
+      showApiSuccessToast('Tạo tài xế mới thành công!');
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['fleet'] });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể tạo tài xế mới. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể tạo tài xế mới. Vui lòng thử lại.');
     }
   });
 
   const updateMutation = useMutation({
     ...updateDriverMutation,
     onSuccess: () => {
-      toast.success('Cập nhật thông tin tài xế thành công!');
+      showApiSuccessToast('Cập nhật thông tin tài xế thành công!');
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['fleet'] });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Không thể cập nhật tài xế. Vui lòng thử lại.');
+      showApiErrorToast(err, 'Không thể cập nhật tài xế. Vui lòng thử lại.');
     }
   });
 

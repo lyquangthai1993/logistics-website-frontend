@@ -20,17 +20,8 @@ import type { User } from '../../api/types';
 import { Icons } from '@/components/icons';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import { UserFormSheet } from '../user-form-sheet';
-
-interface ApiErrorResponse {
-  response?: {
-    data?: {
-      message?: string;
-      errors?: Record<string, string> | string;
-    };
-  };
-}
 
 interface CellActionProps {
   data: User;
@@ -43,19 +34,11 @@ export function CellAction({ data }: CellActionProps) {
   const deleteMutation = useMutation({
     ...deleteUserMutation,
     onSuccess: () => {
-      toast.success('Đã xóa người dùng thành công');
+      showApiSuccessToast('Đã xóa người dùng thành công');
       setDeleteOpen(false);
     },
-    onError: (err: Error) => {
-      const error = err as unknown as ApiErrorResponse;
-      const apiMessage =
-        error?.response?.data?.message ||
-        (error?.response?.data?.errors
-          ? typeof error.response.data.errors === 'object'
-            ? Object.values(error.response.data.errors).join(', ')
-            : String(error.response.data.errors)
-          : undefined);
-      toast.error(apiMessage || 'Không thể xóa người dùng. Vui lòng thử lại.');
+    onError: (err: any) => {
+      showApiErrorToast(err, 'Không thể xóa người dùng. Vui lòng thử lại.');
     }
   });
 

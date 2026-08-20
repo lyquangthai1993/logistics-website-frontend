@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -65,26 +65,24 @@ export function HubFormDialog({
   const createMutation = useMutation({
     ...createHubMutation,
     onSuccess: (res) => {
-      toast.success(`Tạo mới chi nhánh "${res.name}" thành công!`);
+      showApiSuccessToast(`Tạo mới chi nhánh "${res.name}" thành công!`);
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: hubKeys.all });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Có lỗi xảy ra khi tạo mới chi nhánh');
+      showApiErrorToast(err, 'Có lỗi xảy ra khi tạo mới chi nhánh');
     }
   });
 
   const updateMutation = useMutation({
     ...updateHubMutation,
     onSuccess: (res) => {
-      toast.success(`Cập nhật chi nhánh "${res.name}" thành công!`);
+      showApiSuccessToast(`Cập nhật chi nhánh "${res.name}" thành công!`);
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: hubKeys.all });
     },
     onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      toast.error(apiMessage || 'Có lỗi xảy ra khi cập nhật chi nhánh');
+      showApiErrorToast(err, 'Có lỗi xảy ra khi cập nhật chi nhánh');
     }
   });
 

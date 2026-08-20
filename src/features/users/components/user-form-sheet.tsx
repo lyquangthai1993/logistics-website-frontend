@@ -15,20 +15,12 @@ import { Icons } from '@/components/icons';
 import { useMutation } from '@tanstack/react-query';
 import { createUserMutation, updateUserMutation } from '../api/mutations';
 import type { User, CreateUserPayload, UpdateUserPayload } from '../api/types';
+import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import { toast } from 'sonner';
 import { ROLE_OPTIONS, STATUS_OPTIONS } from './users-table/options';
 
-interface ApiErrorResponse {
-  response?: {
-    data?: {
-      message?: string;
-      errors?: Record<string, string> | string;
-    };
-  };
-}
-
 interface UserFormSheetProps {
-  user?: User;
+  user?: User | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -67,38 +59,22 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
   const createMutation = useMutation({
     ...createUserMutation,
     onSuccess: () => {
-      toast.success('Tạo người dùng thành công!');
+      showApiSuccessToast('Tạo người dùng thành công!');
       onOpenChange(false);
     },
-    onError: (err: Error) => {
-      const error = err as unknown as ApiErrorResponse;
-      const apiMessage =
-        error?.response?.data?.message ||
-        (error?.response?.data?.errors
-          ? typeof error.response.data.errors === 'object'
-            ? Object.values(error.response.data.errors).join(', ')
-            : String(error.response.data.errors)
-          : undefined);
-      toast.error(apiMessage || 'Không thể tạo người dùng. Vui lòng thử lại.');
+    onError: (err: any) => {
+      showApiErrorToast(err, 'Không thể tạo người dùng. Vui lòng thử lại.');
     }
   });
 
   const updateMutation = useMutation({
     ...updateUserMutation,
     onSuccess: () => {
-      toast.success('Cập nhật người dùng thành công!');
+      showApiSuccessToast('Cập nhật người dùng thành công!');
       onOpenChange(false);
     },
-    onError: (err: Error) => {
-      const error = err as unknown as ApiErrorResponse;
-      const apiMessage =
-        error?.response?.data?.message ||
-        (error?.response?.data?.errors
-          ? typeof error.response.data.errors === 'object'
-            ? Object.values(error.response.data.errors).join(', ')
-            : String(error.response.data.errors)
-          : undefined);
-      toast.error(apiMessage || 'Không thể cập nhật người dùng. Vui lòng thử lại.');
+    onError: (err: any) => {
+      showApiErrorToast(err, 'Không thể cập nhật người dùng. Vui lòng thử lại.');
     }
   });
 
