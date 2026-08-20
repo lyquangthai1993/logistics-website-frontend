@@ -30,6 +30,7 @@ export interface NotificationCardProps {
   onAction?: (notificationId: string, actionId: string, actionType: ActionType) => void;
   loadingActionId?: string;
   className?: string;
+  compact?: boolean;
 }
 
 // Color config per notification type
@@ -115,7 +116,8 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   onMarkAsRead,
   onAction,
   loadingActionId,
-  className
+  className,
+  compact = false
 }) => {
   const isUnread = status === 'unread';
   const cfg = TYPE_CONFIG[type] ?? TYPE_CONFIG.GENERIC;
@@ -125,19 +127,23 @@ export const NotificationCard: FC<NotificationCardProps> = ({
     <div
       data-testid='notification-item'
       className={cn(
-        'group relative w-full rounded-2xl transition-all',
+        'group relative w-full transition-all',
+        compact ? 'rounded-xl' : 'rounded-2xl',
         isUnread ? 'bg-muted' : 'bg-muted/40',
         className
       )}
       style={{
-        borderLeft: `3px solid ${color}`
+        borderLeft: `${compact ? '2.5px' : '3px'} solid ${color}`
       }}
     >
-      <div className='px-4 py-3.5'>
-        <div className='flex items-start justify-between gap-3'>
-          {/* Type icon — màu và nền theo theme */}
+      <div className={compact ? 'px-3 py-2' : 'px-4 py-3.5'}>
+        <div className={cn('flex items-start justify-between', compact ? 'gap-2' : 'gap-3')}>
+          {/* Type icon */}
           <div
-            className='mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg'
+            className={cn(
+              'mt-0.5 flex flex-shrink-0 items-center justify-center',
+              compact ? 'h-6 w-6 rounded-md [&_svg]:size-3.5' : 'h-7 w-7 rounded-lg'
+            )}
             style={{
               backgroundColor: `color-mix(in oklch, ${color} 12%, transparent)`,
               color: color
@@ -147,12 +153,13 @@ export const NotificationCard: FC<NotificationCardProps> = ({
           </div>
 
           {/* Main content */}
-          <div className='min-w-0 flex-1 space-y-1'>
+          <div className='min-w-0 flex-1 space-y-0.5'>
             {/* Title with unread indicator */}
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-1.5'>
               <h3
                 className={cn(
-                  'text-[15px] leading-tight font-semibold',
+                  'leading-tight font-semibold',
+                  compact ? 'text-xs line-clamp-1' : 'text-[15px]',
                   isUnread ? 'text-foreground' : 'text-muted-foreground'
                 )}
               >
@@ -169,7 +176,8 @@ export const NotificationCard: FC<NotificationCardProps> = ({
             {/* Description */}
             <p
               className={cn(
-                'mb-0 text-[13px]',
+                'mb-0',
+                compact ? 'text-[11px] leading-snug line-clamp-2' : 'text-[13px]',
                 isUnread ? 'text-muted-foreground' : 'text-muted-foreground/60'
               )}
             >
@@ -183,20 +191,21 @@ export const NotificationCard: FC<NotificationCardProps> = ({
               type='button'
               onClick={() => onMarkAsRead(id)}
               className={cn(
-                'rounded-lg p-1.5 transition-colors cursor-pointer',
+                'rounded-lg transition-colors cursor-pointer shrink-0',
+                compact ? 'p-1' : 'p-1.5',
                 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
               aria-label='Mark as read'
             >
-              <Icons.check size={16} />
+              <Icons.check size={compact ? 13 : 16} />
             </button>
           )}
         </div>
 
-        <div className='mt-3 flex items-end justify-between'>
+        <div className={cn('flex items-end justify-between', compact ? 'mt-1.5' : 'mt-3')}>
           {/* Actions */}
           {actions.length > 0 && (
-            <div className={cn('flex flex-wrap items-center gap-2', !isUnread && 'opacity-60')}>
+            <div className={cn('flex flex-wrap items-center gap-1.5', !isUnread && 'opacity-60')}>
               {actions.map((action) => {
                 const isLoading = loadingActionId === action.id;
                 const isExecuted = action.executed || false;
@@ -209,7 +218,8 @@ export const NotificationCard: FC<NotificationCardProps> = ({
                     disabled={isLoading || isExecuted}
                     onClick={() => onAction?.(id, action.id, action.type)}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-normal transition',
+                      'flex items-center gap-1 rounded-md text-xs font-normal transition',
+                      compact ? 'px-2 py-0.5 text-[11px]' : 'px-4 py-1.5',
                       action.style === 'primary'
                         ? 'bg-primary/10 text-primary hover:bg-primary/20'
                         : action.style === 'danger'
@@ -220,12 +230,12 @@ export const NotificationCard: FC<NotificationCardProps> = ({
                     )}
                   >
                     {showLoading ? (
-                      <Icons.spinner size={12} className='animate-spin' />
+                      <Icons.spinner size={11} className='animate-spin' />
                     ) : (
                       <>
                         <span>{action.label}</span>
                         {isExecuted ? (
-                          <Icons.check size={12} strokeWidth={2.5} />
+                          <Icons.check size={11} strokeWidth={2.5} />
                         ) : (
                           getActionIcon(action.type)
                         )}
@@ -239,7 +249,12 @@ export const NotificationCard: FC<NotificationCardProps> = ({
 
           {/* Timestamp */}
           {createdAt && (
-            <span className='text-muted-foreground/60 inline-block text-[11px]'>
+            <span
+              className={cn(
+                'text-muted-foreground/60 inline-block ml-auto',
+                compact ? 'text-[10px]' : 'text-[11px]'
+              )}
+            >
               {formatDate(createdAt)}
             </span>
           )}

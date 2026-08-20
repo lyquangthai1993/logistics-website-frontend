@@ -18,16 +18,34 @@ export type NotificationItem = {
   updatedAt: string;
 };
 
+export interface FetchNotificationsParams {
+  page?: number;
+  limit?: number;
+  type?: string;
+  isRead?: boolean;
+  search?: string;
+}
+
 export type NotificationsResponse = {
   data: NotificationItem[];
   total: number;
   page: number;
   limit: number;
+  totalPages?: number;
 };
 
-async function fetchNotifications(page: number, limit: number): Promise<NotificationsResponse> {
+async function fetchNotifications(
+  params: FetchNotificationsParams = {}
+): Promise<NotificationsResponse> {
+  const cleanParams: Record<string, unknown> = {};
+  if (params.page) cleanParams.page = params.page;
+  if (params.limit) cleanParams.limit = params.limit;
+  if (params.type && params.type !== 'all') cleanParams.type = params.type;
+  if (typeof params.isRead === 'boolean') cleanParams.isRead = params.isRead;
+  if (params.search && params.search.trim()) cleanParams.search = params.search.trim();
+
   const res = await apiClient.get<NotificationsResponse>('/api/v1/notifications', {
-    params: { page, limit }
+    params: cleanParams
   });
   return res.data;
 }
@@ -38,13 +56,54 @@ async function fetchUnreadCount(): Promise<number> {
 }
 
 /**
- * Fetch paginated notification list.
+ * Fetch paginated & filtered notification list from server.
  * staleTime: 30s → backup nếu WebSocket disconnect, data vẫn refresh khi user focus lại tab
  */
-export function useNotificationsQuery(page: number = 1, limit: number = 20) {
+export function useNotificationsQuery(
+  params: FetchNotificationsParams | number = 1,
+  limit: number = 20
+) {
+  const normalizedParams: FetchNotificationsParams =
+    typeof params === 'number'
+      ? { page: params, limit }
+      : { page: params.page ?? 1, limit: params.limit ?? 20, ...params };
+
   return useQuery({
-    queryKey: ['notifications', { page, limit }],
-    queryFn: () => fetchNotifications(page, limit),
+    queryKey: ['notifications', normalizedParams],
+    queryFn: () => fetchNotifications(normalizedParams),
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true
+  });
+}
+
+export type NotificationStats = {
+  total: number;
+  unread: number;
+  read: number;
+  byType: {
+    DISPATCHER: number;
+    FLEET: number;
+    WAREHOUSE: number;
+    GENERIC: number;
+  };
+  unreadByType: {
+    DISPATCHER: number;
+    FLEET: number;
+    WAREHOUSE: number;
+    GENERIC: number;
+  };
+};
+
+async function fetchNotificationStats(): Promise<NotificationStats> {
+  const res = await apiClient.get<NotificationStats>('/api/v1/notifications/stats');
+  return res.data;
+}
+
+/** Thống kê số lượng notification theo nghiệp vụ & trạng thái */
+export function useNotificationStatsQuery() {
+  return useQuery({
+    queryKey: ['notifications', 'stats'],
+    queryFn: fetchNotificationStats,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: true
   });
