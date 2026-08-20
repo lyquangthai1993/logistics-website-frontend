@@ -373,11 +373,11 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
               </label>
               <Textarea
                 id='goods-desc-input'
-                rows={4}
+                rows={6}
                 placeholder='VD: 50 kiện hàng linh kiện điện tử nguyên đai nguyên kiện, hàng giá trị cao, yêu cầu bảo quản khô ráo...'
                 value={goodsDescription}
                 onChange={(e) => setGoodsDescription(e.target.value)}
-                className='resize-y text-sm bg-white dark:bg-slate-950'
+                className='min-h-[140px] resize-y text-sm bg-white dark:bg-slate-950'
               />
             </div>
 
@@ -392,11 +392,11 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
               </label>
               <Textarea
                 id='notes-input'
-                rows={4}
+                rows={6}
                 placeholder='VD: Cần xe thùng kín có bửng nâng, giao trước 17h00, lái xe liên hệ thủ kho trước 30 phút...'
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className='resize-y text-sm bg-white dark:bg-slate-950'
+                className='min-h-[140px] resize-y text-sm bg-white dark:bg-slate-950'
               />
             </div>
           </div>
