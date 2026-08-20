@@ -5,6 +5,9 @@ import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { getQueryClient } from '@/lib/query-client';
 import { toast } from 'sonner';
+import { notificationKeys } from './query-keys';
+import type { InfiniteData } from '@tanstack/react-query';
+import type { NotificationItem, NotificationsResponse } from './use-notifications-query';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -45,27 +48,61 @@ export function useNotificationSocket() {
         console.log('[WS] Notifications disconnected:', reason);
       });
 
-      sharedSocket.on(
-        'notification:new',
-        (notification: {
-          id: number;
-          title: string;
-          body: string;
-          type: string;
-          isRead: boolean;
-          createdAt: string;
-        }) => {
-          // Invalidate cache → TanStack Query tự refetch
-          const queryClient = getQueryClient();
-          void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      sharedSocket.on('notification:new', (notification: NotificationItem) => {
+        const queryClient = getQueryClient();
 
-          // Toast thông báo
-          toast(notification.title, {
-            description: notification.body,
-            duration: 5000
-          });
-        }
-      );
+        // 1. Tăng unread count tức thì trên cache (+1)
+        queryClient.setQueryData<number>(notificationKeys.unreadCount(), (old) => (old ?? 0) + 1);
+
+        // 2. Optimistic insert: Chèn notification mới vào đầu danh sách cache
+        queryClient.setQueriesData<NotificationsResponse>(
+          { queryKey: notificationKeys.lists() },
+          (oldData) => {
+            if (!oldData || !Array.isArray(oldData.data)) return oldData;
+            // Kiểm tra trùng lặp
+            if (oldData.data.some((item) => item.id === notification.id)) return oldData;
+            return {
+              ...oldData,
+              total: oldData.total + 1,
+              data: [notification, ...oldData.data]
+            };
+          }
+        );
+
+        // 3. Chèn vào đầu infinite query cache
+        queryClient.setQueriesData<InfiniteData<NotificationsResponse>>(
+          { queryKey: notificationKeys.infinite() },
+          (oldData) => {
+            if (!oldData || !Array.isArray(oldData.pages) || oldData.pages.length === 0) return oldData;
+            const firstPage = oldData.pages[0];
+            const exists = oldData.pages.some((p) =>
+              p.data?.some((i) => i.id === notification.id)
+            );
+            if (exists) return oldData;
+
+            return {
+              ...oldData,
+              pages: [
+                {
+                  ...firstPage,
+                  total: (firstPage.total ?? 0) + 1,
+                  data: [notification, ...(firstPage.data ?? [])]
+                },
+                ...oldData.pages.slice(1)
+              ]
+            };
+          }
+        );
+
+        // 4. Invalidate stats để đồng bộ số liệu nghiệp vụ
+        void queryClient.invalidateQueries({ queryKey: notificationKeys.stats() });
+
+        // 5. Toast thông báo nổi bật
+        toast(notification.title, {
+          description: notification.body,
+          duration: 5000
+        });
+      });
     }
 
     return () => {

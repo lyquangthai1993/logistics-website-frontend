@@ -37,7 +37,6 @@ export interface NotificationCardProps {
 
 // Color config per notification type
 // Dùng CSS variables từ theme thay vì hardcode Tailwind colors
-// --chart-1..5 thay đổi theo từng theme (Claude, Discord, Zen, etc.)
 const TYPE_CONFIG: Record<
   NotificationType,
   {
@@ -128,7 +127,12 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   const color = cfg.cssVar;
   const isClickable = Boolean(onClick);
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 2-layer defense: Nếu click vào button con thì tuyệt đối không trigger điều hướng card
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) {
+      return;
+    }
     if (onClick) {
       onClick();
     }
@@ -142,6 +146,10 @@ export const NotificationCard: FC<NotificationCardProps> = ({
       onClick={handleCardClick}
       onKeyDown={(e) => {
         if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+          const target = e.target as HTMLElement;
+          if (target.closest('button') || target.closest('a')) {
+            return;
+          }
           e.preventDefault();
           onClick?.();
         }
@@ -220,20 +228,25 @@ export const NotificationCard: FC<NotificationCardProps> = ({
             )}
           </div>
 
-          {/* Mark as read button */}
+          {/* Mark as read button with strict stopPropagation */}
           {isUnread && onMarkAsRead && (
             <button
               type='button'
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation?.();
                 onMarkAsRead(id);
               }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               className={cn(
-                'rounded-lg transition-colors cursor-pointer shrink-0',
+                'relative z-10 rounded-lg transition-colors cursor-pointer shrink-0',
                 compact ? 'p-1' : 'p-1.5',
                 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
-              aria-label='Mark as read'
+              title='Đánh dấu đã đọc'
+              aria-label='Đánh dấu đã đọc'
             >
               <Icons.check size={compact ? 13 : 16} />
             </button>
@@ -241,7 +254,7 @@ export const NotificationCard: FC<NotificationCardProps> = ({
         </div>
 
         <div className={cn('flex items-end justify-between', compact ? 'mt-1.5' : 'mt-3')}>
-          {/* Actions */}
+          {/* Actions with strict stopPropagation */}
           {actions.length > 0 && (
             <div className={cn('flex flex-wrap items-center gap-1.5', !isUnread && 'opacity-60')}>
               {actions.map((action) => {
@@ -255,11 +268,15 @@ export const NotificationCard: FC<NotificationCardProps> = ({
                     type='button'
                     disabled={isLoading || isExecuted}
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
+                      e.nativeEvent.stopImmediatePropagation?.();
                       onAction?.(id, action.id, action.type);
                     }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     className={cn(
-                      'flex items-center gap-1 rounded-md text-xs font-normal transition cursor-pointer',
+                      'relative z-10 flex items-center gap-1 rounded-md text-xs font-normal transition cursor-pointer',
                       compact ? 'px-2 py-0.5 text-[11px]' : 'px-4 py-1.5',
                       action.style === 'primary'
                         ? 'bg-primary/10 text-primary hover:bg-primary/20'
