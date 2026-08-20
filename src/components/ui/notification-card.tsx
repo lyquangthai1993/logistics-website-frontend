@@ -26,6 +26,8 @@ export interface NotificationCardProps {
   status?: NotificationStatus;
   createdAt?: string | Date;
   actions?: NotificationAction[];
+  orderCode?: string;
+  onClick?: () => void;
   onMarkAsRead?: (id: string) => void;
   onAction?: (notificationId: string, actionId: string, actionType: ActionType) => void;
   loadingActionId?: string;
@@ -78,12 +80,12 @@ const formatDate = (date: string | Date): string => {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return 'Vừa xong';
+  if (diffMins < 60) return `${diffMins}p trước`;
+  if (diffHours < 24) return `${diffHours}h trước`;
+  if (diffDays < 7) return `${diffDays}d trước`;
 
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString('vi-VN', {
     month: 'short',
     day: 'numeric'
   });
@@ -113,6 +115,8 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   status = 'unread',
   createdAt,
   actions = [],
+  orderCode,
+  onClick,
   onMarkAsRead,
   onAction,
   loadingActionId,
@@ -122,14 +126,31 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   const isUnread = status === 'unread';
   const cfg = TYPE_CONFIG[type] ?? TYPE_CONFIG.GENERIC;
   const color = cfg.cssVar;
+  const isClickable = Boolean(onClick);
+
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
 
   return (
     <div
       data-testid='notification-item'
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       className={cn(
-        'group relative w-full transition-all',
+        'group relative w-full transition-all text-left select-none',
         compact ? 'rounded-xl' : 'rounded-2xl',
         isUnread ? 'bg-muted' : 'bg-muted/40',
+        isClickable && 'cursor-pointer hover:bg-muted/80 hover:shadow-xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         className
       )}
       style={{
@@ -183,13 +204,30 @@ export const NotificationCard: FC<NotificationCardProps> = ({
             >
               {body}
             </p>
+
+            {/* Order link cue badge */}
+            {orderCode && (
+              <div className='pt-1 flex items-center gap-1.5'>
+                <span className={cn(
+                  'inline-flex items-center gap-1 rounded font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors',
+                  compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+                )}>
+                  <Icons.truck className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+                  <span>Đơn {orderCode}</span>
+                  <Icons.chevronRight className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Mark as read button */}
           {isUnread && onMarkAsRead && (
             <button
               type='button'
-              onClick={() => onMarkAsRead(id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkAsRead(id);
+              }}
               className={cn(
                 'rounded-lg transition-colors cursor-pointer shrink-0',
                 compact ? 'p-1' : 'p-1.5',
@@ -216,9 +254,12 @@ export const NotificationCard: FC<NotificationCardProps> = ({
                     key={action.id}
                     type='button'
                     disabled={isLoading || isExecuted}
-                    onClick={() => onAction?.(id, action.id, action.type)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAction?.(id, action.id, action.type);
+                    }}
                     className={cn(
-                      'flex items-center gap-1 rounded-md text-xs font-normal transition',
+                      'flex items-center gap-1 rounded-md text-xs font-normal transition cursor-pointer',
                       compact ? 'px-2 py-0.5 text-[11px]' : 'px-4 py-1.5',
                       action.style === 'primary'
                         ? 'bg-primary/10 text-primary hover:bg-primary/20'

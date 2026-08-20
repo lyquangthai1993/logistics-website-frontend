@@ -105,7 +105,8 @@ function renderStatusBadge(status: OrderStatus) {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const orderId = Number(params?.id);
+  const rawId = params?.id ? String(params.id) : '';
+  const orderId = !isNaN(Number(rawId)) && Number.isInteger(Number(rawId)) ? Number(rawId) : rawId;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,8 +144,10 @@ export default function OrderDetailPage() {
   }, [orderId]);
 
   const handleSubmitToFleet = async () => {
+    const targetId = order?.id || (typeof orderId === 'number' ? orderId : 0);
+    if (!targetId) return;
     try {
-      await ordersApi.submitOrder(orderId);
+      await ordersApi.submitOrder(targetId);
       showApiSuccessToast('Đã gửi lệnh điều vận lên Đội xe (Fleet)!');
       loadOrder();
     } catch (err: unknown) {
@@ -153,9 +156,11 @@ export default function OrderDetailPage() {
   };
 
   const handleDeleteOrder = async () => {
+    const targetId = order?.id || (typeof orderId === 'number' ? orderId : 0);
+    if (!targetId) return;
     if (!confirm('Bạn có chắc chắn muốn hủy / xóa lệnh điều vận này?')) return;
     try {
-      await ordersApi.deleteOrder(orderId);
+      await ordersApi.deleteOrder(targetId);
       showApiSuccessToast('Đã hủy lệnh điều vận thành công');
       router.push('/dashboard/orders');
     } catch (err: unknown) {

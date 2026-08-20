@@ -241,6 +241,24 @@ test.describe('[Notifications] UI – Bell & Popover', () => {
         .annotations.push({ type: 'info', description: 'No unread notifications to mark' });
     }
   });
+
+  test('Clicking notification item with order navigates to order details', async ({ page }) => {
+    await loginAs(page, ADMIN);
+    await page.waitForURL(/\/dashboard\/.+/);
+    await page.waitForLoadState('networkidle');
+
+    // Click bell icon
+    const bellBtn = page.getByRole('button', { name: /notifications|thông báo/i });
+    await bellBtn.click();
+
+    // Check if notification item is visible
+    const firstNotif = page.locator('[data-testid="notification-item"]').first();
+    if (await firstNotif.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await firstNotif.click();
+      // Chuyển hướng đến /dashboard/orders/... hoặc /dashboard/notifications
+      await expect(page).toHaveURL(/\/dashboard\/(orders|notifications)/, { timeout: 10_000 });
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

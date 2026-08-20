@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/icons';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,19 +10,23 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { NotificationCard } from '@/components/ui/notification-card';
 import { useNotificationSocket } from '../hooks/use-notification-socket';
+import { extractNotificationTarget } from '../utils/navigation';
 import {
   useNotificationsQuery,
   useUnreadCountQuery,
   useMarkAsReadMutation,
-  useMarkAllAsReadMutation
+  useMarkAllAsReadMutation,
+  NotificationItem
 } from '../hooks/use-notifications-query';
 
 const PAGE_SIZE = 5;
 
 export function NotificationCenter() {
+  const router = useRouter();
   // Kết nối WebSocket real-time (singleton — chỉ tạo 1 socket dù gọi nhiều lần)
   useNotificationSocket();
 
+  const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const { data, isLoading, isFetching } = useNotificationsQuery(1, limit);
   const { data: unreadCountData } = useUnreadCountQuery();
@@ -42,8 +47,25 @@ export function NotificationCenter() {
     setLimit((prev) => prev + PAGE_SIZE);
   };
 
+  const handleNotificationClick = (notification: NotificationItem) => {
+    // 1. Tự động đánh dấu đã đọc nếu chưa đọc
+    if (!notification.isRead) {
+      markAsRead.mutate(notification.id);
+    }
+
+    // 2. Trích xuất đích đến đơn hàng (orderId / orderCode)
+    const target = extractNotificationTarget(notification);
+    setOpen(false);
+
+    if (target.url) {
+      router.push(target.url);
+    } else {
+      router.push('/dashboard/notifications');
+    }
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
           <Button
@@ -71,6 +93,7 @@ export function NotificationCenter() {
         <div className='flex items-center justify-between px-3.5 py-2.5 shrink-0'>
           <Link
             href='/dashboard/notifications'
+            onClick={() => setOpen(false)}
             className='group flex items-center gap-1 cursor-pointer'
           >
             <h4 className='text-xs font-semibold group-hover:underline'>Thông báo</h4>
@@ -110,19 +133,24 @@ export function NotificationCenter() {
             </div>
           ) : (
             <div className='flex flex-col gap-1 p-1.5'>
-              {notifications.map((notification) => (
-                <NotificationCard
-                  key={notification.id}
-                  id={String(notification.id)}
-                  title={notification.title}
-                  body={notification.body}
-                  type={notification.type}
-                  status={notification.isRead ? 'read' : 'unread'}
-                  createdAt={notification.createdAt}
-                  compact
-                  onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
-                />
-              ))}
+              {notifications.map((notification) => {
+                const target = extractNotificationTarget(notification);
+                return (
+                  <NotificationCard
+                    key={notification.id}
+                    id={String(notification.id)}
+                    title={notification.title}
+                    body={notification.body}
+                    type={notification.type}
+                    status={notification.isRead ? 'read' : 'unread'}
+                    createdAt={notification.createdAt}
+                    orderCode={target.orderCode}
+                    onClick={() => handleNotificationClick(notification)}
+                    compact
+                    onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
+                  />
+                );
+              })}
             </div>
           )}
         </ScrollArea>

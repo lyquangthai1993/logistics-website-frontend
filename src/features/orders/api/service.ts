@@ -30,7 +30,7 @@ export async function getOrderStats(fromDate?: string, toDate?: string): Promise
   return res.data.data;
 }
 
-export async function getOrderById(id: number): Promise<Order> {
+export async function getOrderById(id: number | string): Promise<Order> {
   const res = await apiClient.get<ApiResponse<Order>>(`/api/v1/orders/${id}`);
   return res.data.data;
 }

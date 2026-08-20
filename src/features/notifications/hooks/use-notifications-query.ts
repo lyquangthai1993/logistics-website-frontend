@@ -145,10 +145,15 @@ export function useUnreadCountQuery() {
 export function useMarkAsReadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => apiClient.patch(`/api/v1/notifications/${id}/read`),
-    onSuccess: () => {
+    mutationFn: async (id: number) => {
+      const res = await apiClient.patch<ApiResponse<any>>(`/api/v1/notifications/${id}/read`);
+      return res.data;
+    },
+    onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      showApiSuccessToast('Đã đánh dấu thông báo là đã đọc');
+      if (!data?.silent) {
+        showApiSuccessToast('Đã đánh dấu thông báo là đã đọc');
+      }
     },
     onError: (err: unknown) => {
       showApiErrorToast(err, 'Không thể đánh dấu thông báo là đã đọc. Vui lòng thử lại.');

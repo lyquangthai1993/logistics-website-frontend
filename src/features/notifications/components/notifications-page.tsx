@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/icons';
 import PageContainer from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { NotificationCard } from '@/components/ui/notification-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNotificationSocket } from '../hooks/use-notification-socket';
+import { extractNotificationTarget } from '../utils/navigation';
 import {
   useNotificationsQuery,
   useNotificationStatsQuery,
@@ -35,6 +37,7 @@ const DOMAIN_TYPE_OPTIONS: Array<{
 ];
 
 export default function NotificationsPage() {
+  const router = useRouter();
   // Kết nối WebSocket real-time (singleton)
   useNotificationSocket();
 
@@ -80,6 +83,19 @@ export default function NotificationsPage() {
       ? unreadCountData
       : (statsData?.unread ?? 0);
 
+  const handleNotificationClick = (notification: NotificationItem) => {
+    // 1. Tự động đánh dấu đã đọc nếu chưa đọc
+    if (!notification.isRead) {
+      markAsRead.mutate(notification.id);
+    }
+
+    // 2. Chuyển hướng đến chi tiết đơn hàng nếu có orderId/orderCode
+    const target = extractNotificationTarget(notification);
+    if (target.url) {
+      router.push(target.url);
+    }
+  };
+
   const renderList = (items: NotificationItem[]) => {
     if (isLoading) {
       return (
@@ -115,18 +131,23 @@ export default function NotificationsPage() {
 
     return (
       <div className='flex flex-col gap-2'>
-        {items.map((notification) => (
-          <NotificationCard
-            key={notification.id}
-            id={String(notification.id)}
-            title={notification.title}
-            body={notification.body}
-            type={notification.type}
-            status={notification.isRead ? 'read' : 'unread'}
-            createdAt={notification.createdAt}
-            onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
-          />
-        ))}
+        {items.map((notification) => {
+          const target = extractNotificationTarget(notification);
+          return (
+            <NotificationCard
+              key={notification.id}
+              id={String(notification.id)}
+              title={notification.title}
+              body={notification.body}
+              type={notification.type}
+              status={notification.isRead ? 'read' : 'unread'}
+              createdAt={notification.createdAt}
+              orderCode={target.orderCode}
+              onClick={target.url ? () => handleNotificationClick(notification) : undefined}
+              onMarkAsRead={(id) => markAsRead.mutate(Number(id))}
+            />
+          );
+        })}
       </div>
     );
   };
