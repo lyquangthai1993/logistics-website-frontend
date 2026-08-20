@@ -12,12 +12,16 @@ import {
   SheetTitle
 } from '@/components/ui/sheet';
 import { Icons } from '@/components/icons';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { createUserMutation, updateUserMutation } from '../api/mutations';
 import type { User, CreateUserPayload, UpdateUserPayload } from '../api/types';
 import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
 import { toast } from 'sonner';
 import { ROLE_OPTIONS, STATUS_OPTIONS } from './users-table/options';
+import { activeHubsQueryOptions } from '@/features/hubs/api/queries';
+
+// Role ID for WAREHOUSE_MANAGER (must match backend RoleEnum value = 4)
+const WAREHOUSE_MANAGER_ROLE_ID = '4';
 
 interface UserFormSheetProps {
   user?: User | null;
@@ -35,6 +39,15 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
   const [password, setPassword] = useState('');
   const [roleId, setRoleId] = useState('2');
   const [statusId, setStatusId] = useState('1');
+  const [hubId, setHubId] = useState('');
+
+  const isWarehouseManager = roleId === WAREHOUSE_MANAGER_ROLE_ID;
+
+  // Fetch active hubs for dropdown — only needed when role is WAREHOUSE_MANAGER
+  const { data: activeHubs = [], isLoading: hubsLoading } = useQuery({
+    ...activeHubsQueryOptions(),
+    enabled: isWarehouseManager,
+  });
 
   useEffect(() => {
     if (user) {
@@ -45,6 +58,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
       setPassword('');
       setRoleId(user.role?.id ? String(user.role.id) : '2');
       setStatusId(user.status?.id ? String(user.status.id) : '1');
+      setHubId(user.hub?.id ? String(user.hub.id) : '');
     } else {
       setFirstName('');
       setLastName('');
@@ -53,8 +67,16 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
       setPassword('');
       setRoleId('2');
       setStatusId('1');
+      setHubId('');
     }
   }, [user, open]);
+
+  // Clear hub selection when role changes away from WAREHOUSE_MANAGER
+  useEffect(() => {
+    if (!isWarehouseManager) {
+      setHubId('');
+    }
+  }, [isWarehouseManager]);
 
   const createMutation = useMutation({
     ...createUserMutation,
@@ -109,6 +131,14 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
       return;
     }
 
+    // Resolve hub payload: only send hub if role = WAREHOUSE_MANAGER
+    const hubPayload =
+      isWarehouseManager && hubId
+        ? { id: Number(hubId) }
+        : isWarehouseManager && !hubId
+          ? null // WM without hub selection → explicit null
+          : null; // non-WM roles → always null (clears existing hub)
+
     if (isEdit && user) {
       const updatePayload: UpdateUserPayload = {
         firstName: trimmedFirstName,
@@ -117,7 +147,8 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
         ...(trimmedUsername ? { username: trimmedUsername } : {}),
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
-        status: { id: Number(statusId) }
+        status: { id: Number(statusId) },
+        hub: hubPayload,
       };
       updateMutation.mutate({ id: user.id, values: updatePayload });
     } else {
@@ -128,7 +159,8 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
         ...(trimmedUsername ? { username: trimmedUsername } : {}),
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
-        status: { id: Number(statusId) }
+        status: { id: Number(statusId) },
+        hub: hubPayload,
       };
       createMutation.mutate(createPayload);
     }
@@ -210,7 +242,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
               </label>
               <Input
                 id='input-user-username'
-                placeholder='VD: nguyenvanan'
+                placeholder='VD: quanlikho1'
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -281,6 +313,38 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                 </select>
               </div>
             </div>
+
+            {/* Hub assignment — only visible for WAREHOUSE_MANAGER role */}
+            {isWarehouseManager && (
+              <div className='space-y-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 p-3'>
+                <label
+                  htmlFor='select-user-hub'
+                  className='text-xs font-semibold text-primary flex items-center gap-1.5'
+                >
+                  <Icons.warehouse className='h-3.5 w-3.5' />
+                  Kho phụ trách (Hub)
+                </label>
+                <select
+                  id='select-user-hub'
+                  value={hubId}
+                  onChange={(e) => setHubId(e.target.value)}
+                  disabled={hubsLoading}
+                  className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer disabled:opacity-50'
+                >
+                  <option value=''>
+                    {hubsLoading ? 'Đang tải danh sách kho...' : '— Chưa gán kho —'}
+                  </option>
+                  {activeHubs.map((hub) => (
+                    <option key={hub.id} value={String(hub.id)}>
+                      [{hub.code}] {hub.name} — {hub.city}
+                    </option>
+                  ))}
+                </select>
+                <p className='text-[11px] text-muted-foreground'>
+                  Mỗi tài khoản Quản lý kho được gán vào một Hub cụ thể để quản lý inbound.
+                </p>
+              </div>
+            )}
           </form>
         </div>
 

@@ -15,6 +15,13 @@ export interface UserPhoto {
   path: string;
 }
 
+export interface Hub {
+  id: number;
+  code?: string;
+  name?: string;
+  city?: string;
+}
+
 export interface User {
   id: number;
   email: string | null;
@@ -26,6 +33,7 @@ export interface User {
   role?: Role | null;
   status?: Status | null;
   photo?: UserPhoto | null;
+  hub?: Hub | null;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -41,6 +49,7 @@ export interface CreateUserPayload {
   status?: { id: number } | null;
   photo?: { id: string | number } | null;
   provider?: string;
+  hub?: { id: number } | null;
 }
 
 export interface UpdateUserPayload extends Partial<CreateUserPayload> {}
