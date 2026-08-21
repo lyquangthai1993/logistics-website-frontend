@@ -191,10 +191,12 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
     }
   }
 
-  // Sync token back to useAuthStore if read from cookie
-  const storeToken = useAuthStore.getState().accessToken;
-  if (token && token !== storeToken) {
-    useAuthStore.getState().setAccessToken(token, refreshToken);
+  // Sync token back to useAuthStore if read from cookie (Client-side only)
+  if (typeof window !== 'undefined' && typeof useAuthStore?.getState === 'function') {
+    const storeToken = useAuthStore.getState()?.accessToken;
+    if (token && token !== storeToken) {
+      useAuthStore.getState().setAccessToken(token, refreshToken);
+    }
   }
 
   if (token) {
