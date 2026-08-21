@@ -34,17 +34,6 @@ async function getAdminToken(): Promise<{ token: string; userId: number }> {
   return { token, userId };
 }
 
-// ── Helper: tạo notification qua REST API ───────────────────────────────────
-async function createNotification(token: string, userId: number, title: string, body: string) {
-  const ctx = await request.newContext({
-    extraHTTPHeaders: { Authorization: `Bearer ${token}` }
-  });
-  const res = await ctx.post(`${API_BASE}/api/v1/notifications`, {
-    data: { userId, title, body, type: 'GENERIC' }
-  });
-  await ctx.dispose();
-  return res;
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Suite 1 – API Contract Tests (không cần browser)
