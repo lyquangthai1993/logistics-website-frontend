@@ -5,13 +5,13 @@
  * Validates after login that:
  *   - Each role can access its permitted routes
  *   - Each role is BLOCKED from unauthorized routes (redirected to /dashboard/overview)
- *   - Middleware correctly enforces roleRouteMap from middleware.ts
+ *   - Proxy correctly enforces roleRouteMap from src/proxy.ts
  */
 import { test, expect } from '@playwright/test';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
 /**
- * Route access matrix – mirrors src/middleware.ts roleRouteMap
+ * Route access matrix – mirrors src/proxy.ts roleRouteMap
  * Format: { route, allowedRoles }
  */
 const ROUTE_MATRIX = [

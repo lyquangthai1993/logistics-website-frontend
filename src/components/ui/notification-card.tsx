@@ -139,9 +139,10 @@ export const NotificationCard: FC<NotificationCardProps> = ({
   };
 
   return (
+    /* oxlint-disable-next-line jsx-a11y/no-static-element-interactions */
     <div
       data-testid='notification-item'
-      role={isClickable ? 'button' : undefined}
+      role={isClickable ? 'button' : 'article'}
       tabIndex={isClickable ? 0 : undefined}
       onClick={handleCardClick}
       onKeyDown={(e) => {
