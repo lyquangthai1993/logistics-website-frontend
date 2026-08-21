@@ -16,7 +16,10 @@ import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
  */
 const ROUTE_MATRIX = [
   { route: '/dashboard/admin', allowedRoles: ['SUPER_ADMIN'] },
-  { route: '/dashboard/orders', allowedRoles: ['SUPER_ADMIN', 'DISPATCHER'] },
+  {
+    route: '/dashboard/orders',
+    allowedRoles: ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER']
+  },
   { route: '/dashboard/trips', allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER'] },
   { route: '/dashboard/fleet', allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER'] },
   { route: '/dashboard/warehouse', allowedRoles: ['SUPER_ADMIN', 'WAREHOUSE_MANAGER'] }

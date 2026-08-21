@@ -94,17 +94,19 @@ export function captureRuntimeLogs(page: Page): RuntimeLogSession {
  */
 export async function detectNextJsErrorOverlay(page: Page): Promise<string | null> {
   try {
-    // Next.js dev mode error overlay
-    const overlay = page.locator('nextjs-portal, [data-nextjs-dialog], #__next-error-overlay');
-    const count = await overlay.count();
-    if (count > 0) {
-      return (await overlay.first().textContent()) ?? 'Next.js error overlay detected';
+    const errorDialog = page.locator(
+      'nextjs-portal [role="dialog"], [data-nextjs-dialog-header], #__next-error-overlay'
+    );
+    const isVisible = await errorDialog.first().isVisible().catch(() => false);
+    if (isVisible) {
+      const text = (await errorDialog.first().textContent())?.trim();
+      if (text && text.length > 0) return text;
     }
 
-    // Check for __NEXT_ERROR__ in page source (SSR error)
-    const html = await page.content();
-    if (html.includes('__NEXT_ERROR__') || html.includes('Server Error')) {
-      return 'SSR error detected in page HTML (__NEXT_ERROR__ marker found)';
+    // Check for explicit 500 Internal Server Error heading
+    const errorHeading = page.locator('h1, h2').filter({ hasText: /500|Internal Server Error/i });
+    if (await errorHeading.first().isVisible().catch(() => false)) {
+      return 'SSR error detected on page (500 Internal Server Error heading visible)';
     }
 
     return null;

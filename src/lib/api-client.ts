@@ -134,22 +134,29 @@ export async function executeTokenRefresh(): Promise<string> {
       }
 
       return newToken;
-    } catch (refreshError) {
-      // Clear auth state on definitive refresh failure
-      if (typeof window !== 'undefined' && typeof useAuthStore?.getState === 'function') {
-        useAuthStore.getState().logout();
-      }
-      if (typeof document !== 'undefined') {
-        document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
-        document.cookie = 'refreshToken=; path=/; max-age=0; SameSite=Lax';
-      }
+    } catch (refreshError: any) {
+      const isUnauthorized =
+        refreshError?.response?.status === 401 ||
+        refreshError?.response?.status === 403 ||
+        refreshError?.message?.includes('Refresh') ||
+        refreshError?.message === 'No refresh token available';
 
-      // Redirect to sign-in if in browser and not already on auth page
-      if (
-        typeof window !== 'undefined' &&
-        !window.location.pathname.startsWith('/auth')
-      ) {
-        window.location.href = '/auth/sign-in';
+      // Only perform destructive logout and redirect if refresh token is genuinely invalid
+      if (isUnauthorized) {
+        if (typeof window !== 'undefined' && typeof useAuthStore?.getState === 'function') {
+          useAuthStore.getState().logout();
+        }
+        if (typeof document !== 'undefined') {
+          document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
+          document.cookie = 'refreshToken=; path=/; max-age=0; SameSite=Lax';
+        }
+
+        if (
+          typeof window !== 'undefined' &&
+          !window.location.pathname.startsWith('/auth')
+        ) {
+          window.location.href = '/auth/sign-in';
+        }
       }
 
       throw refreshError;
@@ -212,7 +219,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    if (!originalRequest || isAuthExcluded(originalRequest.url)) {
+    if (
+      !originalRequest ||
+      isAuthExcluded(originalRequest.url) ||
+      typeof window === 'undefined'
+    ) {
       return Promise.reject(error);
     }
 
