@@ -35,12 +35,22 @@ function parseJwt(token: string) {
   }
 }
 
+const DEFAULT_API_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://logistics-website-backend-1.onrender.com'
+    : 'http://localhost:3001';
+
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.API_URL ||
+  DEFAULT_API_URL
+).replace(/\/+$/, '');
+
 async function refreshAccessToken(
   refreshToken: string
 ): Promise<{ token: string; refreshToken?: string } | null> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,10 +108,10 @@ export async function proxy(request: NextRequest) {
 
   // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
-    if (isAuthenticated) {
+    if (isAuthenticated || refreshToken) {
       const response = NextResponse.redirect(new URL('/dashboard/overview', request.url));
-      if (isRefreshed) {
-        response.cookies.set('access_token', token!, {
+      if (isRefreshed && token) {
+        response.cookies.set('access_token', token, {
           path: '/',
           maxAge: 24 * 60 * 60,
           sameSite: 'lax'
@@ -119,40 +129,42 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If token is still invalid after refresh attempt, redirect to sign-in
-  if (!isAuthenticated) {
+  // If user has NO valid token AND NO refreshToken at all, redirect to sign-in
+  if (!isAuthenticated && !refreshToken) {
     const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
     response.cookies.delete('access_token');
     response.cookies.delete('refreshToken');
     return response;
   }
 
-  // Extract user role string
-  const userRole =
-    typeof payload.role === 'object' && payload.role?.id
-      ? roleMap[payload.role.id]
-      : roleMap[payload.role] || payload.role;
+  // Extract user role string if payload is present
+  if (payload) {
+    const userRole =
+      typeof payload.role === 'object' && payload.role?.id
+        ? roleMap[payload.role.id]
+        : roleMap[payload.role] || payload.role;
 
-  // Check role-based route access
-  for (const [route, roles] of Object.entries(roleRouteMap)) {
-    if (pathname.startsWith(route) && !roles.includes(userRole)) {
-      const redirectUrl = new URL('/dashboard/overview', request.url);
-      const response = NextResponse.redirect(redirectUrl);
-      if (isRefreshed && token) {
-        response.cookies.set('access_token', token, {
-          path: '/',
-          maxAge: 24 * 60 * 60,
-          sameSite: 'lax'
-        });
-        if (newRefreshToken) {
-          response.cookies.set('refreshToken', newRefreshToken, {
+    // Check role-based route access
+    for (const [route, roles] of Object.entries(roleRouteMap)) {
+      if (pathname.startsWith(route) && !roles.includes(userRole)) {
+        const redirectUrl = new URL('/dashboard/overview', request.url);
+        const response = NextResponse.redirect(redirectUrl);
+        if (isRefreshed && token) {
+          response.cookies.set('access_token', token, {
             path: '/',
-            maxAge: 30 * 24 * 60 * 60,
+            maxAge: 24 * 60 * 60,
             sameSite: 'lax'
           });
+          if (newRefreshToken) {
+            response.cookies.set('refreshToken', newRefreshToken, {
+              path: '/',
+              maxAge: 30 * 24 * 60 * 60,
+              sameSite: 'lax'
+            });
+          }
         }
+        return response;
       }
-      return response;
     }
   }
 

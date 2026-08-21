@@ -27,6 +27,7 @@ import {
 import { useAuthStore } from '@/stores/use-auth-store';
 import { formatApiError } from '@/lib/api-error';
 import { apiClient } from '@/lib/api-client';
+import { tokenManager } from '@/lib/token-manager';
 import { cn } from '@/lib/utils';
 
 const DEMO_ACCOUNTS = [
@@ -135,14 +136,8 @@ export function LoginForm() {
         role: roleCode
       };
 
-      // Store auth state
-      setAuth(user, token, refreshToken);
-
-      // Also set cookies for SSR middleware to read
-      document.cookie = `access_token=${token}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
-      if (refreshToken) {
-        document.cookie = `refreshToken=${refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-      }
+      // Store auth state & notify all tabs
+      tokenManager.notifyLogin(user, token, refreshToken);
 
       router.push('/dashboard/overview');
     } catch (err: unknown) {
