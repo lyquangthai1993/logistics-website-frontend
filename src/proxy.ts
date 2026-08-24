@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const publicRoutes = ['/auth/sign-in', '/auth'];
+const publicRoutes = ['/auth/sign-in', '/auth/forgot-password', '/auth/reset-password', '/auth'];
+const publicApiRoutes = [
+  '/api/v1/auth/email/login',
+  '/api/v1/auth/forgot/password',
+  '/api/v1/auth/reset/password',
+  '/api/v1/auth/confirm'
+];
+
 const roleRouteMap: Record<string, string[]> = {
   '/dashboard/admin': ['SUPER_ADMIN'],
   '/dashboard/users': ['SUPER_ADMIN'],
@@ -82,6 +89,16 @@ async function refreshAccessToken(
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 1. Always pass OPTIONS preflight requests directly to handlers without triggering redirects
+  if (request.method === 'OPTIONS') {
+    return NextResponse.next();
+  }
+
+  // 2. Bypass public API routes from session auth redirects
+  if (publicApiRoutes.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
 
   let token = request.cookies.get('access_token')?.value;
   const refreshToken =

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -321,6 +322,18 @@ export function LoginForm() {
             >
               {showPassword ? <IconEyeOff className='h-4 w-4' /> : <IconEye className='h-4 w-4' />}
             </button>
+          </div>
+          <div className='flex items-center justify-between text-xs pt-1'>
+            <label className='flex items-center gap-2 text-muted-foreground cursor-pointer select-none'>
+              <input type='checkbox' className='rounded border-border text-primary shadow-sm focus:ring-primary h-3.5 w-3.5' />
+              <span>Ghi nhớ tài khoản</span>
+            </label>
+            <Link
+              href='/auth/forgot-password'
+              className='font-medium text-blue-600 dark:text-cyan-400 hover:underline transition-colors flex items-center gap-1'
+            >
+              Quên mật khẩu? <span aria-hidden='true'>→</span>
+            </Link>
           </div>
         </div>
         <Button type='submit' className='w-full' disabled={isLoading}>

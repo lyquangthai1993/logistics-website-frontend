@@ -53,6 +53,9 @@ export function formatApiError(
       if (errorData.errors.email === 'notFound' || errorData.errors.password === 'incorrectPassword') {
         return 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại.';
       }
+      if (errorData.errors.email === 'emailNotExists') {
+        return 'Địa chỉ Email này chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại.';
+      }
     }
 
     // 1. Detailed field validation errors map if meaningful

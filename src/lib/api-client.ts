@@ -14,7 +14,9 @@ const AUTH_EXCLUDED_URLS = [
   '/api/v1/auth/email/login',
   '/api/v1/auth/refresh',
   '/api/v1/auth/forgot-password',
+  '/api/v1/auth/forgot/password',
   '/api/v1/auth/reset-password',
+  '/api/v1/auth/reset/password',
   '/api/v1/auth/register'
 ];
 
