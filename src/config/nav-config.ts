@@ -123,62 +123,76 @@ export const navGroups: NavGroup[] = [
       }
     ]
   },
-  {
-    label: 'Elements',
-    items: [
-      {
-        title: 'Product Table',
-        url: '/dashboard/product',
-        icon: 'product',
-        shortcut: ['p', 'p'],
-        isActive: false,
-        items: []
-      },
-      {
-        title: 'Forms',
-        url: '#',
-        icon: 'forms',
-        isActive: true,
-        items: [
-          {
-            title: 'Basic Form',
-            url: '/dashboard/forms/basic',
-            icon: 'forms',
-            shortcut: ['f', 'f']
-          },
-          {
-            title: 'Multi-Step Form',
-            url: '/dashboard/forms/multi-step',
-            icon: 'forms'
-          },
-          {
-            title: 'Sheet & Dialog',
-            url: '/dashboard/forms/sheet-form',
-            icon: 'forms'
-          },
-          {
-            title: 'Advanced Patterns',
-            url: '/dashboard/forms/advanced',
-            icon: 'forms'
-          }
-        ]
-      },
-      {
-        title: 'React Query',
-        url: '/dashboard/react-query',
-        icon: 'code',
-        isActive: false,
-        items: []
-      },
-      {
-        title: 'Icons',
-        url: '/dashboard/elements/icons',
-        icon: 'palette',
-        isActive: false,
-        items: []
-      }
-    ]
-  },
+  /**
+   * REFERENCE UI ELEMENTS & FORM PATTERNS (Hidden from Sidebar UI)
+   *
+   * Note for /ui-ux-flow-designer & Frontend Developers:
+   * When building or refactoring pages, follow the UI/UX design patterns, form structures,
+   * and component standards implemented in these reference routes:
+   * - Product Table: /dashboard/product (Canonical TanStack DataTable & Pagination benchmark)
+   * - Basic Form: /dashboard/forms/basic (Standard form layout with React Hook Form + Zod)
+   * - Multi-Step Form: /dashboard/forms/multi-step (Multi-step form wizard / stepper)
+   * - Sheet & Dialog: /dashboard/forms/sheet-form (Form inside Sheet Drawer & Dialog Modal)
+   * - Advanced Patterns: /dashboard/forms/advanced (Complex input controls & dynamic arrays)
+   * - React Query: /dashboard/react-query (TanStack Query integration patterns)
+   * - Icons: /dashboard/elements/icons (System icon set reference)
+   */
+  // {
+  //   label: 'Elements',
+  //   items: [
+  //     {
+  //       title: 'Product Table',
+  //       url: '/dashboard/product',
+  //       icon: 'product',
+  //       shortcut: ['p', 'p'],
+  //       isActive: false,
+  //       items: []
+  //     },
+  //     {
+  //       title: 'Forms',
+  //       url: '#',
+  //       icon: 'forms',
+  //       isActive: true,
+  //       items: [
+  //         {
+  //           title: 'Basic Form',
+  //           url: '/dashboard/forms/basic',
+  //           icon: 'forms',
+  //           shortcut: ['f', 'f']
+  //         },
+  //         {
+  //           title: 'Multi-Step Form',
+  //           url: '/dashboard/forms/multi-step',
+  //           icon: 'forms'
+  //         },
+  //         {
+  //           title: 'Sheet & Dialog',
+  //           url: '/dashboard/forms/sheet-form',
+  //           icon: 'forms'
+  //         },
+  //         {
+  //           title: 'Advanced Patterns',
+  //           url: '/dashboard/forms/advanced',
+  //           icon: 'forms'
+  //         }
+  //       ]
+  //     },
+  //     {
+  //       title: 'React Query',
+  //       url: '/dashboard/react-query',
+  //       icon: 'code',
+  //       isActive: false,
+  //       items: []
+  //     },
+  //     {
+  //       title: 'Icons',
+  //       url: '/dashboard/elements/icons',
+  //       icon: 'palette',
+  //       isActive: false,
+  //       items: []
+  //     }
+  //   ]
+  // },
   {
     label: '',
     items: [
