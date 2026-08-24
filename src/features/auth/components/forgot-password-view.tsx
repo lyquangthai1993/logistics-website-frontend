@@ -41,10 +41,10 @@ export default function ForgotPasswordViewPage() {
           <div className='max-w-md rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/15 backdrop-blur-xl shadow-2xl space-y-2'>
             <div className='flex items-center gap-2 text-xs font-semibold text-cyan-300'>
               <span className='h-2 w-2 rounded-full bg-emerald-400 animate-ping' />
-              <span>Bảo mật & Khôi phục Tài khoản</span>
+              <span>Hệ thống Quản trị Vận tải Số hóa</span>
             </div>
             <p className='text-sm text-slate-200 leading-relaxed'>
-              Hệ thống bảo mật xác thực hai lớp (2FA) bảo vệ toàn diện dữ liệu đơn hàng, điều phối xe và kho bãi tập trung.
+              Tối ưu hóa quy trình vận tải, kết nối chuỗi cung ứng và nâng tầm hiệu suất logistics toàn diện.
             </p>
           </div>
         </div>
