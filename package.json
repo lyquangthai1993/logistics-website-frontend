@@ -24,7 +24,8 @@
     "e2e:login": "node scripts/check-servers.mjs && playwright test e2e/02-login-flow.spec.ts",
     "e2e:rbac": "node scripts/check-servers.mjs && playwright test e2e/03-rbac-routing.spec.ts",
     "e2e:report": "playwright show-report playwright-report",
-    "e2e:debug": "playwright test --headed --debug"
+    "e2e:debug": "playwright test --headed --debug",
+    "e2e:multi-account": "node scripts/check-servers.mjs && playwright test e2e/06b-realtime-multi-account-notification.spec.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.47",
