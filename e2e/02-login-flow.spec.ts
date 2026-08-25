@@ -36,16 +36,34 @@ test.describe('[Login Page] UI baseline', () => {
     await expect(page).toHaveURL(/\/auth\/sign-in/);
   });
 
-  test('shows error message on wrong credentials', async ({ page }) => {
+  test('shows sanitized error message on wrong credentials (never raw technical codes)', async ({
+    page
+  }) => {
     await page.goto('/auth/sign-in');
     await page.fill('input[name="email"]', 'wrong@test.com');
     await page.fill('input[name="password"]', 'wrongpassword');
     await page.click('button[type="submit"]');
 
     // Error div should appear
-    await expect(page.locator('div.bg-destructive\\/10, [data-testid="login-error"]')).toBeVisible({
+    const errorLocator = page.locator(
+      'div.bg-destructive\\/10, [data-testid="login-error"]'
+    );
+    await expect(errorLocator).toBeVisible({
       timeout: 8000
     });
+
+    // Must display clear localized message
+    await expect(errorLocator).toContainText(
+      'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại.'
+    );
+
+    // CRITICAL: Error sanitization rule - NEVER expose raw technical error keys/codes
+    const errorText = await errorLocator.innerText();
+    expect(errorText).not.toContain('incorrectEmailOrPassword');
+    expect(errorText).not.toContain('notFound');
+    expect(errorText).not.toContain('emailNotExists');
+    expect(errorText).not.toContain('password:');
+    expect(errorText).not.toContain('email:');
   });
 });
 

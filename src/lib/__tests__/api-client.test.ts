@@ -15,6 +15,10 @@ describe('apiClient Mutex Lock & Single In-Flight Refresh Test', () => {
 
     // Realistic document.cookie mock with getter/setter
     globalThis.document = {
+      getElementsByTagName: () => [{ appendChild: () => {} }],
+      createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+      createTextNode: () => ({}),
+      head: { appendChild: () => {} },
       get cookie() {
         return Object.entries(cookieJar)
           .map(([k, v]) => `${k}=${v}`)
