@@ -20,6 +20,9 @@ import {
   useSidebar
 } from '@/components/ui/sidebar';
 
+import { apiClient } from '@/lib/api-client';
+import { tokenManager } from '@/lib/token-manager';
+
 export function NavUser({
   user
 }: {
@@ -30,6 +33,16 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+
+  const handleSignOut = async () => {
+    try {
+      await apiClient.post('/api/v1/auth/logout');
+    } catch {
+      // Ignore logout API errors
+    }
+    tokenManager.notifyLogout();
+    window.location.href = '/auth/sign-in';
+  };
 
   return (
     <SidebarMenu>
@@ -99,7 +112,7 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
                 <Icons.logout className='mr-2 h-4 w-4' />
                 Log out
               </DropdownMenuItem>

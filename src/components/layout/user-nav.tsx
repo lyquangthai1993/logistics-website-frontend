@@ -14,9 +14,10 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { apiClient } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 
+import { tokenManager } from '@/lib/token-manager';
+
 export function UserNav() {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -25,9 +26,8 @@ export function UserNav() {
     } catch {
       // Ignore logout API errors
     }
-    logout();
-    document.cookie = 'access_token=; path=/; max-age=0';
-    router.push('/auth/sign-in');
+    tokenManager.notifyLogout();
+    window.location.href = '/auth/sign-in';
   };
 
   if (user) {

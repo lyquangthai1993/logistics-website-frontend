@@ -165,6 +165,7 @@ class TokenManager {
     if (typeof document === 'undefined') return;
     document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
     document.cookie = 'refreshToken=; path=/; max-age=0; SameSite=Lax';
+    document.cookie = 'refresh_token=; path=/; max-age=0; SameSite=Lax';
   }
 
   public parseJwtExp(token: string): number | null {
