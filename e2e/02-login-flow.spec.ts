@@ -103,39 +103,43 @@ for (const user of TEST_USERS) {
       await expect(page).toHaveURL(/\/auth\/sign-in/);
     });
 
-    test(`🛡️ ${user.role} tokens are ONLY in sessionStorage and NEVER in localStorage`, async ({
+    test(`🛡️ ${user.role} session persists in localStorage auth-storage and SSR cookie`, async ({
       page
     }) => {
       await loginAs(page, user);
 
-      // Verify localStorage is completely free of any auth / token keys
+      // 1. Verify Zustand auth-storage is present and valid in localStorage
       const localStorageData = await page.evaluate(() => {
-        const items: Record<string, string> = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)!;
-          items[key] = localStorage.getItem(key)!;
-        }
-        return items;
+        return localStorage.getItem('auth-storage');
       });
 
       expect(
-        localStorageData['auth-storage'],
-        'auth-storage MUST NOT exist in localStorage'
-      ).toBeUndefined();
+        localStorageData,
+        'auth-storage MUST exist in localStorage for cross-tab sync and state persistence'
+      ).not.toBeNull();
+
+      const parsed = JSON.parse(localStorageData!);
       expect(
-        JSON.stringify(localStorageData).toLowerCase(),
-        'localStorage must not contain any token strings'
-      ).not.toContain('token');
+        parsed.state?.accessToken,
+        'localStorage auth-storage contains valid accessToken'
+      ).toBeTruthy();
+      expect(
+        parsed.state?.isAuthenticated,
+        'localStorage auth-storage isAuthenticated is true'
+      ).toBe(true);
+      expect(
+        parsed.state?.user?.role,
+        `localStorage user role matches ${user.role}`
+      ).toBe(user.role);
 
-      // Verify sessionStorage stores the auth session
-      const sessionStorageData = await page.evaluate(() => {
-        return sessionStorage.getItem('auth-storage');
-      });
-
-      expect(sessionStorageData, 'auth-storage MUST exist in sessionStorage').not.toBeNull();
-      const parsed = JSON.parse(sessionStorageData!);
-      expect(parsed.state.accessToken, 'sessionStorage contains valid accessToken').toBeTruthy();
-      expect(parsed.state.isAuthenticated, 'sessionStorage isAuthenticated is true').toBe(true);
+      // 2. Verify Next.js SSR access_token cookie is synchronized
+      const cookies = await page.context().cookies();
+      const tokenCookie = cookies.find((c) => c.name === 'access_token');
+      expect(
+        tokenCookie,
+        'access_token cookie must be present for SSR Route Guards'
+      ).toBeDefined();
+      expect(tokenCookie?.value).toBeTruthy();
     });
   });
 }

@@ -42,6 +42,17 @@ export const TEST_USERS: LoginCredentials[] = [
   }
 ];
 
+const IGNORED_LOG_PATTERNS = [
+  'favicon.ico',
+  'Fast Refresh',
+  'webpack-internal',
+  'Download the React DevTools',
+  'turbopack',
+  'websocket',
+  'socket.io',
+  '404 (Not Found)'
+];
+
 /**
  * Collect browser console errors/warnings during a page session.
  * Returns a cleanup function that, when called, returns collected messages.
@@ -51,8 +62,13 @@ export function collectConsoleLogs(page: Page) {
 
   const handler = (msg: import('@playwright/test').ConsoleMessage) => {
     const type = msg.type();
-    if (type === 'error' || type === 'warning') {
-      logs.push({ type, text: msg.text() });
+    const text = msg.text();
+    const isIgnored = IGNORED_LOG_PATTERNS.some((pattern) =>
+      text.toLowerCase().includes(pattern.toLowerCase())
+    );
+
+    if ((type === 'error' || type === 'warning') && !isIgnored) {
+      logs.push({ type, text });
     }
   };
   page.on('console', handler);

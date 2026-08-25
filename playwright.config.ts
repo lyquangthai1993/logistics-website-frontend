@@ -17,7 +17,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:3000',
-    headless: true,
+    headless: process.env.HEADLESS !== 'false',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'on-first-retry'
