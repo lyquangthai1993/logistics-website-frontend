@@ -121,19 +121,34 @@ export async function detectNextJsErrorOverlay(page: Page): Promise<string | nul
  */
 export async function checkBackendHealth(
   page: Page,
-  backendUrl = 'http://localhost:3001',
+  backendUrl = process.env.BACKEND_URL ||
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://localhost:3005',
 ): Promise<{ alive: boolean; statusCode: number; latencyMs: number }> {
   const start = Date.now();
   let statusCode = 0;
 
-  try {
-    const response = await page.request.get(`${backendUrl}/api/v1`, {
-      timeout: 5000,
-      failOnStatusCode: false,
-    });
-    statusCode = response.status();
-  } catch {
-    statusCode = 0; // unreachable
+  const candidateUrls = [
+    backendUrl,
+    'http://localhost:3005',
+    'http://localhost:3001',
+  ];
+  const uniqueUrls = [...new Set(candidateUrls.map((u) => u.replace(/\/+$/, '')))];
+
+  for (const baseUrl of uniqueUrls) {
+    try {
+      const response = await page.request.get(`${baseUrl}/api/v1`, {
+        timeout: 3000,
+        failOnStatusCode: false,
+      });
+      statusCode = response.status();
+      if (statusCode > 0 && statusCode < 500) {
+        break;
+      }
+    } catch {
+      statusCode = 0;
+    }
   }
 
   return {

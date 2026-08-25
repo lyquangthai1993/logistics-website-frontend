@@ -17,10 +17,15 @@ export default defineConfig({
   ],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:3000',
-    headless: process.env.HEADLESS !== 'false',
+    headless: process.env.HEADLESS === 'true',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    trace: 'on-first-retry'
+    trace: 'on-first-retry',
+    ...(process.env.WINDOW_POSITION ? {
+      launchOptions: {
+        args: [`--window-position=${process.env.WINDOW_POSITION}`]
+      }
+    } : {})
   },
   projects: [
     {
