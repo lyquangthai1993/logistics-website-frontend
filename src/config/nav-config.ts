@@ -122,7 +122,7 @@ export const navGroups: NavGroup[] = [
         items: []
       }
     ]
-  },
+  }
   /**
    * REFERENCE UI ELEMENTS & FORM PATTERNS (Hidden from Sidebar UI)
    *

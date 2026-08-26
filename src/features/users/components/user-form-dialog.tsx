@@ -45,7 +45,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
 
   const { data: activeHubs = [], isLoading: hubsLoading } = useQuery({
     ...activeHubsQueryOptions(),
-    enabled: open && isWarehouseManager,
+    enabled: open && isWarehouseManager
   });
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
         status: { id: Number(statusId) },
-        hub: hubPayload,
+        hub: hubPayload
       };
       updateMutation.mutate({ id: user.id, values: payload });
     } else {
@@ -143,7 +143,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
         status: { id: Number(statusId) },
-        hub: hubPayload,
+        hub: hubPayload
       };
       createMutation.mutate(payload);
     }
@@ -162,7 +162,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
         <form onSubmit={handleSubmit} className='space-y-4 py-2'>
           <div className='grid grid-cols-2 gap-4'>
             <div className='space-y-1.5'>
-              <label htmlFor='input-user-first-name' className='text-xs font-semibold text-muted-foreground'>
+              <label
+                htmlFor='input-user-first-name'
+                className='text-xs font-semibold text-muted-foreground'
+              >
                 Họ và tên đệm *
               </label>
               <Input
@@ -174,7 +177,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               />
             </div>
             <div className='space-y-1.5'>
-              <label htmlFor='input-user-last-name' className='text-xs font-semibold text-muted-foreground'>
+              <label
+                htmlFor='input-user-last-name'
+                className='text-xs font-semibold text-muted-foreground'
+              >
                 Tên *
               </label>
               <Input
@@ -188,7 +194,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
           </div>
 
           <div className='space-y-1.5'>
-            <label htmlFor='input-user-email' className='text-xs font-semibold text-muted-foreground'>
+            <label
+              htmlFor='input-user-email'
+              className='text-xs font-semibold text-muted-foreground'
+            >
               Địa chỉ Email *
             </label>
             <Input
@@ -202,7 +211,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
           </div>
 
           <div className='space-y-1.5'>
-            <label htmlFor='input-user-username' className='text-xs font-semibold text-muted-foreground'>
+            <label
+              htmlFor='input-user-username'
+              className='text-xs font-semibold text-muted-foreground'
+            >
               Tên đăng nhập (Username)
             </label>
             <Input
@@ -214,7 +226,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
           </div>
 
           <div className='space-y-1.5'>
-            <label htmlFor='input-user-password' className='text-xs font-semibold text-muted-foreground'>
+            <label
+              htmlFor='input-user-password'
+              className='text-xs font-semibold text-muted-foreground'
+            >
               {isEdit ? 'Mật khẩu mới (Tùy chọn)' : 'Mật khẩu *'}
             </label>
             <Input
@@ -229,7 +244,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
 
           <div className='grid grid-cols-2 gap-4'>
             <div className='space-y-1.5'>
-              <label htmlFor='select-user-role' className='text-xs font-semibold text-muted-foreground'>
+              <label
+                htmlFor='select-user-role'
+                className='text-xs font-semibold text-muted-foreground'
+              >
                 Vai trò (Role) *
               </label>
               <select
@@ -239,13 +257,18 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                 className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer'
               >
                 {ROLE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className='space-y-1.5'>
-              <label htmlFor='select-user-status' className='text-xs font-semibold text-muted-foreground'>
+              <label
+                htmlFor='select-user-status'
+                className='text-xs font-semibold text-muted-foreground'
+              >
                 Trạng thái *
               </label>
               <select
@@ -255,7 +278,9 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                 className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer'
               >
                 {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -264,7 +289,10 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
           {/* Hub — chỉ hiện khi role = WAREHOUSE_MANAGER */}
           {isWarehouseManager && (
             <div className='space-y-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 p-3'>
-              <label htmlFor='select-user-hub' className='text-xs font-semibold text-primary flex items-center gap-1.5'>
+              <label
+                htmlFor='select-user-hub'
+                className='text-xs font-semibold text-primary flex items-center gap-1.5'
+              >
                 <Icons.warehouse className='h-3.5 w-3.5' />
                 Kho phụ trách (Hub)
               </label>
@@ -275,9 +303,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                 disabled={hubsLoading}
                 className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer disabled:opacity-50'
               >
-                <option value=''>
-                  {hubsLoading ? 'Đang tải...' : '— Chưa gán kho —'}
-                </option>
+                <option value=''>{hubsLoading ? 'Đang tải...' : '— Chưa gán kho —'}</option>
                 {activeHubs.map((hub) => (
                   <option key={hub.id} value={String(hub.id)}>
                     [{hub.code}] {hub.name} — {hub.city}
@@ -304,11 +330,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               disabled={isPending}
               className='bg-primary text-primary-foreground cursor-pointer'
             >
-              {isPending
-                ? 'Đang lưu...'
-                : isEdit
-                  ? 'Lưu Thay Đổi'
-                  : 'Thêm Người Dùng'}
+              {isPending ? 'Đang lưu...' : isEdit ? 'Lưu Thay Đổi' : 'Thêm Người Dùng'}
             </Button>
           </DialogFooter>
         </form>

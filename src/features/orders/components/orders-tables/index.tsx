@@ -13,18 +13,10 @@ import { OrdersDatePresetBar } from '../orders-date-preset-bar';
 const columnIds = columns.map((c) => c.id).filter(Boolean) as string[];
 
 export function OrdersTable() {
-  const {
-    filters,
-    params,
-    dateRange,
-    preset,
-    setPreset,
-    setCustomDate
-  } = useOrdersTableFilters(columnIds);
+  const { filters, params, dateRange, preset, setPreset, setCustomDate } =
+    useOrdersTableFilters(columnIds);
 
-  const { data: ordersData, isLoading: isOrdersLoading } = useQuery(
-    ordersQueryOptions(filters)
-  );
+  const { data: ordersData, isLoading: isOrdersLoading } = useQuery(ordersQueryOptions(filters));
   const { data: statsData, isLoading: isStatsLoading } = useQuery(
     ordersStatsQueryOptions(dateRange.from, dateRange.to)
   );

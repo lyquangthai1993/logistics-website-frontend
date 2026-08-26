@@ -68,11 +68,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    if (
-      !originalRequest ||
-      isAuthExcluded(originalRequest.url) ||
-      typeof window === 'undefined'
-    ) {
+    if (!originalRequest || isAuthExcluded(originalRequest.url) || typeof window === 'undefined') {
       return Promise.reject(error);
     }
 

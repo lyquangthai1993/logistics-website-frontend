@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  useQueryStates,
-  parseAsInteger,
-  parseAsString,
-  parseAsStringLiteral
-} from 'nuqs';
+import { useQueryStates, parseAsInteger, parseAsString, parseAsStringLiteral } from 'nuqs';
 import { useCallback, useMemo } from 'react';
 import {
   NOTIFICATION_TABS,
@@ -68,12 +63,7 @@ export function useNotificationsFilters() {
   }, [setParams]);
 
   const isAnyFilterActive = useMemo(() => {
-    return (
-      params.tab !== 'all' ||
-      params.type !== 'all' ||
-      !!params.search ||
-      params.page > 1
-    );
+    return params.tab !== 'all' || params.type !== 'all' || !!params.search || params.page > 1;
   }, [params]);
 
   return {
@@ -91,4 +81,3 @@ export function useNotificationsFilters() {
     isAnyFilterActive
   };
 }
-

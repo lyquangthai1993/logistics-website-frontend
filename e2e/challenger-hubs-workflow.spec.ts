@@ -132,14 +132,18 @@ test.describe('Challenger 2 Empirical Verification: Hubs Modals, Validations & M
     await expect(deleteBtn).toBeVisible();
     await deleteBtn.click({ force: true });
 
-    const deleteDialog = page.locator('div[role="dialog"]', { hasText: 'Xác Nhận Xóa Mềm Chi Nhánh Kho' });
+    const deleteDialog = page.locator('div[role="dialog"]', {
+      hasText: 'Xác Nhận Xóa Mềm Chi Nhánh Kho'
+    });
     await expect(deleteDialog).toBeVisible();
 
     // Verify attached vehicles warning is rendered
     const warningBox = deleteDialog.locator('text=Lưu ý: Hiện có');
     await expect(warningBox).toBeVisible();
     await expect(warningBox).toContainText('phương tiện đang trực thuộc chi nhánh này');
-    await expect(warningBox).toContainText('Sau khi xóa mềm, liên kết kho của các phương tiện này sẽ được giải phóng an toàn');
+    await expect(warningBox).toContainText(
+      'Sau khi xóa mềm, liên kết kho của các phương tiện này sẽ được giải phóng an toàn'
+    );
 
     // Test Cancel button closes dialog without deleting
     const cancelBtn = deleteDialog.locator('button:has-text("Hủy")');
@@ -168,7 +172,9 @@ test.describe('Challenger 2 Empirical Verification: Hubs Modals, Validations & M
     // Click delete on disposable hub (which has 0 vehicles)
     const tempDeleteBtn = tempRow.locator('button[data-testid^="btn-delete-hub-"]');
     await tempDeleteBtn.click({ force: true });
-    const confirmDeleteDialog = page.locator('div[role="dialog"]', { hasText: 'Xác Nhận Xóa Mềm Chi Nhánh Kho' });
+    const confirmDeleteDialog = page.locator('div[role="dialog"]', {
+      hasText: 'Xác Nhận Xóa Mềm Chi Nhánh Kho'
+    });
     await expect(confirmDeleteDialog).toBeVisible();
 
     // For a hub with 0 vehicles, the vehicle warning box should NOT be displayed

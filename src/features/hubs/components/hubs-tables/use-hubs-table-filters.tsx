@@ -21,7 +21,11 @@ export function useHubsTableFilters(columnIds: string[] = []) {
   let isActive: boolean | undefined = undefined;
   if (params.status === 'active' || params.isActive === 'true' || params.status === 'ACTIVE') {
     isActive = true;
-  } else if (params.status === 'inactive' || params.isActive === 'false' || params.status === 'INACTIVE') {
+  } else if (
+    params.status === 'inactive' ||
+    params.isActive === 'false' ||
+    params.status === 'INACTIVE'
+  ) {
     isActive = false;
   }
 

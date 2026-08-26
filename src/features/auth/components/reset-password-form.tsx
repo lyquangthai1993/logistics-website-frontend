@@ -70,8 +70,8 @@ export function ResetPasswordForm() {
           </div>
           <h3 className='text-lg font-semibold text-foreground'>Đặt lại mật khẩu thành công!</h3>
           <p className='text-sm text-muted-foreground leading-relaxed'>
-            Mật khẩu mới của bạn đã được cập nhật thành công vào hệ thống.
-            Bây giờ bạn có thể đăng nhập bằng mật khẩu mới.
+            Mật khẩu mới của bạn đã được cập nhật thành công vào hệ thống. Bây giờ bạn có thể đăng
+            nhập bằng mật khẩu mới.
           </p>
         </div>
 
@@ -91,7 +91,8 @@ export function ResetPasswordForm() {
         <div className='bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl p-3.5 text-xs flex items-start gap-2.5'>
           <Icons.warning className='h-4 w-4 shrink-0 mt-0.5' />
           <span>
-            <b>Cảnh báo:</b> Không tìm thấy mã liên kết khôi phục (hash). Vui lòng đảm bảo bạn truy cập qua liên kết trong Email.
+            <b>Cảnh báo:</b> Không tìm thấy mã liên kết khôi phục (hash). Vui lòng đảm bảo bạn truy
+            cập qua liên kết trong Email.
           </span>
         </div>
       )}

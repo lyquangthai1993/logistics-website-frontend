@@ -62,8 +62,8 @@ export async function fetchNotifications(
   const items: NotificationItem[] = Array.isArray(rawData)
     ? rawData
     : Array.isArray((rawData as any)?.data)
-    ? (rawData as any).data
-    : [];
+      ? (rawData as any).data
+      : [];
 
   const rawMeta =
     res.data.meta ||
@@ -202,12 +202,8 @@ export function useMarkAsReadMutation() {
       const previousInfinite = queryClient.getQueriesData<InfiniteData<NotificationsResponse>>({
         queryKey: notificationKeys.infinite()
       });
-      const previousUnreadCount = queryClient.getQueryData<number>(
-        notificationKeys.unreadCount()
-      );
-      const previousStats = queryClient.getQueryData<NotificationStats>(
-        notificationKeys.stats()
-      );
+      const previousUnreadCount = queryClient.getQueryData<number>(notificationKeys.unreadCount());
+      const previousStats = queryClient.getQueryData<NotificationStats>(notificationKeys.stats());
 
       // Tìm thông báo mục tiêu để biết loại type
       let targetNotification: NotificationItem | undefined;
@@ -259,9 +255,7 @@ export function useMarkAsReadMutation() {
           // -> Giữ nguyên vị trí trong list, cập nhật isRead = true
           return {
             ...oldData,
-            data: oldData.data.map((item) =>
-              item.id === id ? { ...item, isRead: true } : item
-            )
+            data: oldData.data.map((item) => (item.id === id ? { ...item, isRead: true } : item))
           };
         });
       });
@@ -350,12 +344,8 @@ export function useMarkAllAsReadMutation() {
       const previousInfinite = queryClient.getQueriesData<InfiniteData<NotificationsResponse>>({
         queryKey: notificationKeys.infinite()
       });
-      const previousUnreadCount = queryClient.getQueryData<number>(
-        notificationKeys.unreadCount()
-      );
-      const previousStats = queryClient.getQueryData<NotificationStats>(
-        notificationKeys.stats()
-      );
+      const previousUnreadCount = queryClient.getQueryData<number>(notificationKeys.unreadCount());
+      const previousStats = queryClient.getQueryData<NotificationStats>(notificationKeys.stats());
 
       // 3. Đặt badge về 0 tức thì
       queryClient.setQueryData<number>(notificationKeys.unreadCount(), 0);

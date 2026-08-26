@@ -46,11 +46,15 @@ test.describe('Challenger 1 Empirical Suite: Hubs Management Stress Tests', () =
 
   test('Test 2: Pagination bounds & rows-per-page selection', async ({ page }) => {
     // Check initial rows per page selector (combobox)
-    const pagination = page.locator('[role="navigation"], .flex.items-center.justify-between').filter({ hasText: 'Rows per page' });
+    const pagination = page
+      .locator('[role="navigation"], .flex.items-center.justify-between')
+      .filter({ hasText: 'Rows per page' });
     await expect(pagination).toBeVisible();
 
     // Change perPage to 20 or 50 if available
-    const perPageSelect = page.locator('button[role="combobox"]').filter({ hasText: /10|20|30|40|50/ });
+    const perPageSelect = page
+      .locator('button[role="combobox"]')
+      .filter({ hasText: /10|20|30|40|50/ });
     if (await perPageSelect.isVisible()) {
       await perPageSelect.click();
       const option20 = page.locator('[role="option"]', { hasText: '20' });

@@ -29,13 +29,13 @@ export function TablePaginationBar({
   return (
     <div
       className={cn(
-        "flex w-full flex-wrap items-center justify-between gap-2 overflow-auto p-1 sm:gap-8",
+        'flex w-full flex-wrap items-center justify-between gap-2 overflow-auto p-1 sm:gap-8',
         className
       )}
       {...props}
     >
       {/* Left: row count info */}
-      <div className="text-muted-foreground text-sm whitespace-nowrap">
+      <div className='text-muted-foreground text-sm whitespace-nowrap'>
         {total === 0 ? (
           <>0 đơn hàng</>
         ) : (
@@ -46,7 +46,7 @@ export function TablePaginationBar({
       </div>
 
       {/* Right: page controls */}
-      <div className="flex items-center gap-2 sm:gap-6 lg:gap-8">
+      <div className='flex items-center gap-2 sm:gap-6 lg:gap-8'>
         <div className='flex items-center justify-center text-sm font-medium whitespace-nowrap'>
           Trang {page} / {totalPages}
         </div>

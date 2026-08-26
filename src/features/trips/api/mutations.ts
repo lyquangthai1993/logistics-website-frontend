@@ -1,11 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  createTrip,
-  createSplitTrips,
-  confirmTrip,
-  updateTrip,
-  deleteTrip
-} from './service';
+import { createTrip, createSplitTrips, confirmTrip, updateTrip, deleteTrip } from './service';
 import { tripKeys } from './queries';
 import { orderKeys } from '@/features/orders/api/queries';
 import { fleetKeys } from '@/features/fleet/api/queries';

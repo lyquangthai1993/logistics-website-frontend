@@ -55,11 +55,7 @@ export function CellAction({ data }: CellActionProps) {
 
   return (
     <>
-      <HubFormDialog
-        hub={data}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      <HubFormDialog hub={data} open={editOpen} onOpenChange={setEditOpen} />
 
       {/* Soft Delete Confirmation Alert Modal */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -82,11 +78,13 @@ export function CellAction({ data }: CellActionProps) {
               <div className='border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 rounded-lg border p-3 text-xs'>
                 ⚠️ <strong>Lưu ý:</strong> Hiện có{' '}
                 <strong>{data.vehicles.length} phương tiện</strong> đang trực thuộc chi nhánh này.
-                Sau khi xóa mềm, liên kết kho của các phương tiện này sẽ được giải phóng an toàn mà không làm mất dữ liệu lịch sử.
+                Sau khi xóa mềm, liên kết kho của các phương tiện này sẽ được giải phóng an toàn mà
+                không làm mất dữ liệu lịch sử.
               </div>
             )}
             <p className='text-muted-foreground text-xs'>
-              Hệ thống áp dụng chính sách <strong>Xóa Mềm (Soft Delete)</strong>. Lịch sử đơn hàng, chuyến xe và các giao dịch trước đây vẫn được bảo toàn nguyên vẹn.
+              Hệ thống áp dụng chính sách <strong>Xóa Mềm (Soft Delete)</strong>. Lịch sử đơn hàng,
+              chuyến xe và các giao dịch trước đây vẫn được bảo toàn nguyên vẹn.
             </p>
           </div>
           <DialogFooter>

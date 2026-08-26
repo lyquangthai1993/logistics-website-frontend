@@ -9,8 +9,7 @@ import type { QueryTripParams } from '@/features/trips/api/types';
 export default async function WarehouseListing() {
   const page = warehouseSearchParamsCache.get('page') || 1;
   const perPage = warehouseSearchParamsCache.get('perPage') || 10;
-  const search =
-    warehouseSearchParamsCache.get('name') || warehouseSearchParamsCache.get('search');
+  const search = warehouseSearchParamsCache.get('name') || warehouseSearchParamsCache.get('search');
   const hub =
     warehouseSearchParamsCache.get('hub') ||
     warehouseSearchParamsCache.get('destinationHub') ||

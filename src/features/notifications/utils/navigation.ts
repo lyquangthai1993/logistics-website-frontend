@@ -27,9 +27,7 @@ export function extractNotificationTarget(
   // 2. Direct metadata check for orderCode
   const rawOrderCode = metadata.orderCode;
   const orderCode =
-    typeof rawOrderCode === 'string' && rawOrderCode.trim()
-      ? rawOrderCode.trim()
-      : undefined;
+    typeof rawOrderCode === 'string' && rawOrderCode.trim() ? rawOrderCode.trim() : undefined;
 
   if (orderId) {
     return {

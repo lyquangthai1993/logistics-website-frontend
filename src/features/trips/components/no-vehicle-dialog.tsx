@@ -46,12 +46,7 @@ const REASON_CATEGORIES = [
   }
 ];
 
-export function NoVehicleDialog({
-  open,
-  onOpenChange,
-  order,
-  onSuccess
-}: NoVehicleDialogProps) {
+export function NoVehicleDialog({ open, onOpenChange, order, onSuccess }: NoVehicleDialogProps) {
   const [reasonCategory, setReasonCategory] = useState('BUSY');
   const [customReason, setCustomReason] = useState('');
   const noVehicleMutation = useNoVehicleMutation();
@@ -79,8 +74,7 @@ export function NoVehicleDialog({
       });
 
       toast.warning(`Đã báo hết xe cho đơn ${order.orderCode}`, {
-        description:
-          'Bộ phận Điều phối (Dispatcher) đã được cập nhật để chủ động thuê xe ngoài.'
+        description: 'Bộ phận Điều phối (Dispatcher) đã được cập nhật để chủ động thuê xe ngoài.'
       });
 
       onOpenChange(false);

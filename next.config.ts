@@ -34,9 +34,7 @@ const baseConfig: NextConfig = {
   },
   async rewrites() {
     const backendUrl =
-      process.env.API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      'http://localhost:3005';
+      process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
     return [
       {
         source: '/api/:path*',

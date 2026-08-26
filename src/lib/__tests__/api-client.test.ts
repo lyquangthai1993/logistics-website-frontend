@@ -124,10 +124,7 @@ describe('apiClient Mutex Lock & Single In-Flight Refresh Test', () => {
       expect(batch1[2]).toBe('token-batch-1');
 
       // Batch 2 (after Batch 1 completed, 2 concurrent calls)
-      const batch2 = await Promise.all([
-        executeTokenRefresh(),
-        executeTokenRefresh()
-      ]);
+      const batch2 = await Promise.all([executeTokenRefresh(), executeTokenRefresh()]);
       expect(networkCallCount).toBe(2);
       expect(batch2[0]).toBe('token-batch-2');
       expect(batch2[1]).toBe('token-batch-2');

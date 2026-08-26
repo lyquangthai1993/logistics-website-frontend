@@ -50,9 +50,7 @@ export function CellAction({ data }: CellActionProps) {
   const deleteTripMutation = useDeleteTripMutation();
 
   const isPending =
-    confirmTripMutation.isPending ||
-    updateTripMutation.isPending ||
-    deleteTripMutation.isPending;
+    confirmTripMutation.isPending || updateTripMutation.isPending || deleteTripMutation.isPending;
 
   const handleConfirmTrip = async (tripId: number) => {
     try {

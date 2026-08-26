@@ -68,15 +68,11 @@ async function refreshAccessToken(
     if (!res.ok) return null;
     const data = await res.json();
     const payload = data?.data || data || {};
-    const token =
-      payload?.token || payload?.access_token || data?.token || data?.access_token;
+    const token = payload?.token || payload?.access_token || data?.token || data?.access_token;
     if (!token) return null;
 
     const newRefreshToken =
-      payload?.refreshToken ||
-      payload?.refresh_token ||
-      data?.refreshToken ||
-      data?.refresh_token;
+      payload?.refreshToken || payload?.refresh_token || data?.refreshToken || data?.refresh_token;
 
     return {
       token,

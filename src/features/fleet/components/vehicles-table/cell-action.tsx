@@ -33,11 +33,7 @@ export function CellAction({ data }: CellActionProps) {
 
   return (
     <>
-      <VehicleFormDialog
-        vehicle={data}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      <VehicleFormDialog vehicle={data} open={editOpen} onOpenChange={setEditOpen} />
 
       <DeleteConfirmDialog
         open={deleteOpen}

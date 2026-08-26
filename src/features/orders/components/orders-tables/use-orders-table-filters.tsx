@@ -127,13 +127,13 @@ export function useOrdersTableFilters(columnIds: string[] = []) {
   const isAnyFilterActive = useMemo(() => {
     return Boolean(
       params.orderCode ||
-        params.name ||
-        params.search ||
-        (params.status && params.status !== 'ALL') ||
-        (params.hub && params.hub !== 'ALL') ||
-        (params.originHub && params.originHub !== 'ALL') ||
-        (params.destinationHub && params.destinationHub !== 'ALL') ||
-        params.preset !== 'thisMonth'
+      params.name ||
+      params.search ||
+      (params.status && params.status !== 'ALL') ||
+      (params.hub && params.hub !== 'ALL') ||
+      (params.originHub && params.originHub !== 'ALL') ||
+      (params.destinationHub && params.destinationHub !== 'ALL') ||
+      params.preset !== 'thisMonth'
     );
   }, [params]);
 

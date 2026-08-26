@@ -78,7 +78,8 @@ export function OrderEditDialog({ order, open, onOpenChange }: OrderEditDialogPr
       toast.success('Cập nhật đơn hàng thành công!');
       onOpenChange(false);
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(apiMessage || 'Lỗi cập nhật đơn hàng. Vui lòng thử lại.');
     }
   };
@@ -91,7 +92,8 @@ export function OrderEditDialog({ order, open, onOpenChange }: OrderEditDialogPr
             <span className='p-2 bg-primary/10 text-primary rounded-lg'>
               <IconEdit className='h-5 w-5' />
             </span>
-            Chỉnh Sửa Đơn Hàng &mdash; <span className='font-mono text-primary font-bold'>{order.orderCode}</span>
+            Chỉnh Sửa Đơn Hàng &mdash;{' '}
+            <span className='font-mono text-primary font-bold'>{order.orderCode}</span>
           </DialogTitle>
           <p className='text-xs text-muted-foreground mt-1'>
             Cập nhật lại quy cách hàng hóa, ghi chú điều vận hoặc thay đổi nhu cầu thuê xe ngoài.
@@ -120,7 +122,9 @@ export function OrderEditDialog({ order, open, onOpenChange }: OrderEditDialogPr
                   >
                     Số lượng kiện
                   </label>
-                  <span className='text-[10px] text-muted-foreground font-normal bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded'>Tùy chọn</span>
+                  <span className='text-[10px] text-muted-foreground font-normal bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded'>
+                    Tùy chọn
+                  </span>
                 </div>
                 <Input
                   id='edit-total-quantity-input'
@@ -129,9 +133,7 @@ export function OrderEditDialog({ order, open, onOpenChange }: OrderEditDialogPr
                   step='1'
                   placeholder='VD: 3000'
                   value={totalQuantity}
-                  onChange={(e) =>
-                    setTotalQuantity(e.target.value ? Number(e.target.value) : '')
-                  }
+                  onChange={(e) => setTotalQuantity(e.target.value ? Number(e.target.value) : '')}
                   className='bg-white dark:bg-slate-950 font-medium'
                 />
               </div>

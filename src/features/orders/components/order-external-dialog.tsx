@@ -50,7 +50,8 @@ export function OrderExternalDialog({ order, open, onOpenChange }: OrderExternal
       toast.success('Đã cập nhật yêu cầu xe thuê ngoài!');
       onOpenChange(false);
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(apiMessage || 'Lỗi cập nhật yêu cầu xe ngoài. Vui lòng thử lại.');
     }
   };
@@ -68,11 +69,12 @@ export function OrderExternalDialog({ order, open, onOpenChange }: OrderExternal
         <form onSubmit={handleFormSubmit} className='space-y-4 py-2 text-sm'>
           <div className='text-muted-foreground space-y-2'>
             <p>
-              Đơn hàng <strong className='text-foreground font-mono'>{order.orderCode}</strong> đang ở trạng thái{' '}
-              <span className='text-rose-600 font-semibold'>Không có xe nội bộ</span>.
+              Đơn hàng <strong className='text-foreground font-mono'>{order.orderCode}</strong> đang
+              ở trạng thái <span className='text-rose-600 font-semibold'>Không có xe nội bộ</span>.
             </p>
             <p className='text-xs'>
-              Cập nhật thông tin đối tác vận tải hoặc yêu cầu xe ngoài để Fleet Manager tiến hành ký gửi hợp đồng đối tác.
+              Cập nhật thông tin đối tác vận tải hoặc yêu cầu xe ngoài để Fleet Manager tiến hành ký
+              gửi hợp đồng đối tác.
             </p>
           </div>
 

@@ -34,15 +34,7 @@ export default async function TripsPage(props: PageProps) {
         </Link>
       }
     >
-      <Suspense
-        fallback={
-          <DataTableSkeleton
-            columnCount={7}
-            rowCount={10}
-            filterCount={2}
-          />
-        }
-      >
+      <Suspense fallback={<DataTableSkeleton columnCount={7} rowCount={10} filterCount={2} />}>
         <TripsListing />
       </Suspense>
     </PageContainer>

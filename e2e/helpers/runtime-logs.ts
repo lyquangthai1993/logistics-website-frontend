@@ -69,7 +69,7 @@ export function captureRuntimeLogs(page: Page): RuntimeLogSession {
         url,
         status,
         method: response.request().method(),
-        body: body.slice(0, 500), // truncate to 500 chars
+        body: body.slice(0, 500) // truncate to 500 chars
       });
     }
   };
@@ -84,7 +84,7 @@ export function captureRuntimeLogs(page: Page): RuntimeLogSession {
         .map((t) => ({ url: t.url, durationMs: (t.endMs ?? 0) - t.startMs })),
     stop: () => {
       page.off('response', responseHandler);
-    },
+    }
   };
 }
 
@@ -97,7 +97,10 @@ export async function detectNextJsErrorOverlay(page: Page): Promise<string | nul
     const errorDialog = page.locator(
       'nextjs-portal [role="dialog"], [data-nextjs-dialog-header], #__next-error-overlay'
     );
-    const isVisible = await errorDialog.first().isVisible().catch(() => false);
+    const isVisible = await errorDialog
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (isVisible) {
       const text = (await errorDialog.first().textContent())?.trim();
       if (text && text.length > 0) return text;
@@ -105,7 +108,12 @@ export async function detectNextJsErrorOverlay(page: Page): Promise<string | nul
 
     // Check for explicit 500 Internal Server Error heading
     const errorHeading = page.locator('h1, h2').filter({ hasText: /500|Internal Server Error/i });
-    if (await errorHeading.first().isVisible().catch(() => false)) {
+    if (
+      await errorHeading
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
       return 'SSR error detected on page (500 Internal Server Error heading visible)';
     }
 
@@ -124,23 +132,19 @@ export async function checkBackendHealth(
   backendUrl = process.env.BACKEND_URL ||
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    'http://localhost:3005',
+    'http://localhost:3005'
 ): Promise<{ alive: boolean; statusCode: number; latencyMs: number }> {
   const start = Date.now();
   let statusCode = 0;
 
-  const candidateUrls = [
-    backendUrl,
-    'http://localhost:3005',
-    'http://localhost:3001',
-  ];
+  const candidateUrls = [backendUrl, 'http://localhost:3005', 'http://localhost:3001'];
   const uniqueUrls = [...new Set(candidateUrls.map((u) => u.replace(/\/+$/, '')))];
 
   for (const baseUrl of uniqueUrls) {
     try {
       const response = await page.request.get(`${baseUrl}/api/v1`, {
         timeout: 3000,
-        failOnStatusCode: false,
+        failOnStatusCode: false
       });
       statusCode = response.status();
       if (statusCode > 0 && statusCode < 500) {
@@ -154,6 +158,6 @@ export async function checkBackendHealth(
   return {
     alive: statusCode > 0 && statusCode < 500,
     statusCode,
-    latencyMs: Date.now() - start,
+    latencyMs: Date.now() - start
   };
 }

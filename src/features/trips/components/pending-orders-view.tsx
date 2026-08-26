@@ -6,12 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
-import {
-  IconTruck,
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconRefresh
-} from '@tabler/icons-react';
+import { IconTruck, IconAlertTriangle, IconCircleCheck, IconRefresh } from '@tabler/icons-react';
 import { ordersQueryOptions } from '@/features/orders/api/queries';
 import { AssignVehicleDialog } from './assign-vehicle-dialog';
 import { NoVehicleDialog } from './no-vehicle-dialog';
@@ -42,7 +37,11 @@ export function PendingOrdersView({
   const [noVehicleModalOpen, setNoVehicleModalOpen] = useState(false);
   const [noVehicleOrder, setNoVehicleOrder] = useState<Order | null>(null);
 
-  const { data: ordersData, isLoading, refetch } = useQuery(
+  const {
+    data: ordersData,
+    isLoading,
+    refetch
+  } = useQuery(
     ordersQueryOptions({
       status: 'PENDING_ASSIGNMENT',
       search: search?.trim() || undefined,
@@ -157,8 +156,7 @@ export function PendingOrdersView({
 
                     {order.externalNote && (
                       <div className='text-xs bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 px-2.5 py-1.5 rounded border border-amber-200 dark:border-amber-800 font-medium'>
-                        <span className='font-bold'>🚛 Yêu cầu xe ngoài:</span>{' '}
-                        {order.externalNote}
+                        <span className='font-bold'>🚛 Yêu cầu xe ngoài:</span> {order.externalNote}
                       </div>
                     )}
                   </div>

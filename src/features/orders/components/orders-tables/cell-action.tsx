@@ -34,7 +34,8 @@ export function CellAction({ order }: CellActionProps) {
       await submitMutation.mutateAsync(order.id);
       toast.success('Đã gửi lệnh điều vận lên Đội xe (Fleet)!');
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(apiMessage || 'Không thể gửi lệnh điều vận. Vui lòng thử lại.');
     }
   };
@@ -43,23 +44,11 @@ export function CellAction({ order }: CellActionProps) {
 
   return (
     <>
-      <OrderDeleteDialog
-        order={order}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-      />
+      <OrderDeleteDialog order={order} open={deleteOpen} onOpenChange={setDeleteOpen} />
 
-      <OrderEditDialog
-        order={order}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      <OrderEditDialog order={order} open={editOpen} onOpenChange={setEditOpen} />
 
-      <OrderExternalDialog
-        order={order}
-        open={externalOpen}
-        onOpenChange={setExternalOpen}
-      />
+      <OrderExternalDialog order={order} open={externalOpen} onOpenChange={setExternalOpen} />
 
       <div className='flex items-center justify-end gap-1.5'>
         {/* Xem chi tiết */}

@@ -142,7 +142,10 @@ export function LoginForm() {
 
       router.push('/dashboard/overview');
     } catch (err: unknown) {
-      const message = formatApiError(err, 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại.');
+      const message = formatApiError(
+        err,
+        'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại.'
+      );
       setError(message);
     } finally {
       setIsLoading(false);
@@ -325,7 +328,10 @@ export function LoginForm() {
           </div>
           <div className='flex items-center justify-between text-xs pt-1'>
             <label className='flex items-center gap-2 text-muted-foreground cursor-pointer select-none'>
-              <input type='checkbox' className='rounded border-border text-primary shadow-sm focus:ring-primary h-3.5 w-3.5' />
+              <input
+                type='checkbox'
+                className='rounded border-border text-primary shadow-sm focus:ring-primary h-3.5 w-3.5'
+              />
               <span>Ghi nhớ tài khoản</span>
             </label>
             <Link

@@ -42,7 +42,8 @@ test.describe('[Real-time Multi-Account] Multi-Context Notification E2E Test', (
       await expect(adminPage).toHaveURL(/\/dashboard\/.*/);
 
       // Verify Notification Bell is visible on Receiver page
-      const receiverBell = receiverPage.getByRole('button', { name: /notifications|thông báo/i })
+      const receiverBell = receiverPage
+        .getByRole('button', { name: /notifications|thông báo/i })
         .or(receiverPage.locator('button:has([class*="notification"])'))
         .or(receiverPage.locator('button:has(svg.lucide-bell)'))
         .first();
@@ -53,13 +54,13 @@ test.describe('[Real-time Multi-Account] Multi-Context Notification E2E Test', (
       await receiverBell.click();
 
       // Verify notification popover/panel is displayed
-      const notificationHeading = receiverPage.locator('h4:has-text("Thông báo")')
+      const notificationHeading = receiverPage
+        .locator('h4:has-text("Thông báo")')
         .or(receiverPage.getByRole('heading', { name: /notifications|thông báo/i }))
         .or(receiverPage.locator('text=Chưa có thông báo'))
         .first();
 
       await expect(notificationHeading).toBeVisible({ timeout: 10_000 });
-
     } finally {
       // 🧹 Clean up both browser contexts
       await adminContext.close();

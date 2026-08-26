@@ -73,11 +73,10 @@ export function useNotificationSocket() {
         queryClient.setQueriesData<InfiniteData<NotificationsResponse>>(
           { queryKey: notificationKeys.infinite() },
           (oldData) => {
-            if (!oldData || !Array.isArray(oldData.pages) || oldData.pages.length === 0) return oldData;
+            if (!oldData || !Array.isArray(oldData.pages) || oldData.pages.length === 0)
+              return oldData;
             const firstPage = oldData.pages[0];
-            const exists = oldData.pages.some((p) =>
-              p.data?.some((i) => i.id === notification.id)
-            );
+            const exists = oldData.pages.some((p) => p.data?.some((i) => i.id === notification.id));
             if (exists) return oldData;
 
             return {

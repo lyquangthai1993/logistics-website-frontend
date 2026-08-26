@@ -46,7 +46,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
   // Fetch active hubs for dropdown — only needed when role is WAREHOUSE_MANAGER
   const { data: activeHubs = [], isLoading: hubsLoading } = useQuery({
     ...activeHubsQueryOptions(),
-    enabled: isWarehouseManager,
+    enabled: isWarehouseManager
   });
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
         status: { id: Number(statusId) },
-        hub: hubPayload,
+        hub: hubPayload
       };
       updateMutation.mutate({ id: user.id, values: updatePayload });
     } else {
@@ -160,7 +160,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
         status: { id: Number(statusId) },
-        hub: hubPayload,
+        hub: hubPayload
       };
       createMutation.mutate(createPayload);
     }
@@ -364,11 +364,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
             disabled={isPending}
             className='bg-primary text-primary-foreground cursor-pointer'
           >
-            {isPending
-              ? 'Đang lưu...'
-              : isEdit
-                ? 'Lưu Thay Đổi'
-                : 'Thêm Người Dùng'}
+            {isPending ? 'Đang lưu...' : isEdit ? 'Lưu Thay Đổi' : 'Thêm Người Dùng'}
           </Button>
         </SheetFooter>
       </SheetContent>

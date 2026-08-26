@@ -52,7 +52,8 @@ test.describe('[Flow 1 - Swagger REST API Trigger] Send Notification via Swagger
 
     // 🌐 4. Call Swagger API endpoint (POST /api/v1/notifications/send-test)
     const uniqueTitle = `⚡ Swagger Rest Alert ${Date.now().toString().slice(-4)}`;
-    const uniqueMessage = 'Thông báo gửi từ Swagger API nhận vào userId + message qua WebSocket real-time!';
+    const uniqueMessage =
+      'Thông báo gửi từ Swagger API nhận vào userId + message qua WebSocket real-time!';
 
     const swaggerApiRes = await apiCtx.post(`${API_BASE}/api/v1/notifications/send-test`, {
       data: {
@@ -128,12 +129,17 @@ test.describe('[Flow 2 - Direct Socket Message Trigger] Emit Raw WebSocket Messa
 
     // 🌐 4. Emit raw WebSocket message directly from browser socket client context
     const socketTitle = `⚡ Raw Socket Emit ${Date.now().toString().slice(-4)}`;
-    const socketMessage = 'Tin nhắn gửi trực tiếp qua cổng WebSocket (socket.emit) tới Backend Gateway!';
+    const socketMessage =
+      'Tin nhắn gửi trực tiếp qua cổng WebSocket (socket.emit) tới Backend Gateway!';
 
     await page.evaluate(
       ({ userId, title, message }) => {
         // Access window or sharedSocket directly in browser context
-        const ws = (window as unknown as { __NOTIFICATION_SOCKET__?: { emit: (event: string, payload: unknown) => void } }).__NOTIFICATION_SOCKET__;
+        const ws = (
+          window as unknown as {
+            __NOTIFICATION_SOCKET__?: { emit: (event: string, payload: unknown) => void };
+          }
+        ).__NOTIFICATION_SOCKET__;
         if (ws && typeof ws.emit === 'function') {
           ws.emit('notification:send-message', {
             targetUserId: userId,

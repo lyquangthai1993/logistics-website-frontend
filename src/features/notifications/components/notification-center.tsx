@@ -175,7 +175,9 @@ export function NotificationCenter() {
                     </>
                   ) : (
                     <>
-                      <span>Tải thêm ({notifications.length}/{total})</span>
+                      <span>
+                        Tải thêm ({notifications.length}/{total})
+                      </span>
                       <Icons.chevronDown className='h-3 w-3' />
                     </>
                   )}

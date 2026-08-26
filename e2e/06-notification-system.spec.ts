@@ -139,7 +139,9 @@ test.describe('[Flow 2] WebSocket Real-time Notification Dispatch', () => {
     await apiCtx.dispose();
   });
 
-  test('2.2. Verify WebSocket connection initialization completes without critical console errors', async ({ page }) => {
+  test('2.2. Verify WebSocket connection initialization completes without critical console errors', async ({
+    page
+  }) => {
     const errors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !msg.text().includes('Google Sans Flex')) {

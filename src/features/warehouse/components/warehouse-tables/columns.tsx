@@ -138,9 +138,7 @@ export const columns: ColumnDef<Trip>[] = [
 
       return (
         <div className='text-slate-800 dark:text-slate-200 text-xs'>
-          <div className='font-mono font-bold text-sm'>
-            {trip.vehicle?.licensePlate || '—'}
-          </div>
+          <div className='font-mono font-bold text-sm'>{trip.vehicle?.licensePlate || '—'}</div>
           <span className='text-muted-foreground block mt-0.5'>
             {isExternal ? (
               <span className='text-amber-700 dark:text-amber-300 font-medium'>
@@ -191,9 +189,7 @@ export const columns: ColumnDef<Trip>[] = [
       const trip = row.original;
       return (
         <div className='font-mono text-slate-800 dark:text-slate-200 text-xs'>
-          <div className='font-bold text-sm'>
-            {trip.weightAllocated?.toLocaleString() ?? 0} kg
-          </div>
+          <div className='font-bold text-sm'>{trip.weightAllocated?.toLocaleString() ?? 0} kg</div>
           <span className='text-muted-foreground text-[11px] block'>
             {trip.volumeAllocated ?? 0} m³
           </span>

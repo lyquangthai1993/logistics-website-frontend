@@ -18,10 +18,10 @@ import { loginAs, TEST_USERS } from './helpers/auth';
 const adminUser = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
 
 const VIEWPORTS = [
-  { width: 1024, height: 768,  label: 'Laptop-S'  },
-  { width: 1280, height: 800,  label: 'Laptop-M'  },
-  { width: 1440, height: 900,  label: 'Desktop'   },
-  { width: 1920, height: 1080, label: 'Full-HD'   },
+  { width: 1024, height: 768, label: 'Laptop-S' },
+  { width: 1280, height: 800, label: 'Laptop-M' },
+  { width: 1440, height: 900, label: 'Desktop' },
+  { width: 1920, height: 1080, label: 'Full-HD' }
 ];
 
 const SIDEBAR_STATES = ['expanded', 'collapsed'] as const;
@@ -54,7 +54,7 @@ async function getScrollMetrics(page: any) {
       bodyScrollWidth: document.body.scrollWidth,
       docScrollWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
-      bodyHasHorizontalOverflow: document.body.scrollWidth > window.innerWidth,
+      bodyHasHorizontalOverflow: document.body.scrollWidth > window.innerWidth
     };
   });
 }
@@ -83,7 +83,8 @@ async function ensureSidebarState(page: any, targetState: 'expanded' | 'collapse
 // ─── Test Matrix ─────────────────────────────────────────────────────────────
 for (const vp of VIEWPORTS) {
   for (const sidebarState of SIDEBAR_STATES) {
-    const sidebarLabel = sidebarState === 'expanded' ? 'Sidebar Open (16rem)' : 'Sidebar Closed (3rem)';
+    const sidebarLabel =
+      sidebarState === 'expanded' ? 'Sidebar Open (16rem)' : 'Sidebar Closed (3rem)';
 
     test.describe(`Orders Table UX Matrix @ ${vp.width}px ${vp.label} | ${sidebarLabel}`, () => {
       test.use({ viewport: { width: vp.width, height: vp.height } });
@@ -96,13 +97,15 @@ for (const vp of VIEWPORTS) {
         await ensureSidebarState(page, sidebarState);
       });
 
-      test(`[${vp.width}px | ${sidebarState}] Page body khong overflow & Table responsive`, async ({ page }) => {
+      test(`[${vp.width}px | ${sidebarState}] Page body khong overflow & Table responsive`, async ({
+        page
+      }) => {
         const m = await getScrollMetrics(page);
 
         console.log(
           `[${vp.width}px | sidebar:${m.sidebarState}(${m.sidebarWidth}px)] ` +
-          `table=${m.tableWidth}px | container=${m.containerClientWidth}px(scrollWidth:${m.containerScrollWidth}px) | ` +
-          `canScrollH=${m.containerCanScroll} | body=${m.bodyScrollWidth}/${m.viewportWidth} | overflow=${m.bodyHasHorizontalOverflow}`
+            `table=${m.tableWidth}px | container=${m.containerClientWidth}px(scrollWidth:${m.containerScrollWidth}px) | ` +
+            `canScrollH=${m.containerCanScroll} | body=${m.bodyScrollWidth}/${m.viewportWidth} | overflow=${m.bodyHasHorizontalOverflow}`
         );
 
         // 1. Sidebar is in the expected state

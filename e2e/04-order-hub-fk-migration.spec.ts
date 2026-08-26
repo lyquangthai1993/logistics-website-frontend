@@ -56,7 +56,9 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
   });
 
   // ─── Test 2: Form sends originHubId + destinationHubId in API payload ─────────
-  test('create order payload includes originHubId and destinationHubId as integers', async ({ page }) => {
+  test('create order payload includes originHubId and destinationHubId as integers', async ({
+    page
+  }) => {
     // Capture the create order API request
     let capturedPayload: Record<string, unknown> = {};
     page.on('request', (req) => {
@@ -110,7 +112,10 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
     await page.locator('input[id="total-volume-input"]').fill('10');
 
     // Submit
-    await page.getByRole('button', { name: /tạo lệnh|submit|xác nhận/i }).last().click();
+    await page
+      .getByRole('button', { name: /tạo lệnh|submit|xác nhận/i })
+      .last()
+      .click();
     await page.waitForTimeout(500);
 
     // Verify payload has FK fields
@@ -147,14 +152,21 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
     await destSelect.selectOption(firstValue!);
 
     // Submit
-    await page.getByRole('button', { name: /tạo lệnh|submit|xác nhận/i }).last().click();
+    await page
+      .getByRole('button', { name: /tạo lệnh|submit|xác nhận/i })
+      .last()
+      .click();
 
     // Should see error toast
-    await expect(page.getByText(/không được trùng|same hub|trùng nhau/i)).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText(/không được trùng|same hub|trùng nhau/i)).toBeVisible({
+      timeout: 3000
+    });
   });
 
   // ─── Test 4: No 422/500 from backend on valid order create ───────────────────
-  test('POST /orders returns 201 with originHubId and destinationHubId in response', async ({ page }) => {
+  test('POST /orders returns 201 with originHubId and destinationHubId in response', async ({
+    page
+  }) => {
     // Real API call — verify backend returns correct FK fields in response
     const orderCode = `E2E-FK-${Date.now()}`;
 
@@ -212,7 +224,8 @@ test.describe('Order Hub FK — Backward Compatibility', () => {
     await page.waitForTimeout(2000);
 
     const fkRelatedErrors = errors.filter(
-      (e) => e.includes('originHubId') || e.includes('destinationHubId') || e.includes('Cannot read')
+      (e) =>
+        e.includes('originHubId') || e.includes('destinationHubId') || e.includes('Cannot read')
     );
     expect(fkRelatedErrors).toHaveLength(0);
 

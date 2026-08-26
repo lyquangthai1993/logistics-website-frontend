@@ -111,12 +111,12 @@ export function useTripsTableFilters(columnIds: string[] = []) {
   const isAnyFilterActive = useMemo(() => {
     return Boolean(
       params.tripSequence ||
-        params.name ||
-        params.search ||
-        (params.status && params.status !== 'ALL') ||
-        params.vehicleId ||
-        params.driverId ||
-        params.preset !== 'thisMonth'
+      params.name ||
+      params.search ||
+      (params.status && params.status !== 'ALL') ||
+      params.vehicleId ||
+      params.driverId ||
+      params.preset !== 'thisMonth'
     );
   }, [params]);
 

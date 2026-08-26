@@ -12,8 +12,7 @@ export const createUserMutation = mutationOptions({
 });
 
 export const updateUserMutation = mutationOptions({
-  mutationFn: ({ id, values }: { id: number; values: UpdateUserPayload }) =>
-    updateUser(id, values),
+  mutationFn: ({ id, values }: { id: number; values: UpdateUserPayload }) => updateUser(id, values),
   onSuccess: () => {
     getQueryClient().invalidateQueries({ queryKey: userKeys.all });
   }

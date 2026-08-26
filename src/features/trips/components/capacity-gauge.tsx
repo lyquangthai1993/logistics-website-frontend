@@ -48,14 +48,8 @@ export function CapacityGauge({
     return null;
   }
 
-  const {
-    maxWeight,
-    weightRatio,
-    isOverweight,
-    maxVolume,
-    volumeRatio,
-    isOvervolume
-  } = calculations;
+  const { maxWeight, weightRatio, isOverweight, maxVolume, volumeRatio, isOvervolume } =
+    calculations;
 
   const isOverloaded = isOverweight || isOvervolume;
 

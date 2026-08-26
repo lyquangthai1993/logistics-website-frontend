@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Forgot Password & Reset Password E2E Flow', () => {
-  test('should navigate from Sign-In to Forgot Password, submit email, and render Reset Password', async ({ page }) => {
+  test('should navigate from Sign-In to Forgot Password, submit email, and render Reset Password', async ({
+    page
+  }) => {
     // 1. Go to Sign-In page
     await page.goto('/auth/sign-in');
     await expect(page.locator('h1')).toContainText('Đăng nhập');

@@ -85,18 +85,12 @@ export function formatApiError(
         if (errorMap.email === 'emailNotExists') {
           return ERROR_CODE_TRANSLATIONS.emailNotExists;
         }
-        return (
-          errorData.message ||
-          ERROR_CODE_TRANSLATIONS.incorrectEmailOrPassword
-        );
+        return errorData.message || ERROR_CODE_TRANSLATIONS.incorrectEmailOrPassword;
       }
     }
 
     // 2. Prioritize clean user-facing message from backend if available
-    if (
-      typeof errorData.message === 'string' &&
-      errorData.message.trim().length > 0
-    ) {
+    if (typeof errorData.message === 'string' && errorData.message.trim().length > 0) {
       // Check if message is a known technical code
       const translatedMsg = ERROR_CODE_TRANSLATIONS[errorData.message.trim()];
       if (translatedMsg) return translatedMsg;
@@ -104,17 +98,12 @@ export function formatApiError(
       // If message is a non-empty string provided by backend, return it directly
       return errorData.message.trim();
     } else if (Array.isArray(errorData.message) && errorData.message.length > 0) {
-      return errorData.message
-        .map((m) => ERROR_CODE_TRANSLATIONS[m] || m)
-        .join(', ');
+      return errorData.message.map((m) => ERROR_CODE_TRANSLATIONS[m] || m).join(', ');
     }
 
     // 3. Field validation errors map (translate codes or format nicely)
     if (errorData.errors) {
-      if (
-        typeof errorData.errors === 'object' &&
-        !Array.isArray(errorData.errors)
-      ) {
+      if (typeof errorData.errors === 'object' && !Array.isArray(errorData.errors)) {
         const errorValues = Object.entries(errorData.errors)
           .filter(([, msg]) => msg !== null && msg !== undefined && msg !== '')
           .map(([field, msg]) => {
@@ -128,16 +117,9 @@ export function formatApiError(
           return errorValues.join(' | ');
         }
       } else if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-        return errorData.errors
-          .map((e) => ERROR_CODE_TRANSLATIONS[e] || e)
-          .join(', ');
-      } else if (
-        typeof errorData.errors === 'string' &&
-        errorData.errors.trim().length > 0
-      ) {
-        return (
-          ERROR_CODE_TRANSLATIONS[errorData.errors.trim()] || errorData.errors
-        );
+        return errorData.errors.map((e) => ERROR_CODE_TRANSLATIONS[e] || e).join(', ');
+      } else if (typeof errorData.errors === 'string' && errorData.errors.trim().length > 0) {
+        return ERROR_CODE_TRANSLATIONS[errorData.errors.trim()] || errorData.errors;
       }
     }
   }

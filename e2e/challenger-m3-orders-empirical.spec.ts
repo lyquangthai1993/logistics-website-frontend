@@ -10,7 +10,9 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     await loginAs(page, dispatcherUser);
   });
 
-  test('Test 1: URL Search Params Stress Testing (Extreme & Malformed values)', async ({ page }) => {
+  test('Test 1: URL Search Params Stress Testing (Extreme & Malformed values)', async ({
+    page
+  }) => {
     const consoleErrors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -23,7 +25,9 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     await page.waitForLoadState('networkidle');
 
     // Page must render without crashing
-    await expect(page.getByRole('heading', { name: 'Lập Lệnh Điều Vận' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Lập Lệnh Điều Vận' })).toBeVisible({
+      timeout: 10000
+    });
     await expect(page.locator('table')).toBeVisible();
 
     // 1.2 Extreme page number beyond dataset
@@ -33,7 +37,9 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     await expect(page.locator('table')).toBeVisible();
 
     // Filter out expected 404/API errors from console logs if any, but ensure React didn't crash
-    const reactCrash = consoleErrors.some((e) => e.includes('Minified React error') || e.includes('Uncaught Error'));
+    const reactCrash = consoleErrors.some(
+      (e) => e.includes('Minified React error') || e.includes('Uncaught Error')
+    );
     expect(reactCrash).toBe(false);
   });
 
@@ -137,7 +143,8 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     await page.fill('#goods-desc-input', 'Hàng linh kiện điện tử kiểm thử');
 
     const createPromise = page.waitForResponse(
-      (res) => res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
+      (res) =>
+        res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
     );
     await page.click('button[type="submit"]:has-text("Lưu & Tạo lệnh")');
     await createPromise;
@@ -162,11 +169,15 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     await page.waitForLoadState('networkidle');
 
     // 6.1 Status filter dropdown in toolbar
-    const statusFilterBtn = page.locator('button[data-slot="popover-trigger"]:has-text("Trạng thái")');
+    const statusFilterBtn = page.locator(
+      'button[data-slot="popover-trigger"]:has-text("Trạng thái")'
+    );
     if (await statusFilterBtn.isVisible()) {
       await statusFilterBtn.click();
       await page.waitForTimeout(300);
-      const draftOption = page.locator('[role="option"], [role="menuitemcheckbox"], label', { hasText: 'Chờ điều xe' }).first();
+      const draftOption = page
+        .locator('[role="option"], [role="menuitemcheckbox"], label', { hasText: 'Chờ điều xe' })
+        .first();
       if (await draftOption.isVisible()) {
         await draftOption.click();
         await page.waitForTimeout(500);
@@ -174,7 +185,9 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     }
 
     // 6.2 Rows per page selector
-    const rowsPerPage = page.locator('button[role="combobox"]').filter({ hasText: /10|20|30|40|50/ });
+    const rowsPerPage = page
+      .locator('button[role="combobox"]')
+      .filter({ hasText: /10|20|30|40|50/ });
     if (await rowsPerPage.isVisible()) {
       await rowsPerPage.click();
       const option20 = page.locator('[role="option"]', { hasText: '20' });

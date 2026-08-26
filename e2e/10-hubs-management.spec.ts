@@ -74,14 +74,18 @@ test.describe('Hubs Management & Vehicle Relation (Super Admin & Fleet Manager)'
     const deleteBtn = createdRow.locator('button[aria-label="Xóa kho"]');
     await deleteBtn.click();
 
-    const deleteConfirmDialog = page.locator('role=dialog', { hasText: 'Xác Nhận Xóa Mềm Chi Nhánh Kho' });
+    const deleteConfirmDialog = page.locator('role=dialog', {
+      hasText: 'Xác Nhận Xóa Mềm Chi Nhánh Kho'
+    });
     await expect(deleteConfirmDialog).toBeVisible({ timeout: 5_000 });
 
     await page.click('button:has-text("Xác Nhận Xóa Mềm")');
     await expect(deleteConfirmDialog).not.toBeVisible({ timeout: 10_000 });
 
     // Verify row is removed from table (invalidation triggered)
-    await expect(page.locator('tbody tr', { hasText: uniqueCode })).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('tbody tr', { hasText: uniqueCode })).toHaveCount(0, {
+      timeout: 10_000
+    });
   });
 
   test('FLEET_MANAGER is blocked from /dashboard/admin/hubs and can select Hub in fleet page', async ({
@@ -111,4 +115,3 @@ test.describe('Hubs Management & Vehicle Relation (Super Admin & Fleet Manager)'
     expect(optionsCount).toBeGreaterThan(1); // Should have placeholder + seeded active hubs
   });
 });
-

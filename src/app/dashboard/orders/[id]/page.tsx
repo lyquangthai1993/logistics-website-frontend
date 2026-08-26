@@ -14,7 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from '@/components/ui/dialog';
 import {
   IconArrowLeft,
@@ -30,7 +30,7 @@ import {
   IconEdit,
   IconCheck,
   IconTruckOff,
-  IconInfoCircle,
+  IconInfoCircle
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
@@ -199,7 +199,7 @@ export default function OrderDetailPage() {
       setSubmittingExternal(true);
       await ordersApi.updateOrder(order.id, {
         isExternalVehicleNeeded: true,
-        externalNote: finalExternalNote,
+        externalNote: finalExternalNote
       });
 
       if (autoSubmit) {
@@ -240,7 +240,7 @@ export default function OrderDetailPage() {
         totalWeight: Number(editTotalWeight) || order.totalWeight,
         totalVolume: Number(editTotalVolume) || order.totalVolume,
         goodsDescription: editGoodsDesc || undefined,
-        notes: editNotes || undefined,
+        notes: editNotes || undefined
       });
       showApiSuccessToast('Đã cập nhật thông tin đơn hàng');
       setIsEditModalOpen(false);
@@ -409,7 +409,8 @@ export default function OrderDetailPage() {
                 </Badge>
               </div>
               <p className='text-sm text-slate-700 dark:text-slate-300'>
-                Lệnh điều vận này đã được chuyển hoàn về cho <strong>Điều phối (Dispatcher)</strong> để liên hệ sắp xếp phương án thuê xe bên ngoài (External Vehicle).
+                Lệnh điều vận này đã được chuyển hoàn về cho <strong>Điều phối (Dispatcher)</strong>{' '}
+                để liên hệ sắp xếp phương án thuê xe bên ngoài (External Vehicle).
               </p>
               {order.notes && (
                 <div className='mt-2 p-3 bg-white/80 dark:bg-slate-900/80 rounded-md border border-rose-200 dark:border-rose-900/50 text-xs font-mono text-rose-900 dark:text-rose-200'>
@@ -721,13 +722,18 @@ export default function OrderDetailPage() {
                 Quy trình thuê xe ngoài:
               </div>
               <p>
-                Điều phối viên liên hệ đối tác vận tải ngoài, điền thông tin nhà xe và cước phí thỏa thuận. Sau khi lưu, đơn hàng sẽ được kích hoạt cờ <strong>🚛 Yêu cầu xe ngoài</strong> để Đội xe gán xe ngoài và xác nhận chuyến.
+                Điều phối viên liên hệ đối tác vận tải ngoài, điền thông tin nhà xe và cước phí thỏa
+                thuận. Sau khi lưu, đơn hàng sẽ được kích hoạt cờ{' '}
+                <strong>🚛 Yêu cầu xe ngoài</strong> để Đội xe gán xe ngoài và xác nhận chuyến.
               </p>
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
               <div className='space-y-1.5'>
-                <label htmlFor='vendorName' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                <label
+                  htmlFor='vendorName'
+                  className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+                >
                   Tên nhà xe / Đối tác ngoài <span className='text-rose-500'>*</span>
                 </label>
                 <Input
@@ -739,7 +745,10 @@ export default function OrderDetailPage() {
               </div>
 
               <div className='space-y-1.5'>
-                <label htmlFor='vendorPhone' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                <label
+                  htmlFor='vendorPhone'
+                  className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+                >
                   Hotline / Người liên hệ
                 </label>
                 <Input
@@ -752,8 +761,12 @@ export default function OrderDetailPage() {
             </div>
 
             <div className='space-y-1.5'>
-              <label htmlFor='vendorDetails' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
-                Ghi chú chi tiết điều xe ngoài / Thỏa thuận cước phí <span className='text-rose-500'>*</span>
+              <label
+                htmlFor='vendorDetails'
+                className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+              >
+                Ghi chú chi tiết điều xe ngoài / Thỏa thuận cước phí{' '}
+                <span className='text-rose-500'>*</span>
               </label>
               <Textarea
                 id='vendorDetails'
@@ -811,7 +824,10 @@ export default function OrderDetailPage() {
             <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
               <div className='space-y-1.5'>
                 <div className='flex items-center justify-between'>
-                  <label htmlFor='editTotalQuantity' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                  <label
+                    htmlFor='editTotalQuantity'
+                    className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+                  >
                     Số lượng
                   </label>
                   <span className='text-[10px] text-slate-400'>Tùy chọn</span>
@@ -830,7 +846,10 @@ export default function OrderDetailPage() {
               </div>
 
               <div className='space-y-1.5'>
-                <label htmlFor='editTotalWeight' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                <label
+                  htmlFor='editTotalWeight'
+                  className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+                >
                   Tổng khối lượng (kg) <span className='text-rose-500'>*</span>
                 </label>
                 <Input
@@ -838,15 +857,16 @@ export default function OrderDetailPage() {
                   type='number'
                   min='1'
                   value={editTotalWeight}
-                  onChange={(e) =>
-                    setEditTotalWeight(e.target.value ? Number(e.target.value) : '')
-                  }
+                  onChange={(e) => setEditTotalWeight(e.target.value ? Number(e.target.value) : '')}
                   required
                 />
               </div>
 
               <div className='space-y-1.5'>
-                <label htmlFor='editTotalVolume' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                <label
+                  htmlFor='editTotalVolume'
+                  className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+                >
                   Tổng thể tích (m³) <span className='text-rose-500'>*</span>
                 </label>
                 <Input
@@ -855,16 +875,17 @@ export default function OrderDetailPage() {
                   step='0.01'
                   min='0.01'
                   value={editTotalVolume}
-                  onChange={(e) =>
-                    setEditTotalVolume(e.target.value ? Number(e.target.value) : '')
-                  }
+                  onChange={(e) => setEditTotalVolume(e.target.value ? Number(e.target.value) : '')}
                   required
                 />
               </div>
             </div>
 
             <div className='space-y-1.5'>
-              <label htmlFor='editGoodsDesc' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+              <label
+                htmlFor='editGoodsDesc'
+                className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+              >
                 Mô tả hàng hóa
               </label>
               <Input
@@ -876,7 +897,10 @@ export default function OrderDetailPage() {
             </div>
 
             <div className='space-y-1.5'>
-              <label htmlFor='editNotes' className='text-xs font-semibold text-slate-700 dark:text-slate-300'>
+              <label
+                htmlFor='editNotes'
+                className='text-xs font-semibold text-slate-700 dark:text-slate-300'
+              >
                 Ghi chú điều vận
               </label>
               <Textarea

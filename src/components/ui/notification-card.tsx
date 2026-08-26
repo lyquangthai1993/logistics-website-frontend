@@ -159,7 +159,8 @@ export const NotificationCard: FC<NotificationCardProps> = ({
         'group relative w-full transition-all text-left select-none',
         compact ? 'rounded-xl' : 'rounded-2xl',
         isUnread ? 'bg-muted' : 'bg-muted/40',
-        isClickable && 'cursor-pointer hover:bg-muted/80 hover:shadow-xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        isClickable &&
+          'cursor-pointer hover:bg-muted/80 hover:shadow-xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         className
       )}
       style={{
@@ -217,10 +218,12 @@ export const NotificationCard: FC<NotificationCardProps> = ({
             {/* Order link cue badge */}
             {orderCode && (
               <div className='pt-1 flex items-center gap-1.5'>
-                <span className={cn(
-                  'inline-flex items-center gap-1 rounded font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors',
-                  compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
-                )}>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors',
+                    compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+                  )}
+                >
                   <Icons.truck className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
                   <span>Đơn {orderCode}</span>
                   <Icons.chevronRight className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />

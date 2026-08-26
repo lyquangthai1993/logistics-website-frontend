@@ -13,7 +13,14 @@ import {
   DialogTitle,
   DialogFooter
 } from '@/components/ui/dialog';
-import { IconPlus, IconSparkles, IconPackage, IconRoute, IconFileText, IconTruck } from '@tabler/icons-react';
+import {
+  IconPlus,
+  IconSparkles,
+  IconPackage,
+  IconRoute,
+  IconFileText,
+  IconTruck
+} from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { activeHubsQueryOptions } from '@/features/hubs/api/queries';
 import { useCreateOrderMutation, useGenerateOrderCodeMutation } from '../api/mutations';
@@ -36,9 +43,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
   const getHubLabel = (hub: Hub): string => {
     if (hub.name.includes('(')) return hub.name;
     const cityShort =
-      hub.city === 'TP. Hồ Chí Minh' || hub.city === 'Hồ Chí Minh'
-        ? 'TP.HCM'
-        : hub.city;
+      hub.city === 'TP. Hồ Chí Minh' || hub.city === 'Hồ Chí Minh' ? 'TP.HCM' : hub.city;
     return cityShort ? `${hub.name} (${cityShort})` : hub.name;
   };
 
@@ -71,7 +76,9 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
 
   // Derived display values
   const originHubDisplay = selectedOriginHub ? getHubLabel(selectedOriginHub) : originHubFallback;
-  const destinationHubDisplay = selectedDestinationHub ? getHubLabel(selectedDestinationHub) : destinationHubFallback;
+  const destinationHubDisplay = selectedDestinationHub
+    ? getHubLabel(selectedDestinationHub)
+    : destinationHubFallback;
 
   const suggestedInitials = useMemo(() => {
     const name = (user?.firstName || '') + ' ' + (user?.lastName || '');
@@ -108,7 +115,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
       setOrderCode(res.orderCode);
       toast.success(`Đã sinh mã: ${res.orderCode}`, { duration: 2000 });
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(apiMessage || 'Không thể sinh mã đơn hàng. Vui lòng thử lại.');
     }
   };
@@ -177,7 +185,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
       onOpenChange(false);
       resetForm();
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(apiMessage || 'Lỗi tạo lệnh điều vận. Vui lòng thử lại.');
     }
   };
@@ -199,7 +208,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
             Tạo Lệnh Điều Vận Mới
           </DialogTitle>
           <p className='text-xs text-muted-foreground mt-1'>
-            Khởi tạo đơn hàng điều phối giữa các chi nhánh kho và gửi yêu cầu xếp xe đến Đội xe (Fleet).
+            Khởi tạo đơn hàng điều phối giữa các chi nhánh kho và gửi yêu cầu xếp xe đến Đội xe
+            (Fleet).
           </p>
         </DialogHeader>
 
@@ -241,7 +251,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                 />
               </div>
               <p className='text-[11px] text-muted-foreground'>
-                Định dạng gợi ý: [TIỀN TỐ]-[THÁNG NĂM]-[STT], ví dụ: <span className='font-mono font-medium'>{placeholderCode}</span>
+                Định dạng gợi ý: [TIỀN TỐ]-[THÁNG NĂM]-[STT], ví dụ:{' '}
+                <span className='font-mono font-medium'>{placeholderCode}</span>
               </p>
             </div>
 
@@ -280,7 +291,9 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                     className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
                   >
                     {DEFAULT_HUBS.map((hub) => (
-                      <option key={hub} value={hub}>{hub}</option>
+                      <option key={hub} value={hub}>
+                        {hub}
+                      </option>
                     ))}
                   </select>
                 )}
@@ -319,7 +332,9 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                     className='w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all'
                   >
                     {DEFAULT_HUBS.map((hub) => (
-                      <option key={hub} value={hub}>{hub}</option>
+                      <option key={hub} value={hub}>
+                        {hub}
+                      </option>
                     ))}
                   </select>
                 )}
@@ -348,7 +363,9 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                   >
                     Số lượng kiện
                   </label>
-                  <span className='text-[10px] text-muted-foreground font-normal bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded'>Tùy chọn</span>
+                  <span className='text-[10px] text-muted-foreground font-normal bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded'>
+                    Tùy chọn
+                  </span>
                 </div>
                 <Input
                   id='total-quantity-input'
@@ -357,9 +374,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                   step='1'
                   placeholder='VD: 3000 (kiện/cái)'
                   value={totalQuantity}
-                  onChange={(e) =>
-                    setTotalQuantity(e.target.value ? Number(e.target.value) : '')
-                  }
+                  onChange={(e) => setTotalQuantity(e.target.value ? Number(e.target.value) : '')}
                   className='bg-white dark:bg-slate-950 font-medium'
                 />
               </div>
@@ -485,7 +500,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                   className='border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-950 text-sm resize-y'
                 />
                 <p className='text-[11px] text-amber-800 dark:text-amber-300'>
-                  Nội dung này sẽ được chuyển trực tiếp cho Quản lý Đội xe (Fleet) để thực hiện hợp đồng thuê ngoài.
+                  Nội dung này sẽ được chuyển trực tiếp cho Quản lý Đội xe (Fleet) để thực hiện hợp
+                  đồng thuê ngoài.
                 </p>
               </div>
             )}

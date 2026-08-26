@@ -51,7 +51,9 @@ export async function submitOrder(id: number): Promise<Order> {
 }
 
 export async function markNoVehicle(id: number, reason?: string): Promise<Order> {
-  const res = await apiClient.patch<ApiResponse<Order>>(`/api/v1/orders/${id}/no-vehicle`, { reason });
+  const res = await apiClient.patch<ApiResponse<Order>>(`/api/v1/orders/${id}/no-vehicle`, {
+    reason
+  });
   return res.data.data;
 }
 
@@ -60,9 +62,12 @@ export async function deleteOrder(id: number): Promise<void> {
 }
 
 export async function generateOrderCode(prefix?: string): Promise<GenerateCodeResponse> {
-  const res = await apiClient.get<ApiResponse<GenerateCodeResponse>>('/api/v1/orders/generate-code', {
-    params: prefix ? { prefix } : undefined
-  });
+  const res = await apiClient.get<ApiResponse<GenerateCodeResponse>>(
+    '/api/v1/orders/generate-code',
+    {
+      params: prefix ? { prefix } : undefined
+    }
+  );
   return res.data.data;
 }
 

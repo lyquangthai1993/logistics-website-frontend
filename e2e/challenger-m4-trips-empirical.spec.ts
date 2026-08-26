@@ -25,7 +25,8 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     await page.fill('#goods-desc-input', 'Thép tấm xây dựng nặng');
 
     const createPromise = page.waitForResponse(
-      (res) => res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
+      (res) =>
+        res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
     );
     await page.click('button[type="submit"]:has-text("Lưu & Tạo lệnh")');
     await createPromise;
@@ -67,7 +68,9 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     await page.click('button:has-text("Hủy")');
   });
 
-  test('Test 2: Split Shipment Mode - Min/Max Vehicle Boundaries (2..5) & Validation', async ({ page }) => {
+  test('Test 2: Split Shipment Mode - Min/Max Vehicle Boundaries (2..5) & Validation', async ({
+    page
+  }) => {
     test.setTimeout(60_000);
     const testOrderCode = `SPLIT${Date.now().toString().slice(-4)}`;
 
@@ -83,7 +86,8 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     await page.fill('#goods-desc-input', 'Hàng cồng kềnh chia 5 xe');
 
     const createPromise = page.waitForResponse(
-      (res) => res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
+      (res) =>
+        res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
     );
     await page.click('button[type="submit"]:has-text("Lưu & Tạo lệnh")');
     await createPromise;
@@ -165,7 +169,8 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     await page.fill('#goods-desc-input', 'Hàng cồng kềnh cần báo hết xe');
 
     const createPromise = page.waitForResponse(
-      (res) => res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
+      (res) =>
+        res.url().includes('/orders') && res.request().method() === 'POST' && res.status() === 201
     );
     await page.click('button[type="submit"]:has-text("Lưu & Tạo lệnh")');
     await createPromise;
@@ -211,11 +216,16 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     await expect(radioCustom).toBeChecked();
 
     const customReasonInput = page.locator('#no-vehicle-custom-reason');
-    await customReasonInput.fill('Toàn bộ xe tải 15T đang chạy tuyến Huế - SG. Đề nghị thuê xe ngoài.');
+    await customReasonInput.fill(
+      'Toàn bộ xe tải 15T đang chạy tuyến Huế - SG. Đề nghị thuê xe ngoài.'
+    );
 
     // Confirm No-Vehicle action (PATCH request)
     const noVehiclePromise = page.waitForResponse(
-      (res) => res.url().includes('/no-vehicle') && res.request().method() === 'PATCH' && res.status() === 200
+      (res) =>
+        res.url().includes('/no-vehicle') &&
+        res.request().method() === 'PATCH' &&
+        res.status() === 200
     );
     await page.click('button:has-text("Xác nhận báo hết xe")');
     await noVehiclePromise;
@@ -272,12 +282,18 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
 
-    await page.goto('/dashboard/trips?page=-99&perPage=99999&search=%3Cscript%3E&status=INVALID&tab=corrupted_tab');
+    await page.goto(
+      '/dashboard/trips?page=-99&perPage=99999&search=%3Cscript%3E&status=INVALID&tab=corrupted_tab'
+    );
     await page.waitForLoadState('networkidle');
 
     // Page must remain responsive and render without fatal crash
-    await expect(page.getByRole('heading', { name: 'Phân Công Xe & Quản Lý Chuyến' })).toBeVisible();
-    const hasFatalCrash = consoleErrors.some((e) => e.includes('Minified React error') || e.includes('Uncaught Error'));
+    await expect(
+      page.getByRole('heading', { name: 'Phân Công Xe & Quản Lý Chuyến' })
+    ).toBeVisible();
+    const hasFatalCrash = consoleErrors.some(
+      (e) => e.includes('Minified React error') || e.includes('Uncaught Error')
+    );
     expect(hasFatalCrash).toBe(false);
   });
 });

@@ -57,7 +57,9 @@ export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps
     () =>
       table
         .getAllColumns()
-        .filter((column) => column.getCanHide() && column.id !== 'actions' && column.id !== 'select'),
+        .filter(
+          (column) => column.getCanHide() && column.id !== 'actions' && column.id !== 'select'
+        ),
     [table]
   );
 

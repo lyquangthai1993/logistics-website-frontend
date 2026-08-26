@@ -84,7 +84,8 @@ export const columns: ColumnDef<User>[] = [
         role?.name === 'WAREHOUSE_MANAGER' ||
         role?.name === 'Warehouse Manager'
       ) {
-        badgeClass = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
+        badgeClass =
+          'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
       }
 
       return (

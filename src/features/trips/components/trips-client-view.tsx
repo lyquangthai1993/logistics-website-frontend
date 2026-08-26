@@ -10,11 +10,7 @@ import { TripsDatePresetBar } from './trips-date-preset-bar';
 import { TripsKpiCards } from './trips-kpi-cards';
 import { PendingOrdersView } from './pending-orders-view';
 import { TripsTable } from './trips-tables';
-import {
-  tripKeys,
-  tripStatsQueryOptions,
-  tripsQueryOptions
-} from '../api/queries';
+import { tripKeys, tripStatsQueryOptions, tripsQueryOptions } from '../api/queries';
 import { orderKeys, ordersQueryOptions } from '@/features/orders/api/queries';
 import {
   rawVehiclesQueryOptions,
@@ -32,10 +28,7 @@ import {
 export function TripsClientView() {
   const queryClient = useQueryClient();
 
-  const [tab, setTab] = useQueryState(
-    'tab',
-    parseAsString.withDefault('pending-orders')
-  );
+  const [tab, setTab] = useQueryState('tab', parseAsString.withDefault('pending-orders'));
 
   // Normalize tab value for backward compatibility (supports 'pending' / 'all' as well)
   const normalizedTab = useMemo(() => {
@@ -185,11 +178,7 @@ export function TripsClientView() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger
-              value='all-trips'
-              id='tab-all-trips'
-              className='cursor-pointer px-4'
-            >
+            <TabsTrigger value='all-trips' id='tab-all-trips' className='cursor-pointer px-4'>
               Danh Sách Chuyến Xe ({tripsTotal})
             </TabsTrigger>
           </TabsList>

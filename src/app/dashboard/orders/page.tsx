@@ -26,15 +26,7 @@ export default async function OrdersPage(props: PageProps) {
       infoContent={ordersInfoContent}
       pageHeaderAction={<OrderCreateDialogTrigger />}
     >
-      <Suspense
-        fallback={
-          <DataTableSkeleton
-            columnCount={7}
-            rowCount={10}
-            filterCount={2}
-          />
-        }
-      >
+      <Suspense fallback={<DataTableSkeleton columnCount={7} rowCount={10} filterCount={2} />}>
         <OrdersListing />
       </Suspense>
     </PageContainer>

@@ -34,8 +34,8 @@ export function DeleteConfirmDialog({
         </DialogHeader>
         <p className='text-sm text-muted-foreground'>
           Bạn có chắc chắn muốn xóa {itemType}{' '}
-          <strong className='text-foreground font-semibold'>{title}</strong>? Thao tác này sẽ đánh dấu
-          xóa trong hệ thống.
+          <strong className='text-foreground font-semibold'>{title}</strong>? Thao tác này sẽ đánh
+          dấu xóa trong hệ thống.
         </p>
         <DialogFooter className='pt-2'>
           <Button

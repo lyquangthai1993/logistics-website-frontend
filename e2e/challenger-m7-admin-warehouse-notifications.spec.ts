@@ -32,13 +32,17 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await clearSession(page);
     });
 
-    test('1.1 RBAC Enforcement: 3-layer protection across UI, Route Guard & API', async ({ page }) => {
+    test('1.1 RBAC Enforcement: 3-layer protection across UI, Route Guard & API', async ({
+      page
+    }) => {
       // Step 1: Super Admin has full UI & Route access
       await loginAs(page, adminUser);
       await page.goto('/dashboard/users');
       await page.waitForLoadState('networkidle');
       await expect(page).toHaveURL(/\/dashboard\/users/);
-      await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible({ timeout: 8000 });
+      await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible({
+        timeout: 8000
+      });
       await expect(page.locator('#btn-add-user').first()).toBeVisible();
       await expect(page.locator('table')).toBeVisible();
 
@@ -72,7 +76,9 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await ctx.dispose();
     });
 
-    test('1.2 Users CRUD Lifecycle: Create, Validate, Edit, Delete & Vietnamese Sonner Toasts', async ({ page }) => {
+    test('1.2 Users CRUD Lifecycle: Create, Validate, Edit, Delete & Vietnamese Sonner Toasts', async ({
+      page
+    }) => {
       test.setTimeout(90_000);
       const uniqueSuffix = Date.now().toString().slice(-4);
       const testFirstName = `Empirical${uniqueSuffix}`;
@@ -136,7 +142,9 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
 
       // Note: Backend currently returns 422 if strict string vs number comparison in UsersService.update
       if (updateRes.status() === 200 || updateRes.status() === 204) {
-        await expect(page.getByText('Cập nhật người dùng thành công!')).toBeVisible({ timeout: 8000 });
+        await expect(page.getByText('Cập nhật người dùng thành công!')).toBeVisible({
+          timeout: 8000
+        });
       } else {
         const sonnerToast = page.locator('[data-sonner-toast]');
         await expect(sonnerToast.first()).toBeVisible({ timeout: 8000 });
@@ -168,13 +176,18 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await loginAs(page, adminUser);
 
       // Injected extreme query parameters
-      await page.goto('/dashboard/users?page=9999&perPage=50&name=%3Cscript%3Ealert(1)%3C%2Fscript%3E&role=999');
+      await page.goto(
+        '/dashboard/users?page=9999&perPage=50&name=%3Cscript%3Ealert(1)%3C%2Fscript%3E&role=999'
+      );
       await page.waitForLoadState('networkidle');
 
       // Expect page not to crash, table renders empty state gracefully
       await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible();
       await expect(page.locator('table')).toBeVisible();
-      const noResults = page.locator('text=No results').or(page.locator('text=Không có dữ liệu')).or(page.locator('tbody tr'));
+      const noResults = page
+        .locator('text=No results')
+        .or(page.locator('text=Không có dữ liệu'))
+        .or(page.locator('tbody tr'));
       await expect(noResults.first()).toBeVisible();
     });
   });
@@ -188,13 +201,17 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await clearSession(page);
     });
 
-    test('2.1 Warehouse Inbound Page: KPI Cards, View Switching & Table Layout', async ({ page }) => {
+    test('2.1 Warehouse Inbound Page: KPI Cards, View Switching & Table Layout', async ({
+      page
+    }) => {
       await loginAs(page, warehouseUser);
       await page.goto('/dashboard/warehouse');
       await page.waitForLoadState('networkidle');
 
       // Verify Page Title & Description
-      await expect(page.getByRole('heading', { name: 'Inbound Hub & Kho Tiếp Nhận' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Inbound Hub & Kho Tiếp Nhận' })
+      ).toBeVisible();
 
       // Verify KPI Summary Cards Render
       await expect(page.getByText('Tổng chuyến sắp đến', { exact: true })).toBeVisible();
@@ -245,7 +262,10 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       expect(page.url()).not.toContain(`hub=`);
 
       // 2.2.2 Search Filter
-      const searchInput = page.locator('#warehouse-search-input').or(page.locator('input[placeholder*="Tìm theo mã đơn"]')).first();
+      const searchInput = page
+        .locator('#warehouse-search-input')
+        .or(page.locator('input[placeholder*="Tìm theo mã đơn"]'))
+        .first();
       if (await searchInput.isVisible()) {
         await searchInput.fill('TRIP-TEST-SEARCH');
         await page.waitForTimeout(500);
@@ -262,11 +282,15 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await loginAs(page, warehouseUser);
 
       // Injected corrupt parameters
-      await page.goto('/dashboard/warehouse?page=-10&perPage=100&hub=%27%20OR%201=1--&status=CORRUPT_STATUS&view=table');
+      await page.goto(
+        '/dashboard/warehouse?page=-10&perPage=100&hub=%27%20OR%201=1--&status=CORRUPT_STATUS&view=table'
+      );
       await page.waitForLoadState('networkidle');
 
       // Page stays alive, KPI cards and fallback table render
-      await expect(page.getByRole('heading', { name: 'Inbound Hub & Kho Tiếp Nhận' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Inbound Hub & Kho Tiếp Nhận' })
+      ).toBeVisible();
       await expect(page.locator('table')).toBeVisible();
     });
   });
@@ -286,12 +310,17 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await page.waitForLoadState('networkidle');
 
       // Bell trigger button in header
-      const bellBtn = page.getByRole('button', { name: /notifications/i }).or(page.locator('button:has([class*="notification"])')).first();
+      const bellBtn = page
+        .getByRole('button', { name: /notifications/i })
+        .or(page.locator('button:has([class*="notification"])'))
+        .first();
       await expect(bellBtn).toBeVisible({ timeout: 10_000 });
       await bellBtn.click();
 
       // Popover content container
-      const popoverContent = page.locator('[data-radix-popper-content-wrapper]').or(page.locator('[role="dialog"]'));
+      const popoverContent = page
+        .locator('[data-radix-popper-content-wrapper]')
+        .or(page.locator('[role="dialog"]'));
       await expect(popoverContent).toBeVisible({ timeout: 8000 });
 
       // Popover link to full notifications page
@@ -359,14 +388,18 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
         const markAllBtn = page.getByRole('button', { name: /mark all as read/i }).first();
         if (await markAllBtn.isVisible()) {
           const markAllPromise = page.waitForResponse(
-            (res) => res.url().includes('/api/v1/notifications/read-all') && res.request().method() === 'PATCH'
+            (res) =>
+              res.url().includes('/api/v1/notifications/read-all') &&
+              res.request().method() === 'PATCH'
           );
           await markAllBtn.click();
           const markAllRes = await markAllPromise;
           expect([200, 204]).toContain(markAllRes.status());
 
           // Verify Vietnamese Toast
-          await expect(page.getByText('Đã đánh dấu tất cả thông báo là đã đọc')).toBeVisible({ timeout: 8000 });
+          await expect(page.getByText('Đã đánh dấu tất cả thông báo là đã đọc')).toBeVisible({
+            timeout: 8000
+          });
         }
       }
       await ctx.dispose();

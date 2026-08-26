@@ -18,26 +18,18 @@ import { DEFAULT_HUBS } from './options';
 const columnIds = columns.map((c) => c.id).filter(Boolean) as string[];
 
 export function WarehouseTable() {
-  const {
-    filters,
-    params,
-    selectedHub,
-    currentView,
-    setView,
-    setSelectedHub
-  } = useWarehouseTableFilters(columnIds);
+  const { filters, params, selectedHub, currentView, setView, setSelectedHub } =
+    useWarehouseTableFilters(columnIds);
 
-  const { data: tripsResponse, isLoading: isTripsLoading, refetch } = useQuery(
-    tripsQueryOptions(filters)
-  );
-  const { data: allInboundTripsResponse } = useQuery(
-    tripsQueryOptions({ limit: 100 })
-  );
+  const {
+    data: tripsResponse,
+    isLoading: isTripsLoading,
+    refetch
+  } = useQuery(tripsQueryOptions(filters));
+  const { data: allInboundTripsResponse } = useQuery(tripsQueryOptions({ limit: 100 }));
   const { data: activeHubs = [] } = useQuery(activeHubsQueryOptions());
 
-  const hubOptions = activeHubs.length > 0
-    ? activeHubs.map((h) => h.name)
-    : DEFAULT_HUBS;
+  const hubOptions = activeHubs.length > 0 ? activeHubs.map((h) => h.name) : DEFAULT_HUBS;
 
   const trips = tripsResponse?.data ?? [];
   const total = tripsResponse?.meta?.total ?? 0;
@@ -58,10 +50,7 @@ export function WarehouseTable() {
   return (
     <div className='flex flex-1 flex-col space-y-4'>
       {/* KPI Cards */}
-      <WarehouseKpiCards
-        trips={allInboundTripsResponse?.data ?? trips}
-        loading={isTripsLoading}
-      />
+      <WarehouseKpiCards trips={allInboundTripsResponse?.data ?? trips} loading={isTripsLoading} />
 
       {/* View Switcher & Hub Selector Bar */}
       <div className='flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3 rounded-lg border border-border/70 shadow-2xs'>

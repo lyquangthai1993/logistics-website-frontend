@@ -16,9 +16,7 @@ export const columns: ColumnDef<Driver>[] = [
       <DataTableColumnHeader column={column} title='Họ Và Tên' />
     ),
     cell: ({ row }) => (
-      <span className='font-semibold text-foreground'>
-        {row.original.fullName}
-      </span>
+      <span className='font-semibold text-foreground'>{row.original.fullName}</span>
     ),
     meta: {
       columnTitle: 'Họ Và Tên',
@@ -38,9 +36,7 @@ export const columns: ColumnDef<Driver>[] = [
     meta: {
       columnTitle: 'Số Điện Thoại'
     },
-    cell: ({ row }) => (
-      <span className='font-mono text-muted-foreground'>{row.original.phone}</span>
-    )
+    cell: ({ row }) => <span className='font-mono text-muted-foreground'>{row.original.phone}</span>
   },
   {
     id: 'licenseNumber',
@@ -79,9 +75,7 @@ export const columns: ColumnDef<Driver>[] = [
       columnTitle: 'Kinh Nghiệm'
     },
     cell: ({ row }) => (
-      <span className='font-medium text-muted-foreground'>
-        {row.original.experienceYears} Năm
-      </span>
+      <span className='font-medium text-muted-foreground'>{row.original.experienceYears} Năm</span>
     )
   },
   {

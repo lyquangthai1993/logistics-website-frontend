@@ -44,7 +44,8 @@ export default function ForgotPasswordViewPage() {
               <span>Hệ thống Quản trị Vận tải Số hóa</span>
             </div>
             <p className='text-sm text-slate-200 leading-relaxed'>
-              Tối ưu hóa quy trình vận tải, kết nối chuỗi cung ứng và nâng tầm hiệu suất logistics toàn diện.
+              Tối ưu hóa quy trình vận tải, kết nối chuỗi cung ứng và nâng tầm hiệu suất logistics
+              toàn diện.
             </p>
           </div>
         </div>
@@ -53,7 +54,8 @@ export default function ForgotPasswordViewPage() {
         <div className='relative z-20 mt-auto'>
           <blockquote className='space-y-2 rounded-xl bg-slate-950/60 p-4 ring-1 ring-white/10 backdrop-blur-md'>
             <p className='text-sm text-slate-200 italic'>
-              &ldquo;Bảo mật thông tin và bảo đảm tính sẵn sàng cao là ưu tiên hàng đầu trong vận hành Logistics TMS.&rdquo;
+              &ldquo;Bảo mật thông tin và bảo đảm tính sẵn sàng cao là ưu tiên hàng đầu trong vận
+              hành Logistics TMS.&rdquo;
             </p>
             <footer className='text-xs font-medium text-slate-400'>Logistics TMS Platform</footer>
           </blockquote>
@@ -64,9 +66,12 @@ export default function ForgotPasswordViewPage() {
       <div className='flex h-full items-center justify-center p-4 lg:p-8 bg-background'>
         <div className='flex w-full max-w-md flex-col items-center justify-center space-y-6'>
           <div className='flex flex-col space-y-2 text-center'>
-            <h1 className='text-2xl font-semibold tracking-tight text-foreground'>Quên mật khẩu?</h1>
+            <h1 className='text-2xl font-semibold tracking-tight text-foreground'>
+              Quên mật khẩu?
+            </h1>
             <p className='text-muted-foreground text-sm leading-relaxed'>
-              Nhập địa chỉ email doanh nghiệp đã đăng ký để nhận mã OTP và liên kết đặt lại mật khẩu an toàn.
+              Nhập địa chỉ email doanh nghiệp đã đăng ký để nhận mã OTP và liên kết đặt lại mật khẩu
+              an toàn.
             </p>
           </div>
           <ForgotPasswordForm />

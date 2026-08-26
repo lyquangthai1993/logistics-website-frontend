@@ -120,7 +120,10 @@ export function HubFormDialog({
         <form onSubmit={handleSubmit} className='space-y-4 py-2'>
           <div className='grid grid-cols-2 gap-4'>
             <div className='space-y-1.5'>
-              <label htmlFor='input-hub-code' className='text-muted-foreground text-xs font-semibold'>
+              <label
+                htmlFor='input-hub-code'
+                className='text-muted-foreground text-xs font-semibold'
+              >
                 Mã Chi Nhánh (Unique) *
               </label>
               <Input
@@ -133,7 +136,10 @@ export function HubFormDialog({
               />
             </div>
             <div className='space-y-1.5'>
-              <label htmlFor='input-hub-city' className='text-muted-foreground text-xs font-semibold'>
+              <label
+                htmlFor='input-hub-city'
+                className='text-muted-foreground text-xs font-semibold'
+              >
                 Tỉnh / Thành Phố *
               </label>
               <Input
@@ -160,7 +166,10 @@ export function HubFormDialog({
           </div>
 
           <div className='space-y-1.5'>
-            <label htmlFor='input-hub-address' className='text-muted-foreground text-xs font-semibold'>
+            <label
+              htmlFor='input-hub-address'
+              className='text-muted-foreground text-xs font-semibold'
+            >
               Địa Chỉ Chi Tiết
             </label>
             <Input
@@ -173,7 +182,10 @@ export function HubFormDialog({
 
           <div className='grid grid-cols-2 gap-4'>
             <div className='space-y-1.5'>
-              <label htmlFor='input-hub-manager' className='text-muted-foreground text-xs font-semibold'>
+              <label
+                htmlFor='input-hub-manager'
+                className='text-muted-foreground text-xs font-semibold'
+              >
                 Người Quản Lý Kho
               </label>
               <Input
@@ -184,7 +196,10 @@ export function HubFormDialog({
               />
             </div>
             <div className='space-y-1.5'>
-              <label htmlFor='input-hub-phone' className='text-muted-foreground text-xs font-semibold'>
+              <label
+                htmlFor='input-hub-phone'
+                className='text-muted-foreground text-xs font-semibold'
+              >
                 Số Điện Thoại Liên Hệ
               </label>
               <Input
@@ -204,7 +219,10 @@ export function HubFormDialog({
               onChange={(e) => setFormIsActive(e.target.checked)}
               className='border-input text-primary focus:ring-primary h-4 w-4 rounded cursor-pointer'
             />
-            <label htmlFor='input-hub-is-active' className='text-foreground text-sm font-medium cursor-pointer'>
+            <label
+              htmlFor='input-hub-is-active'
+              className='text-foreground text-sm font-medium cursor-pointer'
+            >
               Kích hoạt chi nhánh ngay (Sẵn sàng tiếp nhận đơn & phương tiện)
             </label>
           </div>

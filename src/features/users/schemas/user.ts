@@ -1,9 +1,17 @@
 import * as z from 'zod';
 
 export const userSchema = z.object({
-  firstName: z.string().trim().min(1, 'Vui lòng nhập tên (First Name)').max(50, 'Tên tối đa 50 ký tự'),
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'Vui lòng nhập tên (First Name)')
+    .max(50, 'Tên tối đa 50 ký tự'),
   lastName: z.string().trim().min(1, 'Vui lòng nhập họ (Last Name)').max(50, 'Họ tối đa 50 ký tự'),
-  email: z.string().trim().min(1, 'Vui lòng nhập địa chỉ email').email('Email không đúng định dạng'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Vui lòng nhập địa chỉ email')
+    .email('Email không đúng định dạng'),
   username: z.string().trim().optional().or(z.literal('')),
   password: z
     .string()

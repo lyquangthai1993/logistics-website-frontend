@@ -3,10 +3,7 @@ import { getQueryClient } from '@/lib/query-client';
 import { tripsSearchParamsCache } from '../params';
 import { tripsQueryOptions, tripStatsQueryOptions } from '../api/queries';
 import { ordersQueryOptions } from '@/features/orders/api/queries';
-import {
-  rawVehiclesQueryOptions,
-  rawDriversQueryOptions
-} from '@/features/fleet/api/queries';
+import { rawVehiclesQueryOptions, rawDriversQueryOptions } from '@/features/fleet/api/queries';
 import { TripsClientView } from './trips-client-view';
 import {
   getThisMonthRange,

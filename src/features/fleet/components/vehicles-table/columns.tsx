@@ -45,9 +45,7 @@ export const columns: ColumnDef<Vehicle>[] = [
     ),
     cell: ({ row }) => (
       <div>
-        <div className='font-medium text-foreground'>
-          {row.original.model || 'Chưa cập nhật'}
-        </div>
+        <div className='font-medium text-foreground'>{row.original.model || 'Chưa cập nhật'}</div>
         <div className='text-xs text-muted-foreground font-mono'>
           {row.original.type}
           {row.original.isExternal && row.original.externalProvider && (
@@ -90,9 +88,7 @@ export const columns: ColumnDef<Vehicle>[] = [
     meta: {
       columnTitle: 'Thể Tích Tối Đa'
     },
-    cell: ({ row }) => (
-      <span className='font-mono font-medium'>{row.original.maxVolume} m³</span>
-    )
+    cell: ({ row }) => <span className='font-mono font-medium'>{row.original.maxVolume} m³</span>
   },
   {
     id: 'currentHub',

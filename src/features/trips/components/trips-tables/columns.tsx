@@ -179,10 +179,16 @@ export const columns: ColumnDef<Trip>[] = [
       return (
         <div className='text-xs text-slate-600 dark:text-slate-400 space-y-0.5'>
           <div>
-            Lấy: <span className='font-medium text-slate-800 dark:text-slate-200'>{trip.pickupDate || 'N/A'} {trip.pickupTime || ''}</span>
+            Lấy:{' '}
+            <span className='font-medium text-slate-800 dark:text-slate-200'>
+              {trip.pickupDate || 'N/A'} {trip.pickupTime || ''}
+            </span>
           </div>
           <div>
-            Đích: <span className='font-medium text-slate-800 dark:text-slate-200'>{trip.estimatedDeliveryDate || 'N/A'}</span>
+            Đích:{' '}
+            <span className='font-medium text-slate-800 dark:text-slate-200'>
+              {trip.estimatedDeliveryDate || 'N/A'}
+            </span>
           </div>
         </div>
       );

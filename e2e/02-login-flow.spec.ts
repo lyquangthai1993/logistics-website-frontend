@@ -45,9 +45,7 @@ test.describe('[Login Page] UI baseline', () => {
     await page.click('button[type="submit"]');
 
     // Error div should appear
-    const errorLocator = page.locator(
-      'div.bg-destructive\\/10, [data-testid="login-error"]'
-    );
+    const errorLocator = page.locator('div.bg-destructive\\/10, [data-testid="login-error"]');
     await expect(errorLocator).toBeVisible({
       timeout: 8000
     });
@@ -127,18 +125,14 @@ for (const user of TEST_USERS) {
         parsed.state?.isAuthenticated,
         'localStorage auth-storage isAuthenticated is true'
       ).toBe(true);
-      expect(
-        parsed.state?.user?.role,
-        `localStorage user role matches ${user.role}`
-      ).toBe(user.role);
+      expect(parsed.state?.user?.role, `localStorage user role matches ${user.role}`).toBe(
+        user.role
+      );
 
       // 2. Verify Next.js SSR access_token cookie is synchronized
       const cookies = await page.context().cookies();
       const tokenCookie = cookies.find((c) => c.name === 'access_token');
-      expect(
-        tokenCookie,
-        'access_token cookie must be present for SSR Route Guards'
-      ).toBeDefined();
+      expect(tokenCookie, 'access_token cookie must be present for SSR Route Guards').toBeDefined();
       expect(tokenCookie?.value).toBeTruthy();
     });
   });

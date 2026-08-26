@@ -87,7 +87,9 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
                   <Icons.mapPin className='h-3.5 w-3.5 text-blue-500 shrink-0' />
                   <span>{trip.order?.originHub?.split(' ')[0] || 'Kho gửi'}</span>
                   <span>&rarr;</span>
-                  <strong className='text-foreground'>{trip.order?.destinationHub || 'Kho nhận'}</strong>
+                  <strong className='text-foreground'>
+                    {trip.order?.destinationHub || 'Kho nhận'}
+                  </strong>
                 </div>
               </div>
 

@@ -55,8 +55,7 @@ export default function NotificationsPage() {
     isAnyFilterActive
   } = useNotificationsFilters();
 
-  const isReadParam =
-    tab === 'unread' ? false : tab === 'read' ? true : undefined;
+  const isReadParam = tab === 'unread' ? false : tab === 'read' ? true : undefined;
 
   // 100% Server-side Pagination & Filtering trực tiếp từ Database
   const { data, isLoading, isFetching } = useNotificationsQuery({
@@ -79,9 +78,7 @@ export default function NotificationsPage() {
 
   // Đếm số lượng unread tổng thể
   const totalUnreadGlobal =
-    typeof unreadCountData === 'number'
-      ? unreadCountData
-      : (statsData?.unread ?? 0);
+    typeof unreadCountData === 'number' ? unreadCountData : (statsData?.unread ?? 0);
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // 1. Tự động đánh dấu đã đọc nếu chưa đọc
@@ -222,8 +219,8 @@ export default function NotificationsPage() {
             const isSelected = type === opt.value;
             const count =
               opt.value === 'all'
-                ? statsData?.total ?? total
-                : statsData?.byType[opt.value] ?? 0;
+                ? (statsData?.total ?? total)
+                : (statsData?.byType[opt.value] ?? 0);
 
             return (
               <Button
@@ -237,7 +234,9 @@ export default function NotificationsPage() {
                 }`}
                 onClick={() => setType(opt.value)}
               >
-                <IconComp className={`h-3 w-3 mr-1.5 ${isSelected ? 'text-primary-foreground' : opt.colorClass}`} />
+                <IconComp
+                  className={`h-3 w-3 mr-1.5 ${isSelected ? 'text-primary-foreground' : opt.colorClass}`}
+                />
                 <span>{opt.label}</span>
                 <span
                   className={`ml-1.5 text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
@@ -261,10 +260,15 @@ export default function NotificationsPage() {
             Tất cả ({type === 'all' ? (statsData?.total ?? total) : (statsData?.byType[type] ?? 0)})
           </TabsTrigger>
           <TabsTrigger value='unread' className='cursor-pointer text-xs'>
-            Chưa đọc ({type === 'all' ? (statsData?.unread ?? 0) : (statsData?.unreadByType[type] ?? 0)})
+            Chưa đọc (
+            {type === 'all' ? (statsData?.unread ?? 0) : (statsData?.unreadByType[type] ?? 0)})
           </TabsTrigger>
           <TabsTrigger value='read' className='cursor-pointer text-xs'>
-            Đã đọc ({type === 'all' ? (statsData?.read ?? 0) : Math.max(0, (statsData?.byType[type] ?? 0) - (statsData?.unreadByType[type] ?? 0))})
+            Đã đọc (
+            {type === 'all'
+              ? (statsData?.read ?? 0)
+              : Math.max(0, (statsData?.byType[type] ?? 0) - (statsData?.unreadByType[type] ?? 0))}
+            )
           </TabsTrigger>
         </TabsList>
 
@@ -285,7 +289,8 @@ export default function NotificationsPage() {
       {totalPages > 1 && (
         <div className='mt-6 flex items-center justify-between border-t pt-4'>
           <p className='text-xs text-muted-foreground'>
-            Hiển thị {(page - 1) * perPage + 1} - {Math.min(page * perPage, total)} trong số {total} thông báo
+            Hiển thị {(page - 1) * perPage + 1} - {Math.min(page * perPage, total)} trong số {total}{' '}
+            thông báo
           </p>
           <div className='flex items-center gap-2'>
             <Button
@@ -317,4 +322,3 @@ export default function NotificationsPage() {
     </PageContainer>
   );
 }
-

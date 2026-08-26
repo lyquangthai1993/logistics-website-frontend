@@ -28,7 +28,8 @@ export function OrderDeleteDialog({ order, open, onOpenChange }: OrderDeleteDial
       toast.success('Đã xóa đơn hàng thành công');
       onOpenChange(false);
     } catch (err: unknown) {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
       toast.error(apiMessage || 'Không thể xóa đơn hàng. Vui lòng thử lại.');
     }
   };
@@ -45,13 +46,11 @@ export function OrderDeleteDialog({ order, open, onOpenChange }: OrderDeleteDial
         <div className='text-muted-foreground space-y-3 py-2 text-sm'>
           <p>
             Bạn có chắc chắn muốn hủy / xóa đơn hàng{' '}
-            <strong className='text-foreground font-semibold font-mono'>
-              {order.orderCode}
-            </strong>
-            ?
+            <strong className='text-foreground font-semibold font-mono'>{order.orderCode}</strong>?
           </p>
           <p className='text-muted-foreground text-xs'>
-            Hệ thống áp dụng chính sách <strong>Xóa Mềm (Soft Delete)</strong>. Lịch sử giao dịch và vết kiểm toán vẫn được bảo toàn trong cơ sở dữ liệu.
+            Hệ thống áp dụng chính sách <strong>Xóa Mềm (Soft Delete)</strong>. Lịch sử giao dịch và
+            vết kiểm toán vẫn được bảo toàn trong cơ sở dữ liệu.
           </p>
         </div>
         <DialogFooter>

@@ -32,7 +32,9 @@ test.describe('Milestone 4: Critical DOM Selectors & Dispatch Flow Verification'
       await expect(page.locator('#trip-pickup-time')).toBeVisible();
       await expect(page.locator('#trip-eta-date')).toBeVisible();
       await expect(page.locator('#trip-notes-input')).toBeVisible();
-      await expect(page.locator('button[type="submit"]:has-text("Xác nhận phân công")')).toBeVisible();
+      await expect(
+        page.locator('button[type="submit"]:has-text("Xác nhận phân công")')
+      ).toBeVisible();
 
       // 4. Verify Split Shipment Mode selectors
       const splitToggle = page.locator('button:has-text("Chuyển sang Split")');

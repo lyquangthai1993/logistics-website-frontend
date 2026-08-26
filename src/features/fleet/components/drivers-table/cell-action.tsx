@@ -33,11 +33,7 @@ export function CellAction({ data }: CellActionProps) {
 
   return (
     <>
-      <DriverFormDialog
-        driver={data}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      <DriverFormDialog driver={data} open={editOpen} onOpenChange={setEditOpen} />
 
       <DeleteConfirmDialog
         open={deleteOpen}

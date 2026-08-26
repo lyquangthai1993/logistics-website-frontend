@@ -18,7 +18,7 @@ import { test, expect } from '@playwright/test';
 import {
   captureRuntimeLogs,
   detectNextJsErrorOverlay,
-  checkBackendHealth,
+  checkBackendHealth
 } from './helpers/runtime-logs';
 import { loginAs, clearSession, TEST_USERS } from './helpers/auth';
 
@@ -31,7 +31,7 @@ test.describe('Backend Health Probe', () => {
   test('NestJS backend is reachable and responds < 3s', async ({ page }) => {
     const health = await checkBackendHealth(page);
     console.log(
-      `[Backend Health] Status: ${health.statusCode} | Latency: ${health.latencyMs}ms | Alive: ${health.alive}`,
+      `[Backend Health] Status: ${health.statusCode} | Latency: ${health.latencyMs}ms | Alive: ${health.alive}`
     );
 
     expect(health.alive).toBe(true);
@@ -86,14 +86,14 @@ test.describe('Per-role Dashboard — API Error Interception', () => {
 
       const overlay = await detectNextJsErrorOverlay(page);
       const serverErrors = session.getServerErrors().filter((e) => e.status >= 500);
-      const clientErrors = session.getServerErrors().filter(
-        (e) => e.status >= 400 && e.status < 500,
-      );
+      const clientErrors = session
+        .getServerErrors()
+        .filter((e) => e.status >= 400 && e.status < 500);
       const slowRequests = session.getSlowRequests(SLOW_REQUEST_THRESHOLD_MS);
 
       // Log for CI/debugging visibility
       console.log(
-        `[${user.role}] URL: ${page.url()} | 5xx: ${serverErrors.length} | 4xx: ${clientErrors.length} | slow: ${slowRequests.length}`,
+        `[${user.role}] URL: ${page.url()} | 5xx: ${serverErrors.length} | 4xx: ${clientErrors.length} | slow: ${slowRequests.length}`
       );
       if (serverErrors.length > 0)
         console.error(`[${user.role}] 5xx:`, JSON.stringify(serverErrors, null, 2));
@@ -109,7 +109,7 @@ test.describe('Per-role Dashboard — API Error Interception', () => {
       expect(overlay, `[${user.role}] SSR error overlay should not appear`).toBeNull();
       expect(
         serverErrors,
-        `[${user.role}] Found ${serverErrors.length} server-side 5xx errors during dashboard load`,
+        `[${user.role}] Found ${serverErrors.length} server-side 5xx errors during dashboard load`
       ).toHaveLength(0);
     });
   }
@@ -133,7 +133,7 @@ test.describe('Slow Request Audit (Warning)', () => {
     if (slowRequests.length > 0) {
       console.warn(
         `[Slow Request Audit] ${slowRequests.length} request(s) exceeded ${SLOW_REQUEST_THRESHOLD_MS}ms:`,
-        JSON.stringify(slowRequests, null, 2),
+        JSON.stringify(slowRequests, null, 2)
       );
     } else {
       console.log('[Slow Request Audit] All requests within threshold ✅');

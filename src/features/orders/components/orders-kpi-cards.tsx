@@ -1,12 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  IconFileText,
-  IconClock,
-  IconCircleCheck,
-  IconAlertTriangle
-} from '@tabler/icons-react';
+import { IconFileText, IconClock, IconCircleCheck, IconAlertTriangle } from '@tabler/icons-react';
 import type { OrderStats } from '../api/types';
 
 interface OrdersKpiCardsProps {
@@ -32,7 +27,7 @@ export function OrdersKpiCards({ stats, loading = false }: OrdersKpiCardsProps) 
             {loading ? (
               <span className='inline-block h-8 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse' />
             ) : (
-              stats?.total ?? '—'
+              (stats?.total ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Tổng trong kỳ đã chọn</p>
@@ -52,7 +47,7 @@ export function OrdersKpiCards({ stats, loading = false }: OrdersKpiCardsProps) 
             {loading ? (
               <span className='inline-block h-8 w-12 bg-blue-100 dark:bg-blue-950/50 rounded animate-pulse' />
             ) : (
-              stats?.pending ?? '—'
+              (stats?.pending ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Đã gửi yêu cầu lên Fleet</p>
@@ -72,7 +67,7 @@ export function OrdersKpiCards({ stats, loading = false }: OrdersKpiCardsProps) 
             {loading ? (
               <span className='inline-block h-8 w-12 bg-emerald-100 dark:bg-emerald-950/50 rounded animate-pulse' />
             ) : (
-              assignedAndTransit ?? '—'
+              (assignedAndTransit ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Đã xác nhận + Đang vận chuyển</p>
@@ -92,7 +87,7 @@ export function OrdersKpiCards({ stats, loading = false }: OrdersKpiCardsProps) 
             {loading ? (
               <span className='inline-block h-8 w-12 bg-rose-100 dark:bg-rose-950/50 rounded animate-pulse' />
             ) : (
-              stats?.noVehicle ?? '—'
+              (stats?.noVehicle ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Cần tìm xe thuê ngoài</p>

@@ -466,8 +466,8 @@ export function AssignVehicleDialog({
                     <span>
                       Tổng phân bổ:{' '}
                       <strong className='font-mono text-blue-600'>
-                        {splitTotalWeight.toLocaleString()} /{' '}
-                        {order.totalWeight.toLocaleString()} kg
+                        {splitTotalWeight.toLocaleString()} / {order.totalWeight.toLocaleString()}{' '}
+                        kg
                       </strong>
                     </span>
                     <span>
@@ -515,7 +515,9 @@ export function AssignVehicleDialog({
                               onChange={(e) => {
                                 const updated = [...splitRows];
                                 updated[idx].vehicleId = Number(e.target.value);
-                                const v = vehicles.find((item) => item.id === Number(e.target.value));
+                                const v = vehicles.find(
+                                  (item) => item.id === Number(e.target.value)
+                                );
                                 if (v?.assignedDriverId) {
                                   updated[idx].driverId = v.assignedDriverId;
                                 }
@@ -678,8 +680,8 @@ export function AssignVehicleDialog({
                       }
                       className='w-full text-xs border-dashed cursor-pointer'
                     >
-                      <IconPlus className='h-3.5 w-3.5 mr-1' /> Thêm xe chở hàng (
-                      {splitRows.length}/5)
+                      <IconPlus className='h-3.5 w-3.5 mr-1' /> Thêm xe chở hàng ({splitRows.length}
+                      /5)
                     </Button>
                   )}
                 </div>

@@ -22,11 +22,13 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'on-first-retry',
-    ...(process.env.WINDOW_POSITION ? {
-      launchOptions: {
-        args: [`--window-position=${process.env.WINDOW_POSITION}`]
-      }
-    } : {})
+    ...(process.env.WINDOW_POSITION
+      ? {
+          launchOptions: {
+            args: [`--window-position=${process.env.WINDOW_POSITION}`]
+          }
+        }
+      : {})
   },
   projects: [
     {

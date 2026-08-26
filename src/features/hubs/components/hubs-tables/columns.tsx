@@ -26,7 +26,9 @@ export const columns: ColumnDef<Hub>[] = [
   {
     id: 'name',
     accessorKey: 'name',
-    header: ({ column }) => <DataTableColumnHeader column={column} title='Tên Chi Nhánh & Tỉnh/Thành' />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Tên Chi Nhánh & Tỉnh/Thành' />
+    ),
     cell: ({ row }) => (
       <div>
         <div className='text-foreground flex items-center gap-1.5 font-semibold'>
@@ -96,7 +98,10 @@ export const columns: ColumnDef<Hub>[] = [
       columnTitle: 'Xe Trực Thuộc'
     },
     cell: ({ row }) => (
-      <Badge variant='outline' className='bg-blue-500/10 text-blue-600 border-blue-500/20 font-mono'>
+      <Badge
+        variant='outline'
+        className='bg-blue-500/10 text-blue-600 border-blue-500/20 font-mono'
+      >
         <Icons.truck className='mr-1 h-3 w-3' />
         {row.original.vehicles?.length || 0} xe
       </Badge>

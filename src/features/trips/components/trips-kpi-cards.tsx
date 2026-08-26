@@ -1,12 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  IconClock,
-  IconCircleCheck,
-  IconTruck,
-  IconAlertTriangle
-} from '@tabler/icons-react';
+import { IconClock, IconCircleCheck, IconTruck, IconAlertTriangle } from '@tabler/icons-react';
 import type { TripStats } from '../api/types';
 
 interface TripsKpiCardsProps {
@@ -39,7 +34,7 @@ export function TripsKpiCards({
             {loading ? (
               <span className='inline-block h-8 w-12 bg-blue-100 dark:bg-blue-950/50 rounded animate-pulse' />
             ) : (
-              stats?.ordersAwaitingFleet ?? '—'
+              (stats?.ordersAwaitingFleet ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Đang chờ Fleet xử lý</p>
@@ -59,7 +54,7 @@ export function TripsKpiCards({
             {loading ? (
               <span className='inline-block h-8 w-12 bg-emerald-100 dark:bg-emerald-950/50 rounded animate-pulse' />
             ) : (
-              confirmedTripsCount ?? '—'
+              (confirmedTripsCount ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Trong kỳ thống kê</p>
@@ -99,7 +94,7 @@ export function TripsKpiCards({
             {loading ? (
               <span className='inline-block h-8 w-12 bg-rose-100 dark:bg-rose-950/50 rounded animate-pulse' />
             ) : (
-              stats?.ordersNoVehicle ?? '—'
+              (stats?.ordersNoVehicle ?? '—')
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Cần Dispatcher thuê xe ngoài</p>

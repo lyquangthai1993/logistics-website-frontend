@@ -11,7 +11,9 @@ test.describe('Challenger 2 Empirical Hardening Suite: Hubs CRUD & Instant React
     await page.waitForLoadState('networkidle');
   });
 
-  test('Empirical Test 1: Active toggle immediate reactivity (double flip without reload)', async ({ page }) => {
+  test('Empirical Test 1: Active toggle immediate reactivity (double flip without reload)', async ({
+    page
+  }) => {
     // 1. Locate search input and search for a stable seed hub
     const searchInput = page.locator('#hub-search-input');
     await expect(searchInput).toBeVisible();
@@ -41,7 +43,9 @@ test.describe('Challenger 2 Empirical Hardening Suite: Hubs CRUD & Instant React
     await expect(statusBadge).toContainText(initialStatusText, { timeout: 4000 });
   });
 
-  test('Empirical Test 2: Hub creation and edit immediate reactivity without page reload', async ({ page }) => {
+  test('Empirical Test 2: Hub creation and edit immediate reactivity without page reload', async ({
+    page
+  }) => {
     // 1. Create a new hub
     const addBtn = page.locator('#btn-add-hub');
     await addBtn.click();

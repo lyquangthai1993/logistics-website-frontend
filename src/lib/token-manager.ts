@@ -4,9 +4,7 @@ import { useAuthStore, type User } from '@/stores/use-auth-store';
 import axios from 'axios';
 
 const DEFAULT_API_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'https://logistics-website-backend-1.onrender.com'
-    : '';
+  process.env.NODE_ENV === 'production' ? 'https://logistics-website-backend-1.onrender.com' : '';
 
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
@@ -239,10 +237,12 @@ class TokenManager {
         );
 
         const payload = data?.data || data || {};
-        const newToken =
-          payload.token || payload.access_token || data?.token || data?.access_token;
+        const newToken = payload.token || payload.access_token || data?.token || data?.access_token;
         const newRefreshToken =
-          payload.refreshToken || payload.refresh_token || data?.refreshToken || data?.refresh_token;
+          payload.refreshToken ||
+          payload.refresh_token ||
+          data?.refreshToken ||
+          data?.refresh_token;
 
         if (!newToken) {
           throw new Error('Refresh response missing access token');
