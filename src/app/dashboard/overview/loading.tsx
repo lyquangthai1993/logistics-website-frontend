@@ -1,4 +1,4 @@
-﻿import PageContainer from '@/components/layout/page-container';
+import PageContainer from '@/components/layout/page-container';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardFooter } from '@/components/ui/card';
 import { AreaGraphSkeleton } from '@/features/overview/components/area-graph-skeleton';
@@ -39,16 +39,16 @@ export default function OverviewLoading() {
           <StatCardSkeleton />
         </div>
 
-        {/* Charts grid — mirrors layout.tsx slots */}
+        {/* Charts grid — mirrors overview.tsx */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7'>
           <div className='col-span-4'>
-            <AreaGraphSkeleton />
+            <BarGraphSkeleton />
           </div>
           <div className='col-span-4 md:col-span-3'>
             <RecentSalesSkeleton />
           </div>
           <div className='col-span-4'>
-            <BarGraphSkeleton />
+            <AreaGraphSkeleton />
           </div>
           <div className='col-span-4 min-h-0 md:col-span-3'>
             <PieGraphSkeleton />
