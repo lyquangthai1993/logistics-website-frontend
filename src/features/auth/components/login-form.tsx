@@ -63,14 +63,34 @@ const DEMO_ACCOUNTS = [
     description: 'Quản lý phương tiện và tài xế'
   },
   {
-    role: 'Quản lý Kho',
+    role: 'Quản lý Kho (Hà Nội)',
     roleCode: 'WAREHOUSE_MANAGER',
-    username: 'warehouse',
+    username: 'warehouse_han',
     email: 'lyquangthai1993+4@gmail.com',
     password: 'secret',
     altPassword: 'Warehouse@123',
     badgeVariant: 'outline' as const,
-    description: 'Quản lý kho hàng & xuất nhập tồn'
+    description: 'Kho Andromeda (Hà Nội)'
+  },
+  {
+    role: 'Quản lý Kho (Đà Nẵng)',
+    roleCode: 'WAREHOUSE_MANAGER',
+    username: 'warehouse_dad',
+    email: 'lyquangthai1993+5@gmail.com',
+    password: 'secret',
+    altPassword: 'Warehouse@123',
+    badgeVariant: 'outline' as const,
+    description: 'Kho Magellan (Đà Nẵng)'
+  },
+  {
+    role: 'Quản lý Kho (TP.HCM)',
+    roleCode: 'WAREHOUSE_MANAGER',
+    username: 'warehouse_sgn',
+    email: 'lyquangthai1993+6@gmail.com',
+    password: 'secret',
+    altPassword: 'Warehouse@123',
+    badgeVariant: 'outline' as const,
+    description: 'Kho Centaurus (TP.HCM)'
   }
 ];
 
@@ -175,18 +195,19 @@ export function LoginForm() {
             Xem tài khoản Demo
           </PopoverTrigger>
 
-          <PopoverContent className='w-84 p-4 sm:w-96' align='end' sideOffset={8}>
+          <PopoverContent className='w-88 p-4 sm:w-[420px]' align='end' sideOffset={8}>
             <PopoverHeader className='pb-2 border-b border-border/40'>
               <PopoverTitle className='flex items-center gap-2 text-sm font-semibold'>
                 <IconKey className='h-4 w-4 text-amber-500' />
                 Tài khoản Demo có sẵn
               </PopoverTitle>
               <PopoverDescription className='text-xs text-muted-foreground'>
-                Hỗ trợ đăng nhập bằng <b>Username</b> hoặc <b>Email</b>
+                Hỗ trợ đăng nhập bằng <b>Username</b> hoặc <b>Email</b> (Click &quot;Điền form&quot;
+                để thử ngay)
               </PopoverDescription>
             </PopoverHeader>
 
-            <div className='mt-3 space-y-2.5 max-h-[340px] overflow-y-auto pr-1'>
+            <div className='mt-3 space-y-2.5 max-h-[440px] overflow-y-auto pr-1'>
               {DEMO_ACCOUNTS.map((acc) => (
                 <div
                   key={acc.email}
