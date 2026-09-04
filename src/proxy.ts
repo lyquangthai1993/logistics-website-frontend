@@ -121,7 +121,7 @@ export async function proxy(request: NextRequest) {
 
   // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
-    if (isAuthenticated || refreshToken) {
+    if (isAuthenticated) {
       const response = NextResponse.redirect(new URL('/dashboard/overview', request.url));
       if (isRefreshed && token) {
         response.cookies.set('access_token', token, {
@@ -139,14 +139,22 @@ export async function proxy(request: NextRequest) {
       }
       return response;
     }
-    return NextResponse.next();
+    // If accessing auth routes while not authenticated, clean any stale/expired cookies to prevent loops
+    const response = NextResponse.next();
+    if (token || refreshToken) {
+      response.cookies.delete('access_token');
+      response.cookies.delete('refreshToken');
+      response.cookies.delete('refresh_token');
+    }
+    return response;
   }
 
-  // If user has NO valid token AND NO refreshToken at all, redirect to sign-in
-  if (!isAuthenticated && !refreshToken) {
+  // If user has NO valid token (or refresh failed), redirect protected routes to sign-in
+  if (!isAuthenticated) {
     const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
     response.cookies.delete('access_token');
     response.cookies.delete('refreshToken');
+    response.cookies.delete('refresh_token');
     return response;
   }
 
@@ -219,3 +227,5 @@ export const config = {
     '/(api|trpc)(.*)'
   ]
 };
+
+

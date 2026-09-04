@@ -63,14 +63,14 @@ const DEMO_ACCOUNTS = [
     description: 'Quản lý phương tiện và tài xế'
   },
   {
-    role: 'Quản lý Kho (Hà Nội)',
+    role: 'Quản lý Kho (Hưng Yên)',
     roleCode: 'WAREHOUSE_MANAGER',
-    username: 'warehouse_han',
+    username: 'warehouse_hyn',
     email: 'lyquangthai1993+4@gmail.com',
     password: 'secret',
     altPassword: 'Warehouse@123',
     badgeVariant: 'outline' as const,
-    description: 'Kho Andromeda (Hà Nội)'
+    description: 'Kho Polaris (Hưng Yên)'
   },
   {
     role: 'Quản lý Kho (Đà Nẵng)',
@@ -85,12 +85,12 @@ const DEMO_ACCOUNTS = [
   {
     role: 'Quản lý Kho (TP.HCM)',
     roleCode: 'WAREHOUSE_MANAGER',
-    username: 'warehouse_sgn',
+    username: 'warehouse_hcm',
     email: 'lyquangthai1993+6@gmail.com',
     password: 'secret',
     altPassword: 'Warehouse@123',
     badgeVariant: 'outline' as const,
-    description: 'Kho Centaurus (TP.HCM)'
+    description: 'Kho Andromeda (TP.HCM)'
   }
 ];
 

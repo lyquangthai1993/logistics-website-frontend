@@ -161,9 +161,9 @@ class TokenManager {
 
   public clearCookies() {
     if (typeof document === 'undefined') return;
-    document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
-    document.cookie = 'refreshToken=; path=/; max-age=0; SameSite=Lax';
-    document.cookie = 'refresh_token=; path=/; max-age=0; SameSite=Lax';
+    document.cookie = 'access_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie = 'refreshToken=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie = 'refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
   }
 
   public parseJwtExp(token: string): number | null {
@@ -203,8 +203,17 @@ class TokenManager {
     const now = Date.now();
     const timeUntilExp = expMs - now;
 
+    // If token already expired, only attempt refresh once if refreshToken is available
+    if (timeUntilExp <= 0) {
+      const refreshToken = this.getRefreshToken();
+      if (refreshToken) {
+        this.refreshToken().catch(() => {});
+      }
+      return;
+    }
+
     // Refresh when 75% of lifetime has elapsed (or 25s before expiry)
-    const refreshDelay = Math.max(timeUntilExp - 25 * 1000, timeUntilExp * 0.75, 3000);
+    const refreshDelay = Math.max(timeUntilExp - 25 * 1000, timeUntilExp * 0.75, 5000);
 
     this.refreshTimeout = setTimeout(() => {
       this.refreshToken().catch(() => {

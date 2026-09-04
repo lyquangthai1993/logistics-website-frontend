@@ -6,6 +6,8 @@ import { InfobarProvider } from '@/components/ui/infobar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { isTokenValid } from '@/lib/server-auth';
 
 export const metadata: Metadata = {
   title: 'Bảng điều khiển | Logistics TMS',
@@ -17,8 +19,14 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Persisting the sidebar state in the cookie.
+  // Validate authentication before rendering dashboard shell
   const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value;
+  if (!isTokenValid(token)) {
+    redirect('/auth/sign-in');
+  }
+
+  // Persisting the sidebar state in the cookie.
   const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true';
   return (
     <KBar>
