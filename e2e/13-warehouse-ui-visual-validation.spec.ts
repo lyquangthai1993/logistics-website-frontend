@@ -78,6 +78,10 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.waitForLoadState('networkidle');
 
     const printBtn = page.locator('button[title="In tem nhận diện A4"]').first();
+    if (!(await printBtn.isVisible())) {
+      await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
+      await page.waitForTimeout(500);
+    }
     await printBtn.click();
     await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
 

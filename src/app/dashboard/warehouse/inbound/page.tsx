@@ -95,10 +95,13 @@ export default function WarehouseInboundPage() {
 
   // KPI Stats
   const [kpiStats, setKpiStats] = useState({
-    waitingInbound: 52,
-    storedInbound: 32,
-    waitingOutbound: 20,
-    completedOutboundToday: 24,
+    total: 0,
+    waitingInbound: 0,
+    customerInbound: 0,
+    transferInbound: 0,
+    storedInbound: 0,
+    waitingOutbound: 0,
+    completedOutboundToday: 0,
   });
 
   // Fetch KPI
@@ -126,9 +129,9 @@ export default function WarehouseInboundPage() {
     setIsLoadingOrders(true);
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
     const query = new URLSearchParams({
-      limit: '20',
+      limit: '100',
       ...(search.trim() ? { search: search.trim() } : {}),
-      ...(statusTab === 'STORED' ? { status: 'INBOUND' } : statusTab === 'WAITING' ? { status: 'DRAFT' } : {}),
+      ...(statusTab !== 'ALL' ? { status: statusTab } : {}),
     });
 
     fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -139,119 +142,13 @@ export default function WarehouseInboundPage() {
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
-        const items = resData?.data || [];
-        if (items.length > 0) {
-          setOrders(items);
-        } else {
-          // Fallback realistic orders matching sq2P6 spec
-          setOrders([
-            {
-              id: 101,
-              orderCode: 'LTV2609-0025',
-              senderName: 'VICO Việt Nam · KCN Tân Bình',
-              pickupAddress: 'KCN Tân Bình, TP.HCM',
-              goodsDescription: 'Hạt nhựa nguyên sinh HDPE',
-              totalQuantity: 45,
-              totalWeight: 1250,
-              totalVolume: 3.8,
-              status: 'DRAFT',
-              inboundType: 'CUSTOMER',
-              deliveryMode: 'DIRECT_CUSTOMER',
-              deliveryAddress: 'Kho Andromeda HCM',
-            },
-            {
-              id: 102,
-              orderCode: 'LTV2609-0031',
-              senderName: 'Công ty May Mặc Hải Triều',
-              pickupAddress: 'KCN Sóng Thần, Bình Dương',
-              goodsDescription: 'Vải cuộn may mặc xuất khẩu',
-              totalQuantity: 80,
-              totalWeight: 2400,
-              totalVolume: 6.5,
-              status: 'INBOUND',
-              inboundType: 'CUSTOMER',
-              deliveryMode: 'HUB_L1',
-              deliveryAddress: 'Magellan Hub - Đà Nẵng',
-            },
-            {
-              id: 103,
-              orderCode: 'TRIP-260903-018',
-              senderName: 'Polaris Hub - Hưng Yên (Xe 29C-888.99)',
-              pickupAddress: 'Polaris Hub - Hưng Yên',
-              goodsDescription: 'Hàng bách hóa tiêu dùng liên Hub',
-              totalQuantity: 120,
-              totalWeight: 4800,
-              totalVolume: 16.2,
-              status: 'DRAFT',
-              inboundType: 'TRANSFER',
-              deliveryMode: 'HUB_L1',
-              deliveryAddress: user?.hub?.name || 'Kho tiếp nhận',
-            },
-            {
-              id: 104,
-              orderCode: 'TRIP-260903-022',
-              senderName: 'Magellan Hub - Đà Nẵng (Xe 43C-555.66)',
-              pickupAddress: 'Magellan Hub - Đà Nẵng',
-              goodsDescription: 'Thiết bị điện tử & linh kiện',
-              totalQuantity: 60,
-              totalWeight: 1800,
-              totalVolume: 5.5,
-              status: 'INBOUND',
-              inboundType: 'TRANSFER',
-              deliveryMode: 'HUB_L1',
-              deliveryAddress: user?.hub?.name || 'Kho tiếp nhận',
-            },
-          ]);
-        }
+        setOrders(resData?.data || []);
       })
       .catch(() => {
-        setOrders([
-          {
-            id: 101,
-            orderCode: 'LTV2609-0025',
-            senderName: 'VICO Việt Nam · KCN Tân Bình',
-            pickupAddress: 'KCN Tân Bình, TP.HCM',
-            goodsDescription: 'Hạt nhựa nguyên sinh HDPE',
-            totalQuantity: 45,
-            totalWeight: 1250,
-            totalVolume: 3.8,
-            status: 'DRAFT',
-            inboundType: 'CUSTOMER',
-            deliveryMode: 'DIRECT_CUSTOMER',
-            deliveryAddress: user?.hub?.name || 'Kho tiếp nhận',
-          },
-          {
-            id: 102,
-            orderCode: 'LTV2609-0031',
-            senderName: 'Công ty May Mặc Hải Triều',
-            pickupAddress: 'KCN Sóng Thần, Bình Dương',
-            goodsDescription: 'Vải cuộn may mặc xuất khẩu',
-            totalQuantity: 80,
-            totalWeight: 2400,
-            totalVolume: 6.5,
-            status: 'INBOUND',
-            inboundType: 'CUSTOMER',
-            deliveryMode: 'HUB_L1',
-            deliveryAddress: 'Magellan Hub - Đà Nẵng',
-          },
-          {
-            id: 103,
-            orderCode: 'TRIP-260903-018',
-            senderName: 'Polaris Hub - Hưng Yên (Xe 29C-888.99)',
-            pickupAddress: 'Polaris Hub - Hưng Yên',
-            goodsDescription: 'Hàng bách hóa tiêu dùng liên Hub',
-            totalQuantity: 120,
-            totalWeight: 4800,
-            totalVolume: 16.2,
-            status: 'DRAFT',
-            inboundType: 'TRANSFER',
-            deliveryMode: 'HUB_L1',
-            deliveryAddress: user?.hub?.name || 'Kho tiếp nhận',
-          },
-        ]);
+        setOrders([]);
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [search, statusTab, user?.hub?.name]);
+  }, [search, statusTab]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -374,6 +271,7 @@ export default function WarehouseInboundPage() {
         },
       ]);
       setActiveView('BOARD');
+      fetchKpi();
       fetchInboundOrders();
     } catch (err: any) {
       toast.error('Lỗi khi tiếp nhận hàng vào kho: ' + (err?.message || 'Vui lòng thử lại'));
@@ -381,15 +279,6 @@ export default function WarehouseInboundPage() {
       setIsSubmitting(false);
     }
   };
-
-  // Filtered Orders based on statusTab
-  const filteredOrders = orders.filter((o) => {
-    if (statusTab === 'WAITING') return o.status === 'DRAFT' || o.status === 'PENDING';
-    if (statusTab === 'STORED') return o.status === 'INBOUND';
-    if (statusTab === 'CUSTOMER') return o.inboundType === 'CUSTOMER' || !o.orderCode?.startsWith('TRIP');
-    if (statusTab === 'TRANSFER') return o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP');
-    return true;
-  });
 
   const currentHubName = user?.hub?.name;
 
@@ -444,9 +333,9 @@ export default function WarehouseInboundPage() {
                 <CardContent className="p-3">
                   <span className="text-[11px] text-gray-500 font-bold tracking-wider block">CHỜ NHẬP KHO</span>
                   <div className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                    {kpiStats.waitingInbound || 52} <span className="text-xs font-normal text-gray-500">đơn</span>
+                    {kpiStats.waitingInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">1.980 kiện · 31.2T đang chờ nhận</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Đang chờ tiếp nhận & kiểm đếm</p>
                 </CardContent>
               </Card>
 
@@ -454,7 +343,7 @@ export default function WarehouseInboundPage() {
                 <CardContent className="p-3">
                   <span className="text-[11px] text-gray-500 font-bold tracking-wider block">KHÁCH GỬI TẠI KHO</span>
                   <div className="text-xl font-black text-blue-700 dark:text-blue-400 mt-1">
-                    {kpiStats.storedInbound || 32} <span className="text-xs font-normal text-gray-500">đơn</span>
+                    {kpiStats.customerInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                   </div>
                   <p className="text-[10px] text-gray-400 mt-0.5">Tiếp nhận trực tiếp từ khách hàng</p>
                 </CardContent>
@@ -464,17 +353,17 @@ export default function WarehouseInboundPage() {
                 <CardContent className="p-3">
                   <span className="text-[11px] text-gray-500 font-bold tracking-wider block">LUÂN CHUYỂN NỘI BỘ</span>
                   <div className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">
-                    {kpiStats.waitingOutbound || 20} <span className="text-xs font-normal text-gray-500">đơn</span>
+                    {kpiStats.transferInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">4 chuyến xe từ Hub Hưng Yên / ĐN</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Chuyển tiếp từ các Hub vệ tinh</p>
                 </CardContent>
               </Card>
 
               <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-emerald-600 shadow-sm">
                 <CardContent className="p-3">
-                  <span className="text-[11px] text-gray-500 font-bold tracking-wider block">ĐÃ NHẬP KHO HÔM NAY</span>
+                  <span className="text-[11px] text-gray-500 font-bold tracking-wider block">ĐÃ NHẬP KHO</span>
                   <div className="text-xl font-black text-emerald-700 dark:text-emerald-400 mt-1">
-                    {kpiStats.completedOutboundToday || 24} <span className="text-xs font-normal text-gray-500">đơn</span>
+                    {kpiStats.storedInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                   </div>
                   <p className="text-[10px] text-gray-400 mt-0.5">Đã lưu kho an toàn & dán tem A4</p>
                 </CardContent>
@@ -488,11 +377,11 @@ export default function WarehouseInboundPage() {
                   {/* Status Tabs */}
                   <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
                     {[
-                      { key: 'ALL', label: `Tất cả (${orders.length || 76})` },
-                      { key: 'WAITING', label: 'Chờ nhập kho (52)' },
-                      { key: 'CUSTOMER', label: 'Khách gửi (32)' },
-                      { key: 'TRANSFER', label: 'Luân chuyển (20)' },
-                      { key: 'STORED', label: 'Đã nhập kho (24)' },
+                      { key: 'ALL', label: `Tất cả (${kpiStats.total ?? orders.length})` },
+                      { key: 'WAITING', label: `Chờ nhập kho (${kpiStats.waitingInbound ?? 0})` },
+                      { key: 'CUSTOMER', label: `Khách gửi (${kpiStats.customerInbound ?? 0})` },
+                      { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferInbound ?? 0})` },
+                      { key: 'STORED', label: `Đã nhập kho (${kpiStats.storedInbound ?? 0})` },
                     ].map((tab) => (
                       <button
                         key={tab.key}
@@ -555,14 +444,14 @@ export default function WarehouseInboundPage() {
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
-                      ) : filteredOrders.length === 0 ? (
+                      ) : orders.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="p-8 text-center text-gray-400">
                             Không có đơn hàng nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
                       ) : (
-                        filteredOrders.map((o) => (
+                        orders.map((o) => (
                           <tr key={o.id} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40">
                             <td className="p-2.5 font-mono font-bold text-blue-600">
                               {o.orderCode}

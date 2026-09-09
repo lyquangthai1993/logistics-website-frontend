@@ -36,6 +36,36 @@ export default function WarehouseOutboundPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // KPI Stats
+  const [kpiStats, setKpiStats] = useState({
+    total: 0,
+    waitingInbound: 0,
+    customerInbound: 0,
+    transferInbound: 0,
+    storedInbound: 0,
+    waitingOutbound: 0,
+    completedOutboundToday: 0,
+  });
+
+  const fetchKpi = useCallback(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    fetch('/api/v1/warehouse/kpi', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => {
+        if (data) setKpiStats((prev) => ({ ...prev, ...data }));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchKpi();
+  }, [fetchKpi]);
+
   // Customer Mode 1 Form Fields
   const [customerName, setCustomerName] = useState('Công Ty May Mặc Hải Triều');
   const [customerPhone, setCustomerPhone] = useState('0908 123 456');
@@ -255,7 +285,7 @@ export default function WarehouseOutboundPage() {
               <CardContent className="p-3">
                 <span className="text-xs text-gray-500 font-semibold block">Chờ xuất kho</span>
                 <div className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                  48 <span className="text-xs font-normal text-gray-500">đơn · 1.850 kiện</span>
+                  {kpiStats.waitingOutbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
               </CardContent>
             </Card>
@@ -264,7 +294,7 @@ export default function WarehouseOutboundPage() {
               <CardContent className="p-3">
                 <span className="text-xs text-gray-500 font-semibold block">Xuất cho khách hàng</span>
                 <div className="text-xl font-black text-blue-700 dark:text-blue-400 mt-1">
-                  28 <span className="text-xs font-normal text-gray-500">đơn</span>
+                  {kpiStats.storedInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
               </CardContent>
             </Card>
@@ -273,7 +303,7 @@ export default function WarehouseOutboundPage() {
               <CardContent className="p-3">
                 <span className="text-xs text-gray-500 font-semibold block">Luân chuyển nội bộ</span>
                 <div className="text-xl font-black text-emerald-700 dark:text-emerald-400 mt-1">
-                  20 <span className="text-xs font-normal text-gray-500">đơn</span>
+                  {kpiStats.transferInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
               </CardContent>
             </Card>
@@ -282,7 +312,7 @@ export default function WarehouseOutboundPage() {
               <CardContent className="p-3">
                 <span className="text-xs text-gray-500 font-semibold block">Đã xuất kho hôm nay</span>
                 <div className="text-xl font-black text-purple-700 dark:text-purple-400 mt-1">
-                  17 <span className="text-xs font-normal text-gray-500">chuyến</span>
+                  {kpiStats.completedOutboundToday ?? 0} <span className="text-xs font-normal text-gray-500">chuyến</span>
                 </div>
               </CardContent>
             </Card>
