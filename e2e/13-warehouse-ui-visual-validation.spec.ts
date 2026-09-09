@@ -126,6 +126,72 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
+  test('Screenshot 04B: WH_PALLET_LABEL_MULTI_PACKAGE (Tạo đơn hàng nhiều kiện 80 & 125 kiện và kiểm tra định dạng .../80, .../125, Giao đến để trống)', async ({ page }) => {
+    await loginAs(page, WAREHOUSE_HYN);
+    await page.goto('/dashboard/warehouse/inbound');
+    await page.waitForLoadState('networkidle');
+
+    // 1. Mở Mode 1 Tạo đơn nhập mới
+    const newInboundBtn = page.getByRole('button', { name: 'Tạo đơn nhập mới' });
+    if (await newInboundBtn.isVisible()) {
+      await newInboundBtn.click();
+      await page.waitForTimeout(500);
+    }
+
+    // 2. Nhập dữ liệu Dòng 1: Hàng điện tử SamSung - 80 kiện
+    const row1 = page.locator('tbody tr').first();
+    const goodsDesc1 = row1.locator('input[placeholder="Tên loại hàng..."]');
+    await goodsDesc1.fill('Thiết bị điện tử SamSung (80 kiện)');
+    const qtyInput1 = row1.locator('input[type="number"]').first();
+    await qtyInput1.fill('80');
+
+    // 3. Mở Tem Nhận Diện A4 cho Dòng 1 (80 kiện)
+    const printBtn1 = row1.locator('button[title="In tem nhận diện A4"]');
+    await printBtn1.click();
+    await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
+
+    // 4. Xác nhận hiển thị chính xác định dạng "... / 80" và các ô để trống ghi tay
+    await expect(page.locator('text=... / 80')).toBeVisible();
+    await expect(page.locator('text=PALET SỐ :')).toBeVisible();
+    await expect(page.locator('text=TỔNG SỐ PALET :')).toBeVisible();
+    await expect(page.locator('text=GIAO ĐẾN :')).toBeVisible();
+
+    await page.waitForTimeout(800);
+    const screenshotPath80 = path.join(ARTIFACT_SCREENSHOT_DIR, '04B_WH_PALLET_LABEL_MULTI_80.png');
+    await page.screenshot({ path: screenshotPath80 });
+    console.log(`Saved screenshot: ${screenshotPath80}`);
+
+    // Đóng modal tem 1
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+
+    // 5. Thêm Dòng 2: Phụ tùng máy công nghiệp - 125 kiện
+    await page.locator('button:has-text("Thêm 1 dòng đơn mới")').click();
+    await page.waitForTimeout(300);
+
+    const row2 = page.locator('tbody tr').nth(1);
+    const goodsDesc2 = row2.locator('input[placeholder="Tên loại hàng..."]');
+    await goodsDesc2.fill('Phụ tùng công nghiệp nặng (125 kiện)');
+    const qtyInput2 = row2.locator('input[type="number"]').first();
+    await qtyInput2.fill('125');
+
+    // 6. Mở Tem Nhận Diện A4 cho Dòng 2 (125 kiện)
+    const printBtn2 = row2.locator('button[title="In tem nhận diện A4"]');
+    await printBtn2.click();
+    await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
+
+    // 7. Xác nhận hiển thị chính xác định dạng "... / 125"
+    await expect(page.locator('text=... / 125')).toBeVisible();
+
+    await page.waitForTimeout(800);
+    const screenshotPath125 = path.join(ARTIFACT_SCREENSHOT_DIR, '04C_WH_PALLET_LABEL_MULTI_125.png');
+    await page.screenshot({ path: screenshotPath125 });
+    console.log(`Saved screenshot: ${screenshotPath125}`);
+
+    // Đóng modal tem 2
+    await page.keyboard.press('Escape');
+  });
+
   test('Screenshot 05: WH_OUTBOUND_BOARD (Màn hình chính Danh sách xuất kho)', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/outbound');
@@ -294,6 +360,53 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '10_WH_OUTBOUND_LOOKUP_MODAL.png');
     await page.screenshot({ path: screenshotPath });
     console.log(`Saved screenshot: ${screenshotPath}`);
+  });
+
+  test('Screenshot 11: WH_WAYBILL_DETAIL_MODAL (Xem chi tiết mã vận đơn & danh mục hàng hóa theo NO-SKU rule)', async ({ page }) => {
+    await loginAs(page, WAREHOUSE_HYN);
+    await page.goto('/dashboard/warehouse/inbound');
+    await page.waitForLoadState('networkidle');
+
+    // Click on the first order code in the table
+    const orderCodeBtn = page.locator('tbody tr button[title="Xem chi tiết mã vận đơn"]').first();
+    if (await orderCodeBtn.isVisible()) {
+      await orderCodeBtn.click();
+      await expect(page.locator('text=Chi tiết Mã vận đơn tiếp nhận')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('text=Danh mục hàng hóa theo kiện vận tải')).toBeVisible();
+      await expect(page.locator('th:has-text("TÊN HÀNG HÓA")')).toBeVisible();
+
+      await page.waitForTimeout(1000);
+      const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '11_WH_WAYBILL_DETAIL_MODAL.png');
+      await page.screenshot({ path: screenshotPath });
+      console.log(`Saved screenshot: ${screenshotPath}`);
+    }
+  });
+
+  test('Screenshot 12: WH_TALLY_INSPECTION_MODAL (Quy trình kiểm đếm thực tế Frame SkFD5 và Xác nhận nhập kho)', async ({ page }) => {
+    await loginAs(page, WAREHOUSE_HYN);
+    await page.goto('/dashboard/warehouse/inbound');
+    await page.waitForLoadState('networkidle');
+
+    // Click tab 'Chờ nhập kho'
+    const waitingTab = page.locator('button:has-text("Chờ nhập kho")');
+    if (await waitingTab.isVisible()) {
+      await waitingTab.click();
+      await page.waitForTimeout(500);
+    }
+
+    // Click 'Kiểm đếm' on the first waiting order
+    const tallyBtn = page.locator('button:has-text("Kiểm đếm")').first();
+    if (await tallyBtn.isVisible()) {
+      await tallyBtn.click();
+      await expect(page.locator('text=Kiểm đếm nhập kho')).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText('Ảnh kiện hàng', { exact: true })).toBeVisible();
+      await expect(page.locator('button:has-text("Xác nhận nhập kho")')).toBeVisible();
+
+      await page.waitForTimeout(1000);
+      const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '12_WH_TALLY_INSPECTION_MODAL.png');
+      await page.screenshot({ path: screenshotPath });
+      console.log(`Saved screenshot: ${screenshotPath}`);
+    }
   });
 });
 

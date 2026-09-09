@@ -20,8 +20,8 @@ export interface TripOrderSummary {
 export interface Trip {
   id: number;
   orderId: number;
-  vehicleId?: number | null;
-  driverId?: number | null;
+  licensePlate?: string | null;
+  driverName?: string | null;
   status: TripStatus;
   pickupDate?: string | null;
   pickupTime?: string | null;
@@ -32,16 +32,14 @@ export interface Trip {
   assignedByUserId?: number | null;
   notes?: string | null;
   order?: TripOrderSummary;
-  vehicle?: Vehicle;
-  driver?: Driver;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateTripPayload {
   orderId: number;
-  vehicleId?: number;
-  driverId?: number;
+  licensePlate?: string;
+  driverName?: string;
   pickupDate?: string;
   pickupTime?: string;
   estimatedDeliveryDate?: string;
@@ -54,8 +52,8 @@ export interface CreateTripPayload {
 export interface CreateSplitTripsPayload {
   orderId: number;
   trips: Array<{
-    vehicleId?: number;
-    driverId?: number;
+    licensePlate?: string;
+    driverName?: string;
     pickupDate?: string;
     pickupTime?: string;
     estimatedDeliveryDate?: string;
@@ -66,8 +64,8 @@ export interface CreateSplitTripsPayload {
 }
 
 export interface UpdateTripPayload {
-  vehicleId?: number;
-  driverId?: number;
+  licensePlate?: string;
+  driverName?: string;
   status?: TripStatus;
   pickupDate?: string;
   pickupTime?: string;
@@ -114,6 +112,8 @@ export interface TripStats {
 }
 
 export interface SplitRow {
+  licensePlate?: string;
+  driverName?: string;
   vehicleId: number | '';
   driverId: number | '';
   weightAllocated: number | '';

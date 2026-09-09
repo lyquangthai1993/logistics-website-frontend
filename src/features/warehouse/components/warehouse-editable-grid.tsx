@@ -769,10 +769,7 @@ export function WarehouseEditableGrid({
                         setPrintLabelData({
                           orderCode: row.orderCode && row.orderCode !== '(Tự sinh khi lưu)' ? row.orderCode : 'LTV2609-0025',
                           goodsDescription: row.goodsDescription || 'Hàng hóa tổng quan',
-                          totalQuantity: row.totalQuantity || 10,
-                          packagesOnPallet: row.totalQuantity || 10,
-                          palletIndex: 1,
-                          totalPallets: 1,
+                          totalQuantity: row.totalQuantity || 1,
                           originHub: row.pickupAddress,
                           destinationHub: row.deliveryAddress,
                           createdAt: new Date(),

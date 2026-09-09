@@ -141,10 +141,13 @@ export function AssignVehicleDialog({
           return;
         }
 
+        const vehicle = vehicles.find((v) => v.id === Number(selectedVehicleId));
+        const driver = drivers.find((d) => d.id === Number(selectedDriverId));
+
         await createTripMutation.mutateAsync({
           orderId: order.id,
-          vehicleId: Number(selectedVehicleId),
-          driverId: selectedDriverId ? Number(selectedDriverId) : undefined,
+          licensePlate: vehicle?.licensePlate || undefined,
+          driverName: driver?.fullName || undefined,
           pickupDate: pickupDate || undefined,
           pickupTime: pickupTime || undefined,
           estimatedDeliveryDate: estimatedDeliveryDate || undefined,
@@ -170,16 +173,20 @@ export function AssignVehicleDialog({
 
         const payload: CreateSplitTripsPayload = {
           orderId: order.id,
-          trips: splitRows.map((r) => ({
-            vehicleId: Number(r.vehicleId),
-            driverId: r.driverId ? Number(r.driverId) : undefined,
-            pickupDate: r.pickupDate || undefined,
-            pickupTime: r.pickupTime || undefined,
-            estimatedDeliveryDate: r.estimatedDeliveryDate || undefined,
-            weightAllocated: Number(r.weightAllocated),
-            volumeAllocated: Number(r.volumeAllocated),
-            notes: r.notes || undefined
-          }))
+          trips: splitRows.map((r) => {
+            const v = vehicles.find((veh) => veh.id === Number(r.vehicleId));
+            const d = drivers.find((drv) => drv.id === Number(r.driverId));
+            return {
+              licensePlate: v?.licensePlate || undefined,
+              driverName: d?.fullName || undefined,
+              pickupDate: r.pickupDate || undefined,
+              pickupTime: r.pickupTime || undefined,
+              estimatedDeliveryDate: r.estimatedDeliveryDate || undefined,
+              weightAllocated: Number(r.weightAllocated),
+              volumeAllocated: Number(r.volumeAllocated),
+              notes: r.notes || undefined
+            };
+          })
         };
 
         await createSplitTripsMutation.mutateAsync(payload);

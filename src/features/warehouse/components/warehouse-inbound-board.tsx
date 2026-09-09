@@ -39,7 +39,10 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
   return (
     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
       {trips.map((trip) => {
-        const isExternal = trip.vehicle?.isExternal;
+        const isExternal = trip.order?.isExternalVehicleNeeded;
+        const licensePlate = trip.licensePlate;
+        const externalProvider = trip.order?.externalNote;
+        const driverName = trip.driverName;
         const orderCode = trip.order?.orderCode || `Đơn #${trip.orderId}`;
 
         return (
@@ -96,25 +99,25 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
               {/* Vehicle & Driver Details */}
               <div className='p-2.5 bg-muted/50 rounded-lg text-xs space-y-1.5 border border-border/60'>
                 <div className='flex items-center justify-between'>
-                  <span className='text-muted-foreground'>Phương tiện:</span>
+                  <span className='text-muted-foreground'>Biển số xe:</span>
                   <span className='font-mono font-bold text-foreground'>
-                    {trip.vehicle?.licensePlate || '—'}
+                    {licensePlate || '—'}
                   </span>
                 </div>
 
-                {isExternal && (
+                {isExternal && externalProvider && (
                   <div className='flex items-center justify-between text-amber-700 dark:text-amber-300 font-medium'>
                     <span>Nhà xe đối tác:</span>
                     <span className='font-bold'>
-                      {trip.vehicle?.externalProvider || 'Thuê ngoài'}
+                      {externalProvider}
                     </span>
                   </div>
                 )}
 
                 <div className='flex items-center justify-between'>
-                  <span className='text-muted-foreground'>Tài xế & SĐT:</span>
+                  <span className='text-muted-foreground'>Tài xế phụ trách:</span>
                   <span className='font-medium text-foreground'>
-                    {trip.driver?.fullName || 'Chưa gán'} ({trip.driver?.phone || 'N/A'})
+                    {driverName || 'Chưa gán'}
                   </span>
                 </div>
               </div>

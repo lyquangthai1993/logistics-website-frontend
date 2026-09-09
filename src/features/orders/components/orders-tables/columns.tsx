@@ -85,8 +85,7 @@ export const columns: ColumnDef<Order>[] = [
       const order = row.original;
       const tripsCount = order.trips?.length || 0;
       const isSplit = tripsCount > 1;
-      const hasExternalTrip =
-        order.trips?.some((t) => t.vehicle?.isExternal) || order.isExternalVehicleNeeded;
+      const hasExternalTrip = order.isExternalVehicleNeeded;
 
       return (
         <div>
@@ -242,11 +241,11 @@ export const columns: ColumnDef<Order>[] = [
                 <div key={t.id} className='text-xs flex items-center gap-1.5'>
                   <IconTruck className='h-3.5 w-3.5 text-slate-400' />
                   <span className='font-mono font-medium'>
-                    {t.vehicle?.licensePlate || `Chuyến #${idx + 1}`}
+                    {t.licensePlate || `Chuyến #${idx + 1}`}
                   </span>
-                  {t.vehicle?.isExternal && (
+                  {order.isExternalVehicleNeeded && (
                     <span className='text-[10px] text-amber-600 font-bold'>
-                      ({t.vehicle.externalProvider || 'Xe ngoài'})
+                      ({order.externalNote || 'Xe ngoài'})
                     </span>
                   )}
                 </div>

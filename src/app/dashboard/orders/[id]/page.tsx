@@ -566,9 +566,9 @@ export default function OrderDetailPage() {
                           <Badge variant='outline' className='text-xs'>
                             {trip.status}
                           </Badge>
-                          {trip.vehicle?.isExternal && (
+                          {order.isExternalVehicleNeeded && (
                             <Badge className='bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 text-[11px] font-bold'>
-                              🚛 Xe thuê ngoài: {trip.vehicle.externalProvider || 'Đối tác ngoài'}
+                              🚛 Xe thuê ngoài: {order.externalNote || 'Đối tác ngoài'}
                             </Badge>
                           )}
                         </div>
@@ -582,11 +582,10 @@ export default function OrderDetailPage() {
                         <div className='flex items-center gap-2'>
                           <IconTruck className='h-4 w-4 text-slate-400' />
                           <span>
-                            Xe:{' '}
+                            Biển số xe:{' '}
                             <strong className='text-slate-900 dark:text-slate-100 font-mono'>
-                              {trip.vehicle?.licensePlate || 'Chưa gán'}
-                            </strong>{' '}
-                            ({trip.vehicle?.type || 'N/A'})
+                              {trip.licensePlate || 'Chưa gán'}
+                            </strong>
                           </span>
                         </div>
                         <div className='flex items-center gap-2'>
@@ -594,9 +593,8 @@ export default function OrderDetailPage() {
                           <span>
                             Tài xế:{' '}
                             <strong className='text-slate-900 dark:text-slate-100'>
-                              {trip.driver?.fullName || 'Chưa gán'}
-                            </strong>{' '}
-                            ({trip.driver?.phone || 'N/A'})
+                              {trip.driverName || 'Chưa gán'}
+                            </strong>
                           </span>
                         </div>
                         <div className='flex items-center gap-2'>

@@ -59,15 +59,22 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await expect(page.locator('th:has-text("GHI CHÚ")')).toBeVisible();
     await expect(page.locator('th:has-text("THAO TÁC")')).toBeVisible();
 
-    // 4. Mở Modal In Tem Nhận Diện A4 và kiểm tra các trường biến động
-    const printBtn = page.locator('button[title="In tem nhận diện A4"]').first();
+    // 4. Nhập số kiện hàng = 80 và mở Modal In Tem Nhận Diện A4
+    const row1 = page.locator('tbody tr').first();
+    const qtyInput1 = row1.locator('input[type="number"]').first();
+    await qtyInput1.fill('80');
+
+    const printBtn = row1.locator('button[title="In tem nhận diện A4"]');
     await printBtn.click();
 
     await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
-    await expect(page.locator('text=KHO TIẾP NHẬN:')).toBeVisible();
-    await expect(page.locator('text=PALET SỐ:')).toBeVisible();
-    await expect(page.locator('text=TỔNG SỐ PALET:')).toBeVisible();
-    await expect(page.locator('text=SỐ LƯỢNG (KIỆN / TỔNG ĐƠN):')).toBeVisible();
+    await expect(page.locator('text=KHO :')).toBeVisible();
+    await expect(page.locator('text=TÊN HÀNG:')).toBeVisible();
+    await expect(page.locator('text=MÃ ĐƠN HÀNG :')).toBeVisible();
+    await expect(page.locator('text=PALET SỐ :')).toBeVisible();
+    await expect(page.locator('text=TỔNG SỐ PALET :')).toBeVisible();
+    await expect(page.locator('text=SỐ LƯỢNG :')).toBeVisible();
+    await expect(page.locator('text=... / 80')).toBeVisible();
 
     // Đóng modal in tem
     await page.keyboard.press('Escape');
@@ -130,22 +137,12 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     // 3. Chuyển sang Mode 2: Luân chuyển nội bộ
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
 
-    // 4. Kiểm tra Stepper 3 bước
-    await expect(page.locator('text=① Chọn chuyến xe đang đến')).toBeVisible();
-    await expect(page.locator('text=② Chọn đơn hàng cần dỡ')).toBeVisible();
-    await expect(page.locator('text=③ Kiểm tra & Nhập kho')).toBeVisible();
-
-    // 5. Bấm nút Chọn chuyến hàng
-    const selectTripBtn = page.getByRole('button', { name: 'Chọn chuyến hàng ➔' });
-    await expect(selectTripBtn).toBeVisible();
-    await selectTripBtn.click();
-
-    // 6. Kiểm tra Modal Chuyến xe luân chuyển
-    await expect(page.locator('text=Chọn chuyến xe đến')).toBeVisible({ timeout: 5_000 });
-    const chooseThisTripBtn = page.getByRole('button', { name: 'Chọn chuyến này ➔' }).first();
-    if (await chooseThisTripBtn.isVisible()) {
-      await chooseThisTripBtn.click();
-      await expect(page.locator('text=Đổi chuyến xe khác')).toBeVisible();
+    // 4. Kiểm tra Modal Bước 1 mở
+    await expect(page.locator('text=/BƯỚC 1.*CHỌN CHUYẾN/i')).toBeVisible({ timeout: 5_000 });
+    const chooseTripBtn = page.locator('button:has-text("Chọn chuyến")').first();
+    if (await chooseTripBtn.isVisible()) {
+      await chooseTripBtn.evaluate((el: HTMLElement) => el.click());
+      await page.waitForTimeout(500);
     }
   });
 

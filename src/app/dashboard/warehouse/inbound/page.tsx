@@ -16,6 +16,8 @@ import {
   IconRefresh,
   IconPrinter,
   IconCircleCheck,
+  IconClipboardCheck,
+  IconEye,
   IconX,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
@@ -23,6 +25,9 @@ import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { WarehouseInboundTransferFlow } from '@/features/warehouse/components/warehouse-inbound-transfer-flow';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
+import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
+import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-tally-modal';
+import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
 import PageContainer from '@/components/layout/page-container';
 
@@ -35,9 +40,25 @@ export default function WarehouseInboundPage() {
   // Inbound Board State (sq2P6)
   const [search, setSearch] = useState('');
   const [statusTab, setStatusTab] = useState<'ALL' | 'WAITING' | 'CUSTOMER' | 'TRANSFER' | 'STORED'>('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [orders, setOrders] = useState<any[]>([]);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
+
+  // Modals
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedWaybillForDetail, setSelectedWaybillForDetail] = useState<WaybillDetailData | null>(null);
+
+  const [isTallyModalOpen, setIsTallyModalOpen] = useState(false);
+  const [selectedWaybillForTally, setSelectedWaybillForTally] = useState<WaybillDetailData | null>(null);
+
+  // Pallet Label A4 Modal State
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [selectedLabelData, setSelectedLabelData] = useState<PalletLabelData | null>(null);
 
   // Vehicle Header Fields (3 Red-Border Required Fields for Mode 1 - Frame UVtv4)
   const [receiveDate, setReceiveDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -81,10 +102,6 @@ export default function WarehouseInboundPage() {
     },
   ]);
 
-  // Pallet Label A4 Modal State
-  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
-  const [selectedLabelData, setSelectedLabelData] = useState<PalletLabelData | null>(null);
-
   // Submitting State
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -119,12 +136,13 @@ export default function WarehouseInboundPage() {
     fetchKpi();
   }, [fetchKpi]);
 
-  // Fetch Inbound Board Orders
+  // Fetch Inbound Board Orders with Pagination
   const fetchInboundOrders = useCallback(() => {
     setIsLoadingOrders(true);
     const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
-      limit: '100',
+      page: page.toString(),
+      limit: pageSize.toString(),
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusTab !== 'ALL' ? { status: statusTab } : {}),
     });
@@ -138,12 +156,17 @@ export default function WarehouseInboundPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         setOrders(resData?.data || []);
+        setMeta({
+          total: resData?.meta?.total ?? resData?.data?.length ?? 0,
+          totalPages: resData?.meta?.totalPages ?? 1,
+        });
       })
       .catch(() => {
         setOrders([]);
+        setMeta({ total: 0, totalPages: 1 });
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [search, statusTab]);
+  }, [page, pageSize, search, statusTab]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -175,6 +198,43 @@ export default function WarehouseInboundPage() {
       toast.info('Đã làm mới thông số tiếp nhận kho.');
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  // Submit Batch Inbound Confirmation
+  const handleBatchConfirmInbound = async () => {
+    if (selectedOrderIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 đơn hàng để nhập kho');
+      return;
+    }
+
+    setIsBatchSubmitting(true);
+    const token = tokenManager.getAccessToken();
+
+    try {
+      const res = await fetch('/api/v1/warehouse/inbound/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          orderIds: selectedOrderIds,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Lỗi khi xác nhận nhập kho hàng loạt');
+      }
+
+      toast.success(`Đã xác nhận nhập kho thành công cho ${selectedOrderIds.length} đơn hàng!`);
+      setSelectedOrderIds([]);
+      fetchKpi();
+      fetchInboundOrders();
+    } catch (err: any) {
+      toast.error('Lỗi: ' + (err?.message || 'Vui lòng thử lại'));
+    } finally {
+      setIsBatchSubmitting(false);
     }
   };
 
@@ -335,7 +395,7 @@ export default function WarehouseInboundPage() {
                   {/* Status Tabs */}
                   <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
                     {[
-                      { key: 'ALL', label: `Tất cả (${kpiStats.total ?? orders.length})` },
+                      { key: 'ALL', label: `Tất cả (${kpiStats.total ?? meta.total})` },
                       { key: 'WAITING', label: `Chờ nhập kho (${kpiStats.waitingInbound ?? 0})` },
                       { key: 'CUSTOMER', label: `Khách gửi (${kpiStats.customerInbound ?? 0})` },
                       { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferInbound ?? 0})` },
@@ -343,7 +403,11 @@ export default function WarehouseInboundPage() {
                     ].map((tab) => (
                       <button
                         key={tab.key}
-                        onClick={() => setStatusTab(tab.key as any)}
+                        onClick={() => {
+                          setStatusTab(tab.key as any);
+                          setSelectedOrderIds([]);
+                          setPage(1);
+                        }}
                         className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
                           statusTab === tab.key
                             ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
@@ -361,7 +425,10 @@ export default function WarehouseInboundPage() {
                       <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                       <Input
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPage(1);
+                        }}
                         placeholder="Tìm mã vận đơn, khách hàng, nguồn/trip..."
                         className="pl-8 h-9 text-xs"
                       />
@@ -381,101 +448,234 @@ export default function WarehouseInboundPage() {
                   </div>
                 </div>
 
-                {/* Inbound Board Table */}
+                {/* Floating Batch Action Bar if rows selected */}
+                {selectedOrderIds.length > 0 && (
+                  <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-200 dark:border-blue-900 text-xs animate-in fade-in duration-200">
+                    <span className="font-bold text-blue-900 dark:text-blue-200">
+                      Đã chọn {selectedOrderIds.length} đơn hàng
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedOrderIds([])}
+                        className="h-7 text-xs text-slate-600"
+                      >
+                        Bỏ chọn
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleBatchConfirmInbound}
+                        disabled={isBatchSubmitting}
+                        className="h-7 text-xs font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f]"
+                      >
+                        {isBatchSubmitting ? (
+                          <>
+                            <IconLoader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Đang nhập kho...
+                          </>
+                        ) : (
+                          <>
+                            <IconCircleCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Xác nhận nhập kho {selectedOrderIds.length} đơn
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inbound Board Table (Frame sq2P6) */}
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
                       <tr>
+                        <th className="p-2.5 w-[40px] text-center">
+                          <input
+                            type="checkbox"
+                            checked={
+                              orders.length > 0 &&
+                              orders.every((o) => selectedOrderIds.includes(Number(o.id)))
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedOrderIds(orders.map((o) => Number(o.id)));
+                              } else {
+                                setSelectedOrderIds([]);
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                          />
+                        </th>
                         <th className="p-2.5 w-[160px]">MÃ VẬN ĐƠN</th>
                         <th className="p-2.5">KHÁCH HÀNG / NGUỒN GỬI</th>
                         <th className="p-2.5 w-[140px] text-center">TRẠNG THÁI</th>
                         <th className="p-2.5 text-right w-[160px]">SỐ KIỆN / TẢI TRỌNG</th>
                         <th className="p-2.5 text-center w-[150px]">LOẠI NHẬP KHO</th>
-                        <th className="p-2.5 text-center w-[120px]">THAO TÁC</th>
+                        <th className="p-2.5 text-center w-[180px]">THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-gray-500">
+                          <td colSpan={7} className="p-8 text-center text-gray-500">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : orders.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-gray-400">
+                          <td colSpan={7} className="p-8 text-center text-gray-400">
                             Không có đơn hàng nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
                       ) : (
-                        orders.map((o) => (
-                          <tr key={o.id} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40">
-                            <td className="p-2.5 font-mono font-bold text-blue-600">
-                              {o.orderCode}
-                            </td>
-                            <td className="p-2.5 font-medium">
-                              <div className="text-slate-900 dark:text-white font-semibold">{o.senderName || o.pickupAddress || 'Khách gửi'}</div>
-                              <div className="text-gray-400 text-[11px]">{o.goodsDescription || 'Hàng hóa tổng quan'}</div>
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  o.status === 'INBOUND'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
-                                    : 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                                }
-                              >
-                                {o.status === 'INBOUND' ? 'LƯU KHO' : 'Chờ nhập kho'}
-                              </Badge>
-                            </td>
-                            <td className="p-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
-                              <div>{o.totalQuantity ?? 1} kiện</div>
-                              <div className="text-gray-400 text-[11px]">
-                                {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
-                              </div>
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
-                                    ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold'
-                                    : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-                                }
-                              >
-                                {o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
-                                  ? 'Luân chuyển'
-                                  : 'Khách gửi'}
-                              </Badge>
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedLabelData({
-                                    orderCode: o.orderCode,
-                                    goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
-                                    totalQuantity: o.totalQuantity || 1,
-                                    originHub: o.pickupAddress,
-                                    destinationHub: o.deliveryAddress,
-                                    createdAt: new Date(),
-                                  });
-                                  setIsLabelModalOpen(true);
-                                }}
-                                className="h-7 text-xs text-blue-600 hover:text-blue-800"
-                                title="In tem nhận diện A4"
-                              >
-                                <IconPrinter className="h-3.5 w-3.5 mr-1" /> In tem
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
+                        orders.map((o) => {
+                          const isWaiting =
+                            o.status === 'DRAFT' ||
+                            o.status === 'PENDING' ||
+                            o.status === 'PENDING_INBOUND' ||
+                            o.status === 'WAITING';
+
+                          return (
+                            <tr
+                              key={o.id}
+                              className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors"
+                            >
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedOrderIds.includes(Number(o.id))}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedOrderIds((prev) => [...prev, Number(o.id)]);
+                                    } else {
+                                      setSelectedOrderIds((prev) =>
+                                        prev.filter((id) => id !== Number(o.id))
+                                      );
+                                    }
+                                  }}
+                                  className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                                />
+                              </td>
+                              <td className="p-2.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedWaybillForDetail(o);
+                                    setIsDetailModalOpen(true);
+                                  }}
+                                  className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block"
+                                  title="Xem chi tiết mã vận đơn"
+                                >
+                                  {o.orderCode}
+                                </button>
+                              </td>
+                              <td className="p-2.5 font-medium">
+                                <div className="text-slate-900 dark:text-white font-semibold">
+                                  {o.senderName || o.pickupAddress || 'Khách gửi'}
+                                </div>
+                                <div className="text-gray-400 text-[11px]">
+                                  {o.goodsDescription || 'Hàng hóa tổng quan'}
+                                </div>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    o.status === 'INBOUND'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
+                                      : 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
+                                  }
+                                >
+                                  {o.status === 'INBOUND' ? 'LƯU KHO' : 'Chờ nhập kho'}
+                                </Badge>
+                              </td>
+                              <td className="p-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
+                                <div>{o.totalQuantity ?? 1} kiện</div>
+                                <div className="text-gray-400 text-[11px]">
+                                  {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
+                                </div>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
+                                      ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold'
+                                      : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                                  }
+                                >
+                                  {o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
+                                    ? 'Luân chuyển'
+                                    : 'Khách gửi'}
+                                </Badge>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {isWaiting ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedWaybillForTally(o);
+                                        setIsTallyModalOpen(true);
+                                      }}
+                                      className="h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2.5 shadow-xs"
+                                      title="Kiểm đếm & Xác nhận nhập kho"
+                                    >
+                                      <IconClipboardCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Kiểm đếm
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedWaybillForDetail(o);
+                                        setIsDetailModalOpen(true);
+                                      }}
+                                      className="h-7 text-[11px] text-slate-700 dark:text-slate-300 hover:text-blue-700 font-semibold px-2"
+                                      title="Xem chi tiết vận đơn"
+                                    >
+                                      <IconEye className="h-3.5 w-3.5 mr-1" /> Chi tiết
+                                    </Button>
+                                  )}
+
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedLabelData({
+                                        orderCode: o.orderCode,
+                                        goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
+                                        totalQuantity: o.totalQuantity || 1,
+                                        originHub: o.pickupAddress || o.originHub,
+                                        destinationHub: o.deliveryAddress || o.destinationHub,
+                                        createdAt: new Date(),
+                                      });
+                                      setIsLabelModalOpen(true);
+                                    }}
+                                    className="h-7 text-[11px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 px-2 font-semibold"
+                                    title="In tem nhận diện A4"
+                                  >
+                                    <IconPrinter className="h-3.5 w-3.5 mr-1" /> In tem
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Pagination Bar */}
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <TablePaginationBar
+                    page={page}
+                    totalPages={meta.totalPages}
+                    total={meta.total}
+                    pageSize={pageSize}
+                    onPageChange={(newPage) => setPage(newPage)}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -642,6 +842,56 @@ export default function WarehouseInboundPage() {
             }}
           />
         )}
+
+        {/* ── Modal Chi Tiết Mã Vận Đơn (Waybill Details Modal) ── */}
+        <WarehouseWaybillDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedWaybillForDetail(null);
+          }}
+          waybill={selectedWaybillForDetail}
+          onStartTally={(waybill) => {
+            setSelectedWaybillForTally(waybill);
+            setIsTallyModalOpen(true);
+          }}
+          onPrintLabel={(waybill) => {
+            setSelectedLabelData({
+              orderCode: waybill.orderCode,
+              goodsDescription: waybill.goodsDescription || 'Hàng hóa nhập kho',
+              totalQuantity: waybill.totalQuantity || 1,
+              originHub: waybill.originHub || waybill.pickupAddress,
+              destinationHub: waybill.destinationHub || waybill.deliveryAddress,
+              createdAt: new Date(),
+            });
+            setIsLabelModalOpen(true);
+          }}
+        />
+
+        {/* ── Modal Kiểm Đếm Nhập Kho (Frame SkFD5) ── */}
+        <WarehouseTallyModal
+          isOpen={isTallyModalOpen}
+          onClose={() => {
+            setIsTallyModalOpen(false);
+            setSelectedWaybillForTally(null);
+          }}
+          waybill={selectedWaybillForTally}
+          onSuccess={() => {
+            fetchInboundOrders();
+            fetchKpi();
+          }}
+          onPrintLabel={(waybill) => {
+            setSelectedLabelData({
+              orderCode: waybill.orderCode,
+              goodsDescription: waybill.goodsDescription || 'Hàng hóa nhập kho',
+              totalQuantity: waybill.totalQuantity || 1,
+              originHub: waybill.originHub || waybill.pickupAddress,
+              destinationHub: waybill.destinationHub || waybill.deliveryAddress,
+              createdAt: new Date(),
+            });
+            setIsLabelModalOpen(true);
+          }}
+        />
 
         {/* ── Modal In Tem A4 (Pallet Label A4 Modal) ── */}
         <PalletLabelA4Modal

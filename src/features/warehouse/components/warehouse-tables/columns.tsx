@@ -73,7 +73,7 @@ export const columns: ColumnDef<Trip>[] = [
     },
     cell: ({ row }) => {
       const trip = row.original;
-      const isExternal = trip.vehicle?.isExternal;
+      const isExternal = trip.order?.isExternalVehicleNeeded;
       const orderCode = trip.order?.orderCode || `Đơn #${trip.orderId}`;
 
       return (
@@ -127,27 +127,24 @@ export const columns: ColumnDef<Trip>[] = [
   },
   {
     id: 'vehicle',
-    accessorFn: (row) => row.vehicle?.licensePlate || '',
+    accessorFn: (row) => row.licensePlate || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Phương Tiện' />,
     meta: {
       columnTitle: 'Phương Tiện'
     },
     cell: ({ row }) => {
       const trip = row.original;
-      const isExternal = trip.vehicle?.isExternal;
+      const isExternal = trip.order?.isExternalVehicleNeeded;
+      const licensePlate = trip.licensePlate;
 
       return (
         <div className='text-slate-800 dark:text-slate-200 text-xs'>
-          <div className='font-mono font-bold text-sm'>{trip.vehicle?.licensePlate || '—'}</div>
-          <span className='text-muted-foreground block mt-0.5'>
-            {isExternal ? (
-              <span className='text-amber-700 dark:text-amber-300 font-medium'>
-                Đối tác: {trip.vehicle?.externalProvider || 'Thuê ngoài'}
-              </span>
-            ) : (
-              trip.vehicle?.type || 'Xe nội bộ'
-            )}
-          </span>
+          <div className='font-mono font-bold text-sm'>{licensePlate || '—'}</div>
+          {isExternal && trip.order?.externalNote && (
+            <span className='text-muted-foreground block mt-0.5 text-amber-700 dark:text-amber-300 font-medium'>
+              Đối tác: {trip.order.externalNote}
+            </span>
+          )}
         </div>
       );
     },
@@ -155,10 +152,10 @@ export const columns: ColumnDef<Trip>[] = [
   },
   {
     id: 'driver',
-    accessorFn: (row) => row.driver?.fullName || '',
-    header: ({ column }) => <DataTableColumnHeader column={column} title='Tài Xế & SĐT' />,
+    accessorFn: (row) => row.driverName || '',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Tài Xế' />,
     meta: {
-      columnTitle: 'Tài Xế & SĐT'
+      columnTitle: 'Tài Xế'
     },
     cell: ({ row }) => {
       const trip = row.original;
@@ -166,14 +163,8 @@ export const columns: ColumnDef<Trip>[] = [
         <div className='text-slate-800 dark:text-slate-200 text-xs'>
           <div className='font-medium text-sm flex items-center gap-1'>
             <Icons.user className='h-3.5 w-3.5 text-muted-foreground shrink-0' />
-            {trip.driver?.fullName || 'Chưa gán'}
+            {trip.driverName || 'Chưa gán'}
           </div>
-          {trip.driver?.phone && (
-            <div className='text-muted-foreground mt-0.5 flex items-center gap-1 font-mono text-[11px]'>
-              <Icons.phone className='h-3 w-3 shrink-0' />
-              {trip.driver.phone}
-            </div>
-          )}
         </div>
       );
     }

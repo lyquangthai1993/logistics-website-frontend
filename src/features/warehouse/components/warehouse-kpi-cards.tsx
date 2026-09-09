@@ -13,7 +13,7 @@ interface WarehouseKpiCardsProps {
 export function WarehouseKpiCards({ trips = [], loading = false }: WarehouseKpiCardsProps) {
   const metrics = useMemo(() => {
     const totalTrips = trips.length;
-    const externalTrips = trips.filter((t) => t.vehicle?.isExternal).length;
+    const externalTrips = trips.filter((t) => t.order?.isExternalVehicleNeeded).length;
     const totalWeight = trips.reduce((acc, t) => acc + (t.weightAllocated || 0), 0);
     const totalVolume = Number(
       trips.reduce((acc, t) => acc + (t.volumeAllocated || 0), 0).toFixed(1)
