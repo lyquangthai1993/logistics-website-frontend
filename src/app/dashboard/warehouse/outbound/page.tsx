@@ -212,7 +212,7 @@ export default function WarehouseOutboundPage() {
         <div>
           <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
             <IconTruck className="h-6 w-6" />
-            <span>Phân Hệ Xuất Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
+            <span>Xuất kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Lập kế hoạch xuất hàng cho khách hoặc điều chuyển sang Hub khác / Tuyến xe bo.

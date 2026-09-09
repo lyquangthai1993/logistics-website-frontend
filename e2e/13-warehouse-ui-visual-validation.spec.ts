@@ -28,7 +28,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('text=Tiếp Nhận & Nhập Kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('CHỜ NHẬP KHO', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' })).toBeVisible();
@@ -93,7 +93,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/outbound');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('text=Phân Hệ Xuất Kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Xuất kho/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất cho khách hàng' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' })).toBeVisible();

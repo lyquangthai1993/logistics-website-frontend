@@ -38,7 +38,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForLoadState('networkidle');
 
     // 2. Kiểm tra Header hiển thị Hub hiện tại và mở Mode 1
-    await expect(page.getByRole('heading', { name: /Tiếp Nhận & Nhập Kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Nhập kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
     await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
 
@@ -92,7 +92,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForLoadState('networkidle');
 
     // 2. Kiểm tra Header & 4 Stat Cards
-    await expect(page.getByRole('heading', { name: /Phân Hệ Xuất Kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Xuất kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất cho khách hàng' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' })).toBeVisible();
@@ -125,7 +125,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForLoadState('networkidle');
 
     // 2. Kiểm tra Header hiển thị đúng Hub Đà Nẵng
-    await expect(page.getByRole('heading', { name: /Tiếp Nhận & Nhập Kho.*Magellan Hub - Đà Nẵng/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Nhập kho.*Magellan Hub - Đà Nẵng/ })).toBeVisible({ timeout: 10_000 });
 
     // 3. Chuyển sang Mode 2: Luân chuyển nội bộ
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
@@ -177,10 +177,10 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 2. Truy cập trực tiếp vào các route
     await page.goto('/dashboard/warehouse/inbound');
-    await expect(page.locator('text=Tiếp Nhận & Nhập Kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 10_000 });
 
     await page.goto('/dashboard/warehouse/outbound');
-    await expect(page.locator('text=Phân Hệ Xuất Kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Xuất kho/ })).toBeVisible({ timeout: 10_000 });
 
     await page.goto('/dashboard/warehouse/orders');
     await expect(page.locator('text=Tổng Hợp Đơn Hàng Tại Kho')).toBeVisible({ timeout: 10_000 });

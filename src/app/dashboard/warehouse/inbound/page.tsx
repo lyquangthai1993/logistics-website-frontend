@@ -390,7 +390,7 @@ export default function WarehouseInboundPage() {
           <div>
             <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
               <IconBuildingWarehouse className="h-6 w-6" />
-              <span>Tiếp Nhận & Nhập Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
+              <span>Nhập kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Quản lý luồng hàng nhập kho (Khách gửi trực tiếp hoặc Luân chuyển liên Hub).
