@@ -38,7 +38,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForLoadState('networkidle');
 
     // 2. Kiểm tra Header hiển thị Hub hiện tại và mở Mode 1
-    await expect(page.locator('text=Tiếp Nhận & Nhập Kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Tiếp Nhận & Nhập Kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
     await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
 
@@ -92,7 +92,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForLoadState('networkidle');
 
     // 2. Kiểm tra Header & 4 Stat Cards
-    await expect(page.locator('text=Phân Hệ Xuất Kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: /Phân Hệ Xuất Kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất cho khách hàng' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' })).toBeVisible();
@@ -124,20 +124,23 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('networkidle');
 
-    // 2. Chuyển sang Mode 2: Luân chuyển nội bộ
+    // 2. Kiểm tra Header hiển thị đúng Hub Đà Nẵng
+    await expect(page.getByRole('heading', { name: /Tiếp Nhận & Nhập Kho.*Magellan Hub - Đà Nẵng/ })).toBeVisible({ timeout: 10_000 });
+
+    // 3. Chuyển sang Mode 2: Luân chuyển nội bộ
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
 
-    // 3. Kiểm tra Stepper 3 bước
+    // 4. Kiểm tra Stepper 3 bước
     await expect(page.locator('text=① Chọn chuyến xe đang đến')).toBeVisible();
     await expect(page.locator('text=② Chọn đơn hàng cần dỡ')).toBeVisible();
     await expect(page.locator('text=③ Kiểm tra & Nhập kho')).toBeVisible();
 
-    // 4. Bấm nút Chọn chuyến hàng
+    // 5. Bấm nút Chọn chuyến hàng
     const selectTripBtn = page.locator('button:has-text("Chọn chuyến hàng")');
     await expect(selectTripBtn).toBeVisible();
     await selectTripBtn.click();
 
-    // 5. Kiểm tra Modal Chuyến xe luân chuyển
+    // 6. Kiểm tra Modal Chuyến xe luân chuyển
     await expect(page.locator('text=Chọn chuyến xe đến')).toBeVisible({ timeout: 5_000 });
     const chooseThisTripBtn = page.locator('button:has-text("Chọn chuyến này ➔")').first();
     if (await chooseThisTripBtn.isVisible()) {
@@ -153,8 +156,8 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.goto('/dashboard/warehouse/orders');
     await page.waitForLoadState('networkidle');
 
-    // 2. Kiểm tra giao diện và bộ lọc trạng thái
-    await expect(page.locator('text=Tổng Hợp Đơn Hàng Tại Kho')).toBeVisible({ timeout: 10_000 });
+    // 2. Kiểm tra giao diện và bộ lọc trạng thái và Hub HCM
+    await expect(page.getByRole('heading', { name: /Tổng Hợp Đơn Hàng Tại Kho.*Andromeda Hub - HCM/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('button:has-text("Tất cả")')).toBeVisible();
     await expect(page.locator('button:has-text("LƯU KHO")')).toBeVisible();
     await expect(page.locator('button:has-text("DRAFT")')).toBeVisible();

@@ -500,8 +500,8 @@ export default function WarehouseOutboundPage() {
                   className="w-full h-8 text-xs font-bold rounded border px-2 bg-white dark:bg-slate-900"
                 >
                   <option value="2">Magellan Hub - Đà Nẵng (HUB-DAD-01)</option>
-                  <option value="3">Polaris Hub - Hưng Yên (HUB-HYN-01)</option>
-                  <option value="1">Andromeda Hub - HCM (HUB-HCM-01)</option>
+                  <option value="1">Polaris Hub - Hưng Yên (HUB-HYN-01)</option>
+                  <option value="3">Andromeda Hub - HCM (HUB-HCM-01)</option>
                 </select>
               </div>
               <div>

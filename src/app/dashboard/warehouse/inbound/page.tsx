@@ -207,7 +207,7 @@ export default function WarehouseInboundPage() {
             status: 'DRAFT',
             inboundType: 'CUSTOMER',
             deliveryMode: 'DIRECT_CUSTOMER',
-            deliveryAddress: 'Kho Andromeda HCM',
+            deliveryAddress: user?.hub?.name || 'Kho tiếp nhận',
           },
           {
             id: 102,
