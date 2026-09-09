@@ -783,7 +783,8 @@ export function WarehouseOutboundTransferFlow({
                       <th className="p-3 w-[170px]">MÃ ĐƠN HÀNG</th>
                       <th className="p-3 w-[220px]">TÊN HÀNG</th>
                       <th className="p-3 text-right w-[90px]">SỐ KIỆN</th>
-                      <th className="p-3 text-right w-[120px]">KG / M³</th>
+                      <th className="p-3 text-right w-[100px]">SỐ KG</th>
+                      <th className="p-3 text-right w-[90px]">SỐ M³</th>
                       <th className="p-3 text-center w-[120px]">NGÀY NHẬP KHO</th>
                       <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
                       <th className="p-3 text-center w-[100px]">HÀNH ĐỘNG</th>
@@ -792,14 +793,14 @@ export function WarehouseOutboundTransferFlow({
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {isLoadingOrders ? (
                       <tr>
-                        <td colSpan={8} className="p-8 text-center text-slate-500">
+                        <td colSpan={9} className="p-8 text-center text-slate-500">
                           <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                           Đang tải danh sách hàng trong kho...
                         </td>
                       </tr>
                     ) : warehouseOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-8 text-center text-slate-400">
+                        <td colSpan={9} className="p-8 text-center text-slate-400">
                           Không tìm thấy đơn hàng nào phù hợp với bộ lọc
                         </td>
                       </tr>
@@ -835,7 +836,10 @@ export function WarehouseOutboundTransferFlow({
                               {order.totalQuantity} kiện
                             </td>
                             <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                              {order.totalWeight.toLocaleString('vi-VN')} / {order.totalVolume} m³
+                              {order.totalWeight ? `${order.totalWeight.toLocaleString('vi-VN')} kg` : '0 kg'}
+                            </td>
+                            <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
+                              {order.totalVolume ? `${order.totalVolume} m³` : '0 m³'}
                             </td>
                             <td className="p-3 text-center text-slate-500 font-medium">
                               {new Date(order.createdAt).toLocaleDateString('vi-VN')}

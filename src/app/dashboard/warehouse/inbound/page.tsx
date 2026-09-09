@@ -82,6 +82,19 @@ export default function WarehouseInboundPage() {
     },
   ]);
 
+  // Tự động gán kho của nhân viên cho dòng khởi tạo nếu chưa có
+  useEffect(() => {
+    if (user?.hub?.name) {
+      const hubName: string = user.hub.name || '';
+      setMode1Rows((prev) => {
+        if (prev.length === 1 && !prev[0].pickupAddress) {
+          return [{ ...prev[0], pickupAddress: hubName }];
+        }
+        return prev;
+      });
+    }
+  }, [user?.hub?.name]);
+
   // Submitting State
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -272,7 +285,7 @@ export default function WarehouseInboundPage() {
             totalQuantity: Number(row.totalQuantity) || 1,
             totalWeight: Number(row.totalWeight) ?? 0,
             totalVolume: Number(row.totalVolume) ?? 0,
-            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || 'Kho tiếp nhận',
+            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
             deliveryAddress: row.deliveryAddress?.trim() || '',
             deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
             destinationHubId: row.destinationHubId || null,
@@ -291,11 +304,11 @@ export default function WarehouseInboundPage() {
       setMode1Rows([
         {
           orderCode: '(Tự sinh khi lưu)',
-          pickupAddress: user?.hub?.name || 'Kho tiếp nhận',
+          pickupAddress: user?.hub?.name || '',
           goodsDescription: '',
-          totalQuantity: 10,
-          totalWeight: 200,
-          totalVolume: 1.0,
+          totalQuantity: 1,
+          totalWeight: 0,
+          totalVolume: 0,
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: '',
           notes: '',

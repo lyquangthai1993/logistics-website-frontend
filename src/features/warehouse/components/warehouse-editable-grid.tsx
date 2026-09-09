@@ -327,7 +327,7 @@ function PickupAddressCell({
   row,
   column,
   table,
-}: CellContext<WarehouseRowItem, string>) {
+}: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -357,7 +357,7 @@ function GoodsDescriptionCell({
   row,
   column,
   table,
-}: CellContext<WarehouseRowItem, string>) {
+}: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -388,7 +388,7 @@ function QuantityCell({
   row,
   column,
   table,
-}: CellContext<WarehouseRowItem, number>) {
+}: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? 1;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -429,7 +429,7 @@ function WeightCell({
   row,
   column,
   table,
-}: CellContext<WarehouseRowItem, number>) {
+}: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -471,7 +471,7 @@ function VolumeCell({
   row,
   column,
   table,
-}: CellContext<WarehouseRowItem, number>) {
+}: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -636,7 +636,7 @@ function NotesCell({
   row,
   column,
   table,
-}: CellContext<WarehouseRowItem, string>) {
+}: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -806,13 +806,17 @@ export function WarehouseEditableGrid({
 
   // Add new empty row
   const handleAddRow = () => {
+    const defaultPickup =
+      user?.hub?.name ||
+      (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
+      '';
     const newRow: WarehouseRowItem = {
       orderCode: isOutboundMode ? '' : '(Tự sinh khi lưu)',
-      pickupAddress: 'Kho tiếp nhận',
+      pickupAddress: defaultPickup,
       goodsDescription: '',
-      totalQuantity: 10,
-      totalWeight: 200,
-      totalVolume: 1.0,
+      totalQuantity: 1,
+      totalWeight: 0,
+      totalVolume: 0,
       deliveryMode: 'DIRECT_CUSTOMER',
       deliveryAddress: '',
       notes: '',
@@ -852,16 +856,20 @@ export function WarehouseEditableGrid({
       if (!text || !text.includes('\t')) return;
 
       e.preventDefault();
+      const defaultPickup =
+        user?.hub?.name ||
+        (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
+        '';
       const lines = text.trim().split(/\r?\n/);
       const parsedRows: WarehouseRowItem[] = lines.map((line) => {
         const cols = line.split('\t');
         return {
           orderCode: isOutboundMode ? cols[0]?.trim() || '' : '(Tự sinh khi lưu)',
-          pickupAddress: cols[1]?.trim() || 'Kho tiếp nhận',
+          pickupAddress: cols[1]?.trim() || defaultPickup,
           goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
-          totalQuantity: parseInt(cols[3]?.trim(), 10) || 10,
-          totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 100,
-          totalVolume: parseFloat(cols[5]?.trim().replace(/,/g, '')) || 0.5,
+          totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
+          totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 0,
+          totalVolume: parseFloat(cols[5]?.trim().replace(/,/g, '')) || 0,
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: cols[6]?.trim() || '',
           notes: cols[7]?.trim() || '',
@@ -872,23 +880,27 @@ export function WarehouseEditableGrid({
         onChange(parsedRows);
       }
     },
-    [isOutboundMode, onChange],
+    [isOutboundMode, onChange, rows, user?.hub?.name],
   );
 
   // Trigger manual paste notification
   const handleManualPaste = () => {
     navigator.clipboard?.readText().then((text) => {
       if (text && text.includes('\t')) {
+        const defaultPickup =
+          user?.hub?.name ||
+          (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
+          '';
         const lines = text.trim().split(/\r?\n/);
         const parsedRows: WarehouseRowItem[] = lines.map((line) => {
           const cols = line.split('\t');
           return {
             orderCode: isOutboundMode ? cols[0]?.trim() || '' : '(Tự sinh khi lưu)',
-            pickupAddress: cols[1]?.trim() || 'Kho tiếp nhận',
+            pickupAddress: cols[1]?.trim() || defaultPickup,
             goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
-            totalQuantity: parseInt(cols[3]?.trim(), 10) || 10,
-            totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 100,
-            totalVolume: parseFloat(cols[5]?.trim().replace(/,/g, '')) || 0.5,
+            totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
+            totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 0,
+            totalVolume: parseFloat(cols[5]?.trim().replace(/,/g, '')) || 0,
             deliveryMode: 'DIRECT_CUSTOMER',
             deliveryAddress: cols[6]?.trim() || '',
             notes: cols[7]?.trim() || '',
@@ -1260,7 +1272,7 @@ export function WarehouseEditableGrid({
         isOpen={isExcelImportModalOpen}
         onClose={() => setIsExcelImportModalOpen(false)}
         onImport={handleImportExcelRows}
-        currentHubName={user?.hub?.name || 'Kho tiếp nhận'}
+        currentHubName={user?.hub?.name || ''}
         level1Hubs={level1Hubs}
         level2XeBoHubs={level2XeBoHubs}
       />

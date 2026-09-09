@@ -419,22 +419,23 @@ export default function WarehouseOutboundPage() {
                       <th className="p-2.5 w-[140px]">MÃ ĐƠN HÀNG</th>
                       <th className="p-2.5">KHÁCH HÀNG / ĐÍCH ĐẾN</th>
                       <th className="p-2.5">TÊN HÀNG HÓA</th>
-                      <th className="p-2.5 text-right w-[100px]">SỐ KIỆN</th>
-                      <th className="p-2.5 text-right w-[110px]">TẢI TRỌNG</th>
+                      <th className="p-2.5 text-right w-[90px]">SỐ KIỆN</th>
+                      <th className="p-2.5 text-right w-[100px]">SỐ KG</th>
+                      <th className="p-2.5 text-right w-[90px]">SỐ M³</th>
                       <th className="p-2.5 text-center w-[120px]">TRẠNG THÁI</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-gray-500">
+                        <td colSpan={7} className="p-8 text-center text-gray-500">
                           <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                           Đang tải dữ liệu xuất kho...
                         </td>
                       </tr>
                     ) : orders.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-gray-400">
+                        <td colSpan={7} className="p-8 text-center text-gray-400">
                           Chưa có đơn hàng nào trong danh sách xuất kho
                         </td>
                       </tr>
@@ -446,7 +447,10 @@ export default function WarehouseOutboundPage() {
                           <td className="p-2.5">{o.goodsDescription || 'Hàng tổng quan'}</td>
                           <td className="p-2.5 text-right font-bold">{o.totalQuantity ?? 1}</td>
                           <td className="p-2.5 text-right font-bold text-slate-700 dark:text-slate-300">
-                            {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
+                            {o.totalWeight ? `${o.totalWeight.toLocaleString('vi-VN')} kg` : '0 kg'}
+                          </td>
+                          <td className="p-2.5 text-right font-bold text-slate-700 dark:text-slate-300">
+                            {o.totalVolume ? `${o.totalVolume} m³` : '0 m³'}
                           </td>
                           <td className="p-2.5 text-center">
                             {renderWarehouseOrderStatusBadge(o.status)}

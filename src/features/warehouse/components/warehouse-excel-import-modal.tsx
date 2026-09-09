@@ -41,7 +41,7 @@ export function WarehouseExcelImportModal({
   isOpen,
   onClose,
   onImport,
-  currentHubName = 'Kho tiếp nhận',
+  currentHubName = '',
   level1Hubs = [],
   level2XeBoHubs = [],
 }: WarehouseExcelImportModalProps) {
@@ -157,7 +157,7 @@ export function WarehouseExcelImportModal({
         const pickupAddress =
           findVal(['địa chỉ nhận', 'nguồn gửi', 'nơi nhận', 'pickup', 'origin']) ||
           currentHubName ||
-          'Kho tiếp nhận';
+          '';
         const goodsDescription =
           findVal(['tên hàng', 'hàng hóa', 'loại hàng', 'goods', 'description', 'item']) || '';
         const totalQuantityRaw = findVal(['số kiện', 'số lượng', 'kiện', 'qty', 'quantity']);
