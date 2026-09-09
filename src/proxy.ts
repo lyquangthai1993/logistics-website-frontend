@@ -45,7 +45,7 @@ function parseJwt(token: string) {
 const DEFAULT_API_URL =
   process.env.NODE_ENV === 'production'
     ? 'https://logistics-website-backend-1.onrender.com'
-    : 'http://localhost:3001';
+    : 'http://127.0.0.1:3001';
 
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
@@ -91,8 +91,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Bypass public API routes from session auth redirects
-  if (publicApiRoutes.some((route) => pathname.startsWith(route))) {
+  // 2. Bypass API routes from page redirects – let Backend handle API authentication & errors
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
