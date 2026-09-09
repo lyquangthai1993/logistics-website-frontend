@@ -43,7 +43,7 @@ export default function WarehouseOutboundPage() {
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '',
-      pickupAddress: 'Kho Andromeda HCM',
+      pickupAddress: user?.hub?.name || 'Kho xuất hàng',
       goodsDescription: 'Vải may mặc',
       totalQuantity: 20,
       totalWeight: 500,
@@ -61,7 +61,7 @@ export default function WarehouseOutboundPage() {
   const [mode2Rows, setMode2Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '',
-      pickupAddress: 'Kho Andromeda HCM',
+      pickupAddress: user?.hub?.name || 'Kho xuất hàng',
       goodsDescription: 'Hàng gia dụng chuyển Hub',
       totalQuantity: 50,
       totalWeight: 1500,
@@ -202,7 +202,7 @@ export default function WarehouseOutboundPage() {
     }
   };
 
-  const currentHubName = user?.hub?.name || 'Andromeda Hub - HCM';
+  const currentHubName = user?.hub?.name;
 
   return (
     <PageContainer>
@@ -212,7 +212,7 @@ export default function WarehouseOutboundPage() {
         <div>
           <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
             <IconTruck className="h-6 w-6" />
-            <span>Phân Hệ Xuất Kho · {currentHubName}</span>
+            <span>Phân Hệ Xuất Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Lập kế hoạch xuất hàng cho khách hoặc điều chuyển sang Hub khác / Tuyến xe bo.

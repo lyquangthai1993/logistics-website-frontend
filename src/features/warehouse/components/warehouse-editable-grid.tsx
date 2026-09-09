@@ -109,7 +109,7 @@ export function WarehouseEditableGrid({
         const cols = line.split('\t');
         return {
           orderCode: isOutboundMode ? cols[0]?.trim() || '' : '(Tự sinh khi lưu)',
-          pickupAddress: cols[1]?.trim() || 'Kho Andromeda HCM',
+          pickupAddress: cols[1]?.trim() || 'Kho tiếp nhận',
           goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
           totalQuantity: parseInt(cols[3]?.trim(), 10) || 10,
           totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 100,

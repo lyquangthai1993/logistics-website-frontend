@@ -65,7 +65,7 @@ export default function WarehouseOrdersPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  const currentHubName = user?.hub?.name || 'Andromeda Hub - HCM';
+  const currentHubName = user?.hub?.name;
 
   return (
     <PageContainer>
@@ -75,7 +75,7 @@ export default function WarehouseOrdersPage() {
         <div>
           <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
             <IconBuildingWarehouse className="h-6 w-6" />
-            <span>Tổng Hợp Đơn Hàng Tại Kho · {currentHubName}</span>
+            <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Theo dõi, tra cứu và in lại tem nhãn nhận diện A4 cho các lô hàng lưu kho và xuất kho.

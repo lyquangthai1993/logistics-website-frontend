@@ -52,6 +52,8 @@ export function WarehouseLookupModal({
   selectedOrderCodes = [],
   targetRowIndex,
 }: WarehouseLookupModalProps) {
+  const user = useAuthStore((state) => state.user);
+  const currentHubName = user?.hub?.name;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'INBOUND' | 'DRAFT'>('ALL');
   const [page, setPage] = useState(1);
@@ -63,8 +65,6 @@ export function WarehouseLookupModal({
     storedCount: 0,
     draftCount: 0,
   });
-
-  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -126,7 +126,7 @@ export function WarehouseLookupModal({
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-slate-800 dark:text-slate-100">
               <IconSearch className="h-5 w-5 text-blue-600" />
-              <span>Tra Cứu Hàng Trong Kho · Andromeda Hub - HCM</span>
+              <span>Tra Cứu Hàng Trong Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
               {targetRowIndex !== null && targetRowIndex !== undefined && (
                 <Badge variant="outline" className="ml-2 font-mono text-xs bg-blue-50 text-blue-700 border-blue-200">
                   Dòng #{targetRowIndex + 1}

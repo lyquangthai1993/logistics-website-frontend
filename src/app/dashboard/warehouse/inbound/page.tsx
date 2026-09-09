@@ -118,7 +118,7 @@ export default function WarehouseInboundPage() {
             driverName: 'Nguyễn Văn Tuấn',
             driverPhone: '0988 234 567',
             originHub: 'Polaris Hub - Hưng Yên',
-            destinationHub: user?.hub?.name || 'Andromeda Hub - HCM',
+            destinationHub: user?.hub?.name || 'Kho tiếp nhận',
             remainingOrdersCount: 5,
             totalWeight: 3450,
             totalVolume: 14.2,
@@ -170,7 +170,7 @@ export default function WarehouseInboundPage() {
       setMode1Rows([
         {
           orderCode: '(Tự sinh khi lưu)',
-          pickupAddress: user?.hub?.name || 'Kho Andromeda HCM',
+          pickupAddress: user?.hub?.name || 'Kho tiếp nhận',
           goodsDescription: '',
           totalQuantity: 10,
           totalWeight: 200,
@@ -187,7 +187,7 @@ export default function WarehouseInboundPage() {
     }
   };
 
-  const currentHubName = user?.hub?.name || 'Andromeda Hub - HCM';
+  const currentHubName = user?.hub?.name;
 
   return (
     <PageContainer>
@@ -197,7 +197,7 @@ export default function WarehouseInboundPage() {
         <div>
           <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
             <IconBuildingWarehouse className="h-6 w-6" />
-            <span>Tiếp Nhận & Nhập Kho · {currentHubName}</span>
+            <span>Tiếp Nhận & Nhập Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Quản lý tiếp nhận hàng hóa từ khách hàng hoặc xe luân chuyển từ Hub khác về.
@@ -487,7 +487,7 @@ export default function WarehouseInboundPage() {
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <IconTruck className="h-5 w-5 text-blue-600" />
-                <span>Chọn chuyến xe đến {currentHubName} ({tripsList.length} chuyến còn hàng)</span>
+                <span>Chọn chuyến xe đến{currentHubName ? ` ${currentHubName}` : ' Kho'} ({tripsList.length} chuyến còn hàng)</span>
               </h3>
               <button
                 onClick={() => setIsTripModalOpen(false)}

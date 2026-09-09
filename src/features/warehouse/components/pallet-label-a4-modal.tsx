@@ -41,8 +41,8 @@ export function PalletLabelA4Modal({
 
   if (!data) return null;
 
-  const currentHubName = user?.hub?.name || data.originHub || 'Andromeda Hub - HCM';
-  const operatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Thủ kho tiếp nhận';
+  const currentHubName = user?.hub?.name || data.originHub || 'Kho tiếp nhận';
+  const operatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.name : 'Thủ kho tiếp nhận';
   const formattedDate = data.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
