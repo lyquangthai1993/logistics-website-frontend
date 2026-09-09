@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
+import { WarehouseOutboundTransferFlow } from '@/features/warehouse/components/warehouse-outbound-transfer-flow';
 import { toast } from 'sonner';
 import PageContainer from '@/components/layout/page-container';
 
@@ -273,44 +274,46 @@ export default function WarehouseOutboundPage() {
   return (
     <PageContainer>
       <div className="space-y-4 flex-1 w-full min-w-0">
-        {/* ── Page Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-        <div>
-          <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
-            <IconTruck className="h-6 w-6" />
-            <span>Xuất kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Lập kế hoạch xuất hàng cho khách hoặc điều chuyển sang Hub khác / Tuyến xe bo.
-          </p>
-        </div>
+        {/* ── Page Header (Board & Mode 1 Customer) ── */}
+        {activeView !== 'MODE2_TRANSFER' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+            <div>
+              <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
+                <IconTruck className="h-6 w-6" />
+                <span>Xuất kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Lập kế hoạch xuất hàng cho khách hoặc điều chuyển sang Hub khác / Tuyến xe bo.
+              </p>
+            </div>
 
-        {activeView === 'BOARD' ? (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setActiveView('MODE1_CUSTOMER')}
-              className="bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold"
-            >
-              <IconPlus className="mr-1 h-4 w-4" /> Xuất cho khách hàng
-            </Button>
-            <Button
-              onClick={() => setActiveView('MODE2_TRANSFER')}
-              className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-bold"
-            >
-              <IconTruck className="mr-1 h-4 w-4" /> Xuất luân chuyển nội bộ
-            </Button>
+            {activeView === 'BOARD' ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setActiveView('MODE1_CUSTOMER')}
+                  className="bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold"
+                >
+                  <IconPlus className="mr-1 h-4 w-4" /> Xuất cho khách hàng
+                </Button>
+                <Button
+                  onClick={() => setActiveView('MODE2_TRANSFER')}
+                  className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-bold"
+                >
+                  <IconTruck className="mr-1 h-4 w-4" /> Xuất luân chuyển nội bộ
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveView('BOARD')}
+                className="text-xs font-semibold"
+              >
+                <IconX className="mr-1.5 h-4 w-4" /> Quay lại danh sách
+              </Button>
+            )}
           </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setActiveView('BOARD')}
-            className="text-xs font-semibold"
-          >
-            <IconX className="mr-1.5 h-4 w-4" /> Quay lại danh sách
-          </Button>
         )}
-      </div>
 
       {/* ── View 1: Main Outbound Board ── */}
       {activeView === 'BOARD' && (
@@ -541,97 +544,16 @@ export default function WarehouseOutboundPage() {
         </Card>
       )}
 
-      {/* ── View 3: Mode 2 - Xuất Luân Chuyển Nội Bộ (Stepper 3 Bước) ── */}
+      {/* ── View 3: Mode 2 - Xuất Luân Chuyển Nội Bộ (WH_OUTBOUND_CREATE_TRIP -> WH_OUTBOUND_SELECT_MODAL -> WH_OUTBOUND_LOADED) ── */}
       {activeView === 'MODE2_TRANSFER' && (
-        <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-          <CardHeader className="py-3 px-4 border-b">
-            <div className="flex items-center gap-2 text-xs font-bold">
-              <Badge className="bg-[#0F3D62] text-white">① Chọn Hub đích & Xe</Badge>
-              <span className="text-gray-400">➔</span>
-              <Badge className="bg-[#0F3D62] text-white">② Chọn hàng trong kho</Badge>
-              <span className="text-gray-400">➔</span>
-              <Badge className="bg-slate-200 text-slate-800">③ In Loading Plan & Xuất</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            {/* Step 1: Destination Hub & Vehicle Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-emerald-50/50 dark:bg-slate-800 rounded-lg border border-emerald-200 dark:border-emerald-900">
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Hub tiếp nhận (Hub đích) <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={transferHubId}
-                  onChange={(e) => setTransferHubId(e.target.value)}
-                  className="w-full h-8 text-xs font-bold rounded border px-2 bg-white dark:bg-slate-900"
-                >
-                  {level1Hubs.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.name} ({h.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Biển số xe điều chuyển <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={transferLicensePlate}
-                  onChange={(e) => setTransferLicensePlate(e.target.value)}
-                  className="h-8 text-xs font-bold uppercase"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Họ tên tài xế xe tuyến <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={transferDriverName}
-                  onChange={(e) => setTransferDriverName(e.target.value)}
-                  className="h-8 text-xs font-bold"
-                />
-              </div>
-            </div>
-
-            {/* Step 2: Editable Table to pick stored items */}
-            <WarehouseEditableGrid
-              rows={mode2Rows}
-              onChange={setMode2Rows}
-              isOutboundMode={true}
-              onRefreshMetrics={handleRefreshMetrics}
-              isLoadingMetrics={isRefreshing}
-            />
-
-            {/* Step 3 Actions */}
-            <div className="flex justify-between items-center pt-3 border-t">
-              <Button variant="outline" onClick={() => setActiveView('BOARD')}>
-                Hủy bỏ
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => window.print()}
-                  className="text-xs font-semibold"
-                >
-                  <IconPrinter className="mr-1.5 h-4 w-4" /> In Loading Plan (A4 Ngang)
-                </Button>
-                <Button
-                  onClick={() => handleSubmitOutbound('TRANSFER')}
-                  disabled={isSubmitting}
-                  className="bg-emerald-700 text-white hover:bg-emerald-800 px-6 font-bold"
-                >
-                  {isSubmitting ? (
-                    <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <IconCircleCheck className="mr-2 h-5 w-5 text-emerald-300" />
-                  )}
-                  Xác nhận xuất kho luân chuyển
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <WarehouseOutboundTransferFlow
+          onBackToBoard={() => setActiveView('BOARD')}
+          onSwitchToCustomerMode={() => setActiveView('MODE1_CUSTOMER')}
+          onSuccess={() => {
+            setActiveView('BOARD');
+            fetchOrders();
+          }}
+        />
       )}
       </div>
     </PageContainer>

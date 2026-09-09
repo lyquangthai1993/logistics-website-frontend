@@ -132,21 +132,48 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 07: WH_OUTBOUND_TRANSFER (Mode 2 - Xuất luân chuyển nội bộ Stepper)', async ({ page }) => {
+  test('Screenshot 07: Mode 2 - Xuất luân chuyển nội bộ 3 Bước (WH_OUTBOUND_CREATE_TRIP, WH_OUTBOUND_SELECT_MODAL, WH_OUTBOUND_LOADED)', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/outbound');
     await page.waitForLoadState('networkidle');
 
+    // Enter Mode 2: Step 1 (WH_OUTBOUND_CREATE_TRIP)
     await page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' }).click();
-    await expect(page.locator('text=① Chọn Hub đích & Xe')).toBeVisible();
-    await expect(page.locator('text=② Chọn hàng trong kho')).toBeVisible();
-    await expect(page.locator('text=③ In Loading Plan & Xuất')).toBeVisible();
+    await expect(page.locator('text=BƯỚC 1: CHỌN HUB ĐÍCH & THÔNG TIN XE CHUYẾN')).toBeVisible();
+    await expect(page.locator('text=Thông tin chuyến xuất')).toBeVisible();
+    await expect(page.locator('button:has-text("Chọn hàng trong kho →")')).toBeVisible();
 
     await page.waitForTimeout(1000);
+    const step1Path = path.join(ARTIFACT_SCREENSHOT_DIR, '07_WH_OUTBOUND_TRANSFER.png');
+    await page.screenshot({ path: step1Path, fullPage: true });
+    const step1NamedPath = path.join(ARTIFACT_SCREENSHOT_DIR, '07_A_WH_OUTBOUND_CREATE_TRIP.png');
+    await page.screenshot({ path: step1NamedPath, fullPage: true });
+    console.log(`Saved screenshot: ${step1NamedPath}`);
 
-    const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '07_WH_OUTBOUND_TRANSFER.png');
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-    console.log(`Saved screenshot: ${screenshotPath}`);
+    // Advance to Step 2 (WH_OUTBOUND_SELECT_MODAL)
+    await page.click('button:has-text("Chọn hàng trong kho →")');
+    await expect(page.locator('text=CHỌN HÀNG XUẤT KHO')).toBeVisible();
+    await expect(page.locator('text=Kho xuất:')).toBeVisible();
+    await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
+    await expect(page.locator('button:has-text("Xác nhận hàng đã chọn → Sang Bước 3")')).toBeVisible();
+
+    await page.waitForTimeout(1000);
+    const step2Path = path.join(ARTIFACT_SCREENSHOT_DIR, '07_B_WH_OUTBOUND_SELECT_MODAL.png');
+    await page.screenshot({ path: step2Path, fullPage: true });
+    console.log(`Saved screenshot: ${step2Path}`);
+
+    // Advance to Step 3 (WH_OUTBOUND_LOADED)
+    await page.click('button:has-text("Xác nhận hàng đã chọn → Sang Bước 3")');
+    await expect(page.locator('text=Xác nhận phiếu xuất kho')).toBeVisible();
+    await expect(page.locator('text=Thông tin chuyến xe xuất kho')).toBeVisible();
+    await expect(page.locator('text=Khóa từ Bước 1')).toBeVisible();
+    await expect(page.locator('text=TỔNG KẾT HÀNG XUẤT')).toBeVisible();
+    await expect(page.locator('button:has-text("Xác nhận xuất kho luân chuyển")')).toBeVisible();
+
+    await page.waitForTimeout(1000);
+    const step3Path = path.join(ARTIFACT_SCREENSHOT_DIR, '07_C_WH_OUTBOUND_LOADED.png');
+    await page.screenshot({ path: step3Path, fullPage: true });
+    console.log(`Saved screenshot: ${step3Path}`);
   });
 
   test('Screenshot 08: WH_ORDERS_SUMMARY (Tổng Hợp Đơn Hàng Tại Kho & Bộ Lọc Trạng Thái)', async ({ page }) => {
