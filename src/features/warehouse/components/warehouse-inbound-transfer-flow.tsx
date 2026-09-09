@@ -31,6 +31,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { toast } from 'sonner';
+import { showApiErrorToast } from '@/lib/api-error';
 import { cn } from '@/lib/utils';
 
 export interface InboundTripItem {
@@ -273,13 +274,14 @@ export function WarehouseInboundTransferFlow({
       });
 
       if (!res.ok) {
-        throw new Error('Lỗi khi tiếp nhận chuyến hàng');
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
       }
 
       toast.success(`Đã xác nhận nhập kho thành công ${gridRows.length} đơn hàng từ chuyến ${selectedTrip?.tripCode}!`);
       onSuccess();
     } catch (err: any) {
-      toast.error(err.message || 'Tiếp nhận kho không thành công');
+      showApiErrorToast(err, 'Tiếp nhận kho không thành công');
     } finally {
       setIsSubmitting(false);
     }

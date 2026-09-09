@@ -29,6 +29,7 @@ import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/wareh
 import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-tally-modal';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
+import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 
@@ -203,7 +204,8 @@ export default function WarehouseInboundPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Lỗi khi xác nhận nhập kho hàng loạt');
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
       }
 
       toast.success(`Đã xác nhận nhập kho thành công cho ${selectedOrderIds.length} đơn hàng!`);
@@ -211,7 +213,7 @@ export default function WarehouseInboundPage() {
       fetchKpi();
       fetchInboundOrders();
     } catch (err: any) {
-      toast.error('Lỗi: ' + (err?.message || 'Vui lòng thử lại'));
+      showApiErrorToast(err, 'Lỗi khi xác nhận nhập kho hàng loạt');
     } finally {
       setIsBatchSubmitting(false);
     }
@@ -228,29 +230,61 @@ export default function WarehouseInboundPage() {
       return;
     }
 
+    // Client-side row validations
+    for (let i = 0; i < mode1Rows.length; i++) {
+      const row = mode1Rows[i];
+      const rowNum = i + 1;
+      if (!row.goodsDescription || !row.goodsDescription.trim()) {
+        toast.error(`Dòng ${rowNum}: Vui lòng nhập Tên loại hàng`);
+        return;
+      }
+      if (!row.totalQuantity || Number(row.totalQuantity) < 1) {
+        toast.error(`Dòng ${rowNum}: Số kiện phải lớn hơn hoặc bằng 1`);
+        return;
+      }
+      if (row.totalWeight === undefined || row.totalWeight === null || Number(row.totalWeight) < 0) {
+        toast.error(`Dòng ${rowNum}: Số kg phải lớn hơn hoặc bằng 0`);
+        return;
+      }
+      if (row.totalVolume === undefined || row.totalVolume === null || Number(row.totalVolume) < 0) {
+        toast.error(`Dòng ${rowNum}: Số khối m³ phải lớn hơn hoặc bằng 0`);
+        return;
+      }
+      if (row.deliveryMode === 'DIRECT_CUSTOMER' && (!row.deliveryAddress || !row.deliveryAddress.trim())) {
+        toast.error(`Dòng ${rowNum}: Vui lòng nhập Địa chỉ giao hàng`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
 
     try {
       for (const row of mode1Rows) {
-        await fetch('/api/v1/warehouse/inbound/quick-create', {
+        const res = await fetch('/api/v1/warehouse/inbound/quick-create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
-            goodsDescription: row.goodsDescription,
-            totalQuantity: row.totalQuantity,
-            totalWeight: row.totalWeight,
-            totalVolume: row.totalVolume,
-            pickupAddress: row.pickupAddress,
-            deliveryAddress: row.deliveryAddress,
-            deliveryMode: row.deliveryMode,
-            notes: row.notes,
+            goodsDescription: row.goodsDescription.trim(),
+            totalQuantity: Number(row.totalQuantity) || 1,
+            totalWeight: Number(row.totalWeight) ?? 0,
+            totalVolume: Number(row.totalVolume) ?? 0,
+            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || 'Kho tiếp nhận',
+            deliveryAddress: row.deliveryAddress?.trim() || '',
+            deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
+            destinationHubId: row.destinationHubId || null,
+            notes: row.notes?.trim() || null,
             initialStatus: 'INBOUND', // LƯU KHO
           }),
         });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
+        }
       }
 
       toast.success(`Đã tiếp nhận thành công ${mode1Rows.length} lô hàng vào kho! Mã đơn hàng đã tự động cấp phát.`);
@@ -271,7 +305,7 @@ export default function WarehouseInboundPage() {
       fetchKpi();
       fetchInboundOrders();
     } catch (err: any) {
-      toast.error('Lỗi khi tiếp nhận hàng vào kho: ' + (err?.message || 'Vui lòng thử lại'));
+      showApiErrorToast(err, 'Lỗi khi tiếp nhận hàng vào kho');
     } finally {
       setIsSubmitting(false);
     }

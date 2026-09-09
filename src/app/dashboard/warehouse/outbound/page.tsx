@@ -23,6 +23,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { WarehouseOutboundTransferFlow } from '@/features/warehouse/components/warehouse-outbound-transfer-flow';
 import { toast } from 'sonner';
+import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 
@@ -233,7 +234,7 @@ export default function WarehouseOutboundPage() {
 
     try {
       if (orderIds.length > 0) {
-        await fetch('/api/v1/warehouse/outbound/confirm', {
+        const res = await fetch('/api/v1/warehouse/outbound/confirm', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -250,6 +251,11 @@ export default function WarehouseOutboundPage() {
             driverName: mode === 'TRANSFER' ? transferDriverName : undefined,
           }),
         });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
+        }
       }
 
       toast.success(
@@ -260,7 +266,7 @@ export default function WarehouseOutboundPage() {
       setActiveView('BOARD');
       fetchOrders();
     } catch (err: any) {
-      toast.error('Lỗi khi xuất kho: ' + (err?.message || 'Vui lòng thử lại'));
+      showApiErrorToast(err, 'Lỗi khi xuất kho');
     } finally {
       setIsSubmitting(false);
     }
