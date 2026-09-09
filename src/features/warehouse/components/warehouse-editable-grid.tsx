@@ -816,20 +816,6 @@ export function WarehouseEditableGrid({
               </tr>
             ))}
           </tbody>
-
-          {/* ── Summary Footer (Frame yvruv in WH_CASE_01) ── */}
-          <tfoot className="bg-[#F8FAFC] dark:bg-slate-800 font-semibold border-t border-slate-200 dark:border-slate-700 text-xs">
-            <tr>
-              <td colSpan={3} className="p-3 text-left text-slate-500 dark:text-slate-400 font-semibold">
-                {rows.length} dòng hàng
-              </td>
-              <td colSpan={7} className="p-3 text-right text-slate-800 dark:text-slate-100 font-bold">
-                Tổng: <span className="text-blue-700 dark:text-blue-400">{totalPackages.toLocaleString('vi-VN')} kiện</span> &bull;{' '}
-                <span className="text-emerald-700 dark:text-emerald-400">{totalWeight.toLocaleString('vi-VN')} kg</span> &bull;{' '}
-                <span className="text-purple-700 dark:text-purple-400">{totalVolume.toFixed(1).replace('.', ',')} m³</span>
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </div>
 
