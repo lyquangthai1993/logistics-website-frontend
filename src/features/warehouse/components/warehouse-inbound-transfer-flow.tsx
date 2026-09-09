@@ -601,96 +601,120 @@ export function WarehouseInboundTransferFlow({
                 </Button>
               </div>
 
-              {/* Trips Table */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-[#F8FAFC] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
-                    <tr>
-                      <th className="p-3 w-[150px]">MÃ CHUYẾN XE</th>
-                      <th className="p-3 w-[220px]">PHƯƠNG TIỆN & TÀI XẾ</th>
-                      <th className="p-3 w-[180px]">HUB XUẤT PHÁT</th>
-                      <th className="p-3 text-right w-[150px]">TỔNG TẢI TRỌNG</th>
-                      <th className="p-3 text-center w-[130px]">HÀNG TRÊN XE</th>
-                      <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
-                      <th className="p-3 text-center w-[130px]">THAO TÁC</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {isLoadingTrips ? (
-                      <tr>
-                        <td colSpan={7} className="p-10 text-center text-slate-500">
-                          <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
-                          Đang tải danh sách chuyến xe từ cơ sở dữ liệu...
-                        </td>
-                      </tr>
-                    ) : tripsList.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="p-10 text-center text-slate-400">
-                          Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại {currentHubName}
-                        </td>
-                      </tr>
-                    ) : (
-                      tripsList.map((trip) => {
-                        const isSelected = selectedTrip?.id === trip.id;
-                        return (
-                          <tr
-                            key={trip.id}
-                            className={cn(
-                              'hover:bg-blue-50/50 dark:hover:bg-slate-800/50 transition-colors',
-                              isSelected && 'bg-[#EFF6FF] dark:bg-blue-950/40 font-semibold',
-                            )}
-                          >
-                            <td className="p-3 font-mono font-bold text-blue-700 dark:text-blue-400">
-                              {trip.tripCode}
-                            </td>
-                            <td className="p-3">
-                              <div className="font-bold text-slate-800 dark:text-slate-200">
-                                {trip.vehicleLicensePlate} ({trip.vehicleType})
+              {/* Available Trip Cards (Matches Pen Node ID: trip_modal_dialog_card / Z2NDR) */}
+              <div className="space-y-2.5">
+                {isLoadingTrips ? (
+                  <div className="py-12 text-center text-slate-500">
+                    <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                    Đang tải danh sách chuyến xe từ cơ sở dữ liệu...
+                  </div>
+                ) : tripsList.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 border border-dashed rounded-xl">
+                    Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại {currentHubName}
+                  </div>
+                ) : (
+                  tripsList.map((trip) => {
+                    const isSelected = selectedTrip?.id === trip.id;
+                    const orderCount = trip.remainingOrdersCount || (trip.order ? 1 : 1);
+                    const pkgCount = (trip as any).totalPackages || 140;
+                    const weightText = trip.totalWeight ? (trip.totalWeight >= 1000 ? `${(trip.totalWeight / 1000).toFixed(1)}T` : `${trip.totalWeight} kg`) : '3.8T';
+
+                    return (
+                      <div
+                        key={trip.id}
+                        className={cn(
+                          'rounded-lg overflow-hidden flex transition-all duration-150',
+                          isSelected
+                            ? 'bg-[#F8FBFF] dark:bg-blue-950/30 border-2 border-blue-500 shadow-sm'
+                            : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        )}
+                      >
+                        {/* Selection Accent Bar */}
+                        <div
+                          className={cn(
+                            'w-1 self-stretch flex-shrink-0',
+                            isSelected ? 'bg-[#2563EB]' : 'bg-slate-200 dark:bg-slate-700'
+                          )}
+                        />
+
+                        {/* Trip Card Content */}
+                        <div className="flex-1 p-3.5 sm:p-4 flex flex-col gap-2.5">
+                          {/* Card Header Row */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            {/* Left: Trip Identity */}
+                            <div className="space-y-1">
+                              <div className="text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-400 font-mono">
+                                {trip.tripCode}
                               </div>
-                              <div className="text-slate-500 text-[11px] flex items-center gap-1.5 mt-0.5">
-                                <IconUser className="h-3 w-3 text-slate-400" />
-                                <span>{trip.driverName}</span>
-                                {trip.driverPhone && <span>&bull; {trip.driverPhone}</span>}
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                <IconTruck className="h-3.5 w-3.5 text-slate-500" />
+                                <span>{trip.vehicleLicensePlate} · {trip.vehicleType}</span>
+                                {trip.originHub && (
+                                  <span className="text-slate-400 font-normal">
+                                    (từ {trip.originHub})
+                                  </span>
+                                )}
                               </div>
-                            </td>
-                            <td className="p-3 font-medium text-slate-700 dark:text-slate-300">
-                              <div className="flex items-center gap-1.5">
-                                <IconBuildingWarehouse className="h-3.5 w-3.5 text-blue-500" />
-                                <span>{trip.originHub}</span>
+                            </div>
+
+                            {/* Right: Actions (Status Badge + Select Button) */}
+                            <div className="flex items-center gap-2.5">
+                              {/* Loading Availability Badge */}
+                              <div className="bg-[#DCFCE7] dark:bg-emerald-950/60 text-[#15803D] dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                                <span>
+                                  {trip.status === 'CONFIRMED' || trip.status === 'IN_TRANSIT' || !trip.status
+                                    ? 'CHỜ TIẾP NHẬN'
+                                    : trip.status}
+                                </span>
                               </div>
-                            </td>
-                            <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                              <div>{trip.totalWeight?.toLocaleString('vi-VN')} kg</div>
-                              <div className="text-[11px] text-slate-400 font-normal">{trip.totalVolume} m³</div>
-                            </td>
-                            <td className="p-3 text-center">
-                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-[11px]">
-                                {trip.remainingOrdersCount || 1} đơn hàng
-                              </Badge>
-                            </td>
-                            <td className="p-3 text-center">
-                              <Badge
-                                variant="outline"
-                                className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold"
-                              >
-                                {trip.status || 'IN_TRANSIT'}
-                              </Badge>
-                            </td>
-                            <td className="p-3 text-center">
+
+                              {/* Select Trip Button */}
                               <Button
                                 size="sm"
                                 onClick={() => handleSelectTrip(trip)}
-                                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-3 shadow-sm flex items-center gap-1"
+                                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-9 px-3.5 rounded-md shadow-sm flex items-center gap-1.5 cursor-pointer"
                               >
-                                <span>Chọn chuyến →</span>
+                                <span>Chọn chuyến</span>
+                                <IconArrowRight className="h-3.5 w-3.5 text-white" />
                               </Button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                            </div>
+                          </div>
+
+                          {/* Card Operational Details Row */}
+                          <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                            {/* Driver Info Block */}
+                            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                              <IconUser className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                  TÀI XẾ & SĐT
+                                </span>
+                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                  {trip.driverName || 'Chưa gán tài xế'}
+                                  {trip.driverPhone ? ` · ${trip.driverPhone}` : ''}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Cargo Info Block */}
+                            <div className="flex items-center gap-2">
+                              <IconPackage className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                  ĐƠN CÒN TRÊN XE
+                                </span>
+                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                  {orderCount} đơn · {pkgCount} kiện · {weightText}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 

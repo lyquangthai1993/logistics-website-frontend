@@ -44,7 +44,7 @@ test.describe('Phân Hệ Nhập Kho - Modal-based Inbound Transfer Interactive 
     await expect(page.locator('text=Chọn chuyến đang đến để tiếp nhận hàng')).toBeVisible();
 
     // Thử tính năng tìm kiếm chuyến xe trong modal
-    const searchTripInput = page.locator('input[placeholder*="Tìm kiếm mã chuyến"]');
+    const searchTripInput = page.locator('input[placeholder*="mã chuyến"]');
     await expect(searchTripInput).toBeVisible();
     await searchTripInput.fill('TRIP');
     await page.waitForTimeout(500);
@@ -55,7 +55,7 @@ test.describe('Phân Hệ Nhập Kho - Modal-based Inbound Transfer Interactive 
     console.log(`Saved screenshot: ${screenshotPath01}`);
 
     // ── 4. Chọn 1 chuyến xe trong danh sách Modal Bước 1 ───────────────────────
-    const selectTripBtn = page.locator('table button:has-text("Chọn chuyến")').first();
+    const selectTripBtn = page.locator('.fixed.inset-0 button:has-text("Chọn chuyến")').first();
     await expect(selectTripBtn).toBeVisible();
     await selectTripBtn.click();
 

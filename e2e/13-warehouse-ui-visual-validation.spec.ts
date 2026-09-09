@@ -82,7 +82,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath03}`);
 
     // Click select trip in modal to move to Step 2 (WH_CASE_03_MODAL popup)
-    const selectTripBtn = page.locator('table button:has-text("Chọn chuyến")').first();
+    const selectTripBtn = page.locator('.fixed.inset-0 button:has-text("Chọn chuyến")').first();
     if (await selectTripBtn.isVisible()) {
       await selectTripBtn.click();
       await expect(page.locator('text=BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({ timeout: 10_000 });
