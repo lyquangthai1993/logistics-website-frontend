@@ -476,12 +476,22 @@ export function WarehouseEditableGrid({
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Summary Stat Pill placed at Top - Always Visible without horizontal scroll */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 dark:bg-blue-950/60 text-xs font-bold border border-blue-200 dark:border-blue-800 shadow-xs">
+            <span className="text-blue-950 dark:text-blue-200 font-bold">Tổng:</span>
+            <span className="text-blue-700 dark:text-blue-300 font-black">{totalPackages.toLocaleString('vi-VN')} kiện</span>
+            <span className="text-blue-300 dark:text-blue-700 font-normal">&bull;</span>
+            <span className="text-emerald-700 dark:text-emerald-400 font-black">{totalWeight.toLocaleString('vi-VN')} kg</span>
+            <span className="text-blue-300 dark:text-blue-700 font-normal">&bull;</span>
+            <span className="text-purple-700 dark:text-purple-300 font-black">{totalVolume.toFixed(1).replace('.', ',')} m³</span>
+          </div>
+
           <Button
             type="button"
             size="sm"
             onClick={handleAddRow}
-            className="h-8 bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm"
+            className="h-8 bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm shrink-0"
           >
             <IconPlus className="mr-1.5 h-4 w-4" />
             Thêm 1 dòng đơn mới
@@ -495,12 +505,12 @@ export function WarehouseEditableGrid({
           <thead className="select-none font-bold">
             <tr className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
               {/* STT */}
-              <th className="p-2.5 w-[40px] text-center sticky left-0 bg-[#F1F5F9] dark:bg-slate-800 z-10 border-r border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+              <th className="p-2.5 w-[48px] min-w-[48px] text-center sticky left-0 bg-[#F1F5F9] dark:bg-slate-800 z-10 border-r border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
                 STT
               </th>
 
               {/* MÃ ĐƠN HÀNG */}
-              <th className="p-2.5 w-[115px] sticky left-[40px] bg-[#FEF2F2] dark:bg-red-950/40 z-10 border-r border-b border-red-200 dark:border-red-900/60 text-slate-600 dark:text-slate-400 font-bold text-[11px]">
+              <th className="p-2.5 w-[125px] min-w-[125px] sticky left-[48px] bg-[#FEF2F2] dark:bg-red-950/40 z-10 border-r border-b border-red-200 dark:border-red-900/60 text-slate-600 dark:text-slate-400 font-bold text-[11px]">
                 MÃ ĐƠN HÀNG
               </th>
 
@@ -553,12 +563,12 @@ export function WarehouseEditableGrid({
                 className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group align-top"
               >
                 {/* 1. STT */}
-                <td className="p-2 text-center font-mono font-bold text-slate-500 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-blue-50/40 border-r border-slate-100 dark:border-slate-800">
+                <td className="p-2 w-[48px] min-w-[48px] text-center font-mono font-bold text-slate-500 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-blue-50/40 border-r border-slate-100 dark:border-slate-800">
                   {(idx + 1).toString().padStart(2, '0')}
                 </td>
 
                 {/* 2. Mã đơn hàng (Readonly Pill Badge / Outbound Lookup) */}
-                <td className="p-2 sticky left-[40px] bg-white dark:bg-slate-900 group-hover:bg-blue-50/40 border-r border-slate-100 dark:border-slate-800">
+                <td className="p-2 w-[125px] min-w-[125px] sticky left-[48px] bg-white dark:bg-slate-900 group-hover:bg-blue-50/40 border-r border-slate-100 dark:border-slate-800">
                   {isOutboundMode ? (
                     <div className="flex items-center gap-1">
                       <Input
