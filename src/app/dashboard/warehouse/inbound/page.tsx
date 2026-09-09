@@ -657,12 +657,29 @@ export default function WarehouseInboundPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
+                                      const isTrans =
+                                        o.inboundType === 'TRANSFER' ||
+                                        o.orderCode?.startsWith('TRIP') ||
+                                        (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
+                                        (o.trips && o.trips.length > 0);
+                                      const orig =
+                                        o.pickupAddress?.trim() ||
+                                        (isTrans ? o.originHub : null) ||
+                                        o.originHubEntity?.name ||
+                                        o.originHub ||
+                                        (o.route?.includes('→') ? o.route.split('→')[0].trim() : '') ||
+                                        user?.hub?.name;
+                                      const dest =
+                                        o.destinationHubEntity?.name ||
+                                        o.destinationHub ||
+                                        o.deliveryAddress?.trim() ||
+                                        (o.route?.includes('→') ? o.route.split('→')[1].trim() : '');
                                       setSelectedLabelData({
                                         orderCode: o.orderCode,
                                         goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
                                         totalQuantity: o.totalQuantity || 1,
-                                        originHub: o.pickupAddress || o.originHub,
-                                        destinationHub: o.deliveryAddress || o.destinationHub,
+                                        originHub: orig,
+                                        destinationHub: dest,
                                         createdAt: new Date(),
                                       });
                                       setIsLabelModalOpen(true);
@@ -871,12 +888,23 @@ export default function WarehouseInboundPage() {
             setIsTallyModalOpen(true);
           }}
           onPrintLabel={(waybill) => {
+            const orig =
+              waybill.pickupAddress?.trim() ||
+              waybill.originHubEntity?.name ||
+              waybill.originHub ||
+              (waybill.route?.includes('→') ? waybill.route.split('→')[0].trim() : '') ||
+              user?.hub?.name;
+            const dest =
+              waybill.destinationHubEntity?.name ||
+              waybill.destinationHub ||
+              waybill.deliveryAddress?.trim() ||
+              (waybill.route?.includes('→') ? waybill.route.split('→')[1].trim() : '');
             setSelectedLabelData({
               orderCode: waybill.orderCode,
               goodsDescription: waybill.goodsDescription || 'Hàng hóa nhập kho',
               totalQuantity: waybill.totalQuantity || 1,
-              originHub: waybill.originHub || waybill.pickupAddress,
-              destinationHub: waybill.destinationHub || waybill.deliveryAddress,
+              originHub: orig,
+              destinationHub: dest,
               createdAt: new Date(),
             });
             setIsLabelModalOpen(true);
@@ -896,12 +924,23 @@ export default function WarehouseInboundPage() {
             fetchKpi();
           }}
           onPrintLabel={(waybill) => {
+            const orig =
+              waybill.pickupAddress?.trim() ||
+              waybill.originHubEntity?.name ||
+              waybill.originHub ||
+              (waybill.route?.includes('→') ? waybill.route.split('→')[0].trim() : '') ||
+              user?.hub?.name;
+            const dest =
+              waybill.destinationHubEntity?.name ||
+              waybill.destinationHub ||
+              waybill.deliveryAddress?.trim() ||
+              (waybill.route?.includes('→') ? waybill.route.split('→')[1].trim() : '');
             setSelectedLabelData({
               orderCode: waybill.orderCode,
               goodsDescription: waybill.goodsDescription || 'Hàng hóa nhập kho',
               totalQuantity: waybill.totalQuantity || 1,
-              originHub: waybill.originHub || waybill.pickupAddress,
-              destinationHub: waybill.destinationHub || waybill.deliveryAddress,
+              originHub: orig,
+              destinationHub: dest,
               createdAt: new Date(),
             });
             setIsLabelModalOpen(true);
