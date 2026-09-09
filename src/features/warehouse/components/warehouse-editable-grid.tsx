@@ -505,42 +505,42 @@ export function WarehouseEditableGrid({
           <thead className="select-none font-bold">
             <tr className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
               {/* STT */}
-              <th className="p-2.5 w-[48px] min-w-[48px] text-center sticky left-0 bg-[#F1F5F9] dark:bg-slate-800 z-10 border-r border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+              <th className="p-2.5 w-[48px] min-w-[48px] text-center sticky left-0 bg-[#F1F5F9] dark:bg-slate-800 z-30 border-r border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
                 STT
               </th>
 
               {/* MÃ ĐƠN HÀNG */}
-              <th className="p-2.5 w-[125px] min-w-[125px] sticky left-[48px] bg-[#FEF2F2] dark:bg-red-950/40 z-10 border-r border-b border-red-200 dark:border-red-900/60 text-slate-600 dark:text-slate-400 font-bold text-[11px]">
+              <th className="p-2.5 w-[125px] min-w-[125px] sticky left-[48px] bg-[#FEE2E2] dark:bg-red-950 z-30 border-r border-b border-red-300 dark:border-red-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                 MÃ ĐƠN HÀNG
               </th>
 
               {/* ĐỊA CHỈ NHẬN HÀNG */}
-              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 ĐỊA CHỈ NHẬN HÀNG <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* TÊN HÀNG */}
-              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 TÊN HÀNG <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* SỐ THÙNG / SỐ KIỆN */}
-              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 SỐ KIỆN <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* SỐ KG */}
-              <th className="p-2.5 w-[115px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[115px] text-right bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 SỐ KG <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* SỐ KHỐI / SỐ M³ */}
-              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 SỐ M³ <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* ĐỊA CHỈ GIAO HÀNG */}
-              <th className="p-2.5 w-[280px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#B91C1C] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[280px] bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#B91C1C] dark:text-red-300 font-bold text-[11px]">
                 ĐỊA CHỈ GIAO HÀNG <span className="text-red-600 font-black">*</span>
               </th>
 
@@ -550,7 +550,7 @@ export function WarehouseEditableGrid({
               </th>
 
               {/* THAO TÁC */}
-              <th className="p-2.5 w-[85px] text-center sticky right-0 bg-[#F1F5F9] dark:bg-slate-800 z-10 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[85px] text-center sticky right-0 bg-[#F1F5F9] dark:bg-slate-800 z-30 border-l border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                 THAO TÁC
               </th>
             </tr>
@@ -563,12 +563,12 @@ export function WarehouseEditableGrid({
                 className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group align-top"
               >
                 {/* 1. STT */}
-                <td className="p-2 w-[48px] min-w-[48px] text-center font-mono font-bold text-slate-500 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-blue-50/40 border-r border-slate-100 dark:border-slate-800">
+                <td className="p-2 w-[48px] min-w-[48px] text-center font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20">
                   {(idx + 1).toString().padStart(2, '0')}
                 </td>
 
                 {/* 2. Mã đơn hàng (Readonly Pill Badge / Outbound Lookup) */}
-                <td className="p-2 w-[125px] min-w-[125px] sticky left-[48px] bg-white dark:bg-slate-900 group-hover:bg-blue-50/40 border-r border-slate-100 dark:border-slate-800">
+                <td className="p-2 w-[125px] min-w-[125px] sticky left-[48px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                   {isOutboundMode ? (
                     <div className="flex items-center gap-1">
                       <Input
@@ -769,7 +769,7 @@ export function WarehouseEditableGrid({
                 </td>
 
                 {/* 10. Thao tác */}
-                <td className="p-2 text-center sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-blue-50/40">
+                <td className="p-2 text-center sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-20 border-l border-slate-200 dark:border-slate-700 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                   <div className="flex items-center justify-center gap-1">
                     <Button
                       type="button"
