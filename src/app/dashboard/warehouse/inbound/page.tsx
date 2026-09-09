@@ -519,7 +519,6 @@ export default function WarehouseInboundPage() {
                           />
                         </th>
                         <th className="p-2.5 w-[150px]">MÃ VẬN ĐƠN</th>
-                        <th className="p-2.5 w-[170px]">KHÁCH HÀNG</th>
                         <th className="p-2.5 min-w-[180px]">TÊN HÀNG HÓA</th>
                         <th className="p-2.5 text-right w-[160px]">SỐ KIỆN / TẢI TRỌNG</th>
                         <th className="p-2.5 w-[130px] text-center">TRẠNG THÁI</th>
@@ -530,14 +529,14 @@ export default function WarehouseInboundPage() {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-gray-500">
+                          <td colSpan={7} className="p-8 text-center text-gray-500">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : orders.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-gray-400">
+                          <td colSpan={7} className="p-8 text-center text-gray-400">
                             Không có đơn hàng nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -582,25 +581,6 @@ export default function WarehouseInboundPage() {
                                 >
                                   {o.orderCode}
                                 </button>
-                              </td>
-                              <td className="p-2.5 font-medium">
-                                <div className="text-slate-900 dark:text-white font-semibold">
-                                  {o.senderName ||
-                                    (o.pickupAddress && o.pickupAddress !== o.originHub
-                                      ? o.pickupAddress
-                                      : null) ||
-                                    (o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
-                                      ? o.originHub || 'Hub gửi'
-                                      : 'Khách vãng lai')}
-                                </div>
-                                {o.senderName && o.pickupAddress && o.pickupAddress !== o.senderName && (
-                                  <div
-                                    className="text-gray-400 text-[11px] truncate max-w-[160px]"
-                                    title={o.pickupAddress}
-                                  >
-                                    {o.pickupAddress}
-                                  </div>
-                                )}
                               </td>
                               <td className="p-2.5">
                                 <div className="text-slate-900 dark:text-white font-semibold">

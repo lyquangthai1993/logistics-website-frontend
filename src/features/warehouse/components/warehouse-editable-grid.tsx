@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
+import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 
 export interface HubOption {
   id: number;
@@ -722,8 +723,10 @@ export function WarehouseEditableGrid({
   isLoadingMetrics = false,
   showAddressHint = true,
 }: WarehouseEditableGridProps) {
+  const user = useAuthStore((state) => state.user);
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
   const [lookupRowIndex, setLookupRowIndex] = useState<number | null>(null);
+  const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
   const [hubs, setHubs] = useState<HubOption[]>([
     { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
     { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
@@ -916,6 +919,23 @@ export function WarehouseEditableGrid({
     setLookupRowIndex(null);
   };
 
+  // Handle import rows from Excel
+  const handleImportExcelRows = (importedRows: WarehouseRowItem[], mode: 'REPLACE' | 'APPEND') => {
+    if (mode === 'REPLACE') {
+      onChange(importedRows);
+    } else {
+      const currentIsDefaultOnly =
+        rows.length === 1 &&
+        !rows[0].goodsDescription &&
+        !rows[0].deliveryAddress;
+      if (currentIsDefaultOnly) {
+        onChange(importedRows);
+      } else {
+        onChange([...rows, ...importedRows]);
+      }
+    }
+  };
+
   // Calculate totals for top summary badge
   const totalPackages = rows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 0), 0);
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
@@ -1085,22 +1105,16 @@ export function WarehouseEditableGrid({
             <IconFileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600" />
             Dán từ Excel
           </Button>
-          <label className="cursor-pointer">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm pointer-events-none"
-            >
-              Import Excel
-            </Button>
-            <input
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={() => {}}
-            />
-          </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExcelImportModalOpen(true)}
+            className="h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
+          >
+            <IconFileSpreadsheet className="mr-1.5 h-4 w-4 text-blue-600" />
+            Import Excel
+          </Button>
           {onRefreshMetrics && (
             <Button
               type="button"
@@ -1239,6 +1253,16 @@ export function WarehouseEditableGrid({
         onSelectOrder={handleSelectFromLookup}
         selectedOrderCodes={rows.map((r) => r.orderCode).filter(Boolean)}
         targetRowIndex={lookupRowIndex}
+      />
+
+      {/* ── Modal Import Excel (Nhập hàng loạt) ── */}
+      <WarehouseExcelImportModal
+        isOpen={isExcelImportModalOpen}
+        onClose={() => setIsExcelImportModalOpen(false)}
+        onImport={handleImportExcelRows}
+        currentHubName={user?.hub?.name || 'Kho tiếp nhận'}
+        level1Hubs={level1Hubs}
+        level2XeBoHubs={level2XeBoHubs}
       />
     </div>
   );
