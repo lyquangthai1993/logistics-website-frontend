@@ -70,7 +70,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
 
     // Click to enter Mode 2: Step 1 (WH_CASE_02B_TRIP_MODAL)
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
-    await expect(page.locator('text=Chọn Chuyến Hàng Đang Đến')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=BƯỚC 1: CHỌN CHUYẾN XE LUÂN CHUYỂN ĐANG ĐẾN')).toBeVisible({ timeout: 10_000 });
 
     await page.waitForTimeout(1000);
     const screenshotPath03A = path.join(ARTIFACT_SCREENSHOT_DIR, '03_A_WH_CASE_02B_TRIP_MODAL.png');
@@ -82,10 +82,10 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath03}`);
 
     // Click select trip to move to Step 2 (WH_CASE_03_MODAL)
-    const selectTripBtn = page.getByRole('button', { name: 'Chọn dỡ chuyến này' }).first();
+    const selectTripBtn = page.locator('table button:has-text("Chọn chuyến")').first();
     if (await selectTripBtn.isVisible()) {
       await selectTripBtn.click();
-      await expect(page.locator('text=Chọn Đơn Hàng Cần Nhập Kho')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('text=BƯỚC 2: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({ timeout: 10_000 });
 
       await page.waitForTimeout(1000);
       const screenshotPath03B = path.join(ARTIFACT_SCREENSHOT_DIR, '03_B_WH_CASE_03_MODAL.png');
@@ -93,17 +93,16 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
       console.log(`Saved screenshot: ${screenshotPath03B}`);
 
       // Click confirm orders to enter Step 3 (dd8X5 Loaded Grid Workspace)
-      const confirmOrdersBtn = page.getByRole('button', { name: /Xác nhận đưa vào kiểm đếm/ });
-      if (await confirmOrdersBtn.isVisible()) {
-        await confirmOrdersBtn.click();
-        await expect(page.locator('text=ĐANG DỠ HÀNG THEO CHUYẾN XE')).toBeVisible({ timeout: 10_000 });
-        await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
+      const confirmOrdersBtn = page.getByRole('button', { name: /Xác nhận dỡ hàng/ });
+      await confirmOrdersBtn.scrollIntoViewIfNeeded();
+      await confirmOrdersBtn.click();
+      await expect(page.locator('button:has-text("Chọn lại đơn")')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
 
-        await page.waitForTimeout(1000);
-        const screenshotPath03C = path.join(ARTIFACT_SCREENSHOT_DIR, '03_C_WH_INBOUND_TRANSFER_LOADED.png');
-        await page.screenshot({ path: screenshotPath03C, fullPage: true });
-        console.log(`Saved screenshot: ${screenshotPath03C}`);
-      }
+      await page.waitForTimeout(1000);
+      const screenshotPath03C = path.join(ARTIFACT_SCREENSHOT_DIR, '03_C_WH_INBOUND_TRANSFER_LOADED.png');
+      await page.screenshot({ path: screenshotPath03C, fullPage: true });
+      console.log(`Saved screenshot: ${screenshotPath03C}`);
     }
   });
 

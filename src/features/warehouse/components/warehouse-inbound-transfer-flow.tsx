@@ -419,7 +419,7 @@ export function WarehouseInboundTransferFlow({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <IconTruck className="h-5 w-5 text-blue-600" />
-                <span>BƯỚC 1: CHỌN CHUYẾN XE LUÂN CHUYỂN ĐANG ĐẾN ${currentHubName.toUpperCase()}</span>
+                <span>BƯỚC 1: CHỌN CHUYẾN XE LUÂN CHUYỂN ĐANG ĐẾN {currentHubName.toUpperCase()}</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Chọn một chuyến xe từ Hub xuất phát để chuẩn bị dỡ và tiếp nhận hàng hóa vào kho
@@ -427,7 +427,7 @@ export function WarehouseInboundTransferFlow({
             </div>
 
             <Badge className="bg-blue-50 text-blue-700 border-blue-200 font-mono text-xs px-3 py-1 font-bold">
-              ${tripsList.length} chuyến xe đang tiếp cận
+              {tripsList.length} chuyến xe đang tiếp cận
             </Badge>
           </CardHeader>
 
@@ -481,7 +481,7 @@ export function WarehouseInboundTransferFlow({
                   ) : tripsList.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="p-10 text-center text-slate-400">
-                        Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại ${currentHubName}
+                        Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại {currentHubName}
                       </td>
                     </tr>
                   ) : (
