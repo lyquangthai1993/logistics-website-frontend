@@ -23,13 +23,18 @@ async function main() {
   console.log('🔍 [Pre-Flight Check] Verifying dev servers before running E2E tests...');
   
   const frontendUrl = 'http://localhost:3000';
-  const backendUrl = 'http://localhost:3005';
+  const backendUrl = process.env.API_URL || 'http://localhost:3001';
   
   const frontend = await checkUrl(frontendUrl);
   // Try backend root first, fallback to /api/v1 if root returned 404
   let backend = await checkUrl(backendUrl);
   if (!backend.ok && backend.status === 404) {
     backend = await checkUrl(`${backendUrl}/api/v1`);
+  }
+  if (!backend.ok) {
+    // Also try 3005 fallback
+    const fallback = await checkUrl('http://localhost:3005');
+    if (fallback.ok) backend = fallback;
   }
 
   let failed = false;
