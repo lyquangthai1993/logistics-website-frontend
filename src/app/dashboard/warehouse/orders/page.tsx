@@ -17,6 +17,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { tokenManager } from '@/lib/token-manager';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
 import PageContainer from '@/components/layout/page-container';
 
@@ -33,7 +34,7 @@ export default function WarehouseOrdersPage() {
 
   const fetchOrders = useCallback(() => {
     setIsLoading(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
       page: page.toString(),
       limit: '15',

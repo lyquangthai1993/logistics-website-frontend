@@ -136,6 +136,18 @@ class TokenManager {
       const match = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
       if (match) token = decodeURIComponent(match[1]);
     }
+    if (!token && typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('access_token') || undefined;
+      if (!token) {
+        try {
+          const authStorage = localStorage.getItem('auth-storage');
+          if (authStorage) {
+            const parsed = JSON.parse(authStorage);
+            token = parsed?.state?.accessToken || undefined;
+          }
+        } catch {}
+      }
+    }
     return token;
   }
 
@@ -148,14 +160,36 @@ class TokenManager {
       const match = document.cookie.match(/(?:^|; )refreshToken=([^;]*)/);
       if (match) refreshToken = decodeURIComponent(match[1]);
     }
+    if (!refreshToken && typeof localStorage !== 'undefined') {
+      refreshToken = localStorage.getItem('refreshToken') || undefined;
+      if (!refreshToken) {
+        try {
+          const authStorage = localStorage.getItem('auth-storage');
+          if (authStorage) {
+            const parsed = JSON.parse(authStorage);
+            refreshToken = parsed?.state?.refreshToken || undefined;
+          }
+        } catch {}
+      }
+    }
     return refreshToken;
   }
 
   public syncCookies(accessToken: string, refreshToken?: string | null) {
     if (typeof document === 'undefined') return;
     document.cookie = `access_token=${accessToken}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('access_token', accessToken);
+      } catch {}
+    }
     if (refreshToken) {
       document.cookie = `refreshToken=${refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('refreshToken', refreshToken);
+        } catch {}
+      }
     }
   }
 
@@ -164,6 +198,13 @@ class TokenManager {
     document.cookie = 'access_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     document.cookie = 'refreshToken=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     document.cookie = 'refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('refresh_token');
+      } catch {}
+    }
   }
 
   public parseJwtExp(token: string): number | null {

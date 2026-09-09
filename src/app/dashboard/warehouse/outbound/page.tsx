@@ -19,6 +19,7 @@ import {
   IconFileSpreadsheet,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { toast } from 'sonner';
 import PageContainer from '@/components/layout/page-container';
@@ -48,7 +49,7 @@ export default function WarehouseOutboundPage() {
   });
 
   const fetchKpi = useCallback(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
     fetch('/api/v1/warehouse/kpi', {
       headers: {
         'Content-Type': 'application/json',
@@ -174,7 +175,7 @@ export default function WarehouseOutboundPage() {
   // Refresh Metrics Button Action
   const handleRefreshMetrics = async () => {
     setIsRefreshing(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
 
     try {
       const activeRows = activeView === 'MODE1_CUSTOMER' ? mode1Rows : mode2Rows;
@@ -230,7 +231,7 @@ export default function WarehouseOutboundPage() {
       .filter((id) => !isNaN(id) && id > 0);
 
     setIsSubmitting(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
 
     try {
       if (orderIds.length > 0) {

@@ -419,7 +419,7 @@ export function WarehouseEditableGrid({
       totalQuantity: order.totalQuantity || 1,
       totalWeight: order.totalWeight || 0,
       totalVolume: order.totalVolume || 0,
-      deliveryAddress: order.destinationHub || order.route || '',
+      deliveryAddress: order.destinationHub || order.route || order.deliveryAddress || '',
     };
     onChange(updated);
     setLookupRowIndex(null);

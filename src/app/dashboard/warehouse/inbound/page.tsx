@@ -19,6 +19,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
 import { toast } from 'sonner';
@@ -106,7 +107,7 @@ export default function WarehouseInboundPage() {
 
   // Fetch KPI
   const fetchKpi = useCallback(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
     fetch('/api/v1/warehouse/kpi', {
       headers: {
         'Content-Type': 'application/json',
@@ -127,7 +128,7 @@ export default function WarehouseInboundPage() {
   // Fetch Inbound Board Orders
   const fetchInboundOrders = useCallback(() => {
     setIsLoadingOrders(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
       limit: '100',
       ...(search.trim() ? { search: search.trim() } : {}),
@@ -159,7 +160,7 @@ export default function WarehouseInboundPage() {
   // Refresh Metrics Button Action
   const handleRefreshMetrics = async () => {
     setIsRefreshing(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
 
     try {
       const orderIds = orders.map((o) => Number(o.id)).filter((id) => !isNaN(id) && id > 0);
@@ -186,7 +187,7 @@ export default function WarehouseInboundPage() {
   // Fetch Trips for Mode 2
   const fetchInboundTrips = () => {
     setIsLoadingTrips(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
     fetch('/api/v1/warehouse/inbound-trips', {
       headers: {
         'Content-Type': 'application/json',
@@ -232,7 +233,7 @@ export default function WarehouseInboundPage() {
     }
 
     setIsSubmitting(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
 
     try {
       for (const row of mode1Rows) {

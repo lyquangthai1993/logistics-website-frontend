@@ -23,48 +23,52 @@ import {
   IconLoader2,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { tokenManager } from '@/lib/token-manager';
 
 export interface WarehouseLookupItem {
   id: number;
   orderCode: string;
   goodsDescription?: string | null;
-  totalQuantity?: number | null;
+  totalQuantity: number;
   totalWeight: number;
   totalVolume: number;
+  pickupAddress: string;
+  deliveryAddress: string;
+  deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
   status: string;
-  route?: string | null;
+  notes?: string | null;
   originHub?: string | null;
   destinationHub?: string | null;
+  route?: string | null;
 }
 
 interface WarehouseLookupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectOrder: (order: WarehouseLookupItem) => void;
+  onSelectOrder?: (order: WarehouseLookupItem) => void;
+  onSelect?: (item: WarehouseLookupItem) => void;
   selectedOrderCodes?: string[];
   targetRowIndex?: number | null;
+  isOutboundMode?: boolean;
 }
 
 export function WarehouseLookupModal({
   isOpen,
   onClose,
   onSelectOrder,
+  onSelect,
   selectedOrderCodes = [],
   targetRowIndex,
+  isOutboundMode = false,
 }: WarehouseLookupModalProps) {
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name;
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'INBOUND' | 'DRAFT'>('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<WarehouseLookupItem[]>([]);
-  const [meta, setMeta] = useState({
-    total: 0,
-    totalPages: 1,
-    storedCount: 0,
-    draftCount: 0,
-  });
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,7 +76,7 @@ export function WarehouseLookupModal({
     let isMounted = true;
     setIsLoading(true);
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = tokenManager.getAccessToken();
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: '8',
@@ -115,7 +119,8 @@ export function WarehouseLookupModal({
   }, [isOpen, search, statusFilter, page]);
 
   const handleRowSelect = (order: WarehouseLookupItem) => {
-    onSelectOrder(order);
+    if (onSelectOrder) onSelectOrder(order);
+    else if (onSelect) onSelect(order);
     onClose();
   };
 
