@@ -87,12 +87,12 @@ export function WarehouseOutboundTransferFlow({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'INBOUND' | 'DRAFT'>('ALL');
   const [warehouseOrders, setWarehouseOrders] = useState<StoredOrderItem[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number | string>>(new Set([11, 14]));
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number | string>>(new Set());
 
-  // Step 2 & 3 Pagination
+  // Step 2 & 3 Pagination & Dynamic Counters
   const [page, setPage] = useState(1);
   const [limit] = useState(8);
-  const [counts, setCounts] = useState({ total: 48, stored: 35, draft: 13 });
+  const [counts, setCounts] = useState({ total: 0, stored: 0, draft: 0 });
 
   // Pallet Label Modal
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
@@ -122,7 +122,7 @@ export function WarehouseOutboundTransferFlow({
       .catch(() => {});
   }, [destinationHubId]);
 
-  // Fetch Warehouse Stored Orders for Step 2 Selection
+  // Fetch Warehouse Stored Orders for Step 2 Selection (Pure Real DB Integration)
   const fetchWarehouseOrders = useCallback(() => {
     setIsLoadingOrders(true);
     const token = tokenManager.getAccessToken();
@@ -159,71 +159,15 @@ export function WarehouseOutboundTransferFlow({
 
         if (resData?.meta) {
           setCounts({
-            total: resData.meta.allCount ?? resData.meta.total ?? 48,
-            stored: resData.meta.storedCount ?? 35,
-            draft: resData.meta.draftCount ?? 13,
+            total: resData.meta.allCount ?? resData.meta.total ?? 0,
+            stored: resData.meta.storedCount ?? 0,
+            draft: resData.meta.draftCount ?? 0,
           });
         }
       })
-      .catch(() => {
-        // Fallback demo rows matching WAREHOUSE_FLOWS.pen
-        setWarehouseOrders([
-          {
-            id: 11,
-            orderCode: 'HCM-LTV-2609-011',
-            goodsDescription: 'Vải cuộn công nghiệp',
-            totalQuantity: 10,
-            totalWeight: 1040,
-            totalVolume: 4.1,
-            status: 'INBOUND',
-            createdAt: '2026-09-07T08:00:00Z',
-            destinationHub: 'Magellan Hub - Đà Nẵng',
-          },
-          {
-            id: 14,
-            orderCode: 'HCM-NVA-2609-014',
-            goodsDescription: 'Phụ kiện cơ khí đóng thùng',
-            totalQuantity: 8,
-            totalWeight: 780,
-            totalVolume: 3.1,
-            status: 'INBOUND',
-            createdAt: '2026-09-07T09:30:00Z',
-            destinationHub: 'Magellan Hub - Đà Nẵng',
-          },
-          {
-            id: 19,
-            orderCode: 'HCM-PTH-2609-019',
-            goodsDescription: 'Hạt nhựa PP',
-            totalQuantity: 14,
-            totalWeight: 1560,
-            totalVolume: 5.8,
-            status: 'INBOUND',
-            createdAt: '2026-09-08T10:15:00Z',
-            destinationHub: 'Polaris Hub - Hưng Yên',
-          },
-          {
-            id: 22,
-            orderCode: 'HCM-DQV-2609-022',
-            goodsDescription: 'Thiết bị điện dân dụng',
-            totalQuantity: 6,
-            totalWeight: 460,
-            totalVolume: 2.0,
-            status: 'INBOUND',
-            createdAt: '2026-09-08T11:45:00Z',
-            destinationHub: 'Magellan Hub - Đà Nẵng',
-          },
-          {
-            id: 204,
-            orderCode: 'Bản nháp #204',
-            goodsDescription: 'Dệt May Phong Phú',
-            totalQuantity: 5,
-            totalWeight: 350,
-            totalVolume: 1.5,
-            status: 'DRAFT',
-            createdAt: '2026-09-09T07:30:00Z',
-            destinationHub: 'Magellan Hub - Đà Nẵng',
-          },
-        ]);
+      .catch((err) => {
+        console.error('Failed to fetch warehouse orders from DB:', err);
+        setWarehouseOrders([]);
       })
       .finally(() => setIsLoadingOrders(false));
   }, [page, limit, search, statusFilter, user?.hub?.name]);
@@ -248,38 +192,10 @@ export function WarehouseOutboundTransferFlow({
   const currentHubName = user?.hub?.name || 'Andromeda Hub - HCM';
   const currentHubCode = user?.hub?.code || 'HUB-HCM-01';
 
-  // Selected orders array & metrics
+  // Selected orders array & metrics (Pure Real DB items)
   const selectedOrders = useMemo(() => {
-    const list = warehouseOrders.filter((o) => selectedOrderIds.has(o.id));
-    if (list.length === 0 && selectedOrderIds.size > 0) {
-      // Fallback display if current page doesn't contain all selected
-      return [
-        {
-          id: 11,
-          orderCode: 'HCM-LTV-2609-011',
-          goodsDescription: 'Vải cuộn công nghiệp',
-          totalQuantity: 10,
-          totalWeight: 1040,
-          totalVolume: 4.1,
-          status: 'INBOUND',
-          createdAt: '2026-09-07T08:00:00Z',
-          destinationHub: selectedDestHub.name,
-        },
-        {
-          id: 14,
-          orderCode: 'HCM-NVA-2609-014',
-          goodsDescription: 'Phụ kiện cơ khí đóng thùng',
-          totalQuantity: 8,
-          totalWeight: 780,
-          totalVolume: 3.1,
-          status: 'INBOUND',
-          createdAt: '2026-09-07T09:30:00Z',
-          destinationHub: selectedDestHub.name,
-        },
-      ];
-    }
-    return list;
-  }, [warehouseOrders, selectedOrderIds, selectedDestHub.name]);
+    return warehouseOrders.filter((o) => selectedOrderIds.has(o.id));
+  }, [warehouseOrders, selectedOrderIds]);
 
   const selectedMetrics = useMemo(() => {
     const totalQty = selectedOrders.reduce((sum, o) => sum + (o.totalQuantity || 0), 0);

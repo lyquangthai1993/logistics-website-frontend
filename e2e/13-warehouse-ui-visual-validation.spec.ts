@@ -155,12 +155,22 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await expect(page.locator('text=CHỌN HÀNG XUẤT KHO')).toBeVisible();
     await expect(page.locator('text=Kho xuất:')).toBeVisible();
     await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
-    await expect(page.locator('button:has-text("Xác nhận hàng đã chọn → Sang Bước 3")')).toBeVisible();
-
     await page.waitForTimeout(1000);
     const step2Path = path.join(ARTIFACT_SCREENSHOT_DIR, '07_B_WH_OUTBOUND_SELECT_MODAL.png');
     await page.screenshot({ path: step2Path, fullPage: true });
     console.log(`Saved screenshot: ${step2Path}`);
+
+    // Select rows from real DB table before proceeding to Step 3
+    const selectAllLabel = page.locator('label:has-text("Chọn tất cả")');
+    if (await selectAllLabel.isVisible()) {
+      await selectAllLabel.click();
+    } else {
+      const firstCheckbox = page.locator('tbody input[type="checkbox"]').first();
+      if (await firstCheckbox.isVisible()) {
+        await firstCheckbox.click();
+      }
+    }
+    await page.waitForTimeout(500);
 
     // Advance to Step 3 (WH_OUTBOUND_LOADED)
     await page.click('button:has-text("Xác nhận hàng đã chọn → Sang Bước 3")');
