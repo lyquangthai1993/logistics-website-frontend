@@ -16,6 +16,15 @@ import {
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
 
+export interface HubOption {
+  id: number;
+  code: string;
+  name: string;
+  city: string;
+  level: number;
+  address?: string | null;
+}
+
 export interface WarehouseRowItem {
   id?: number | string;
   orderCode: string;
@@ -49,6 +58,46 @@ export function WarehouseEditableGrid({
 }: WarehouseEditableGridProps) {
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
   const [lookupRowIndex, setLookupRowIndex] = useState<number | null>(null);
+  const [hubs, setHubs] = useState<HubOption[]>([]);
+
+  // Fetch active hubs list for Level 1 & Level 2 dropdowns
+  React.useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    fetch('/api/v1/hubs/active', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: HubOption[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setHubs(data);
+        } else {
+          setHubs([
+            { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
+            { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
+            { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
+            { id: 4, code: 'HUB-BO-HCM-01', name: 'XB-KH-02 · gom hàng tuyến nội thành', city: 'TP. Hồ Chí Minh', level: 2 },
+            { id: 5, code: 'HUB-BO-HAN-01', name: 'XB-KH-01 · gom hàng tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
+            { id: 6, code: 'HUB-BO-DAD-01', name: 'XB-KH-03 · gom hàng tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
+          ]);
+        }
+      })
+      .catch(() => {
+        setHubs([
+          { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
+          { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
+          { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
+          { id: 4, code: 'HUB-BO-HCM-01', name: 'XB-KH-02 · gom hàng tuyến nội thành', city: 'TP. Hồ Chí Minh', level: 2 },
+          { id: 5, code: 'HUB-BO-HAN-01', name: 'XB-KH-01 · gom hàng tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
+          { id: 6, code: 'HUB-BO-DAD-01', name: 'XB-KH-03 · gom hàng tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
+        ]);
+      });
+  }, []);
+
+  const level1Hubs = hubs.filter((h) => h.level === 1 || !h.code.startsWith('HUB-BO-'));
+  const level2XeBoHubs = hubs.filter((h) => h.level === 2 || h.code.startsWith('HUB-BO-'));
 
   // Update a single field in a specific row
   const handleCellChange = (
@@ -399,7 +448,36 @@ export function WarehouseEditableGrid({
                     {/* Top Tier: Mode Selector */}
                     <select
                       value={row.deliveryMode}
-                      onChange={(e) => handleCellChange(idx, 'deliveryMode', e.target.value as any)}
+                      onChange={(e) => {
+                        const newMode = e.target.value as 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
+                        const updated = [...rows];
+                        let newAddress = updated[idx].deliveryAddress;
+                        let destId = updated[idx].destinationHubId;
+
+                        if (newMode === 'HUB_L1') {
+                          const currentMatch = level1Hubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
+                          const targetHub = currentMatch || level1Hubs[0];
+                          if (targetHub) {
+                            newAddress = `${targetHub.name} · nhận trung chuyển`;
+                            destId = targetHub.id;
+                          }
+                        } else if (newMode === 'XE_BO') {
+                          const currentMatch = level2XeBoHubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
+                          const targetXeBo = currentMatch || level2XeBoHubs[0];
+                          if (targetXeBo) {
+                            newAddress = `${targetXeBo.name} · gom hàng tuyến nội thành`;
+                            destId = targetXeBo.id;
+                          }
+                        }
+
+                        updated[idx] = {
+                          ...updated[idx],
+                          deliveryMode: newMode,
+                          deliveryAddress: newAddress,
+                          destinationHubId: destId,
+                        };
+                        onChange(updated);
+                      }}
                       className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
@@ -407,20 +485,86 @@ export function WarehouseEditableGrid({
                       <option value="XE_BO">Xe bo</option>
                     </select>
 
-                    {/* Bottom Tier: Resolved Address / Destination Text */}
-                    <textarea
-                      rows={2}
-                      value={row.deliveryAddress}
-                      onChange={(e) => handleCellChange(idx, 'deliveryAddress', e.target.value)}
-                      placeholder={
-                        row.deliveryMode === 'HUB_L1'
-                          ? 'Polaris Hub - Hưng Yên · nhận trung chuyển...'
-                          : row.deliveryMode === 'XE_BO'
-                            ? 'XB-KH-02 · gom hàng tuyến nội thành...'
-                            : '25 Nguyễn Văn Linh, Q.7, TP.HCM...'
-                      }
-                      className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
-                    />
+                    {/* Bottom Tier: Mode-specific selector or input */}
+                    {row.deliveryMode === 'HUB_L1' ? (
+                      <div className="space-y-1">
+                        <select
+                          value={
+                            level1Hubs.find(
+                              (h) =>
+                                h.id === row.destinationHubId ||
+                                (row.deliveryAddress && row.deliveryAddress.includes(h.name)),
+                            )?.id || (level1Hubs[0]?.id ?? '')
+                          }
+                          onChange={(e) => {
+                            const selectedId = Number(e.target.value);
+                            const selectedHub = level1Hubs.find((h) => h.id === selectedId);
+                            if (selectedHub) {
+                              const updated = [...rows];
+                              updated[idx] = {
+                                ...updated[idx],
+                                destinationHubId: selectedHub.id,
+                                deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
+                              };
+                              onChange(updated);
+                            }
+                          }}
+                          className="w-full h-[30px] text-xs font-semibold text-slate-800 dark:text-slate-100 bg-[#F8FAFC] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          {level1Hubs.map((h) => (
+                            <option key={h.id} value={h.id}>
+                              {h.name} ({h.city})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
+                          Đích: {row.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
+                        </div>
+                      </div>
+                    ) : row.deliveryMode === 'XE_BO' ? (
+                      <div className="space-y-1">
+                        <select
+                          value={
+                            level2XeBoHubs.find(
+                              (h) =>
+                                h.id === row.destinationHubId ||
+                                (row.deliveryAddress && row.deliveryAddress.includes(h.name)),
+                            )?.id || (level2XeBoHubs[0]?.id ?? '')
+                          }
+                          onChange={(e) => {
+                            const selectedId = Number(e.target.value);
+                            const selectedXeBo = level2XeBoHubs.find((h) => h.id === selectedId);
+                            if (selectedXeBo) {
+                              const updated = [...rows];
+                              updated[idx] = {
+                                ...updated[idx],
+                                destinationHubId: selectedXeBo.id,
+                                deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
+                              };
+                              onChange(updated);
+                            }
+                          }}
+                          className="w-full h-[30px] text-xs font-semibold text-slate-800 dark:text-slate-100 bg-[#F8FAFC] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          {level2XeBoHubs.map((h) => (
+                            <option key={h.id} value={h.id}>
+                              {h.name} ({h.city})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
+                          Tuyến: {row.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
+                        </div>
+                      </div>
+                    ) : (
+                      <textarea
+                        rows={2}
+                        value={row.deliveryAddress}
+                        onChange={(e) => handleCellChange(idx, 'deliveryAddress', e.target.value)}
+                        placeholder="25 Nguyễn Văn Linh, Q.7, TP.HCM..."
+                        className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
+                      />
+                    )}
                   </div>
                 </td>
 
