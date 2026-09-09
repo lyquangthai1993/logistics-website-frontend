@@ -37,34 +37,45 @@ export default function WarehouseInboundPage() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Vehicle Header Fields (3 Red-Border Required Fields for Mode 1)
+  // Vehicle Header Fields (3 Red-Border Required Fields for Mode 1 - Frame UVtv4)
   const [receiveDate, setReceiveDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [licensePlate, setLicensePlate] = useState('43H-307.03');
+  const [licensePlate, setLicensePlate] = useState('50H-756.14');
   const [driverName, setDriverName] = useState('Phạm Thành Trung');
 
-  // Mode 1 Rows
+  // Mode 1 Rows (Frame xTfjC: 3 Canonical Rows in WH_CASE_01)
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '(Tự sinh khi lưu)',
-      pickupAddress: 'KCN Thăng Long II, Hưng Yên',
-      goodsDescription: 'Vải cuộn may mặc xuất khẩu',
+      pickupAddress: 'KCN Phú Nghĩa, Hà Nội\nKhu A · Cổng số 2',
+      goodsDescription: 'Vải cuộn',
       totalQuantity: 50,
       totalWeight: 1280,
       totalVolume: 5.0,
-      deliveryMode: 'HUB_L1',
-      deliveryAddress: 'Magellan Hub - Đà Nẵng',
-      notes: 'Hàng may mặc đóng bao nilon chống ẩm',
+      deliveryMode: 'DIRECT_CUSTOMER',
+      deliveryAddress: '25 Nguyễn Văn Linh, Q.7, TP.HCM',
+      notes: 'Giao giờ hành chính\nLiên hệ bảo vệ trước khi vào cổng',
     },
     {
       orderCode: '(Tự sinh khi lưu)',
-      pickupAddress: 'Kho Phụ Gia KCN Quế Võ, Bắc Ninh',
-      goodsDescription: 'Hạt nhựa nguyên sinh HDPE',
-      totalQuantity: 80,
-      totalWeight: 2000,
-      totalVolume: 4.2,
+      pickupAddress: 'Andromeda Hub - HCM\nThủ Đức, TP.HCM',
+      goodsDescription: 'Hạt nhựa',
+      totalQuantity: 20,
+      totalWeight: 680,
+      totalVolume: 2.4,
+      deliveryMode: 'HUB_L1',
+      deliveryAddress: 'Polaris Hub - Hưng Yên · nhận trung chuyển',
+      notes: 'Nhập ghi chú\nCó thể bổ sung yêu cầu xử lý',
+    },
+    {
+      orderCode: '(Tự sinh khi lưu)',
+      pickupAddress: 'Andromeda Hub - HCM\nThủ Đức, TP.HCM',
+      goodsDescription: 'Linh kiện',
+      totalQuantity: 12,
+      totalWeight: 240,
+      totalVolume: 1.1,
       deliveryMode: 'XE_BO',
-      deliveryAddress: 'Xe bo Tuyến Đà Nẵng',
-      notes: 'Bốc dỡ cẩn thận, tránh rách bao bì',
+      deliveryAddress: 'XB-KH-02 · gom hàng tuyến nội thành',
+      notes: 'Hàng dễ vỡ\nƯu tiên kiểm đếm riêng',
     },
   ]);
 
@@ -624,62 +635,74 @@ export default function WarehouseInboundPage() {
           </div>
         )}
 
-        {/* ── View 2: Mode 1 - Nhập Kho Từ Khách Hàng (3 Red-Border Fields + 10-Col Table) ── */}
+        {/* ── View 2: Mode 1 - Nhập Kho Từ Khách Hàng (Frame WH_CASE_01) ── */}
         {activeView === 'MODE1_CUSTOMER' && (
           <div className="space-y-4">
-            {/* Khối Header Thông Tin Tiếp Nhận Tại Cửa Kho (3 Trường Bắt Buộc Viền Đỏ) */}
-            <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-              <CardHeader className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800 border-b">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <IconTruck className="h-4 w-4 text-blue-600" />
-                  <span>Thông Tin Phương Tiện & Tiếp Nhận Cửa Kho (Bắt buộc)</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Inbound Mode Switch Tabs (Frame SPiXE in WH_CASE_01) */}
+            <div className="w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setActiveView('MODE1_CUSTOMER')}
+                className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm"
+              >
+                Mới hoàn toàn · Khách hàng đưa vào kho
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('MODE2_TRANSFER')}
+                className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white"
+              >
+                Luân chuyển nội bộ · Chọn chuyến hàng
+              </button>
+            </div>
+
+            {/* Khối Header Thông Tin Tiếp Nhận Tại Cửa Kho (3 Trường Bắt Buộc Viền Đỏ - Frame UVtv4) */}
+            <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {/* 1. Ngày nhận */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
                     1. Ngày tiếp nhận <span className="text-red-600 font-black">*</span>
                   </label>
                   <div className="relative">
-                    <IconCalendar className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
+                    <IconCalendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                     <Input
                       type="date"
                       value={receiveDate}
                       onChange={(e) => setReceiveDate(e.target.value)}
-                      className="h-8 pl-8 text-xs border-red-300 focus:border-red-500 dark:border-red-900"
+                      className="h-9 pl-8 text-xs border-red-300 focus:border-red-500 bg-red-50/20 dark:bg-red-950/20 dark:border-red-900"
                     />
                   </div>
                 </div>
 
                 {/* 2. Biển số xe */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">
                     2. Biển số xe <span className="text-red-600 font-black">*</span>
                   </label>
                   <div className="relative">
-                    <IconTruck className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
+                    <IconTruck className="absolute left-2.5 top-2.5 h-4 w-4 text-red-400" />
                     <Input
                       value={licensePlate}
                       onChange={(e) => setLicensePlate(e.target.value)}
-                      placeholder="VD: 43H-307.03 hoặc 50H-756.14"
-                      className="h-8 pl-8 text-xs font-bold border-red-300 focus:border-red-500 uppercase dark:border-red-900"
+                      placeholder="VD: 50H-756.14"
+                      className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 uppercase bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
                     />
                   </div>
                 </div>
 
                 {/* 3. Tài xế / Người giao */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    3. Họ tên tài xế / người giao <span className="text-red-600 font-black">*</span>
+                  <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">
+                    3. Họ tên người nhận / tài xế <span className="text-red-600 font-black">*</span>
                   </label>
                   <div className="relative">
-                    <IconUser className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
+                    <IconUser className="absolute left-2.5 top-2.5 h-4 w-4 text-red-400" />
                     <Input
                       value={driverName}
                       onChange={(e) => setDriverName(e.target.value)}
                       placeholder="VD: Phạm Thành Trung"
-                      className="h-8 pl-8 text-xs font-bold border-red-300 focus:border-red-500 dark:border-red-900"
+                      className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
                     />
                   </div>
                 </div>
@@ -687,17 +710,7 @@ export default function WarehouseInboundPage() {
             </Card>
 
             {/* Bảng kê hàng nhập kho 10 cột */}
-            <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-              <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                    Bảng Kê Hàng Nhập Kho (10 Cột Vận Hành Chuẩn)
-                  </CardTitle>
-                  <p className="text-xs text-slate-500">
-                    Nhập thông tin dòng hàng trực tiếp, hỗ trợ phím Tab và copy-paste từ Excel.
-                  </p>
-                </div>
-              </CardHeader>
+            <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
               <CardContent className="p-4 space-y-4">
                 <WarehouseEditableGrid
                   rows={mode1Rows}
@@ -705,22 +718,65 @@ export default function WarehouseInboundPage() {
                   isOutboundMode={false}
                 />
 
-                <div className="flex justify-end pt-3 border-t">
-                  <Button
-                    onClick={handleSubmitMode1}
-                    disabled={isSubmitting || mode1Rows.length === 0}
-                    className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-6 font-bold shadow-md"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu dữ liệu...
-                      </>
-                    ) : (
-                      <>
-                        <IconCircleCheck className="mr-2 h-5 w-5 text-emerald-400" /> Xác nhận tiếp nhận & Lưu kho
-                      </>
-                    )}
-                  </Button>
+                {/* Sticky Action Footer (Frame ufHcR in WH_CASE_01) */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {mode1Rows.length} dòng hàng
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toast.success('Đã lưu nháp bảng kê nhập kho thành công!')}
+                      className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
+                    >
+                      Lưu nháp
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (mode1Rows.length > 0) {
+                          const r = mode1Rows[0];
+                          setSelectedLabelData({
+                            orderCode: r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
+                            goodsDescription: r.goodsDescription || 'Vải cuộn',
+                            totalQuantity: r.totalQuantity || 50,
+                            packagesOnPallet: r.totalQuantity || 50,
+                            palletIndex: 1,
+                            totalPallets: 1,
+                            originHub: r.pickupAddress,
+                            destinationHub: r.deliveryAddress,
+                            createdAt: new Date(),
+                          });
+                          setIsLabelModalOpen(true);
+                        }
+                      }}
+                      className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
+                    >
+                      Xem trước
+                    </Button>
+
+                    <Button
+                      onClick={handleSubmitMode1}
+                      disabled={isSubmitting || mode1Rows.length === 0}
+                      className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-5 font-bold shadow-md h-9 text-xs"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <IconLoader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu dữ liệu...
+                        </>
+                      ) : (
+                        <>
+                          <IconCircleCheck className="mr-1.5 h-4 w-4 text-emerald-400" /> Xác nhận tiếp nhận & Lưu kho
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -729,120 +785,141 @@ export default function WarehouseInboundPage() {
 
         {/* ── View 3: Mode 2 - Luân Chuyển Nội Bộ (Stepper 3 bước) ── */}
         {activeView === 'MODE2_TRANSFER' && (
-          <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-            <CardHeader className="py-3 px-4 border-b">
-              {/* Stepper Bar */}
-              <div className="flex items-center gap-2 text-xs font-bold overflow-x-auto pb-1">
-                <Badge
-                  className={
-                    mode2Step === 1
-                      ? 'bg-[#0F3D62] text-white'
-                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }
-                >
-                  ① Chọn chuyến xe đang đến {selectedTrip && '✓'}
-                </Badge>
-                <span className="text-gray-400">➔</span>
-                <Badge
-                  className={
-                    mode2Step === 2
-                      ? 'bg-[#0F3D62] text-white'
-                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }
-                >
-                  ② Chọn đơn hàng cần dỡ {mode2Step === 3 && '✓'}
-                </Badge>
-                <span className="text-gray-400">➔</span>
-                <Badge
-                  className={
-                    mode2Step === 3
-                      ? 'bg-[#0F3D62] text-white'
-                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }
-                >
-                  ③ Kiểm tra & Nhập kho
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              {!selectedTrip ? (
-                <div className="text-center py-10 space-y-4">
-                  <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto dark:bg-slate-800">
-                    <IconTruck className="h-8 w-8" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                      Chưa chọn chuyến hàng luân chuyển
-                    </h3>
-                    <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                      Bấm nút bên dưới để mở danh sách các chuyến xe luân chuyển đang trên đường đến Hub này và còn hàng cần dỡ.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={fetchInboundTrips}
-                    disabled={isLoadingTrips}
-                    className="bg-[#0F3D62] text-white hover:bg-[#0c314f] px-6 font-bold"
+          <div className="space-y-4">
+            {/* Inbound Mode Switch Tabs (Frame SPiXE in WH_CASE_01) */}
+            <div className="w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setActiveView('MODE1_CUSTOMER')}
+                className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white"
+              >
+                Mới hoàn toàn · Khách hàng đưa vào kho
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('MODE2_TRANSFER')}
+                className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm"
+              >
+                Luân chuyển nội bộ · Chọn chuyến hàng
+              </button>
+            </div>
+
+            <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <CardHeader className="py-3 px-4 border-b">
+                {/* Stepper Bar */}
+                <div className="flex items-center gap-2 text-xs font-bold overflow-x-auto pb-1">
+                  <Badge
+                    className={
+                      mode2Step === 1
+                        ? 'bg-[#0F3D62] text-white'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    }
                   >
-                    {isLoadingTrips ? (
-                      <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <IconTruck className="mr-2 h-4 w-4" />
-                    )}
-                    Chọn chuyến hàng ➔
-                  </Button>
+                    ① Chọn chuyến xe đang đến {selectedTrip && '✓'}
+                  </Badge>
+                  <span className="text-gray-400">➔</span>
+                  <Badge
+                    className={
+                      mode2Step === 2
+                        ? 'bg-[#0F3D62] text-white'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    }
+                  >
+                    ② Chọn đơn hàng cần dỡ {mode2Step === 3 && '✓'}
+                  </Badge>
+                  <span className="text-gray-400">➔</span>
+                  <Badge
+                    className={
+                      mode2Step === 3
+                        ? 'bg-[#0F3D62] text-white'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    }
+                  >
+                    ③ Kiểm tra & Nhập kho
+                  </Badge>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Selected Trip Info */}
-                  <div className="p-4 bg-blue-50/60 dark:bg-slate-800/60 rounded-lg border border-blue-200 dark:border-blue-900 flex flex-wrap items-center justify-between gap-3">
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                {!selectedTrip ? (
+                  <div className="text-center py-10 space-y-4">
+                    <IconTruck className="h-16 w-16 text-blue-500 mx-auto opacity-70 animate-bounce" />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-[#0F3D62] text-white font-mono">{selectedTrip.tripCode}</Badge>
-                        <span className="font-bold text-sm text-slate-900 dark:text-white">
-                          Xe {selectedTrip.vehicleLicensePlate} ({selectedTrip.vehicleType})
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                        Tài xế: <b>{selectedTrip.driverName}</b> ({selectedTrip.driverPhone}) &bull; Tuyến: {selectedTrip.originHub} ➔ {selectedTrip.destinationHub}
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                        Chưa chọn chuyến xe cần dỡ hàng
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                        Chọn một chuyến xe từ Hub khác đang trên đường đến {currentHubName || 'Kho của bạn'} để tiếp nhận và kiểm đếm theo danh sách.
                       </p>
                     </div>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrip(null);
-                        setMode2Step(1);
-                      }}
-                      className="text-xs"
+                      onClick={fetchInboundTrips}
+                      disabled={isLoadingTrips}
+                      className="bg-[#0F3D62] text-white hover:bg-[#0c314f] px-6 font-bold"
                     >
-                      Đổi chuyến xe khác
-                    </Button>
-                  </div>
-
-                  <WarehouseEditableGrid
-                    rows={mode1Rows}
-                    onChange={setMode1Rows}
-                    isOutboundMode={false}
-                  />
-
-                  <div className="flex justify-end pt-3 border-t">
-                    <Button
-                      onClick={handleSubmitMode1}
-                      disabled={isSubmitting}
-                      className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-6 font-bold"
-                    >
-                      {isSubmitting ? (
+                      {isLoadingTrips ? (
                         <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
-                        <IconCircleCheck className="mr-2 h-5 w-5 text-emerald-400" />
+                        <IconTruck className="mr-2 h-4 w-4" />
                       )}
-                      Xác nhận tiếp nhận chuyến hàng
+                      Chọn chuyến hàng ➔
                     </Button>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Selected Trip Details */}
+                    <div className="flex flex-wrap items-center justify-between p-3.5 bg-blue-50/60 dark:bg-slate-800 border border-blue-200 dark:border-blue-900 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge className="bg-blue-600 text-white font-mono font-bold">
+                          {selectedTrip.tripCode}
+                        </Badge>
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            Xe: {selectedTrip.vehicleLicensePlate} ({selectedTrip.vehicleType})
+                          </span>
+                          <span className="text-xs text-slate-500 block">
+                            Tài xế: {selectedTrip.driverName} &bull; Xuất phát: {selectedTrip.originHub}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrip(null);
+                          setMode2Step(1);
+                        }}
+                        className="text-xs"
+                      >
+                        Đổi chuyến xe khác
+                      </Button>
+                    </div>
+
+                    <WarehouseEditableGrid
+                      rows={mode1Rows}
+                      onChange={setMode1Rows}
+                      isOutboundMode={false}
+                    />
+
+                    <div className="flex justify-end pt-3 border-t">
+                      <Button
+                        onClick={handleSubmitMode1}
+                        disabled={isSubmitting}
+                        className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-6 font-bold"
+                      >
+                        {isSubmitting ? (
+                          <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <IconCircleCheck className="mr-2 h-5 w-5 text-emerald-400" />
+                        )}
+                        Xác nhận tiếp nhận chuyến hàng
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* ── Modal Chọn Chuyến Xe Mode 2 ── */}

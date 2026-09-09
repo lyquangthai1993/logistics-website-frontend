@@ -42,12 +42,12 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
     await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
 
-    // 2b. Kiểm tra 3 trường bắt buộc viền đỏ trong Mode 1
+    // 2b. Kiểm tra 3 trường bắt buộc viền đỏ trong Mode 1 (Frame UVtv4)
     await expect(page.locator('text=1. Ngày tiếp nhận')).toBeVisible();
     await expect(page.locator('text=2. Biển số xe')).toBeVisible();
-    await expect(page.locator('text=3. Họ tên tài xế / người giao')).toBeVisible();
+    await expect(page.locator('text=3. Họ tên người nhận / tài xế')).toBeVisible();
 
-    // 3. Kiểm tra 10 Cột Bảng Vận Hành Chuẩn
+    // 3. Kiểm tra 10 Cột Bảng Vận Hành Chuẩn (Frame xTfjC)
     await expect(page.locator('th:has-text("STT")')).toBeVisible();
     await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
     await expect(page.locator('th:has-text("ĐỊA CHỈ NHẬN HÀNG")')).toBeVisible();
@@ -74,7 +74,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForTimeout(300);
 
     // 5. Bấm nút Thêm dòng mới
-    await page.locator('button:has-text("Thêm dòng hàng mới")').click();
+    await page.locator('button:has-text("Thêm 1 dòng đơn mới")').click();
 
     // 6. Xác nhận tiếp nhận & lưu kho
     const submitBtn = page.locator('button:has-text("Xác nhận tiếp nhận & Lưu kho")');
@@ -136,13 +136,13 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await expect(page.locator('text=③ Kiểm tra & Nhập kho')).toBeVisible();
 
     // 5. Bấm nút Chọn chuyến hàng
-    const selectTripBtn = page.locator('button:has-text("Chọn chuyến hàng")');
+    const selectTripBtn = page.getByRole('button', { name: 'Chọn chuyến hàng ➔' });
     await expect(selectTripBtn).toBeVisible();
     await selectTripBtn.click();
 
     // 6. Kiểm tra Modal Chuyến xe luân chuyển
     await expect(page.locator('text=Chọn chuyến xe đến')).toBeVisible({ timeout: 5_000 });
-    const chooseThisTripBtn = page.locator('button:has-text("Chọn chuyến này ➔")').first();
+    const chooseThisTripBtn = page.getByRole('button', { name: 'Chọn chuyến này ➔' }).first();
     if (await chooseThisTripBtn.isVisible()) {
       await chooseThisTripBtn.click();
       await expect(page.locator('text=Đổi chuyến xe khác')).toBeVisible();
