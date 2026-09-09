@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from '@/stores/use-auth-store';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { toast } from 'sonner';
+import PageContainer from '@/components/layout/page-container';
 
 export default function WarehouseInboundPage() {
   const user = useAuthStore((state) => state.user);
@@ -189,8 +190,9 @@ export default function WarehouseInboundPage() {
   const currentHubName = user?.hub?.name || 'Andromeda Hub - HCM';
 
   return (
-    <div className="space-y-4 p-4 lg:p-6 bg-slate-50/50 dark:bg-slate-950 min-h-screen">
-      {/* ── Page Header ── */}
+    <PageContainer>
+      <div className="space-y-4 flex-1 w-full min-w-0">
+        {/* ── Page Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div>
           <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
@@ -549,6 +551,7 @@ export default function WarehouseInboundPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PageContainer>
   );
 }
