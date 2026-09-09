@@ -24,6 +24,7 @@ import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/co
 import { WarehouseOutboundTransferFlow } from '@/features/warehouse/components/warehouse-outbound-transfer-flow';
 import { toast } from 'sonner';
 import PageContainer from '@/components/layout/page-container';
+import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 
 export default function WarehouseOutboundPage() {
   const user = useAuthStore((state) => state.user);
@@ -69,32 +70,28 @@ export default function WarehouseOutboundPage() {
   }, [fetchKpi]);
 
   // Customer Mode 1 Form Fields
-  const [customerName, setCustomerName] = useState('Công Ty May Mặc Hải Triều');
-  const [customerPhone, setCustomerPhone] = useState('0908 123 456');
-  const [customerAddress, setCustomerAddress] = useState('123 Điện Biên Phủ, P.15, Q.Bình Thạnh, TP.HCM');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '',
       pickupAddress: user?.hub?.name || 'Kho xuất hàng',
-      goodsDescription: 'Vải may mặc',
-      totalQuantity: 20,
-      totalWeight: 500,
-      totalVolume: 2.0,
+      goodsDescription: '',
+      totalQuantity: 1,
+      totalWeight: 0,
+      totalVolume: 0,
       deliveryMode: 'DIRECT_CUSTOMER',
-      deliveryAddress: '123 Điện Biên Phủ, TP.HCM',
-      notes: 'Giao trực tiếp cho khách lẻ',
+      deliveryAddress: '',
+      notes: '',
     },
   ]);
 
   // Transfer Mode 2 Stepper State
   const [transferHubId, setTransferHubId] = useState<string>('2');
-  const [transferLicensePlate, setTransferLicensePlate] = useState('50H-756.14');
-  const [transferDriverName, setTransferDriverName] = useState('Nguyễn Hoàng Nam');
-  const [level1Hubs, setLevel1Hubs] = useState<any[]>([
-    { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng' },
-    { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên' },
-    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh' },
-  ]);
+  const [transferLicensePlate, setTransferLicensePlate] = useState('');
+  const [transferDriverName, setTransferDriverName] = useState('');
+  const [level1Hubs, setLevel1Hubs] = useState<any[]>([]);
 
   useEffect(() => {
     const token =
@@ -124,13 +121,13 @@ export default function WarehouseOutboundPage() {
     {
       orderCode: '',
       pickupAddress: user?.hub?.name || 'Kho xuất hàng',
-      goodsDescription: 'Hàng gia dụng chuyển Hub',
-      totalQuantity: 50,
-      totalWeight: 1500,
-      totalVolume: 6.0,
+      goodsDescription: '',
+      totalQuantity: 1,
+      totalWeight: 0,
+      totalVolume: 0,
       deliveryMode: 'HUB_L1',
-      deliveryAddress: 'Magellan Hub - Đà Nẵng',
-      notes: 'Chất xe tuyến Bắc - Nam',
+      deliveryAddress: '',
+      notes: '',
     },
   ]);
 
@@ -446,18 +443,7 @@ export default function WarehouseOutboundPage() {
                             {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
                           </td>
                           <td className="p-2.5 text-center">
-                            <Badge
-                              variant="outline"
-                              className={
-                                o.status === 'INBOUND'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
-                                  : o.status === 'DRAFT'
-                                    ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                                    : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-                              }
-                            >
-                              {o.status === 'INBOUND' ? 'LƯU KHO' : o.status === 'COMPLETED_INBOUND' ? 'ĐÃ XUẤT KHO' : o.status}
-                            </Badge>
+                            {renderWarehouseOrderStatusBadge(o.status)}
                           </td>
                         </tr>
                       ))

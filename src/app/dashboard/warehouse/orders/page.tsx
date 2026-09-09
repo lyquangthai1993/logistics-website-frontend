@@ -20,6 +20,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
 import PageContainer from '@/components/layout/page-container';
+import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
@@ -192,22 +193,7 @@ export default function WarehouseOrdersPage() {
                         {row.destinationHub || row.route || 'Giao khách lẻ'}
                       </td>
                       <td className="p-2.5 text-center">
-                        <Badge
-                          variant="outline"
-                          className={
-                            row.status === 'INBOUND'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
-                              : row.status === 'DRAFT'
-                                ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                                : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-                          }
-                        >
-                          {row.status === 'INBOUND'
-                            ? 'LƯU KHO'
-                            : row.status === 'COMPLETED_INBOUND'
-                              ? 'ĐÃ XUẤT KHO'
-                              : row.status}
-                        </Badge>
+                        {renderWarehouseOrderStatusBadge(row.status)}
                       </td>
                       <td className="p-2.5 text-center">
                         <Button

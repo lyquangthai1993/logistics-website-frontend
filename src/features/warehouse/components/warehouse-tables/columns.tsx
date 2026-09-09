@@ -58,6 +58,105 @@ export function renderTripStatusBadge(status: TripStatus) {
   }
 }
 
+export function renderWarehouseOrderStatusBadge(status: string) {
+  switch (status) {
+    case 'INBOUND':
+    case 'STORED':
+    case 'LUU_KHO':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-emerald-50 text-emerald-700 border-emerald-300 font-bold dark:bg-emerald-950/50 dark:text-emerald-300'
+        >
+          LƯU KHO
+        </Badge>
+      );
+    case 'DRAFT':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-slate-100 text-slate-700 border-slate-300 font-bold dark:bg-slate-800 dark:text-slate-300'
+        >
+          Đơn nháp
+        </Badge>
+      );
+    case 'PENDING':
+    case 'PENDING_INBOUND':
+    case 'WAITING':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-amber-50 text-amber-700 border-amber-300 font-bold dark:bg-amber-950/50 dark:text-amber-300'
+        >
+          Chờ nhập kho
+        </Badge>
+      );
+    case 'PENDING_FLEET':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-blue-50 text-blue-700 border-blue-300 font-bold dark:bg-blue-950/50 dark:text-blue-300'
+        >
+          Chờ điều xe
+        </Badge>
+      );
+    case 'ASSIGNED':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-indigo-50 text-indigo-700 border-indigo-300 font-bold dark:bg-indigo-950/50 dark:text-indigo-300'
+        >
+          Đã phân xe
+        </Badge>
+      );
+    case 'IN_TRANSIT':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-sky-50 text-sky-700 border-sky-300 font-bold dark:bg-sky-950/50 dark:text-sky-300'
+        >
+          Đang vận chuyển
+        </Badge>
+      );
+    case 'COMPLETED_INBOUND':
+    case 'OUT_FOR_DELIVERY':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-purple-50 text-purple-700 border-purple-300 font-bold dark:bg-purple-950/50 dark:text-purple-300'
+        >
+          Đã xuất kho
+        </Badge>
+      );
+    case 'DELIVERED':
+    case 'COMPLETED':
+    case 'COMPLETED_OUTBOUND':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-green-100 text-green-800 border-green-300 font-bold dark:bg-green-950/50 dark:text-green-300'
+        >
+          Đã hoàn thành
+        </Badge>
+      );
+    case 'CANCELLED':
+      return (
+        <Badge
+          variant='outline'
+          className='bg-rose-50 text-rose-700 border-rose-300 font-bold dark:bg-rose-950/50 dark:text-rose-300'
+        >
+          Đã hủy
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant='outline' className='font-semibold'>
+          {status}
+        </Badge>
+      );
+  }
+}
+
 export const columns: ColumnDef<Trip>[] = [
   {
     id: 'tripSequence',

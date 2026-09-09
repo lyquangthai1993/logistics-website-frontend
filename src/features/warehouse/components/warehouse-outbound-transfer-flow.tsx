@@ -79,8 +79,8 @@ export function WarehouseOutboundTransferFlow({
   // Step 1 Form State (Trip Info)
   const [destinationHubId, setDestinationHubId] = useState<number>(2);
   const [dispatchDate, setDispatchDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [licensePlate, setLicensePlate] = useState('43H30703');
-  const [driverName, setDriverName] = useState('Phạm Thành Trung');
+  const [licensePlate, setLicensePlate] = useState('');
+  const [driverName, setDriverName] = useState('');
 
   // Step 2 Selection State
   const [search, setSearch] = useState('');
@@ -585,7 +585,7 @@ export function WarehouseOutboundTransferFlow({
                   <Input
                     value={licensePlate}
                     onChange={(e) => setLicensePlate(e.target.value)}
-                    placeholder="VD: 43H30703..."
+                    placeholder="VD: 29C-123.45..."
                     className="h-10 text-xs font-bold uppercase bg-[#F8FAFC] dark:bg-slate-800/80"
                   />
                 </div>
@@ -598,7 +598,7 @@ export function WarehouseOutboundTransferFlow({
                   <Input
                     value={driverName}
                     onChange={(e) => setDriverName(e.target.value)}
-                    placeholder="VD: Phạm Thành Trung..."
+                    placeholder="VD: Nguyễn Văn A..."
                     className="h-10 text-xs font-semibold bg-[#F8FAFC] dark:bg-slate-800/80"
                   />
                 </div>
@@ -615,9 +615,6 @@ export function WarehouseOutboundTransferFlow({
                   if (!driverName.trim()) {
                     toast.error('Vui lòng nhập họ tên tài xế');
                     return;
-                  }
-                  if (selectedOrderIds.size === 0) {
-                    setSelectedOrderIds(new Set([11, 14]));
                   }
                   setStep(2);
                 }}

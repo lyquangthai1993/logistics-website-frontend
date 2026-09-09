@@ -96,7 +96,7 @@ export function PalletLabelA4Modal({
               height: 100%;
               background: #ffffff !important;
               color: #000000 !important;
-              font-family: Calibri, 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+              font-family: Arial, 'Segoe UI', Tahoma, 'Helvetica Neue', sans-serif;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
@@ -117,6 +117,7 @@ export function PalletLabelA4Modal({
               text-transform: uppercase;
               margin-bottom: 6px;
               color: #000000;
+              font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
             }
             .sub-header {
               display: flex;
@@ -127,6 +128,7 @@ export function PalletLabelA4Modal({
               margin-bottom: 12px;
               padding: 0 4px;
               color: #000000;
+              font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
             }
             .table-grid {
               width: 100%;
@@ -145,12 +147,13 @@ export function PalletLabelA4Modal({
               font-weight: bold;
               white-space: nowrap;
               text-align: left;
+              font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
             }
             .val-order {
               font-size: 44pt;
               font-weight: 900;
               text-align: center;
-              font-family: 'Courier New', Courier, monospace;
+              font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
               letter-spacing: 2px;
               padding: 10px 4px;
             }
@@ -299,15 +302,15 @@ export function PalletLabelA4Modal({
           <div
             id="pallet-label-print-area"
             className="w-full max-w-[850px] bg-white text-black p-6 sm:p-8 rounded shadow-2xl border border-slate-300 font-sans select-none"
-            style={{ fontFamily: "Calibri, 'Segoe UI', Arial, sans-serif" }}
+            style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
           >
             {/* Row 2: Header Title */}
-            <h1 className="text-center text-2xl sm:text-3xl font-black tracking-wide uppercase text-black mb-3">
+            <h1 className="text-center text-2xl sm:text-3xl font-black tracking-wide uppercase text-black mb-3" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
               TEM NHẬN DIỆN HÀNG HÓA
             </h1>
 
             {/* Row 3: Sub Header (Kho & Tên hàng) */}
-            <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-black mb-4 px-1">
+            <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-black mb-4 px-1" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
               <div>
                 KHO : <span className="font-black">{currentHubName}</span>
               </div>
@@ -324,7 +327,7 @@ export function PalletLabelA4Modal({
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2.5 text-xs sm:text-sm font-bold align-middle">
                     MÃ ĐƠN HÀNG :
                   </td>
-                  <td colSpan={3} className="px-4 py-3 text-center align-middle font-mono text-2xl sm:text-4xl font-black tracking-widest text-black">
+                  <td colSpan={3} className="px-4 py-3 text-center align-middle font-sans text-2xl sm:text-4xl font-black tracking-widest text-black" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
                     {data.orderCode}
                   </td>
                 </tr>

@@ -30,6 +30,7 @@ import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-t
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
 import PageContainer from '@/components/layout/page-container';
+import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 
 export default function WarehouseInboundPage() {
   const user = useAuthStore((state) => state.user);
@@ -62,43 +63,21 @@ export default function WarehouseInboundPage() {
 
   // Vehicle Header Fields (3 Red-Border Required Fields for Mode 1 - Frame UVtv4)
   const [receiveDate, setReceiveDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [licensePlate, setLicensePlate] = useState('50H-756.14');
-  const [driverName, setDriverName] = useState('Phạm Thành Trung');
+  const [licensePlate, setLicensePlate] = useState('');
+  const [driverName, setDriverName] = useState('');
 
-  // Mode 1 Rows (Frame xTfjC: 3 Canonical Rows in WH_CASE_01)
+  // Mode 1 Rows (Pure Clean Initial State for Warehouse Intake)
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '(Tự sinh khi lưu)',
-      pickupAddress: 'KCN Phú Nghĩa, Hà Nội\nKhu A · Cổng số 2',
-      goodsDescription: 'Vải cuộn',
-      totalQuantity: 50,
-      totalWeight: 1280,
-      totalVolume: 5.0,
+      pickupAddress: '',
+      goodsDescription: '',
+      totalQuantity: 1,
+      totalWeight: 0,
+      totalVolume: 0,
       deliveryMode: 'DIRECT_CUSTOMER',
-      deliveryAddress: '25 Nguyễn Văn Linh, Q.7, TP.HCM',
-      notes: 'Giao giờ hành chính\nLiên hệ bảo vệ trước khi vào cổng',
-    },
-    {
-      orderCode: '(Tự sinh khi lưu)',
-      pickupAddress: 'Andromeda Hub - HCM\nThủ Đức, TP.HCM',
-      goodsDescription: 'Hạt nhựa',
-      totalQuantity: 20,
-      totalWeight: 680,
-      totalVolume: 2.4,
-      deliveryMode: 'HUB_L1',
-      deliveryAddress: 'Polaris Hub - Hưng Yên · nhận trung chuyển',
-      notes: 'Nhập ghi chú\nCó thể bổ sung yêu cầu xử lý',
-    },
-    {
-      orderCode: '(Tự sinh khi lưu)',
-      pickupAddress: 'Andromeda Hub - HCM\nThủ Đức, TP.HCM',
-      goodsDescription: 'Linh kiện',
-      totalQuantity: 12,
-      totalWeight: 240,
-      totalVolume: 1.1,
-      deliveryMode: 'XE_BO',
-      deliveryAddress: 'XB-KH-02 · gom hàng tuyến nội thành',
-      notes: 'Hàng dễ vỡ\nƯu tiên kiểm đếm riêng',
+      deliveryAddress: '',
+      notes: '',
     },
   ]);
 
@@ -578,16 +557,7 @@ export default function WarehouseInboundPage() {
                                 </div>
                               </td>
                               <td className="p-2.5 text-center">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    o.status === 'INBOUND'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
-                                      : 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                                  }
-                                >
-                                  {o.status === 'INBOUND' ? 'LƯU KHO' : 'Chờ nhập kho'}
-                                </Badge>
+                                {renderWarehouseOrderStatusBadge(o.status)}
                               </td>
                               <td className="p-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
                                 <div>{o.totalQuantity ?? 1} kiện</div>
@@ -596,18 +566,29 @@ export default function WarehouseInboundPage() {
                                 </div>
                               </td>
                               <td className="p-2.5 text-center">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
-                                      ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold'
-                                      : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-                                  }
-                                >
-                                  {o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
-                                    ? 'Luân chuyển'
-                                    : 'Khách gửi'}
-                                </Badge>
+                                {(() => {
+                                  const isTransfer =
+                                    o.inboundType === 'TRANSFER' ||
+                                    o.orderCode?.startsWith('TRIP') ||
+                                    (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
+                                    (o.originHubEntity?.id &&
+                                      o.destinationHubEntity?.id &&
+                                      o.originHubEntity.id !== o.destinationHubEntity.id) ||
+                                    (o.trips && o.trips.length > 0);
+
+                                  return (
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        isTransfer
+                                          ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold'
+                                          : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                                      }
+                                    >
+                                      {isTransfer ? 'Luân chuyển' : 'Khách gửi'}
+                                    </Badge>
+                                  );
+                                })()}
                               </td>
                               <td className="p-2.5 text-center">
                                 <div className="flex items-center justify-center gap-1.5">
@@ -732,7 +713,7 @@ export default function WarehouseInboundPage() {
                     <Input
                       value={licensePlate}
                       onChange={(e) => setLicensePlate(e.target.value)}
-                      placeholder="VD: 50H-756.14"
+                      placeholder="VD: 29C-123.45"
                       className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 uppercase bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
                     />
                   </div>
@@ -748,7 +729,7 @@ export default function WarehouseInboundPage() {
                     <Input
                       value={driverName}
                       onChange={(e) => setDriverName(e.target.value)}
-                      placeholder="VD: Phạm Thành Trung"
+                      placeholder="VD: Nguyễn Văn A"
                       className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
                     />
                   </div>
