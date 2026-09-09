@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
+import { WarehouseInboundTransferFlow } from '@/features/warehouse/components/warehouse-inbound-transfer-flow';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
 import { toast } from 'sonner';
 import PageContainer from '@/components/layout/page-container';
@@ -79,13 +80,6 @@ export default function WarehouseInboundPage() {
       notes: 'Hàng dễ vỡ\nƯu tiên kiểm đếm riêng',
     },
   ]);
-
-  // Mode 2 Stepper State
-  const [mode2Step, setMode2Step] = useState<1 | 2 | 3>(1);
-  const [isTripModalOpen, setIsTripModalOpen] = useState(false);
-  const [selectedTrip, setSelectedTrip] = useState<any>(null);
-  const [tripsList, setTripsList] = useState<any[]>([]);
-  const [isLoadingTrips, setIsLoadingTrips] = useState(false);
 
   // Pallet Label A4 Modal State
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
@@ -182,43 +176,6 @@ export default function WarehouseInboundPage() {
     } finally {
       setIsRefreshing(false);
     }
-  };
-
-  // Fetch Trips for Mode 2
-  const fetchInboundTrips = () => {
-    setIsLoadingTrips(true);
-    const token = tokenManager.getAccessToken();
-    fetch('/api/v1/warehouse/inbound-trips', {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((resData) => {
-        const items = resData?.data || [];
-        setTripsList(items);
-        setIsTripModalOpen(true);
-      })
-      .catch(() => {
-        setTripsList([
-          {
-            id: 28,
-            tripCode: 'TRIP-260903-018',
-            vehicleLicensePlate: '29C-888.99',
-            vehicleType: 'Tải thùng 5T kín',
-            driverName: 'Nguyễn Văn Tuấn',
-            driverPhone: '0988 234 567',
-            originHub: 'Polaris Hub - Hưng Yên',
-            destinationHub: user?.hub?.name || 'Kho tiếp nhận',
-            remainingOrdersCount: 5,
-            totalWeight: 3450,
-            totalVolume: 14.2,
-          },
-        ]);
-        setIsTripModalOpen(true);
-      })
-      .finally(() => setIsLoadingTrips(false));
   };
 
   // Submit Mode 1 (Direct Customer Inbound)
