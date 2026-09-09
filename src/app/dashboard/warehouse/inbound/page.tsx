@@ -518,25 +518,26 @@ export default function WarehouseInboundPage() {
                             className="rounded border-gray-300 text-blue-600 cursor-pointer"
                           />
                         </th>
-                        <th className="p-2.5 w-[160px]">MÃ VẬN ĐƠN</th>
-                        <th className="p-2.5">KHÁCH HÀNG / NGUỒN GỬI</th>
-                        <th className="p-2.5 w-[140px] text-center">TRẠNG THÁI</th>
+                        <th className="p-2.5 w-[150px]">MÃ VẬN ĐƠN</th>
+                        <th className="p-2.5 w-[170px]">KHÁCH HÀNG</th>
+                        <th className="p-2.5 min-w-[180px]">TÊN HÀNG HÓA</th>
                         <th className="p-2.5 text-right w-[160px]">SỐ KIỆN / TẢI TRỌNG</th>
-                        <th className="p-2.5 text-center w-[150px]">LOẠI NHẬP KHO</th>
+                        <th className="p-2.5 w-[130px] text-center">TRẠNG THÁI</th>
+                        <th className="p-2.5 text-center w-[140px]">LOẠI NHẬP KHO</th>
                         <th className="p-2.5 text-center w-[180px]">THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-gray-500">
+                          <td colSpan={8} className="p-8 text-center text-gray-500">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : orders.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-gray-400">
+                          <td colSpan={8} className="p-8 text-center text-gray-400">
                             Không có đơn hàng nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -584,20 +585,44 @@ export default function WarehouseInboundPage() {
                               </td>
                               <td className="p-2.5 font-medium">
                                 <div className="text-slate-900 dark:text-white font-semibold">
-                                  {o.senderName || o.pickupAddress || 'Khách gửi'}
+                                  {o.senderName ||
+                                    (o.pickupAddress && o.pickupAddress !== o.originHub
+                                      ? o.pickupAddress
+                                      : null) ||
+                                    (o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
+                                      ? o.originHub || 'Hub gửi'
+                                      : 'Khách vãng lai')}
                                 </div>
-                                <div className="text-gray-400 text-[11px]">
+                                {o.senderName && o.pickupAddress && o.pickupAddress !== o.senderName && (
+                                  <div
+                                    className="text-gray-400 text-[11px] truncate max-w-[160px]"
+                                    title={o.pickupAddress}
+                                  >
+                                    {o.pickupAddress}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-2.5">
+                                <div className="text-slate-900 dark:text-white font-semibold">
                                   {o.goodsDescription || 'Hàng hóa tổng quan'}
                                 </div>
-                              </td>
-                              <td className="p-2.5 text-center">
-                                {renderWarehouseOrderStatusBadge(o.status)}
+                                {o.notes && (
+                                  <div
+                                    className="text-gray-400 text-[11px] truncate max-w-[200px]"
+                                    title={o.notes}
+                                  >
+                                    {o.notes}
+                                  </div>
+                                )}
                               </td>
                               <td className="p-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
                                 <div>{o.totalQuantity ?? 1} kiện</div>
                                 <div className="text-gray-400 text-[11px]">
                                   {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
                                 </div>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                {renderWarehouseOrderStatusBadge(o.status)}
                               </td>
                               <td className="p-2.5 text-center">
                                 {(() => {
