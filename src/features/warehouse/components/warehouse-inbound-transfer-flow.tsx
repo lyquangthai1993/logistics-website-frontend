@@ -23,7 +23,8 @@ import {
   IconCalendar,
   IconUser,
   IconPhone,
-  IconClock,
+  IconClipboardList,
+  IconFileSpreadsheet,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -62,22 +63,23 @@ export function WarehouseInboundTransferFlow({
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name || 'Polaris Hub - Hưng Yên';
 
-  // Active Step: 1 = Chọn chuyến xe (WH_CASE_02B_TRIP_MODAL), 2 = Chọn đơn hàng từ chuyến (WH_CASE_03_MODAL), 3 = Xác nhận lên lưới nhập kho (dd8X5)
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // Modal State: isModalOpen controls the overlay dialogs (WH_CASE_02B_TRIP_MODAL & WH_CASE_03_MODAL)
+  const [isModalOpen, setIsModalOpen] = useState(true);
+  const [modalStep, setModalStep] = useState<1 | 2>(1);
 
-  // Step 1: Trips List State
+  // Step 1 (WH_CASE_02B_TRIP_MODAL): Inbound Trips List
   const [tripsList, setTripsList] = useState<InboundTripItem[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);
   const [tripSearch, setTripSearch] = useState('');
   const [selectedTrip, setSelectedTrip] = useState<InboundTripItem | null>(null);
 
-  // Step 2: Trip Orders Selection State
+  // Step 2 (WH_CASE_03_MODAL): Trip Orders Selection
   const [tripOrders, setTripOrders] = useState<any[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number | string>>(new Set());
 
-  // Step 3: Loaded Grid Rows State (10 columns in dd8X5)
+  // Step 3 (dd8X5): Loaded Grid Rows State (10 columns)
   const [gridRows, setGridRows] = useState<WarehouseRowItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -135,7 +137,6 @@ export function WarehouseInboundTransferFlow({
         .then((resData) => {
           const raw = resData?.data || [];
           setTripOrders(raw);
-          // Select all available orders by default
           if (raw.length > 0) {
             setSelectedOrderIds(new Set(raw.map((o: any) => o.id)));
           } else {
@@ -152,14 +153,14 @@ export function WarehouseInboundTransferFlow({
     [orderSearch],
   );
 
-  // ── 3. Step 1 -> Step 2: Handle Trip Selection ──────────────────────────────
+  // ── 3. Handle Select Trip: Move to Modal Step 2 ──────────────────────────────
   const handleSelectTrip = (trip: InboundTripItem) => {
     setSelectedTrip(trip);
-    setStep(2);
+    setModalStep(2);
     fetchTripOrders(trip);
   };
 
-  // ── 4. Step 2 Toggle Order Selection ─────────────────────────────────────────
+  // ── 4. Toggle Order Selection in Modal Step 2 ────────────────────────────────
   const handleToggleSelectOrder = (id: number | string) => {
     setSelectedOrderIds((prev) => {
       const next = new Set(prev);
@@ -180,84 +181,105 @@ export function WarehouseInboundTransferFlow({
     }
   };
 
-  // Selected orders summary metrics in Step 2
-  const selectedOrdersList = useMemo(() => {
-    return tripOrders.filter((o) => selectedOrderIds.has(o.id));
-  }, [tripOrders, selectedOrderIds]);
-
-  const selectedMetrics = useMemo(() => {
-    const packages = selectedOrdersList.reduce((sum, o) => sum + (Number(o.totalQuantity) || 1), 0);
-    const weight = selectedOrdersList.reduce((sum, o) => sum + (Number(o.totalWeight) || 0), 0);
-    const volume = selectedOrdersList.reduce((sum, o) => sum + (Number(o.totalVolume) || 0), 0);
-    return {
-      count: selectedOrdersList.length,
-      packages,
-      weight,
-      volume,
-    };
-  }, [selectedOrdersList]);
-
-  // ── 5. Step 2 -> Step 3: Populate Loaded Grid Rows in dd8X5 ─────────────────
+  // ── 5. Modal Step 2 -> Close Modal & Load into dd8X5 Grid ───────────────────
   const handleConfirmOrdersToGrid = () => {
-    if (selectedOrderIds.size === 0) {
-      toast.error('Vui lòng chọn ít nhất một đơn hàng để tiếp nhận!');
+    const selected = tripOrders.filter((o) => selectedOrderIds.has(o.id));
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 đơn hàng để tiếp nhận');
       return;
     }
 
-    const rows: WarehouseRowItem[] = selectedOrdersList.map((o) => ({
-      id: o.id,
-      orderCode: o.orderCode || `LTV-${o.id}`,
-      pickupAddress: o.originHub || selectedTrip?.originHub || 'Hub xuất phát',
-      goodsDescription: o.goodsDescription || 'Hàng hóa luân chuyển',
-      totalQuantity: Number(o.totalQuantity) || 1,
-      totalWeight: Number(o.totalWeight) || 0,
-      totalVolume: Number(o.totalVolume) || 0,
-      deliveryMode: (o.destinationHub ? 'HUB_L1' : 'DIRECT_CUSTOMER') as any,
-      deliveryAddress: o.destinationHub || o.deliveryAddress || currentHubName,
+    const rows: WarehouseRowItem[] = selected.map((o, idx) => ({
+      orderCode: o.orderCode || `ORD-${o.id}`,
+      pickupAddress: o.originHubEntity?.name
+        ? `${o.originHubEntity.name}`
+        : o.senderAddress || selectedTrip?.originHub || 'Hub xuất phát',
+      goodsDescription: o.goodsType || o.cargoName || 'Hàng hóa luân chuyển',
+      totalQuantity: o.quantity || o.totalQuantity || 1,
+      totalWeight: o.weight || o.totalWeight || 10,
+      totalVolume: o.volume || o.totalVolume || 0.1,
+      deliveryMode: (o.deliveryMode as any) || 'HUB_L1',
+      deliveryAddress: o.destinationHubEntity?.name
+        ? `${o.destinationHubEntity.name} · nhận trung chuyển`
+        : o.receiverAddress || 'Kho trung chuyển',
       notes: o.notes || `Chuyến ${selectedTrip?.tripCode} · Xe ${selectedTrip?.vehicleLicensePlate}`,
     }));
 
     setGridRows(rows);
-    setStep(3);
+    setIsModalOpen(false);
     toast.success(`Đã nạp ${rows.length} đơn hàng từ chuyến ${selectedTrip?.tripCode} vào lưới tiếp nhận!`);
   };
 
-  // ── 6. Step 3: Final Confirm Submit (Real DB API) ───────────────────────────
-  const handleSubmitConfirmInbound = async () => {
+  // ── 6. Metrics Calculations ─────────────────────────────────────────────────
+  const selectedMetrics = useMemo(() => {
+    const selected = tripOrders.filter((o) => selectedOrderIds.has(o.id));
+    return {
+      count: selected.length,
+      packages: selected.reduce((acc, curr) => acc + (Number(curr.quantity || curr.totalQuantity) || 1), 0),
+      weight: selected.reduce((acc, curr) => acc + (Number(curr.weight || curr.totalWeight) || 0), 0),
+      volume: Number(
+        selected.reduce((acc, curr) => acc + (Number(curr.volume || curr.totalVolume) || 0), 0).toFixed(2),
+      ),
+    };
+  }, [tripOrders, selectedOrderIds]);
+
+  const gridMetrics = useMemo(() => {
+    return {
+      count: gridRows.length,
+      packages: gridRows.reduce((acc, curr) => acc + (Number(curr.totalQuantity) || 0), 0),
+      weight: gridRows.reduce((acc, curr) => acc + (Number(curr.totalWeight) || 0), 0),
+      volume: Number(
+        gridRows.reduce((acc, curr) => acc + (Number(curr.totalVolume) || 0), 0).toFixed(2),
+      ),
+    };
+  }, [gridRows]);
+
+  // ── 7. Submit Confirmed Inbound to Backend ────────────────────────────────────
+  const handleSubmitInbound = async () => {
     if (gridRows.length === 0) {
-      toast.error('Không có đơn hàng nào trong danh sách để nhập kho!');
+      toast.error('Chưa có dòng hàng hóa nào trong lưới kiểm đếm');
       return;
     }
 
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
-    const orderIds = gridRows
-      .map((r) => Number(r.id))
-      .filter((id) => !isNaN(id) && id > 0);
 
     try {
-      if (orderIds.length > 0) {
-        const res = await fetch('/api/v1/warehouse/inbound/confirm', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ orderIds }),
-        });
+      const payload = {
+        inboundType: 'TRANSFER',
+        tripId: selectedTrip?.id,
+        vehicleLicensePlate: selectedTrip?.vehicleLicensePlate,
+        driverName: selectedTrip?.driverName,
+        orders: gridRows.map((r) => ({
+          orderCode: r.orderCode,
+          pickupAddress: r.pickupAddress,
+          goodsDescription: r.goodsDescription,
+          totalQuantity: Number(r.totalQuantity) || 1,
+          totalWeight: Number(r.totalWeight) || 1,
+          totalVolume: Number(r.totalVolume) || 0.01,
+          deliveryMode: r.deliveryMode || 'HUB_L1',
+          deliveryAddress: r.deliveryAddress,
+          notes: r.notes,
+        })),
+      };
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.message || 'Lỗi khi xác nhận nhập kho');
-        }
+      const res = await fetch('/api/v1/warehouse/inbound/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error('Lỗi khi tiếp nhận chuyến hàng');
       }
 
-      toast.success(
-        `Xác nhận tiếp nhận thành công ${gridRows.length} đơn từ chuyến ${selectedTrip?.tripCode || ''} và lưu kho an toàn!`,
-      );
+      toast.success(`Đã xác nhận nhập kho thành công ${gridRows.length} đơn hàng từ chuyến ${selectedTrip?.tripCode}!`);
       onSuccess();
     } catch (err: any) {
-      toast.error(err.message || 'Không thể lưu dữ liệu nhập kho vào cơ sở dữ liệu.');
+      toast.error(err.message || 'Tiếp nhận kho không thành công');
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +287,7 @@ export function WarehouseInboundTransferFlow({
 
   return (
     <div className="space-y-4">
-      {/* ── Top View Switcher (Mới Khách Gửi vs Luân Chuyển Nội Bộ) ───────────── */}
+      {/* ── Mode Switch Tabs ── */}
       <div className="w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner">
         <button
           type="button"
@@ -278,569 +300,633 @@ export function WarehouseInboundTransferFlow({
           type="button"
           className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm flex items-center justify-center gap-1.5"
         >
-          <IconTruck className="h-3.5 w-3.5 text-blue-600" />
+          <IconTruck className="h-4 w-4" />
           <span>Luân chuyển nội bộ · Chọn chuyến xe (Mode 2)</span>
         </button>
       </div>
 
-      {/* ── 3-Step Stepper Bar Header ────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── MAIN WORKSPACE PAGE: Node [PAGE] dd8X5 (Nhập kho luân chuyển) ──── */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
       <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardContent className="p-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-              {/* Step 1 */}
+        <CardHeader className="py-3 px-6 border-b flex flex-wrap items-center justify-between gap-3">
+          {/* Stepper Progression Bar */}
+          <div className="flex items-center gap-3">
+            {/* Step 1 Chip */}
+            <div
+              onClick={() => {
+                setModalStep(1);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            >
               <div
-                onClick={() => setStep(1)}
-                className="flex items-center gap-2 cursor-pointer group"
-              >
-                <div
-                  className={cn(
-                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                    step === 1
-                      ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
-                      : step > 1
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-200 text-slate-500',
-                  )}
-                >
-                  {step > 1 ? <IconCheck className="h-4 w-4" /> : '1'}
-                </div>
-                <div>
-                  <div
-                    className={cn(
-                      'text-xs font-bold',
-                      step === 1
-                        ? 'text-[#0F3D62] dark:text-blue-400'
-                        : step > 1
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : 'text-slate-500',
-                    )}
-                  >
-                    Chọn chuyến xe đến
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {selectedTrip ? selectedTrip.tripCode : 'WH_CASE_02B_TRIP_MODAL'}
-                  </div>
-                </div>
-              </div>
-
-              <span className={cn('text-sm font-bold', step >= 2 ? 'text-emerald-600' : 'text-slate-300')}>➔</span>
-
-              {/* Step 2 */}
-              <div
-                onClick={() => {
-                  if (selectedTrip) setStep(2);
-                }}
-                className={cn('flex items-center gap-2', selectedTrip ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}
-              >
-                <div
-                  className={cn(
-                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                    step === 2
-                      ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
-                      : step > 2
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-200 text-slate-500',
-                  )}
-                >
-                  {step > 2 ? <IconCheck className="h-4 w-4" /> : '2'}
-                </div>
-                <div>
-                  <div
-                    className={cn(
-                      'text-xs font-bold',
-                      step === 2
-                        ? 'text-[#0F3D62] dark:text-blue-400'
-                        : step > 2
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : 'text-slate-500',
-                    )}
-                  >
-                    Chọn đơn hàng cần dỡ
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {selectedOrderIds.size > 0 ? `Đã chọn ${selectedOrderIds.size} đơn` : 'WH_CASE_03_MODAL'}
-                  </div>
-                </div>
-              </div>
-
-              <span className={cn('text-sm font-bold', step >= 3 ? 'text-emerald-600' : 'text-slate-300')}>➔</span>
-
-              {/* Step 3 */}
-              <div
-                onClick={() => {
-                  if (gridRows.length > 0) setStep(3);
-                }}
-                className={cn('flex items-center gap-2', gridRows.length > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}
-              >
-                <div
-                  className={cn(
-                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                    step === 3
+                className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                  selectedTrip
+                    ? 'bg-emerald-600 text-white'
+                    : isModalOpen && modalStep === 1
                       ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
                       : 'bg-slate-200 text-slate-500',
+                )}
+              >
+                {selectedTrip ? <IconCheck className="h-4 w-4" /> : '1'}
+              </div>
+              <div>
+                <div
+                  className={cn(
+                    'text-xs font-bold',
+                    selectedTrip
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : 'text-[#0F3D62] dark:text-blue-400',
                   )}
                 >
-                  3
+                  Chọn chuyến xe đến
                 </div>
-                <div>
-                  <div
-                    className={cn(
-                      'text-xs font-bold',
-                      step === 3 ? 'text-[#0F3D62] dark:text-blue-400' : 'text-slate-500',
-                    )}
-                  >
-                    Kiểm đếm & Lưu kho
-                  </div>
-                  <div className="text-[10px] text-slate-400">dd8X5 Loaded Grid</div>
+                <div className="text-[10px] text-slate-400">
+                  {selectedTrip ? selectedTrip.tripCode : 'WH_CASE_02B_TRIP_MODAL'}
                 </div>
               </div>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBackToBoard}
-              className="text-xs text-slate-500 hover:text-slate-800"
+            <span className={cn('text-sm font-bold', selectedTrip ? 'text-emerald-600' : 'text-slate-300')}>➔</span>
+
+            {/* Step 2 Chip */}
+            <div
+              onClick={() => {
+                if (selectedTrip) {
+                  setModalStep(2);
+                  setIsModalOpen(true);
+                }
+              }}
+              className={cn(
+                'flex items-center gap-2 transition-opacity',
+                selectedTrip ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60',
+              )}
             >
-              <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
-              <span>Quay lại Bảng nhập kho</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── STEP 1: WH_CASE_02B_TRIP_MODAL (Chọn Chuyến Xe Đang Đến) ─────────── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {step === 1 && (
-        <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md animate-in fade-in-50 duration-200">
-          <CardHeader className="py-4 px-6 border-b flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <IconTruck className="h-5 w-5 text-blue-600" />
-                <span>BƯỚC 1: CHỌN CHUYẾN XE LUÂN CHUYỂN ĐANG ĐẾN {currentHubName.toUpperCase()}</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Chọn một chuyến xe từ Hub xuất phát để chuẩn bị dỡ và tiếp nhận hàng hóa vào kho
-              </p>
+              <div
+                className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                  gridRows.length > 0
+                    ? 'bg-emerald-600 text-white'
+                    : isModalOpen && modalStep === 2
+                      ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
+                      : 'bg-slate-200 text-slate-500',
+                )}
+              >
+                {gridRows.length > 0 ? <IconCheck className="h-4 w-4" /> : '2'}
+              </div>
+              <div>
+                <div
+                  className={cn(
+                    'text-xs font-bold',
+                    gridRows.length > 0
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : 'text-[#0F3D62] dark:text-blue-400',
+                  )}
+                >
+                  Chọn đơn hàng cần dỡ
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {gridRows.length > 0 ? `Đã chọn ${gridRows.length} đơn` : 'WH_CASE_03_MODAL'}
+                </div>
+              </div>
             </div>
 
-            <Badge className="bg-blue-50 text-blue-700 border-blue-200 font-mono text-xs px-3 py-1 font-bold">
-              {tripsList.length} chuyến xe đang tiếp cận
-            </Badge>
-          </CardHeader>
+            <span className={cn('text-sm font-bold', gridRows.length > 0 ? 'text-emerald-600' : 'text-slate-300')}>➔</span>
 
-          <CardContent className="p-6 space-y-4">
-            {/* Search & Filter Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="relative min-w-[280px] max-w-md flex-1">
-                <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  value={tripSearch}
-                  onChange={(e) => setTripSearch(e.target.value)}
-                  placeholder="Tìm kiếm mã chuyến (TRIP-...), biển số xe, tài xế..."
-                  className="pl-9 text-xs h-9"
-                />
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchTrips}
-                disabled={isLoadingTrips}
-                className="h-9 text-xs font-semibold"
+            {/* Step 3 Chip */}
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                  gridRows.length > 0 && !isModalOpen
+                    ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
+                    : 'bg-slate-200 text-slate-500',
+                )}
               >
-                <IconRefresh className={cn('mr-1.5 h-3.5 w-3.5', isLoadingTrips && 'animate-spin')} />
-                <span>Làm mới danh sách</span>
+                3
+              </div>
+              <div>
+                <div
+                  className={cn(
+                    'text-xs font-bold',
+                    gridRows.length > 0 && !isModalOpen ? 'text-[#0F3D62] dark:text-blue-400' : 'text-slate-500',
+                  )}
+                >
+                  Kiểm đếm & Lưu kho
+                </div>
+                <div className="text-[10px] text-slate-400">dd8X5 Loaded Grid</div>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBackToBoard}
+            className="text-xs font-semibold"
+          >
+            <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
+            <span>Quay lại Bảng nhập kho</span>
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-6">
+          {gridRows.length === 0 ? (
+            /* Empty dd8X5 State: Prompts user to open WH_CASE_02B_TRIP_MODAL */
+            <div className="text-center py-16 space-y-4 max-w-md mx-auto">
+              <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center mx-auto text-blue-600 shadow-sm border border-blue-100 dark:border-slate-700">
+                <IconTruck className="h-8 w-8 animate-bounce" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                  Chưa nạp đơn hàng từ chuyến xe luân chuyển
+                </h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  Mở danh sách các chuyến xe liên Hub đang trên đường đến {currentHubName} để chọn chuyến và nạp danh sách đơn hàng lên lưới kiểm đếm 10 cột.
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setModalStep(1);
+                  setIsModalOpen(true);
+                }}
+                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-6 py-2.5 shadow-md flex items-center gap-2 mx-auto"
+              >
+                <IconTruck className="h-4 w-4" />
+                <span>Mở danh sách chuyến xe đang đến ➔</span>
               </Button>
             </div>
-
-            {/* Trips Table */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-[#F8FAFC] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
-                  <tr>
-                    <th className="p-3 w-[150px]">MÃ CHUYẾN XE</th>
-                    <th className="p-3 w-[220px]">PHƯƠNG TIỆN & TÀI XẾ</th>
-                    <th className="p-3 w-[180px]">HUB XUẤT PHÁT</th>
-                    <th className="p-3 text-right w-[150px]">TỔNG TẢI TRỌNG</th>
-                    <th className="p-3 text-center w-[130px]">HÀNG TRÊN XE</th>
-                    <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
-                    <th className="p-3 text-center w-[130px]">THAO TÁC</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {isLoadingTrips ? (
-                    <tr>
-                      <td colSpan={7} className="p-10 text-center text-slate-500">
-                        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
-                        Đang tải danh sách chuyến xe từ cơ sở dữ liệu...
-                      </td>
-                    </tr>
-                  ) : tripsList.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-10 text-center text-slate-400">
-                        Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại {currentHubName}
-                      </td>
-                    </tr>
-                  ) : (
-                    tripsList.map((trip) => {
-                      const isSelected = selectedTrip?.id === trip.id;
-                      return (
-                        <tr
-                          key={trip.id}
-                          className={cn(
-                            'hover:bg-blue-50/50 dark:hover:bg-slate-800/50 transition-colors',
-                            isSelected && 'bg-[#EFF6FF] dark:bg-blue-950/40 font-semibold',
-                          )}
-                        >
-                          <td className="p-3 font-mono font-bold text-blue-700 dark:text-blue-400">
-                            {trip.tripCode}
-                          </td>
-                          <td className="p-3">
-                            <div className="font-bold text-slate-800 dark:text-slate-200">
-                              {trip.vehicleLicensePlate} ({trip.vehicleType})
-                            </div>
-                            <div className="text-slate-500 text-[11px] flex items-center gap-1.5 mt-0.5">
-                              <IconUser className="h-3 w-3 text-slate-400" />
-                              <span>{trip.driverName}</span>
-                              {trip.driverPhone && <span>&bull; {trip.driverPhone}</span>}
-                            </div>
-                          </td>
-                          <td className="p-3 font-medium text-slate-700 dark:text-slate-300">
-                            <div className="flex items-center gap-1.5">
-                              <IconBuildingWarehouse className="h-3.5 w-3.5 text-blue-500" />
-                              <span>{trip.originHub}</span>
-                            </div>
-                          </td>
-                          <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                            <div>{trip.totalWeight?.toLocaleString('vi-VN')} kg</div>
-                            <div className="text-[11px] text-slate-400 font-normal">{trip.totalVolume} m³</div>
-                          </td>
-                          <td className="p-3 text-center">
-                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-[11px]">
-                              {trip.remainingOrdersCount || 1} đơn hàng
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-center">
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold"
-                            >
-                              {trip.status || 'IN_TRANSIT'}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-center">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSelectTrip(trip)}
-                              className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-3 shadow-sm flex items-center gap-1"
-                            >
-                              <span>Chọn chuyến →</span>
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── STEP 2: WH_CASE_03_MODAL (Chọn Đơn Hàng Cần Dỡ Từ Chuyến) ────────── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {step === 2 && selectedTrip && (
-        <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md animate-in fade-in-50 duration-200">
-          <CardHeader className="py-4 px-6 border-b flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <IconPackage className="h-5 w-5 text-blue-600" />
-                <span>BƯỚC 2: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN TỪ {selectedTrip.tripCode}</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Tích chọn một hoặc nhiều đơn hàng có trên chuyến xe để dỡ và nhập kho kiểm đếm
-              </p>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setStep(1)}
-              className="text-xs font-semibold"
-            >
-              <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
-              <span>Đổi chuyến xe khác</span>
-            </Button>
-          </CardHeader>
-
-          <CardContent className="p-6 space-y-4">
-            {/* Selected Trip Details Card (Blue Highlight) */}
-            <div className="p-4 bg-[#F0F7FF] dark:bg-slate-800/80 border border-[#B2CCFF] dark:border-blue-900 rounded-xl flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                  <IconTruck className="h-5 w-5" />
+          ) : (
+            /* Loaded dd8X5 State: Displays Locked Vehicle Card + 10-column Editable Grid */
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              {/* Locked Trip Header Card */}
+              <div className="p-4 bg-[#F8FAFC] dark:bg-slate-800/80 border border-blue-200 dark:border-blue-900 rounded-xl flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-[#0F3D62] text-white font-mono font-bold text-xs px-3 py-1">
+                    {selectedTrip?.tripCode}
+                  </Badge>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <IconLock className="h-3.5 w-3.5 text-amber-600" />
+                      <span>Xe: {selectedTrip?.vehicleLicensePlate} ({selectedTrip?.vehicleType}) &bull; Tài xế: {selectedTrip?.driverName}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      Xuất phát: {selectedTrip?.originHub} ➔ Tiếp nhận tại: {currentHubName}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-black text-sm text-blue-800 dark:text-blue-300">
-                      {selectedTrip.tripCode}
-                    </span>
-                    <Badge className="bg-amber-100 text-amber-800 border-none font-bold text-[10px]">
-                      {selectedTrip.status || 'IN_TRANSIT'}
-                    </Badge>
-                  </div>
-                  <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                    Xe: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTrip.vehicleLicensePlate}</span> &bull; Tài xế: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTrip.driverName}</span> ({selectedTrip.driverPhone})
-                  </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setModalStep(2);
+                      setIsModalOpen(true);
+                    }}
+                    className="text-xs font-semibold h-8"
+                  >
+                    <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    <span>Chọn lại đơn</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setModalStep(1);
+                      setIsModalOpen(true);
+                    }}
+                    className="text-xs font-semibold h-8"
+                  >
+                    <span>Đổi chuyến khác</span>
+                  </Button>
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs px-2.5 py-1 font-bold">
+                    {gridRows.length} đơn hàng đã lên lưới
+                  </Badge>
                 </div>
               </div>
 
-              <div className="text-right text-xs">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">HUB XUẤT PHÁT</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTrip.originHub}</span>
-              </div>
-            </div>
-
-            {/* Selection Counter & Search Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="relative min-w-[280px] max-w-md flex-1">
-                <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
-                  placeholder="Tìm mã vận đơn, tên hàng..."
-                  className="pl-9 text-xs h-9"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Badge className="bg-[#DCFCE7] text-[#059669] border-none text-xs px-3 py-1 font-bold rounded-full">
-                  Đã chọn {selectedOrderIds.size} / {tripOrders.length} đơn
-                </Badge>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold select-none">
-                  <input
-                    type="checkbox"
-                    checked={selectedOrderIds.size >= tripOrders.length && tripOrders.length > 0}
-                    onChange={handleToggleSelectAllOrders}
-                    className="rounded text-blue-600 h-4 w-4 border-slate-300"
-                  />
-                  <span>Chọn tất cả</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Orders Multi-Select Table */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-[#F8FAFC] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
-                  <tr>
-                    <th className="p-3 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedOrderIds.size >= tripOrders.length && tripOrders.length > 0}
-                        onChange={handleToggleSelectAllOrders}
-                        className="rounded text-blue-600 h-4 w-4 border-slate-300"
-                      />
-                    </th>
-                    <th className="p-3 w-[160px]">MÃ ĐƠN HÀNG</th>
-                    <th className="p-3 w-[220px]">TÊN HÀNG HÓA</th>
-                    <th className="p-3 text-right w-[100px]">SỐ KIỆN</th>
-                    <th className="p-3 text-right w-[130px]">KG / M³</th>
-                    <th className="p-3 w-[200px]">HUB ĐÍCH / ĐIỂM GIAO</th>
-                    <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {isLoadingOrders ? (
-                    <tr>
-                      <td colSpan={7} className="p-10 text-center text-slate-500">
-                        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
-                        Đang tải danh sách đơn hàng từ chuyến xe...
-                      </td>
-                    </tr>
-                  ) : tripOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-10 text-center text-slate-400">
-                        Không có đơn hàng nào trong chuyến xe này
-                      </td>
-                    </tr>
-                  ) : (
-                    tripOrders.map((order) => {
-                      const isChecked = selectedOrderIds.has(order.id);
-                      return (
-                        <tr
-                          key={order.id}
-                          onClick={() => handleToggleSelectOrder(order.id)}
-                          className={cn(
-                            'cursor-pointer transition-colors',
-                            isChecked
-                              ? 'bg-[#EFF6FF] dark:bg-blue-950/40 hover:bg-blue-100/60'
-                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/50',
-                          )}
-                        >
-                          <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleToggleSelectOrder(order.id)}
-                              className="rounded text-blue-600 h-4 w-4 border-slate-300"
-                            />
-                          </td>
-                          <td className="p-3 font-mono font-bold text-blue-700 dark:text-blue-400">
-                            {order.orderCode}
-                          </td>
-                          <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
-                            {order.goodsDescription || 'Hàng hóa tổng quan'}
-                          </td>
-                          <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                            {order.totalQuantity || 1} kiện
-                          </td>
-                          <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                            {Number(order.totalWeight)?.toLocaleString('vi-VN')} kg &bull; {order.totalVolume || 0} m³
-                          </td>
-                          <td className="p-3 font-medium text-slate-700 dark:text-slate-300">
-                            {order.destinationHub || order.deliveryAddress || currentHubName}
-                          </td>
-                          <td className="p-3 text-center">
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold"
-                            >
-                              {order.status || 'Chờ dỡ'}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Summary & Advance Action */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl">
-              <div className="text-xs font-bold text-[#059669] dark:text-emerald-400 flex items-center gap-2">
-                <IconCircleCheck className="h-5 w-5 text-emerald-600" />
-                <span>
-                  Đã chọn: {selectedMetrics.count} đơn · {selectedMetrics.packages} kiện · {selectedMetrics.weight.toLocaleString('vi-VN')} kg · {selectedMetrics.volume} m³
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => setStep(1)} className="text-xs font-semibold">
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleConfirmOrdersToGrid}
-                  disabled={selectedOrderIds.size === 0}
-                  className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-5 shadow-sm flex items-center gap-1.5"
-                >
-                  <span>Xác nhận dỡ hàng → Sang Bước 3</span>
-                  <IconArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── STEP 3: dd8X5 Loaded State (Kiểm Đếm Thực Tế & Lưu Kho) ─────────── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {step === 3 && selectedTrip && (
-        <div className="space-y-4 animate-in fade-in-50 duration-200">
-          {/* Locked Trip Header Card */}
-          <Card className="bg-[#F8FAFC] dark:bg-slate-800/80 border border-blue-200 dark:border-blue-900 shadow-sm">
-            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Badge className="bg-[#0F3D62] text-white font-mono font-bold text-xs px-3 py-1">
-                  {selectedTrip.tripCode}
-                </Badge>
-                <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <IconLock className="h-3.5 w-3.5 text-amber-600" />
-                    <span>Xe: {selectedTrip.vehicleLicensePlate} ({selectedTrip.vehicleType}) &bull; Tài xế: {selectedTrip.driverName}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Xuất phát: {selectedTrip.originHub} ➔ Tiếp nhận tại: {currentHubName}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setStep(2)}
-                  className="text-xs font-semibold h-8"
-                >
-                  <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  <span>Chọn lại đơn</span>
-                </Button>
-                <Badge className="bg-emerald-100 text-emerald-800 font-bold text-xs">
-                  {gridRows.length} đơn hàng đã lên lưới
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 10-Column Inbound Editable Grid */}
-          <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
-            <CardContent className="p-4 space-y-4">
+              {/* 10-Column Editable Grid */}
               <WarehouseEditableGrid
                 rows={gridRows}
                 onChange={setGridRows}
                 isOutboundMode={false}
               />
 
-              {/* Action Footer */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <span className="text-xs font-semibold text-slate-500">
-                  Tổng cộng: {gridRows.length} dòng hàng tiếp nhận
-                </span>
+              {/* Action Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t">
+                <div className="text-xs text-slate-500">
+                  Tổng cộng: <strong className="text-slate-900 dark:text-white font-mono">{gridMetrics.count}</strong> dòng hàng tiếp nhận
+                </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Button
-                    type="button"
                     variant="outline"
-                    size="sm"
-                    onClick={() => toast.success('Đã lưu nháp bảng tiếp nhận nhập kho!')}
-                    className="text-xs font-semibold h-9"
+                    onClick={() => toast.info('Đã lưu dữ liệu nháp kiểm đếm vào bộ nhớ đệm.')}
+                    className="text-xs font-semibold"
                   >
                     Lưu nháp
                   </Button>
-
                   <Button
-                    onClick={handleSubmitConfirmInbound}
-                    disabled={isSubmitting || gridRows.length === 0}
-                    className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-6 font-bold shadow-md h-9 text-xs flex items-center gap-1.5"
+                    onClick={handleSubmitInbound}
+                    disabled={isSubmitting}
+                    className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-6 shadow-md flex items-center gap-2"
                   >
                     {isSubmitting ? (
-                      <>
-                        <IconLoader2 className="h-4 w-4 animate-spin" />
-                        <span>Đang lưu vào DB...</span>
-                      </>
+                      <IconLoader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <>
-                        <IconCircleCheck className="h-4 w-4 text-emerald-400" />
-                        <span>Xác nhận tiếp nhận & Lưu kho</span>
-                      </>
+                      <IconCircleCheck className="h-4 w-4 text-emerald-400" />
                     )}
+                    <span>Xác nhận tiếp nhận & Lưu kho</span>
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL STEP 1: Node [MODAL_STEP_1] WH_CASE_02B_TRIP_MODAL ────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {isModalOpen && modalStep === 1 && (
+        <div className="fixed inset-0 z-50 bg-[#0B1E2D]/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="max-w-5xl w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="py-4 px-6 bg-[#F8FAFC] dark:bg-slate-800/90 border-b flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                  LUÂN CHUYỂN NỘI BỘ &bull; BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB
+                </div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mt-0.5">
+                  <IconTruck className="h-5 w-5 text-blue-600" />
+                  <span>Chọn chuyến đang đến để tiếp nhận hàng ({currentHubName})</span>
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <IconX className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Search Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative min-w-[280px] max-w-md flex-1">
+                  <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    value={tripSearch}
+                    onChange={(e) => setTripSearch(e.target.value)}
+                    placeholder="Tìm kiếm mã chuyến (TRIP-...), biển số xe, tài xế..."
+                    className="pl-9 text-xs h-9"
+                  />
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchTrips}
+                  disabled={isLoadingTrips}
+                  className="h-9 text-xs font-semibold"
+                >
+                  <IconRefresh className={cn('mr-1.5 h-3.5 w-3.5', isLoadingTrips && 'animate-spin')} />
+                  <span>Làm mới danh sách</span>
+                </Button>
+              </div>
+
+              {/* Trips Table */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#F8FAFC] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
+                    <tr>
+                      <th className="p-3 w-[150px]">MÃ CHUYẾN XE</th>
+                      <th className="p-3 w-[220px]">PHƯƠNG TIỆN & TÀI XẾ</th>
+                      <th className="p-3 w-[180px]">HUB XUẤT PHÁT</th>
+                      <th className="p-3 text-right w-[150px]">TỔNG TẢI TRỌNG</th>
+                      <th className="p-3 text-center w-[130px]">HÀNG TRÊN XE</th>
+                      <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
+                      <th className="p-3 text-center w-[130px]">THAO TÁC</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {isLoadingTrips ? (
+                      <tr>
+                        <td colSpan={7} className="p-10 text-center text-slate-500">
+                          <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          Đang tải danh sách chuyến xe từ cơ sở dữ liệu...
+                        </td>
+                      </tr>
+                    ) : tripsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-10 text-center text-slate-400">
+                          Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại {currentHubName}
+                        </td>
+                      </tr>
+                    ) : (
+                      tripsList.map((trip) => {
+                        const isSelected = selectedTrip?.id === trip.id;
+                        return (
+                          <tr
+                            key={trip.id}
+                            className={cn(
+                              'hover:bg-blue-50/50 dark:hover:bg-slate-800/50 transition-colors',
+                              isSelected && 'bg-[#EFF6FF] dark:bg-blue-950/40 font-semibold',
+                            )}
+                          >
+                            <td className="p-3 font-mono font-bold text-blue-700 dark:text-blue-400">
+                              {trip.tripCode}
+                            </td>
+                            <td className="p-3">
+                              <div className="font-bold text-slate-800 dark:text-slate-200">
+                                {trip.vehicleLicensePlate} ({trip.vehicleType})
+                              </div>
+                              <div className="text-slate-500 text-[11px] flex items-center gap-1.5 mt-0.5">
+                                <IconUser className="h-3 w-3 text-slate-400" />
+                                <span>{trip.driverName}</span>
+                                {trip.driverPhone && <span>&bull; {trip.driverPhone}</span>}
+                              </div>
+                            </td>
+                            <td className="p-3 font-medium text-slate-700 dark:text-slate-300">
+                              <div className="flex items-center gap-1.5">
+                                <IconBuildingWarehouse className="h-3.5 w-3.5 text-blue-500" />
+                                <span>{trip.originHub}</span>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
+                              <div>{trip.totalWeight?.toLocaleString('vi-VN')} kg</div>
+                              <div className="text-[11px] text-slate-400 font-normal">{trip.totalVolume} m³</div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-[11px]">
+                                {trip.remainingOrdersCount || 1} đơn hàng
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold"
+                              >
+                                {trip.status || 'IN_TRANSIT'}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Button
+                                size="sm"
+                                onClick={() => handleSelectTrip(trip)}
+                                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-3 shadow-sm flex items-center gap-1"
+                              >
+                                <span>Chọn chuyến →</span>
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="py-3 px-6 bg-slate-50 dark:bg-slate-800/80 border-t flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Hiển thị <strong>{tripsList.length}</strong> chuyến xe đang tiếp cận kho
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsModalOpen(false)}
+                className="text-xs font-semibold"
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Pallet Label Modal */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL STEP 2: Node [MODAL_STEP_2] WH_CASE_03_MODAL ──────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {isModalOpen && modalStep === 2 && selectedTrip && (
+        <div className="fixed inset-0 z-50 bg-[#0B1E2D]/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="max-w-5xl w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="py-4 px-6 bg-[#F8FAFC] dark:bg-slate-800/90 border-b flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                  LUÂN CHUYỂN NỘI BỘ &bull; BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN
+                </div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mt-0.5">
+                  <IconPackage className="h-5 w-5 text-blue-600" />
+                  <span>Chọn đơn hàng cần tiếp nhận từ {selectedTrip.tripCode}</span>
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setModalStep(1)}
+                  className="text-xs font-semibold h-8"
+                >
+                  <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
+                  <span>Đổi chuyến xe khác</span>
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  <IconX className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Selected Trip Details Card (Blue Highlight) */}
+              <div className="p-4 bg-[#F0F7FF] dark:bg-slate-800/80 border border-[#B2CCFF] dark:border-blue-900 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm">
+                    <IconTruck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-sm text-blue-800 dark:text-blue-300">
+                        {selectedTrip.tripCode}
+                      </span>
+                      <Badge className="bg-amber-100 text-amber-800 border-none font-bold text-[10px]">
+                        {selectedTrip.status || 'IN_TRANSIT'}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      Xe: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTrip.vehicleLicensePlate}</span> &bull; Tài xế: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTrip.driverName}</span> ({selectedTrip.driverPhone})
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right text-xs">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">HUB XUẤT PHÁT</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTrip.originHub}</span>
+                </div>
+              </div>
+
+              {/* Selection Counter & Search Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative min-w-[280px] max-w-md flex-1">
+                  <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder="Tìm mã vận đơn, tên hàng..."
+                    className="pl-9 text-xs h-9"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-xs px-3 py-1 font-bold">
+                    Đã chọn {selectedOrderIds.size} / {tripOrders.length} đơn
+                  </Badge>
+
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrderIds.size === tripOrders.length && tripOrders.length > 0}
+                      onChange={handleToggleSelectAllOrders}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                    />
+                    <span>Chọn tất cả</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Orders Table */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#F8FAFC] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
+                    <tr>
+                      <th className="p-3 w-[40px] text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedOrderIds.size === tripOrders.length && tripOrders.length > 0}
+                          onChange={handleToggleSelectAllOrders}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                        />
+                      </th>
+                      <th className="p-3 w-[140px]">MÃ ĐƠN HÀNG</th>
+                      <th className="p-3">TÊN HÀNG HÓA</th>
+                      <th className="p-3 text-center w-[100px]">SỐ KIỆN</th>
+                      <th className="p-3 text-right w-[120px]">KG / M³</th>
+                      <th className="p-3 w-[200px]">HUB ĐÍCH / ĐIỂM GIAO</th>
+                      <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {isLoadingOrders ? (
+                      <tr>
+                        <td colSpan={7} className="p-10 text-center text-slate-500">
+                          <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          Đang tải danh sách đơn hàng từ cơ sở dữ liệu...
+                        </td>
+                      </tr>
+                    ) : tripOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-10 text-center text-slate-400">
+                          Không tìm thấy đơn hàng nào trên chuyến {selectedTrip.tripCode}
+                        </td>
+                      </tr>
+                    ) : (
+                      tripOrders.map((order) => {
+                        const isChecked = selectedOrderIds.has(order.id);
+                        return (
+                          <tr
+                            key={order.id}
+                            onClick={() => handleToggleSelectOrder(order.id)}
+                            className={cn(
+                              'cursor-pointer transition-colors hover:bg-blue-50/50 dark:hover:bg-slate-800/50',
+                              isChecked && 'bg-[#EFF6FF] dark:bg-blue-950/40',
+                            )}
+                          >
+                            <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleSelectOrder(order.id)}
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                              />
+                            </td>
+                            <td className="p-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+                              {order.orderCode || `ORD-${order.id}`}
+                            </td>
+                            <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
+                              {order.goodsType || order.cargoName || 'Hàng hóa tổng quan'}
+                            </td>
+                            <td className="p-3 text-center font-bold text-slate-700 dark:text-slate-300">
+                              {order.quantity || order.totalQuantity || 1} kiện
+                            </td>
+                            <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
+                              <div>{order.weight || order.totalWeight || 0} kg</div>
+                              <div className="text-[10px] text-slate-400 font-normal">
+                                {order.volume || order.totalVolume || 0} m³
+                              </div>
+                            </td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400 text-[11px]">
+                              {order.destinationHubEntity?.name || order.receiverAddress || 'Chưa định tuyến'}
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold"
+                              >
+                                {order.status || 'Chờ dỡ'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="py-4 px-6 bg-slate-50 dark:bg-slate-800/80 border-t flex flex-wrap items-center justify-between gap-4">
+              <div className="text-xs font-bold text-[#059669] dark:text-emerald-400 flex items-center gap-2">
+                <IconCircleCheck className="h-5 w-5 text-emerald-600" />
+                <span>
+                  Đã chọn: {selectedMetrics.count} đơn &bull; {selectedMetrics.packages} kiện &bull; {selectedMetrics.weight.toLocaleString('vi-VN')} kg &bull; {selectedMetrics.volume} m³
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={() => setModalStep(1)} className="text-xs font-semibold">
+                  <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
+                  <span>Quay lại</span>
+                </Button>
+                <Button
+                  onClick={handleConfirmOrdersToGrid}
+                  disabled={selectedOrderIds.size === 0}
+                  className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-5 shadow-md flex items-center gap-1.5"
+                >
+                  <span>Xác nhận dỡ hàng → Đưa vào kiểm đếm</span>
+                  <IconArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal In Tem A4 (Pallet Label A4 Modal) ── */}
       <PalletLabelA4Modal
         isOpen={!!printLabelData}
         onClose={() => setPrintLabelData(null)}

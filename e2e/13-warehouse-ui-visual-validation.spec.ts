@@ -68,9 +68,9 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('networkidle');
 
-    // Click to enter Mode 2: Step 1 (WH_CASE_02B_TRIP_MODAL)
+    // Click to enter Mode 2: Step 1 (WH_CASE_02B_TRIP_MODAL popup)
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
-    await expect(page.locator('text=BƯỚC 1: CHỌN CHUYẾN XE LUÂN CHUYỂN ĐANG ĐẾN')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB')).toBeVisible({ timeout: 10_000 });
 
     await page.waitForTimeout(1000);
     const screenshotPath03A = path.join(ARTIFACT_SCREENSHOT_DIR, '03_A_WH_CASE_02B_TRIP_MODAL.png');
@@ -81,18 +81,18 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.screenshot({ path: screenshotPath03, fullPage: true });
     console.log(`Saved screenshot: ${screenshotPath03}`);
 
-    // Click select trip to move to Step 2 (WH_CASE_03_MODAL)
+    // Click select trip in modal to move to Step 2 (WH_CASE_03_MODAL popup)
     const selectTripBtn = page.locator('table button:has-text("Chọn chuyến")').first();
     if (await selectTripBtn.isVisible()) {
       await selectTripBtn.click();
-      await expect(page.locator('text=BƯỚC 2: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('text=BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({ timeout: 10_000 });
 
       await page.waitForTimeout(1000);
       const screenshotPath03B = path.join(ARTIFACT_SCREENSHOT_DIR, '03_B_WH_CASE_03_MODAL.png');
       await page.screenshot({ path: screenshotPath03B });
       console.log(`Saved screenshot: ${screenshotPath03B}`);
 
-      // Click confirm orders to enter Step 3 (dd8X5 Loaded Grid Workspace)
+      // Click confirm orders to close modal and enter Step 3 (dd8X5 Loaded Grid Workspace)
       const confirmOrdersBtn = page.getByRole('button', { name: /Xác nhận dỡ hàng/ });
       await confirmOrdersBtn.scrollIntoViewIfNeeded();
       await confirmOrdersBtn.click();
