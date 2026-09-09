@@ -30,8 +30,8 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
 
     await expect(page.locator('text=Tiếp Nhận & Nhập Kho')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('CHỜ NHẬP KHO', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: '+ Tạo đơn nhập mới' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '🚚 Nhận luân chuyển nội bộ' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' })).toBeVisible();
     await expect(page.locator('button:has-text("Cập nhật lại thông số")')).toBeVisible();
 
     await page.waitForTimeout(1000);
@@ -46,7 +46,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: '+ Tạo đơn nhập mới' }).click();
+    await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
     await expect(page.locator('text=1. Ngày tiếp nhận')).toBeVisible();
     await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
 
@@ -62,7 +62,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: '🚚 Nhận luân chuyển nội bộ' }).click();
+    await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
     await expect(page.locator('text=① Chọn chuyến xe đang đến')).toBeVisible();
 
     await page.waitForTimeout(1000);
@@ -95,8 +95,8 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
 
     await expect(page.locator('text=Phân Hệ Xuất Kho')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
-    await expect(page.getByRole('button', { name: '+ Xuất cho khách hàng' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '🚚 Xuất luân chuyển nội bộ' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Xuất cho khách hàng' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' })).toBeVisible();
     await expect(page.locator('button:has-text("Cập nhật lại thông số")')).toBeVisible();
 
     await page.waitForTimeout(1000);
@@ -111,7 +111,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/outbound');
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: '+ Xuất cho khách hàng' }).click();
+    await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
     await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng (Mode 1)')).toBeVisible();
     await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
 
@@ -127,7 +127,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.goto('/dashboard/warehouse/outbound');
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: '🚚 Xuất luân chuyển nội bộ' }).click();
+    await page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' }).click();
     await expect(page.locator('text=① Chọn Hub đích & Xe')).toBeVisible();
     await expect(page.locator('text=② Chọn hàng trong kho')).toBeVisible();
     await expect(page.locator('text=③ In Loading Plan & Xuất')).toBeVisible();

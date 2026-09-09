@@ -225,13 +225,13 @@ export default function WarehouseOutboundPage() {
               onClick={() => setActiveView('MODE1_CUSTOMER')}
               className="bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold"
             >
-              <IconPlus className="mr-1 h-4 w-4" /> + Xuất cho khách hàng
+              <IconPlus className="mr-1 h-4 w-4" /> Xuất cho khách hàng
             </Button>
             <Button
               onClick={() => setActiveView('MODE2_TRANSFER')}
               className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-bold"
             >
-              <IconTruck className="mr-1 h-4 w-4" /> 🚚 Xuất luân chuyển nội bộ
+              <IconTruck className="mr-1 h-4 w-4" /> Xuất luân chuyển nội bộ
             </Button>
           </div>
         ) : (
@@ -335,7 +335,7 @@ export default function WarehouseOutboundPage() {
                   className="h-9 text-xs font-bold border-slate-300"
                 >
                   <IconRefresh className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  🔄 Cập nhật lại thông số
+                  Cập nhật lại thông số
                 </Button>
               </div>
 

@@ -39,8 +39,8 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 2. Kiểm tra Header hiển thị Hub hiện tại và mở Mode 1
     await expect(page.locator('text=Tiếp Nhận & Nhập Kho')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('button', { name: '+ Tạo đơn nhập mới' })).toBeVisible();
-    await page.getByRole('button', { name: '+ Tạo đơn nhập mới' }).click();
+    await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
+    await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
 
     // 2b. Kiểm tra 3 trường bắt buộc viền đỏ trong Mode 1
     await expect(page.locator('text=1. Ngày tiếp nhận')).toBeVisible();
@@ -74,7 +74,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForTimeout(300);
 
     // 5. Bấm nút Thêm dòng mới
-    await page.locator('button:has-text("+ Thêm dòng hàng mới")').click();
+    await page.locator('button:has-text("Thêm dòng hàng mới")').click();
 
     // 6. Xác nhận tiếp nhận & lưu kho
     const submitBtn = page.locator('button:has-text("Xác nhận tiếp nhận & Lưu kho")');
@@ -94,8 +94,8 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     // 2. Kiểm tra Header & 4 Stat Cards
     await expect(page.locator('text=Phân Hệ Xuất Kho')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
-    await expect(page.getByText('Xuất cho khách hàng', { exact: true })).toBeVisible();
-    await expect(page.getByText('Luân chuyển nội bộ', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Xuất cho khách hàng' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' })).toBeVisible();
     await expect(page.locator('text=Đã xuất kho hôm nay')).toBeVisible();
 
     // 3. Kiểm tra Nút Cập nhật lại thông số
@@ -103,8 +103,8 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await expect(refreshBtn).toBeVisible();
     await refreshBtn.click();
 
-    // 4. Bấm "+ Xuất cho khách hàng" (Mode 1)
-    await page.getByRole('button', { name: '+ Xuất cho khách hàng' }).click();
+    // 4. Bấm "Xuất cho khách hàng" (Mode 1)
+    await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
     await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng (Mode 1)')).toBeVisible();
 
     // 5. Kiểm tra Form người nhận & Icon Tra cứu kho
@@ -125,7 +125,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForLoadState('networkidle');
 
     // 2. Chuyển sang Mode 2: Luân chuyển nội bộ
-    await page.getByRole('button', { name: '🚚 Nhận luân chuyển nội bộ' }).click();
+    await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
 
     // 3. Kiểm tra Stepper 3 bước
     await expect(page.locator('text=① Chọn chuyến xe đang đến')).toBeVisible();

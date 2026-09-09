@@ -403,13 +403,13 @@ export default function WarehouseInboundPage() {
                 onClick={() => setActiveView('MODE1_CUSTOMER')}
                 className="bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm"
               >
-                <IconPlus className="mr-1 h-4 w-4" /> + Tạo đơn nhập mới
+                <IconPlus className="mr-1 h-4 w-4" /> Tạo đơn nhập mới
               </Button>
               <Button
                 onClick={() => setActiveView('MODE2_TRANSFER')}
                 className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold shadow-sm"
               >
-                <IconTruck className="mr-1 h-4 w-4" /> 🚚 Nhận luân chuyển nội bộ
+                <IconTruck className="mr-1 h-4 w-4" /> Nhận luân chuyển nội bộ
               </Button>
             </div>
           ) : (
@@ -588,8 +588,8 @@ export default function WarehouseInboundPage() {
                                 }
                               >
                                 {o.inboundType === 'TRANSFER' || o.orderCode?.startsWith('TRIP')
-                                  ? '🚚 Luân chuyển'
-                                  : '📦 Khách gửi'}
+                                  ? 'Luân chuyển'
+                                  : 'Khách gửi'}
                               </Badge>
                             </td>
                             <td className="p-2.5 text-center">
@@ -788,7 +788,7 @@ export default function WarehouseInboundPage() {
                     ) : (
                       <IconTruck className="mr-2 h-4 w-4" />
                     )}
-                    🚚 Chọn chuyến hàng ➔
+                    Chọn chuyến hàng ➔
                   </Button>
                 </div>
               ) : (

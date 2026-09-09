@@ -161,7 +161,7 @@ export function WarehouseEditableGrid({
             onClick={handleAddRow}
             className="h-8 bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-semibold"
           >
-            <IconPlus className="mr-1 h-3.5 w-3.5" /> + Thêm dòng hàng mới
+            <IconPlus className="mr-1 h-3.5 w-3.5" /> Thêm dòng hàng mới
           </Button>
           {onRefreshMetrics && (
             <Button
@@ -173,7 +173,7 @@ export function WarehouseEditableGrid({
               className="h-8 text-xs font-medium border-slate-300 dark:border-slate-700"
             >
               <IconRefresh className={`mr-1 h-3.5 w-3.5 ${isLoadingMetrics ? 'animate-spin' : ''}`} />
-              🔄 Cập nhật lại thông số
+              Cập nhật lại thông số
             </Button>
           )}
         </div>
