@@ -63,19 +63,48 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 03: WH_INBOUND_MODE2 (Mode 2 - Luân chuyển nội bộ liên Hub)', async ({ page }) => {
+  test('Screenshot 03: Mode 2 - Inbound Luân chuyển nội bộ 3 Bước (WH_CASE_02B_TRIP_MODAL, WH_CASE_03_MODAL, dd8X5 Loaded)', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('networkidle');
 
+    // Click to enter Mode 2: Step 1 (WH_CASE_02B_TRIP_MODAL)
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
-    await expect(page.locator('text=① Chọn chuyến xe đang đến')).toBeVisible();
+    await expect(page.locator('text=Chọn Chuyến Hàng Đang Đến')).toBeVisible({ timeout: 10_000 });
 
     await page.waitForTimeout(1000);
+    const screenshotPath03A = path.join(ARTIFACT_SCREENSHOT_DIR, '03_A_WH_CASE_02B_TRIP_MODAL.png');
+    await page.screenshot({ path: screenshotPath03A });
+    console.log(`Saved screenshot: ${screenshotPath03A}`);
 
-    const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '03_WH_INBOUND_MODE2.png');
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-    console.log(`Saved screenshot: ${screenshotPath}`);
+    const screenshotPath03 = path.join(ARTIFACT_SCREENSHOT_DIR, '03_WH_INBOUND_MODE2.png');
+    await page.screenshot({ path: screenshotPath03, fullPage: true });
+    console.log(`Saved screenshot: ${screenshotPath03}`);
+
+    // Click select trip to move to Step 2 (WH_CASE_03_MODAL)
+    const selectTripBtn = page.getByRole('button', { name: 'Chọn dỡ chuyến này' }).first();
+    if (await selectTripBtn.isVisible()) {
+      await selectTripBtn.click();
+      await expect(page.locator('text=Chọn Đơn Hàng Cần Nhập Kho')).toBeVisible({ timeout: 10_000 });
+
+      await page.waitForTimeout(1000);
+      const screenshotPath03B = path.join(ARTIFACT_SCREENSHOT_DIR, '03_B_WH_CASE_03_MODAL.png');
+      await page.screenshot({ path: screenshotPath03B });
+      console.log(`Saved screenshot: ${screenshotPath03B}`);
+
+      // Click confirm orders to enter Step 3 (dd8X5 Loaded Grid Workspace)
+      const confirmOrdersBtn = page.getByRole('button', { name: /Xác nhận đưa vào kiểm đếm/ });
+      if (await confirmOrdersBtn.isVisible()) {
+        await confirmOrdersBtn.click();
+        await expect(page.locator('text=ĐANG DỠ HÀNG THEO CHUYẾN XE')).toBeVisible({ timeout: 10_000 });
+        await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
+
+        await page.waitForTimeout(1000);
+        const screenshotPath03C = path.join(ARTIFACT_SCREENSHOT_DIR, '03_C_WH_INBOUND_TRANSFER_LOADED.png');
+        await page.screenshot({ path: screenshotPath03C, fullPage: true });
+        console.log(`Saved screenshot: ${screenshotPath03C}`);
+      }
+    }
   });
 
   test('Screenshot 04: WH_PALLET_LABEL_A4 (Tem Nhận Diện Hàng Hóa Khổ A4)', async ({ page }) => {
