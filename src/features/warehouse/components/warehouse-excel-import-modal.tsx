@@ -64,43 +64,28 @@ export function WarehouseExcelImportModal({
   // ── Download Excel Template File ──
   const handleDownloadTemplate = () => {
     try {
-      const templateData = [
-        {
-          'STT': 1,
-          'Địa chỉ nhận hàng (*)': currentHubName || 'Kho Andromeda - HCM',
-          'Tên hàng (*)': 'Vải cuộn may mặc xuất khẩu',
-          'Số kiện (*)': 50,
-          'Số kg (*)': 250,
-          'Số m³ (*)': 1.2,
-          'Hình thức giao (*)': 'DIRECT_CUSTOMER',
-          'Địa chỉ giao hàng (*)': '123 Lê Duẩn, Phường Bến Nghé, Quận 1, TP.HCM',
-          'Ghi chú': 'Hàng may mặc, cần bọc màng co chống ẩm',
-        },
-        {
-          'STT': 2,
-          'Địa chỉ nhận hàng (*)': currentHubName || 'Kho Andromeda - HCM',
-          'Tên hàng (*)': 'Thiết bị điện tử đóng thùng',
-          'Số kiện (*)': 20,
-          'Số kg (*)': 180,
-          'Số m³ (*)': 0.8,
-          'Hình thức giao (*)': 'HUB_L1',
-          'Địa chỉ giao hàng (*)': 'Magellan Hub - Đà Nẵng · nhận trung chuyển',
-          'Ghi chú': 'Hàng giá trị cao, bốc xếp nhẹ tay',
-        },
-        {
-          'STT': 3,
-          'Địa chỉ nhận hàng (*)': currentHubName || 'Kho Andromeda - HCM',
-          'Tên hàng (*)': 'Gia dụng & Đồ nhựa gia đình',
-          'Số kiện (*)': 15,
-          'Số kg (*)': 95,
-          'Số m³ (*)': 0.6,
-          'Hình thức giao (*)': 'XE_BO',
-          'Địa chỉ giao hàng (*)': 'Xe bo Tuyến HCM · gom hàng tuyến nội thành',
-          'Ghi chú': 'Giao trong giờ hành chính',
-        },
+      const headers = [
+        'STT',
+        'Địa chỉ nhận hàng (*)',
+        'Tên hàng (*)',
+        'Số kiện (*)',
+        'Số kg (*)',
+        'Số m³ (*)',
+        'Hình thức giao (*)',
+        'Địa chỉ giao hàng (*)',
+        'Ghi chú',
       ];
 
-      const ws = XLSX.utils.json_to_sheet(templateData);
+      // Provide clean empty rows ready for user/customer to fill in directly
+      const emptyRows = [
+        [1, '', '', '', '', '', '', '', ''],
+        [2, '', '', '', '', '', '', '', ''],
+        [3, '', '', '', '', '', '', '', ''],
+        [4, '', '', '', '', '', '', '', ''],
+        [5, '', '', '', '', '', '', '', ''],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...emptyRows]);
 
       // Set column widths
       ws['!cols'] = [
@@ -110,7 +95,7 @@ export function WarehouseExcelImportModal({
         { wch: 12 }, // Số kiện
         { wch: 12 }, // Số kg
         { wch: 12 }, // Số m3
-        { wch: 20 }, // Hình thức giao
+        { wch: 22 }, // Hình thức giao
         { wch: 45 }, // Địa chỉ giao
         { wch: 35 }, // Ghi chú
       ];
@@ -144,7 +129,9 @@ export function WarehouseExcelImportModal({
         return;
       }
 
-      const rows: ParsedPreviewRow[] = rawJson.map((row, idx) => {
+      const validRowsList: ParsedPreviewRow[] = [];
+
+      for (const row of rawJson) {
         // Flexible key matching for both Vietnamese and English headers
         const keys = Object.keys(row);
         const findVal = (patterns: string[]) => {
@@ -167,6 +154,18 @@ export function WarehouseExcelImportModal({
         const deliveryAddress =
           findVal(['địa chỉ giao', 'nơi giao', 'đích nhận', 'delivery', 'destination']) || '';
         const notes = findVal(['ghi chú', 'note', 'notes', 'remark']) || '';
+
+        // Skip completely blank rows in Excel
+        if (
+          !String(goodsDescription).trim() &&
+          !String(totalQuantityRaw).trim() &&
+          !String(totalWeightRaw).trim() &&
+          !String(totalVolumeRaw).trim() &&
+          !String(deliveryAddress).trim() &&
+          !String(notes).trim()
+        ) {
+          continue;
+        }
 
         const totalQuantity = parseInt(String(totalQuantityRaw).replace(/\D/g, ''), 10) || 1;
         const totalWeight = parseFloat(String(totalWeightRaw).replace(/,/g, '.')) || 0;
@@ -210,17 +209,17 @@ export function WarehouseExcelImportModal({
 
         // Validation checks
         const errors: string[] = [];
-        if (!goodsDescription.trim()) {
+        if (!String(goodsDescription).trim()) {
           errors.push('Thiếu tên hàng');
         }
         if (totalQuantity < 1) {
           errors.push('Số kiện phải >= 1');
         }
-        if (deliveryMode === 'DIRECT_CUSTOMER' && !deliveryAddress.trim()) {
+        if (deliveryMode === 'DIRECT_CUSTOMER' && !String(deliveryAddress).trim()) {
           errors.push('Thiếu địa chỉ giao');
         }
 
-        return {
+        validRowsList.push({
           orderCode: '(Tự sinh khi lưu)',
           pickupAddress: String(pickupAddress).trim(),
           goodsDescription: String(goodsDescription).trim(),
@@ -233,11 +232,16 @@ export function WarehouseExcelImportModal({
           notes: String(notes).trim(),
           isValid: errors.length === 0,
           errors,
-        };
-      });
+        });
+      }
 
-      setParsedRows(rows);
-      toast.success(`Đã đọc thành công ${rows.length} dòng hàng từ file Excel!`);
+      if (validRowsList.length === 0) {
+        toast.error('File Excel không có dòng dữ liệu hàng hóa nào');
+        return;
+      }
+
+      setParsedRows(validRowsList);
+      toast.success(`Đã đọc thành công ${validRowsList.length} dòng hàng từ file Excel!`);
     } catch (err) {
       console.error('Lỗi khi phân tích file Excel:', err);
       toast.error('Không thể đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
