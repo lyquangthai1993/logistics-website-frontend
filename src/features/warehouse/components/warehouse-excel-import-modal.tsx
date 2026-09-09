@@ -69,20 +69,19 @@ export function WarehouseExcelImportModal({
         'Địa chỉ nhận hàng (*)',
         'Tên hàng (*)',
         'Số kiện (*)',
-        'Số kg (*)',
-        'Số m³ (*)',
-        'Hình thức giao (*)',
+        'Số kg',
+        'Số m³',
         'Địa chỉ giao hàng (*)',
         'Ghi chú',
       ];
 
       // Provide clean empty rows ready for user/customer to fill in directly
       const emptyRows = [
-        [1, '', '', '', '', '', '', '', ''],
-        [2, '', '', '', '', '', '', '', ''],
-        [3, '', '', '', '', '', '', '', ''],
-        [4, '', '', '', '', '', '', '', ''],
-        [5, '', '', '', '', '', '', '', ''],
+        [1, '', '', '', '', '', '', ''],
+        [2, '', '', '', '', '', '', ''],
+        [3, '', '', '', '', '', '', ''],
+        [4, '', '', '', '', '', '', ''],
+        [5, '', '', '', '', '', '', ''],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...emptyRows]);
@@ -95,7 +94,6 @@ export function WarehouseExcelImportModal({
         { wch: 12 }, // Số kiện
         { wch: 12 }, // Số kg
         { wch: 12 }, // Số m3
-        { wch: 22 }, // Hình thức giao
         { wch: 45 }, // Địa chỉ giao
         { wch: 35 }, // Ghi chú
       ];
@@ -171,41 +169,8 @@ export function WarehouseExcelImportModal({
         const totalWeight = parseFloat(String(totalWeightRaw).replace(/,/g, '.')) || 0;
         const totalVolume = parseFloat(String(totalVolumeRaw).replace(/,/g, '.')) || 0;
 
-        // Resolve deliveryMode
-        let deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' = 'DIRECT_CUSTOMER';
-        const modeStr = String(deliveryModeRaw).toUpperCase().trim();
-        if (modeStr.includes('HUB') || modeStr.includes('L1') || modeStr === 'HUB_L1') {
-          deliveryMode = 'HUB_L1';
-        } else if (modeStr.includes('BO') || modeStr.includes('XE_BO') || modeStr === 'XE_BO') {
-          deliveryMode = 'XE_BO';
-        }
-
-        // Match destination Hub if applicable
-        let destinationHubId: number | null = null;
-        if (deliveryMode === 'HUB_L1' && level1Hubs.length > 0) {
-          const matched = level1Hubs.find(
-            (h) =>
-              deliveryAddress.toLowerCase().includes(h.name.toLowerCase()) ||
-              deliveryAddress.toLowerCase().includes(h.code.toLowerCase()) ||
-              deliveryAddress.toLowerCase().includes(h.city.toLowerCase()),
-          );
-          if (matched) {
-            destinationHubId = matched.id;
-          } else {
-            destinationHubId = level1Hubs[0]?.id || null;
-          }
-        } else if (deliveryMode === 'XE_BO' && level2XeBoHubs.length > 0) {
-          const matched = level2XeBoHubs.find(
-            (h) =>
-              deliveryAddress.toLowerCase().includes(h.name.toLowerCase()) ||
-              deliveryAddress.toLowerCase().includes(h.code.toLowerCase()),
-          );
-          if (matched) {
-            destinationHubId = matched.id;
-          } else {
-            destinationHubId = level2XeBoHubs[0]?.id || null;
-          }
-        }
+        // Default deliveryMode is always DIRECT_CUSTOMER. Operator selects/adjusts on UI grid as needed.
+        const deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' = 'DIRECT_CUSTOMER';
 
         // Validation checks
         const errors: string[] = [];
@@ -215,7 +180,7 @@ export function WarehouseExcelImportModal({
         if (totalQuantity < 1) {
           errors.push('Số kiện phải >= 1');
         }
-        if (deliveryMode === 'DIRECT_CUSTOMER' && !String(deliveryAddress).trim()) {
+        if (!String(deliveryAddress).trim()) {
           errors.push('Thiếu địa chỉ giao');
         }
 
@@ -228,7 +193,7 @@ export function WarehouseExcelImportModal({
           totalVolume,
           deliveryMode,
           deliveryAddress: String(deliveryAddress).trim(),
-          destinationHubId,
+          destinationHubId: null,
           notes: String(notes).trim(),
           isValid: errors.length === 0,
           errors,
@@ -343,7 +308,7 @@ export function WarehouseExcelImportModal({
                 Mẫu file chuẩn (.xlsx / .csv)
               </span>
               <p className="text-emerald-700 dark:text-emerald-400 text-[11px]">
-                File gồm các cột: Tên hàng (*), Số kiện (*), Số kg (*), Số m³ (*), Hình thức giao, Địa chỉ giao hàng, Ghi chú.
+                File gồm các cột: Tên hàng (*), Số kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Ghi chú. (Hình thức giao và Hub đích sẽ chọn trực tiếp trên bảng kê).
               </p>
             </div>
             <Button
@@ -448,16 +413,15 @@ export function WarehouseExcelImportModal({
 
               {/* Table Container */}
               <div className="border rounded-xl overflow-x-auto border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs max-h-64">
-                <table className="w-full min-w-[720px] text-xs text-left">
+                <table className="w-full min-w-[650px] text-xs text-left">
                   <thead className="bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10">
                     <tr>
                       <th className="p-2.5 w-[45px] text-center">STT</th>
-                      <th className="p-2.5 min-w-[160px]">TÊN HÀNG</th>
+                      <th className="p-2.5 min-w-[180px]">TÊN HÀNG</th>
                       <th className="p-2.5 text-center w-[85px]">SỐ KIỆN</th>
                       <th className="p-2.5 text-right w-[95px]">SỐ KG</th>
                       <th className="p-2.5 text-right w-[85px]">SỐ M³</th>
-                      <th className="p-2.5 text-center w-[110px]">HÌNH THỨC</th>
-                      <th className="p-2.5 min-w-[180px]">ĐỊA CHỈ GIAO</th>
+                      <th className="p-2.5 min-w-[200px]">ĐỊA CHỈ GIAO</th>
                       <th className="p-2.5 text-center w-[90px]">TRẠNG THÁI</th>
                     </tr>
                   </thead>
@@ -487,17 +451,8 @@ export function WarehouseExcelImportModal({
                         <td className="p-2.5 text-right font-bold text-slate-800 dark:text-slate-200">
                           {r.totalVolume}
                         </td>
-                        <td className="p-2.5 text-center">
-                          <Badge variant="outline" className="text-[10px] font-bold">
-                            {r.deliveryMode === 'HUB_L1'
-                              ? 'Hub Cấp 1'
-                              : r.deliveryMode === 'XE_BO'
-                              ? 'Xe bo'
-                              : 'Giao thẳng'}
-                          </Badge>
-                        </td>
                         <td className="p-2.5 text-slate-700 dark:text-slate-300">
-                          <span className="truncate block max-w-[200px]" title={r.deliveryAddress}>
+                          <span className="truncate block max-w-[220px]" title={r.deliveryAddress}>
                             {r.deliveryAddress || <span className="text-red-500 italic">Chưa nhập</span>}
                           </span>
                         </td>
@@ -520,6 +475,9 @@ export function WarehouseExcelImportModal({
                   </tbody>
                 </table>
               </div>
+              <p className="text-[11px] text-blue-700 dark:text-blue-400 italic">
+                * Hình thức giao (Giao thẳng / Hub Cấp 1 / Tuyến Xe bo) và Hub nhận đích sẽ được chỉnh sửa và chọn lại trực tiếp trên bảng kê nhập kho.
+              </p>
             </div>
           )}
         </div>
