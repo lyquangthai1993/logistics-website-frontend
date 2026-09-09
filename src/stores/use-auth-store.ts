@@ -11,6 +11,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  hubId?: string | number | null;
+  hub?: { id?: number | string; name?: string; code?: string; orderCodePrefix?: string } | null;
   warehouseId?: string;
   avatarUrl?: string;
   photo?: { id: string; path: string } | null;

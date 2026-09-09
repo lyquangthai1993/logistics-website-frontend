@@ -61,10 +61,28 @@ export const navGroups: NavGroup[] = [
         access: { role: 'SUPER_ADMIN,FLEET_MANAGER' }
       },
       {
-        title: 'Inbound Kho',
-        url: '/dashboard/warehouse',
+        title: 'Nhập kho',
+        url: '/dashboard/warehouse/inbound',
         icon: 'warehouse',
-        shortcut: ['w', 'h'],
+        shortcut: ['w', 'i'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
+      },
+      {
+        title: 'Xuất kho',
+        url: '/dashboard/warehouse/outbound',
+        icon: 'truck',
+        shortcut: ['w', 'o'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
+      },
+      {
+        title: 'Đơn hàng kho',
+        url: '/dashboard/warehouse/orders',
+        icon: 'package',
+        shortcut: ['w', 's'],
         isActive: false,
         items: [],
         access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
