@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  type ColumnDef,
+  type ColumnPinningState,
+} from '@tanstack/react-table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -303,18 +310,17 @@ export function WarehouseEditableGrid({
   const level2XeBoHubs = hubs.filter((h) => h.level === 2 || h.code.startsWith('HUB-BO-'));
 
   // Update a single field in a specific row
-  const handleCellChange = (
-    index: number,
-    field: keyof WarehouseRowItem,
-    value: any,
-  ) => {
-    const updated = [...rows];
-    updated[index] = {
-      ...updated[index],
-      [field]: value,
-    };
-    onChange(updated);
-  };
+  const handleCellChange = useCallback(
+    (index: number, field: keyof WarehouseRowItem, value: any) => {
+      const updated = [...rows];
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+      };
+      onChange(updated);
+    },
+    [rows, onChange],
+  );
 
   // Add new empty row
   const handleAddRow = () => {
@@ -333,23 +339,29 @@ export function WarehouseEditableGrid({
   };
 
   // Delete row
-  const handleDeleteRow = (index: number) => {
-    if (rows.length <= 1) return;
-    const updated = rows.filter((_, i) => i !== index);
-    onChange(updated);
-  };
+  const handleDeleteRow = useCallback(
+    (index: number) => {
+      if (rows.length <= 1) return;
+      const updated = rows.filter((_, i) => i !== index);
+      onChange(updated);
+    },
+    [rows, onChange],
+  );
 
   // Duplicate row
-  const handleDuplicateRow = (index: number) => {
-    const target = rows[index];
-    const duplicated: WarehouseRowItem = {
-      ...target,
-      orderCode: isOutboundMode ? '' : '(Tự sinh khi lưu)',
-    };
-    const updated = [...rows];
-    updated.splice(index + 1, 0, duplicated);
-    onChange(updated);
-  };
+  const handleDuplicateRow = useCallback(
+    (index: number) => {
+      const target = rows[index];
+      const duplicated: WarehouseRowItem = {
+        ...target,
+        orderCode: isOutboundMode ? '' : '(Tự sinh khi lưu)',
+      };
+      const updated = [...rows];
+      updated.splice(index + 1, 0, duplicated);
+      onChange(updated);
+    },
+    [rows, onChange, isOutboundMode],
+  );
 
   // Smart Paste from Excel (TSV clipboard)
   const handlePaste = useCallback(
@@ -425,10 +437,400 @@ export function WarehouseEditableGrid({
     setLookupRowIndex(null);
   };
 
-  // Calculate totals
+  // Calculate totals for top summary badge
   const totalPackages = rows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 0), 0);
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
   const totalVolume = rows.reduce((sum, r) => sum + (Number(r.totalVolume) || 0), 0);
+
+  // ── TanStack Table Columns Definition ──
+  const columns = useMemo<ColumnDef<WarehouseRowItem>[]>(
+    () => [
+      {
+        id: 'stt',
+        header: 'STT',
+        size: 48,
+        cell: ({ row }) => (
+          <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
+            {(row.index + 1).toString().padStart(2, '0')}
+          </span>
+        ),
+      },
+      {
+        id: 'orderCode',
+        header: 'MÃ ĐƠN HÀNG',
+        size: 130,
+        cell: ({ row }) => {
+          const r = row.original;
+          const idx = row.index;
+
+          if (isOutboundMode) {
+            return (
+              <div className="flex items-center gap-1">
+                <Input
+                  value={r.orderCode}
+                  readOnly
+                  placeholder="Chọn mã đơn..."
+                  className="h-7 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setLookupRowIndex(idx)}
+                  className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0"
+                  title="Tra cứu kho để gán mã đơn"
+                >
+                  <IconSearch className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="h-[30px] flex items-center justify-center px-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md">
+              <span className="text-[10px] font-semibold text-slate-500 font-mono tracking-tight">
+                {r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'Tự sinh · khóa'}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: 'pickupAddress',
+        header: () => (
+          <span>
+            ĐỊA CHỈ NHẬN HÀNG <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 210,
+        cell: ({ row }) => {
+          const idx = row.index;
+          return (
+            <textarea
+              rows={2}
+              value={row.original.pickupAddress}
+              onChange={(e) => handleCellChange(idx, 'pickupAddress', e.target.value)}
+              placeholder="Địa chỉ / Hub nhận hàng..."
+              className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+            />
+          );
+        },
+      },
+      {
+        id: 'goodsDescription',
+        header: () => (
+          <span>
+            TÊN HÀNG <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 210,
+        cell: ({ row }) => {
+          const idx = row.index;
+          return (
+            <div className="relative">
+              <Input
+                value={row.original.goodsDescription}
+                onChange={(e) => handleCellChange(idx, 'goodsDescription', e.target.value)}
+                placeholder="Tên loại hàng..."
+                className="h-[30px] pr-6 text-xs font-medium border-slate-300 dark:border-slate-700"
+              />
+            </div>
+          );
+        },
+      },
+      {
+        id: 'totalQuantity',
+        header: () => (
+          <span>
+            SỐ KIỆN <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 95,
+        cell: ({ row }) => {
+          const idx = row.index;
+          return (
+            <Input
+              type="number"
+              min={1}
+              value={row.original.totalQuantity}
+              onChange={(e) => handleCellChange(idx, 'totalQuantity', parseInt(e.target.value, 10) || 1)}
+              className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+            />
+          );
+        },
+      },
+      {
+        id: 'totalWeight',
+        header: () => (
+          <span>
+            SỐ KG <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 115,
+        cell: ({ row }) => {
+          const idx = row.index;
+          return (
+            <Input
+              type="number"
+              step="any"
+              min={0.1}
+              value={row.original.totalWeight}
+              onChange={(e) => handleCellChange(idx, 'totalWeight', parseFloat(e.target.value) || 0)}
+              className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+            />
+          );
+        },
+      },
+      {
+        id: 'totalVolume',
+        header: () => (
+          <span>
+            SỐ M³ <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 95,
+        cell: ({ row }) => {
+          const idx = row.index;
+          return (
+            <Input
+              type="number"
+              step="0.01"
+              min={0.01}
+              value={row.original.totalVolume}
+              onChange={(e) => handleCellChange(idx, 'totalVolume', parseFloat(e.target.value) || 0)}
+              className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+            />
+          );
+        },
+      },
+      {
+        id: 'deliveryAddress',
+        header: () => (
+          <span>
+            ĐỊA CHỈ GIAO HÀNG <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 280,
+        cell: ({ row }) => {
+          const idx = row.index;
+          const r = row.original;
+
+          return (
+            <div className="space-y-1.5">
+              {/* Top Tier: Mode Selector */}
+              <select
+                value={r.deliveryMode}
+                onChange={(e) => {
+                  const newMode = e.target.value as 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
+                  const updated = [...rows];
+                  let newAddress = updated[idx].deliveryAddress;
+                  let destId = updated[idx].destinationHubId;
+
+                  if (newMode === 'HUB_L1') {
+                    const currentMatch = level1Hubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
+                    const targetHub = currentMatch || level1Hubs[0];
+                    if (targetHub) {
+                      newAddress = `${targetHub.name} · nhận trung chuyển`;
+                      destId = targetHub.id;
+                    }
+                  } else if (newMode === 'XE_BO') {
+                    const currentMatch = level2XeBoHubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
+                    const targetXeBo = currentMatch || level2XeBoHubs[0];
+                    if (targetXeBo) {
+                      newAddress = `${targetXeBo.name} · gom hàng tuyến nội thành`;
+                      destId = targetXeBo.id;
+                    }
+                  }
+
+                  updated[idx] = {
+                    ...updated[idx],
+                    deliveryMode: newMode,
+                    deliveryAddress: newAddress,
+                    destinationHubId: destId,
+                  };
+                  onChange(updated);
+                }}
+                className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
+                <option value="HUB_L1">Hub cấp 1</option>
+                <option value="XE_BO">Xe bo</option>
+              </select>
+
+              {/* Bottom Tier: Mode-specific selector or input */}
+              {r.deliveryMode === 'HUB_L1' ? (
+                <div className="space-y-1">
+                  <SearchableHubSelect
+                    type="HUB_L1"
+                    value={r.destinationHubId}
+                    deliveryAddress={r.deliveryAddress}
+                    options={level1Hubs}
+                    placeholder="Chọn Hub cấp 1..."
+                    searchPlaceholder="Tìm Hub (tên, mã, tỉnh)..."
+                    onSelect={(selectedHub) => {
+                      const updated = [...rows];
+                      updated[idx] = {
+                        ...updated[idx],
+                        destinationHubId: selectedHub.id,
+                        deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
+                      };
+                      onChange(updated);
+                    }}
+                  />
+                  <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
+                    Đích: {r.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
+                  </div>
+                </div>
+              ) : r.deliveryMode === 'XE_BO' ? (
+                <div className="space-y-1">
+                  <SearchableHubSelect
+                    type="XE_BO"
+                    value={r.destinationHubId}
+                    deliveryAddress={r.deliveryAddress}
+                    options={level2XeBoHubs}
+                    placeholder="Chọn Tuyến xe bo..."
+                    searchPlaceholder="Tìm Tuyến xe bo (tên, mã, tỉnh)..."
+                    onSelect={(selectedXeBo) => {
+                      const updated = [...rows];
+                      updated[idx] = {
+                        ...updated[idx],
+                        destinationHubId: selectedXeBo.id,
+                        deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
+                      };
+                      onChange(updated);
+                    }}
+                  />
+                  <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
+                    Tuyến: {r.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
+                  </div>
+                </div>
+              ) : (
+                <textarea
+                  rows={2}
+                  value={r.deliveryAddress}
+                  onChange={(e) => handleCellChange(idx, 'deliveryAddress', e.target.value)}
+                  placeholder="25 Nguyễn Văn Linh, Q.7, TP.HCM..."
+                  className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
+                />
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: 'notes',
+        header: 'GHI CHÚ',
+        size: 240,
+        cell: ({ row }) => {
+          const idx = row.index;
+          return (
+            <textarea
+              rows={2}
+              value={row.original.notes}
+              onChange={(e) => handleCellChange(idx, 'notes', e.target.value)}
+              placeholder="Ghi chú bốc dỡ, lưu ý..."
+              className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+            />
+          );
+        },
+      },
+      {
+        id: 'actions',
+        header: 'THAO TÁC',
+        size: 90,
+        cell: ({ row }) => {
+          const r = row.original;
+          const idx = row.index;
+
+          return (
+            <div className="flex items-center justify-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setPrintLabelData({
+                    orderCode: r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
+                    goodsDescription: r.goodsDescription || 'Hàng hóa tổng quan',
+                    totalQuantity: r.totalQuantity || 1,
+                    originHub: r.pickupAddress,
+                    destinationHub: r.deliveryAddress,
+                    createdAt: new Date(),
+                  })
+                }
+                className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
+                title="In tem nhận diện A4"
+              >
+                <IconPrinter className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDuplicateRow(idx)}
+                className="h-7 w-7 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                title="Nhân bản dòng"
+              >
+                <IconCopy className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={rows.length <= 1}
+                onClick={() => handleDeleteRow(idx)}
+                className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
+                title="Xóa dòng"
+              >
+                <IconTrash className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    [handleCellChange, handleDeleteRow, handleDuplicateRow, isOutboundMode, level1Hubs, level2XeBoHubs, rows],
+  );
+
+  // Column Pinning State (STT & Mã Đơn Pinned Left, Thao Tác Pinned Right)
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({
+    left: ['stt', 'orderCode'],
+    right: ['actions'],
+  });
+
+  // TanStack Table Instance
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: {
+      columnPinning,
+    },
+    onColumnPinningChange: setColumnPinning,
+    getCoreRowModel: getCoreRowModel(),
+    enablePinning: true,
+  });
+
+  // Precise Pinning Style Generator
+  const getPinningStyles = (column: any, isHeader = false): React.CSSProperties => {
+    const isPinned = column.getIsPinned();
+    const isLastLeft = isPinned === 'left' && column.getIsLastColumn('left');
+    const isFirstRight = isPinned === 'right' && column.getIsFirstColumn('right');
+
+    return {
+      left: isPinned === 'left' ? `${column.getStart('left')}px` : undefined,
+      right: isPinned === 'right' ? `${column.getAfter('right')}px` : undefined,
+      position: isPinned ? 'sticky' : undefined,
+      width: `${column.getSize()}px`,
+      minWidth: `${column.getSize()}px`,
+      maxWidth: `${column.getSize()}px`,
+      zIndex: isPinned ? (isHeader ? 30 : 20) : undefined,
+      boxShadow: isLastLeft
+        ? '2px 0 5px -2px rgba(0, 0, 0, 0.1)'
+        : isFirstRight
+          ? '-2px 0 5px -2px rgba(0, 0, 0, 0.1)'
+          : undefined,
+    };
+  };
 
   return (
     <div className="space-y-3" onPaste={handlePaste}>
@@ -499,320 +901,76 @@ export function WarehouseEditableGrid({
         </div>
       </div>
 
-      {/* ── 10-Column Canonical Editable Table Container (Frame xTfjC in WH_CASE_01) ── */}
+      {/* ── TanStack Table Container with Native Horizontal Scroll & Solid Sticky Columns ── */}
       <div className="relative border rounded-xl overflow-x-auto shadow-sm bg-white dark:bg-slate-900">
         <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
           <thead className="select-none font-bold">
-            <tr className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
-              {/* STT */}
-              <th className="p-2.5 w-[48px] min-w-[48px] text-center sticky left-0 bg-[#F1F5F9] dark:bg-slate-800 z-30 border-r border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
-                STT
-              </th>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
+                {headerGroup.headers.map((header) => {
+                  const isPinned = header.column.getIsPinned();
+                  const colId = header.column.id;
+                  const isRequired = ['orderCode', 'pickupAddress', 'goodsDescription', 'totalQuantity', 'totalWeight', 'totalVolume', 'deliveryAddress'].includes(colId);
 
-              {/* MÃ ĐƠN HÀNG */}
-              <th className="p-2.5 w-[125px] min-w-[125px] sticky left-[48px] bg-[#FEE2E2] dark:bg-red-950 z-30 border-r border-b border-red-300 dark:border-red-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                MÃ ĐƠN HÀNG
-              </th>
-
-              {/* ĐỊA CHỈ NHẬN HÀNG */}
-              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
-                ĐỊA CHỈ NHẬN HÀNG <span className="text-red-600 font-black">*</span>
-              </th>
-
-              {/* TÊN HÀNG */}
-              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
-                TÊN HÀNG <span className="text-red-600 font-black">*</span>
-              </th>
-
-              {/* SỐ THÙNG / SỐ KIỆN */}
-              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
-                SỐ KIỆN <span className="text-red-600 font-black">*</span>
-              </th>
-
-              {/* SỐ KG */}
-              <th className="p-2.5 w-[115px] text-right bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
-                SỐ KG <span className="text-red-600 font-black">*</span>
-              </th>
-
-              {/* SỐ KHỐI / SỐ M³ */}
-              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
-                SỐ M³ <span className="text-red-600 font-black">*</span>
-              </th>
-
-              {/* ĐỊA CHỈ GIAO HÀNG */}
-              <th className="p-2.5 w-[280px] bg-[#FEF2F2] dark:bg-red-950 border-r border-b border-red-200 dark:border-red-900 text-[#B91C1C] dark:text-red-300 font-bold text-[11px]">
-                ĐỊA CHỈ GIAO HÀNG <span className="text-red-600 font-black">*</span>
-              </th>
-
-              {/* GHI CHÚ */}
-              <th className="p-2.5 w-[240px] bg-[#F1F5F9] dark:bg-slate-800 border-r border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px]">
-                GHI CHÚ
-              </th>
-
-              {/* THAO TÁC */}
-              <th className="p-2.5 w-[85px] text-center sticky right-0 bg-[#F1F5F9] dark:bg-slate-800 z-30 border-l border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                THAO TÁC
-              </th>
-            </tr>
+                  return (
+                    <th
+                      key={header.id}
+                      style={getPinningStyles(header.column, true)}
+                      className={cn(
+                        'p-2.5 text-[11px] font-bold border-b border-slate-200 dark:border-slate-700',
+                        colId === 'stt' || colId === 'actions' ? 'text-center' : '',
+                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
+                        isPinned === 'left' && colId === 'orderCode'
+                          ? 'bg-[#FEE2E2] dark:bg-red-950 border-r border-red-300 dark:border-red-800 text-slate-700 dark:text-slate-300'
+                          : isPinned === 'left' && colId === 'stt'
+                            ? 'bg-[#F1F5F9] dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700'
+                            : isPinned === 'right'
+                              ? 'bg-[#F1F5F9] dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                              : isRequired
+                                ? 'bg-[#FEF2F2] dark:bg-red-950 border-r border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300'
+                                : 'bg-[#F1F5F9] dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300',
+                      )}
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
           </thead>
 
           <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-            {rows.map((row, idx) => (
+            {table.getRowModel().rows.map((row) => (
               <tr
-                key={idx}
+                key={row.id}
                 className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group align-top"
               >
-                {/* 1. STT */}
-                <td className="p-2 w-[48px] min-w-[48px] text-center font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20">
-                  {(idx + 1).toString().padStart(2, '0')}
-                </td>
+                {row.getVisibleCells().map((cell) => {
+                  const isPinned = cell.column.getIsPinned();
+                  const colId = cell.column.id;
 
-                {/* 2. Mã đơn hàng (Readonly Pill Badge / Outbound Lookup) */}
-                <td className="p-2 w-[125px] min-w-[125px] sticky left-[48px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-                  {isOutboundMode ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={row.orderCode}
-                        readOnly
-                        placeholder="Chọn mã đơn..."
-                        className="h-7 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setLookupRowIndex(idx)}
-                        className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0"
-                        title="Tra cứu kho để gán mã đơn"
-                      >
-                        <IconSearch className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="h-[30px] flex items-center justify-center px-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md">
-                      <span className="text-[10px] font-semibold text-slate-500 font-mono tracking-tight">
-                        {row.orderCode && row.orderCode !== '(Tự sinh khi lưu)' ? row.orderCode : 'Tự sinh · khóa'}
-                      </span>
-                    </div>
-                  )}
-                </td>
-
-                {/* 3. Địa chỉ nhận hàng (Multiline Textarea) */}
-                <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                  <textarea
-                    rows={2}
-                    value={row.pickupAddress}
-                    onChange={(e) => handleCellChange(idx, 'pickupAddress', e.target.value)}
-                    placeholder="Địa chỉ / Hub nhận hàng..."
-                    className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
-                  />
-                </td>
-
-                {/* 4. Tên hàng (Input with edit affordance) */}
-                <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                  <div className="relative">
-                    <Input
-                      value={row.goodsDescription}
-                      onChange={(e) => handleCellChange(idx, 'goodsDescription', e.target.value)}
-                      placeholder="Tên loại hàng..."
-                      className="h-[30px] pr-6 text-xs font-medium border-slate-300 dark:border-slate-700"
-                    />
-                  </div>
-                </td>
-
-                {/* 5. Số kiện (Số thùng) */}
-                <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={row.totalQuantity}
-                    onChange={(e) => handleCellChange(idx, 'totalQuantity', parseInt(e.target.value, 10) || 1)}
-                    className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-                  />
-                </td>
-
-                {/* 6. Số kg */}
-                <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800">
-                  <Input
-                    type="number"
-                    step="any"
-                    min={0.1}
-                    value={row.totalWeight}
-                    onChange={(e) => handleCellChange(idx, 'totalWeight', parseFloat(e.target.value) || 0)}
-                    className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-                  />
-                </td>
-
-                {/* 7. Số khối (Số m³) */}
-                <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={0.01}
-                    value={row.totalVolume}
-                    onChange={(e) => handleCellChange(idx, 'totalVolume', parseFloat(e.target.value) || 0)}
-                    className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-                  />
-                </td>
-
-                {/* 8. Địa chỉ giao hàng (2-Tier Stacked Card) */}
-                <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                  <div className="space-y-1.5">
-                    {/* Top Tier: Mode Selector */}
-                    <select
-                      value={row.deliveryMode}
-                      onChange={(e) => {
-                        const newMode = e.target.value as 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
-                        const updated = [...rows];
-                        let newAddress = updated[idx].deliveryAddress;
-                        let destId = updated[idx].destinationHubId;
-
-                        if (newMode === 'HUB_L1') {
-                          const currentMatch = level1Hubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
-                          const targetHub = currentMatch || level1Hubs[0];
-                          if (targetHub) {
-                            newAddress = `${targetHub.name} · nhận trung chuyển`;
-                            destId = targetHub.id;
-                          }
-                        } else if (newMode === 'XE_BO') {
-                          const currentMatch = level2XeBoHubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
-                          const targetXeBo = currentMatch || level2XeBoHubs[0];
-                          if (targetXeBo) {
-                            newAddress = `${targetXeBo.name} · gom hàng tuyến nội thành`;
-                            destId = targetXeBo.id;
-                          }
-                        }
-
-                        updated[idx] = {
-                          ...updated[idx],
-                          deliveryMode: newMode,
-                          deliveryAddress: newAddress,
-                          destinationHubId: destId,
-                        };
-                        onChange(updated);
-                      }}
-                      className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  return (
+                    <td
+                      key={cell.id}
+                      style={getPinningStyles(cell.column, false)}
+                      className={cn(
+                        'p-2',
+                        colId === 'stt' || colId === 'actions' ? 'text-center' : '',
+                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
+                        isPinned
+                          ? 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
+                          : '',
+                        isPinned === 'left'
+                          ? 'border-r border-slate-200 dark:border-slate-700'
+                          : isPinned === 'right'
+                            ? 'border-l border-slate-200 dark:border-slate-700'
+                            : 'border-r border-slate-100 dark:border-slate-800',
+                      )}
                     >
-                      <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
-                      <option value="HUB_L1">Hub cấp 1</option>
-                      <option value="XE_BO">Xe bo</option>
-                    </select>
-
-                    {/* Bottom Tier: Mode-specific selector or input */}
-                    {row.deliveryMode === 'HUB_L1' ? (
-                      <div className="space-y-1">
-                        <SearchableHubSelect
-                          type="HUB_L1"
-                          value={row.destinationHubId}
-                          deliveryAddress={row.deliveryAddress}
-                          options={level1Hubs}
-                          placeholder="Chọn Hub cấp 1..."
-                          searchPlaceholder="Tìm Hub (tên, mã, tỉnh)..."
-                          onSelect={(selectedHub) => {
-                            const updated = [...rows];
-                            updated[idx] = {
-                              ...updated[idx],
-                              destinationHubId: selectedHub.id,
-                              deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
-                            };
-                            onChange(updated);
-                          }}
-                        />
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
-                          Đích: {row.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
-                        </div>
-                      </div>
-                    ) : row.deliveryMode === 'XE_BO' ? (
-                      <div className="space-y-1">
-                        <SearchableHubSelect
-                          type="XE_BO"
-                          value={row.destinationHubId}
-                          deliveryAddress={row.deliveryAddress}
-                          options={level2XeBoHubs}
-                          placeholder="Chọn Tuyến xe bo..."
-                          searchPlaceholder="Tìm Tuyến xe bo (tên, mã, tỉnh)..."
-                          onSelect={(selectedXeBo) => {
-                            const updated = [...rows];
-                            updated[idx] = {
-                              ...updated[idx],
-                              destinationHubId: selectedXeBo.id,
-                              deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
-                            };
-                            onChange(updated);
-                          }}
-                        />
-                        <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
-                          Tuyến: {row.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
-                        </div>
-                      </div>
-                    ) : (
-                      <textarea
-                        rows={2}
-                        value={row.deliveryAddress}
-                        onChange={(e) => handleCellChange(idx, 'deliveryAddress', e.target.value)}
-                        placeholder="25 Nguyễn Văn Linh, Q.7, TP.HCM..."
-                        className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
-                      />
-                    )}
-                  </div>
-                </td>
-
-                {/* 9. Ghi chú (Multiline Textarea) */}
-                <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                  <textarea
-                    rows={2}
-                    value={row.notes}
-                    onChange={(e) => handleCellChange(idx, 'notes', e.target.value)}
-                    placeholder="Ghi chú bốc dỡ, lưu ý..."
-                    className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
-                  />
-                </td>
-
-                {/* 10. Thao tác */}
-                <td className="p-2 text-center sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-20 border-l border-slate-200 dark:border-slate-700 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-center justify-center gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        setPrintLabelData({
-                          orderCode: row.orderCode && row.orderCode !== '(Tự sinh khi lưu)' ? row.orderCode : 'LTV2609-0025',
-                          goodsDescription: row.goodsDescription || 'Hàng hóa tổng quan',
-                          totalQuantity: row.totalQuantity || 1,
-                          originHub: row.pickupAddress,
-                          destinationHub: row.deliveryAddress,
-                          createdAt: new Date(),
-                        })
-                      }
-                      className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
-                      title="In tem nhận diện A4"
-                    >
-                      <IconPrinter className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDuplicateRow(idx)}
-                      className="h-7 w-7 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Nhân bản dòng"
-                    >
-                      <IconCopy className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={rows.length <= 1}
-                      onClick={() => handleDeleteRow(idx)}
-                      className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
-                      title="Xóa dòng"
-                    >
-                      <IconTrash className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </td>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
