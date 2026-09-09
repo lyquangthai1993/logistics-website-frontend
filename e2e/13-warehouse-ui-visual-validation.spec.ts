@@ -157,4 +157,39 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.screenshot({ path: screenshotPath, fullPage: true });
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
+
+  test('Screenshot 09: WH_XE_BO_SEARCHABLE_DROPDOWN (Kiểm tra Dropdown Xe bo tìm kiếm live & hiển thị đầy đủ danh sách từ DB)', async ({ page }) => {
+    await loginAs(page, WAREHOUSE_HYN);
+    await page.goto('/dashboard/warehouse/inbound');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
+    await expect(page.locator('text=1. Ngày tiếp nhận')).toBeVisible();
+
+    // Select 'XE_BO' in the delivery mode dropdown for row 1
+    const deliveryModeSelect = page.locator('select').filter({ hasText: 'Địa chỉ thường' }).first();
+    await deliveryModeSelect.selectOption('XE_BO');
+
+    // Click the searchable xe bo trigger button
+    const xeBoTrigger = page.locator('button:has-text("Xe bo")').first();
+    await xeBoTrigger.click();
+
+    // Verify the search input appears and live search works
+    const searchInput = page.locator('input[placeholder*="Tìm Tuyến xe bo"]');
+    await expect(searchInput).toBeVisible();
+
+    // Verify search count badge shows 34 xe bo loaded from DB
+    await expect(page.getByText(/\d+ xe bo/i)).toBeVisible();
+
+    // Type 'Hà Nội' into search
+    await searchInput.fill('Hà Nội');
+    await page.waitForTimeout(500);
+
+    // Verify filtered result shows Hà Nội
+    await expect(page.locator('button:has-text("Xe bo Tuyến Hà Nội")')).toBeVisible();
+
+    const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '09_WH_XE_BO_SEARCHABLE_DROPDOWN.png');
+    await page.screenshot({ path: screenshotPath });
+    console.log(`Saved screenshot: ${screenshotPath}`);
+  });
 });

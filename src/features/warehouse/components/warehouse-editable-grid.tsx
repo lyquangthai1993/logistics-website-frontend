@@ -12,7 +12,14 @@ import {
   IconCopy,
   IconRefresh,
   IconFileSpreadsheet,
+  IconChevronDown,
+  IconCheck,
+  IconX,
+  IconTruck,
+  IconBuildingWarehouse,
 } from '@tabler/icons-react';
+import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/use-auth-store';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
 
@@ -48,6 +55,199 @@ interface WarehouseEditableGridProps {
   showAddressHint?: boolean;
 }
 
+interface SearchableHubSelectProps {
+  value?: number | null;
+  deliveryAddress?: string;
+  options: HubOption[];
+  onSelect: (hub: HubOption) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  type: 'HUB_L1' | 'XE_BO';
+}
+
+function SearchableHubSelect({
+  value,
+  deliveryAddress,
+  options,
+  onSelect,
+  placeholder = 'Chọn điểm giao...',
+  searchPlaceholder = 'Tìm kiếm tên, mã, tỉnh thành...',
+  type,
+}: SearchableHubSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
+
+  // Match selected hub/xe bo
+  const selected =
+    options.find((o) => o.id === value) ||
+    options.find(
+      (o) => deliveryAddress && (deliveryAddress.includes(o.name) || deliveryAddress.includes(o.code)),
+    ) ||
+    options[0];
+
+  const searchLower = search.toLowerCase().trim();
+  const filtered = options.filter((o) => {
+    if (!searchLower) return true;
+    return (
+      o.name.toLowerCase().includes(searchLower) ||
+      o.code.toLowerCase().includes(searchLower) ||
+      o.city.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const isXeBo = type === 'XE_BO';
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          'w-full h-[32px] text-xs font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
+          'bg-[#F8FAFC] dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800',
+          isXeBo
+            ? 'border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 focus:ring-1 focus:ring-purple-500'
+            : 'border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200 focus:ring-1 focus:ring-blue-500',
+          open && 'ring-2 ring-blue-400 dark:ring-blue-600 border-transparent shadow-sm',
+        )}
+      >
+        <div className="flex items-center gap-1.5 truncate">
+          {isXeBo ? (
+            <IconTruck className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+          ) : (
+            <IconBuildingWarehouse className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+          )}
+          <span className="truncate">
+            {selected ? `${selected.name} (${selected.city})` : placeholder}
+          </span>
+        </div>
+        <IconChevronDown
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 ml-1',
+            open && 'rotate-180 text-blue-600',
+          )}
+        />
+      </button>
+
+      {/* Dropdown Menu with Live Search */}
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+4px)] w-80 max-w-[90vw] z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-2 space-y-2 animate-in fade-in-0 zoom-in-95">
+          {/* Search Bar */}
+          <div className="relative">
+            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-full h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
+              >
+                <IconX className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Header count info */}
+          <div className="flex items-center justify-between px-1 text-[10px] text-slate-500 dark:text-slate-400 border-b pb-1.5 dark:border-slate-800">
+            <span className="font-semibold uppercase tracking-wider">
+              {isXeBo ? 'Danh sách Tuyến Xe bo' : 'Danh sách Hub cấp 1'}
+            </span>
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] px-1.5 py-0 h-4 font-mono font-bold',
+                isXeBo
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200',
+              )}
+            >
+              {filtered.length} {isXeBo ? 'xe bo' : 'hubs'}
+            </Badge>
+          </div>
+
+          {/* List Options */}
+          <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+            {filtered.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400">
+                Không tìm thấy {isXeBo ? 'tuyến xe bo' : 'hub'} nào với từ khóa "{search}"
+              </div>
+            ) : (
+              filtered.map((item) => {
+                const isItemActive = selected?.id === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      onSelect(item);
+                      setOpen(false);
+                      setSearch('');
+                    }}
+                    className={cn(
+                      'w-full text-left p-2 rounded-md transition-colors flex items-start justify-between text-xs',
+                      isItemActive
+                        ? isXeBo
+                          ? 'bg-purple-50 text-purple-900 dark:bg-purple-950/50 dark:text-purple-100 font-semibold'
+                          : 'bg-blue-50 text-blue-900 dark:bg-blue-950/50 dark:text-blue-100 font-semibold'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200',
+                    )}
+                  >
+                    <div className="min-w-0 pr-2 space-y-0.5">
+                      <div className="truncate font-medium flex items-center gap-1.5">
+                        <span className="truncate">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                        <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">
+                          {item.code}
+                        </span>
+                        <span>&bull;</span>
+                        <span>{item.city}</span>
+                      </div>
+                    </div>
+                    {isItemActive && (
+                      <IconCheck
+                        className={cn(
+                          'h-4 w-4 shrink-0 mt-0.5',
+                          isXeBo ? 'text-purple-600' : 'text-blue-600',
+                        )}
+                      />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WarehouseEditableGrid({
   rows,
   onChange,
@@ -58,41 +258,44 @@ export function WarehouseEditableGrid({
 }: WarehouseEditableGridProps) {
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
   const [lookupRowIndex, setLookupRowIndex] = useState<number | null>(null);
-  const [hubs, setHubs] = useState<HubOption[]>([]);
+  const [hubs, setHubs] = useState<HubOption[]>([
+    { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
+    { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
+    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
+    { id: 100, code: 'HUB-BO-HCM-01', name: 'Xe bo Tuyến HCM', city: 'TP. Hồ Chí Minh', level: 2 },
+    { id: 101, code: 'HUB-BO-DAD-01', name: 'Xe bo Tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
+    { id: 102, code: 'HUB-BO-HYN-01', name: 'Xe bo Tuyến Hưng Yên', city: 'Hưng Yên', level: 2 },
+    { id: 103, code: 'HUB-BO-HAN-01', name: 'Xe bo Tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
+    { id: 104, code: 'HUB-BO-HPH-01', name: 'Xe bo Tuyến Hải Phòng', city: 'TP. Hải Phòng', level: 2 },
+    { id: 105, code: 'HUB-BO-CTH-01', name: 'Xe bo Tuyến Cần Thơ', city: 'TP. Cần Thơ', level: 2 },
+    { id: 106, code: 'HUB-BO-HUE-01', name: 'Xe bo Tuyến Huế', city: 'TP. Huế', level: 2 },
+    { id: 107, code: 'HUB-BO-BNI-01', name: 'Xe bo Tuyến Bắc Ninh', city: 'Bắc Ninh', level: 2 },
+  ]);
 
   // Fetch active hubs list for Level 1 & Level 2 dropdowns
   React.useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token =
+      typeof window !== 'undefined'
+        ? useAuthStore.getState()?.accessToken ||
+          localStorage.getItem('access_token') ||
+          document.cookie.match(/(?:^|; )access_token=([^;]*)/)?.[1]
+        : null;
+
     fetch('/api/v1/hubs/active', {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: HubOption[]) => {
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        const data = Array.isArray(res) ? res : res?.data;
         if (Array.isArray(data) && data.length > 0) {
           setHubs(data);
-        } else {
-          setHubs([
-            { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
-            { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
-            { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
-            { id: 4, code: 'HUB-BO-HCM-01', name: 'XB-KH-02 · gom hàng tuyến nội thành', city: 'TP. Hồ Chí Minh', level: 2 },
-            { id: 5, code: 'HUB-BO-HAN-01', name: 'XB-KH-01 · gom hàng tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
-            { id: 6, code: 'HUB-BO-DAD-01', name: 'XB-KH-03 · gom hàng tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
-          ]);
         }
       })
-      .catch(() => {
-        setHubs([
-          { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
-          { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
-          { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
-          { id: 4, code: 'HUB-BO-HCM-01', name: 'XB-KH-02 · gom hàng tuyến nội thành', city: 'TP. Hồ Chí Minh', level: 2 },
-          { id: 5, code: 'HUB-BO-HAN-01', name: 'XB-KH-01 · gom hàng tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
-          { id: 6, code: 'HUB-BO-DAD-01', name: 'XB-KH-03 · gom hàng tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
-        ]);
+      .catch((err) => {
+        console.error('Failed to fetch active hubs:', err);
       });
   }, []);
 
@@ -488,70 +691,46 @@ export function WarehouseEditableGrid({
                     {/* Bottom Tier: Mode-specific selector or input */}
                     {row.deliveryMode === 'HUB_L1' ? (
                       <div className="space-y-1">
-                        <select
-                          value={
-                            level1Hubs.find(
-                              (h) =>
-                                h.id === row.destinationHubId ||
-                                (row.deliveryAddress && row.deliveryAddress.includes(h.name)),
-                            )?.id || (level1Hubs[0]?.id ?? '')
-                          }
-                          onChange={(e) => {
-                            const selectedId = Number(e.target.value);
-                            const selectedHub = level1Hubs.find((h) => h.id === selectedId);
-                            if (selectedHub) {
-                              const updated = [...rows];
-                              updated[idx] = {
-                                ...updated[idx],
-                                destinationHubId: selectedHub.id,
-                                deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
-                              };
-                              onChange(updated);
-                            }
+                        <SearchableHubSelect
+                          type="HUB_L1"
+                          value={row.destinationHubId}
+                          deliveryAddress={row.deliveryAddress}
+                          options={level1Hubs}
+                          placeholder="Chọn Hub cấp 1..."
+                          searchPlaceholder="Tìm Hub (tên, mã, tỉnh)..."
+                          onSelect={(selectedHub) => {
+                            const updated = [...rows];
+                            updated[idx] = {
+                              ...updated[idx],
+                              destinationHubId: selectedHub.id,
+                              deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
+                            };
+                            onChange(updated);
                           }}
-                          className="w-full h-[30px] text-xs font-semibold text-slate-800 dark:text-slate-100 bg-[#F8FAFC] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                          {level1Hubs.map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {h.name} ({h.city})
-                            </option>
-                          ))}
-                        </select>
+                        />
                         <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
                           Đích: {row.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
                         </div>
                       </div>
                     ) : row.deliveryMode === 'XE_BO' ? (
                       <div className="space-y-1">
-                        <select
-                          value={
-                            level2XeBoHubs.find(
-                              (h) =>
-                                h.id === row.destinationHubId ||
-                                (row.deliveryAddress && row.deliveryAddress.includes(h.name)),
-                            )?.id || (level2XeBoHubs[0]?.id ?? '')
-                          }
-                          onChange={(e) => {
-                            const selectedId = Number(e.target.value);
-                            const selectedXeBo = level2XeBoHubs.find((h) => h.id === selectedId);
-                            if (selectedXeBo) {
-                              const updated = [...rows];
-                              updated[idx] = {
-                                ...updated[idx],
-                                destinationHubId: selectedXeBo.id,
-                                deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
-                              };
-                              onChange(updated);
-                            }
+                        <SearchableHubSelect
+                          type="XE_BO"
+                          value={row.destinationHubId}
+                          deliveryAddress={row.deliveryAddress}
+                          options={level2XeBoHubs}
+                          placeholder="Chọn Tuyến xe bo..."
+                          searchPlaceholder="Tìm Tuyến xe bo (tên, mã, tỉnh)..."
+                          onSelect={(selectedXeBo) => {
+                            const updated = [...rows];
+                            updated[idx] = {
+                              ...updated[idx],
+                              destinationHubId: selectedXeBo.id,
+                              deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
+                            };
+                            onChange(updated);
                           }}
-                          className="w-full h-[30px] text-xs font-semibold text-slate-800 dark:text-slate-100 bg-[#F8FAFC] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                          {level2XeBoHubs.map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {h.name} ({h.city})
-                            </option>
-                          ))}
-                        </select>
+                        />
                         <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
                           Tuyến: {row.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
                         </div>

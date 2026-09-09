@@ -88,6 +88,36 @@ export default function WarehouseOutboundPage() {
   const [transferHubId, setTransferHubId] = useState<string>('2');
   const [transferLicensePlate, setTransferLicensePlate] = useState('50H-756.14');
   const [transferDriverName, setTransferDriverName] = useState('Nguyễn Hoàng Nam');
+  const [level1Hubs, setLevel1Hubs] = useState<any[]>([
+    { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng' },
+    { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên' },
+    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh' },
+  ]);
+
+  useEffect(() => {
+    const token =
+      typeof window !== 'undefined'
+        ? useAuthStore.getState()?.accessToken ||
+          localStorage.getItem('access_token') ||
+          document.cookie.match(/(?:^|; )access_token=([^;]*)/)?.[1]
+        : null;
+
+    fetch('/api/v1/hubs/active?level=1', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        const data = Array.isArray(res) ? res : res?.data;
+        if (Array.isArray(data) && data.length > 0) {
+          setLevel1Hubs(data.filter((h: any) => h.level === 1 || !h.code.startsWith('HUB-BO-')));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const [mode2Rows, setMode2Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '',
@@ -107,7 +137,12 @@ export default function WarehouseOutboundPage() {
   // Fetch Board Orders
   const fetchOrders = useCallback(() => {
     setIsLoading(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token =
+      typeof window !== 'undefined'
+        ? useAuthStore.getState()?.accessToken ||
+          localStorage.getItem('access_token') ||
+          document.cookie.match(/(?:^|; )access_token=([^;]*)/)?.[1]
+        : null;
     const query = new URLSearchParams({
       limit: '20',
       ...(search.trim() ? { search: search.trim() } : {}),
@@ -529,9 +564,11 @@ export default function WarehouseOutboundPage() {
                   onChange={(e) => setTransferHubId(e.target.value)}
                   className="w-full h-8 text-xs font-bold rounded border px-2 bg-white dark:bg-slate-900"
                 >
-                  <option value="2">Magellan Hub - Đà Nẵng (HUB-DAD-01)</option>
-                  <option value="1">Polaris Hub - Hưng Yên (HUB-HYN-01)</option>
-                  <option value="3">Andromeda Hub - HCM (HUB-HCM-01)</option>
+                  {level1Hubs.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name} ({h.code})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
