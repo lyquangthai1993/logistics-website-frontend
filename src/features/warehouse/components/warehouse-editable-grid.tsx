@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
   type ColumnPinningState,
+  type CellContext,
+  type RowData,
 } from '@tanstack/react-table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -51,6 +53,22 @@ export interface WarehouseRowItem {
   deliveryAddress: string;
   destinationHubId?: number | null;
   notes: string;
+}
+
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface TableMeta<TData extends RowData> {
+    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
+    updateRow: (rowIndex: number, row: WarehouseRowItem) => void;
+    duplicateRow?: (rowIndex: number) => void;
+    deleteRow?: (rowIndex: number) => void;
+    openPrintLabel?: (data: PalletLabelData) => void;
+    openLookup?: (rowIndex: number) => void;
+    level1Hubs?: HubOption[];
+    level2XeBoHubs?: HubOption[];
+    isOutboundMode?: boolean;
+    rowsCount?: number;
+  }
 }
 
 interface WarehouseEditableGridProps {
@@ -255,6 +273,447 @@ function SearchableHubSelect({
   );
 }
 
+// ── Stable Cell Components (Defined Outside to Prevent Unmounting & Focus Loss) ──
+
+function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
+  return (
+    <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
+      {(row.index + 1).toString().padStart(2, '0')}
+    </span>
+  );
+}
+
+function OrderCodeCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
+  const r = row.original;
+  const idx = row.index;
+  const meta = table.options.meta;
+  const isOutbound = meta?.isOutboundMode;
+
+  if (isOutbound) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          value={r.orderCode}
+          readOnly
+          placeholder="Chọn mã đơn..."
+          className="h-7 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => meta?.openLookup?.(idx)}
+          className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0"
+          title="Tra cứu kho để gán mã đơn"
+        >
+          <IconSearch className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[30px] flex items-center justify-center px-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md">
+      <span className="text-[10px] font-semibold text-slate-500 font-mono tracking-tight">
+        {r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'Tự sinh · khóa'}
+      </span>
+    </div>
+  );
+}
+
+function PickupAddressCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, string>) {
+  const initialValue = getValue() ?? '';
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextVal = e.target.value;
+    setValue(nextVal);
+    table.options.meta?.updateData(row.index, column.id, nextVal);
+  };
+
+  return (
+    <textarea
+      rows={2}
+      value={value}
+      onChange={handleChange}
+      placeholder="Địa chỉ / Hub nhận hàng..."
+      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+    />
+  );
+}
+
+function GoodsDescriptionCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, string>) {
+  const initialValue = getValue() ?? '';
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
+    setValue(nextVal);
+    table.options.meta?.updateData(row.index, column.id, nextVal);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={handleChange}
+        placeholder="Tên loại hàng..."
+        className="h-[30px] pr-6 text-xs font-medium border-slate-300 dark:border-slate-700"
+      />
+    </div>
+  );
+}
+
+function QuantityCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, number>) {
+  const initialValue = getValue() ?? 1;
+  const [value, setValue] = useState<string | number>(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setValue(raw);
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed)) {
+      table.options.meta?.updateData(row.index, column.id, parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    if (value === '' || isNaN(Number(value)) || Number(value) < 1) {
+      setValue(1);
+      table.options.meta?.updateData(row.index, column.id, 1);
+    }
+  };
+
+  return (
+    <Input
+      type="number"
+      min={1}
+      value={value}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+    />
+  );
+}
+
+function WeightCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, number>) {
+  const initialValue = getValue() ?? 0;
+  const [value, setValue] = useState<string | number>(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setValue(raw);
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed)) {
+      table.options.meta?.updateData(row.index, column.id, parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    if (value === '' || isNaN(Number(value))) {
+      setValue(0);
+      table.options.meta?.updateData(row.index, column.id, 0);
+    }
+  };
+
+  return (
+    <Input
+      type="number"
+      step="any"
+      min={0}
+      value={value}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+    />
+  );
+}
+
+function VolumeCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, number>) {
+  const initialValue = getValue() ?? 0;
+  const [value, setValue] = useState<string | number>(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setValue(raw);
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed)) {
+      table.options.meta?.updateData(row.index, column.id, parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    if (value === '' || isNaN(Number(value))) {
+      setValue(0);
+      table.options.meta?.updateData(row.index, column.id, 0);
+    }
+  };
+
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      min={0}
+      value={value}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+    />
+  );
+}
+
+function DeliveryAddressCell({
+  row,
+  table,
+}: CellContext<WarehouseRowItem, unknown>) {
+  const r = row.original;
+  const idx = row.index;
+  const meta = table.options.meta;
+  const level1Hubs = meta?.level1Hubs || [];
+  const level2XeBoHubs = meta?.level2XeBoHubs || [];
+
+  const [addressText, setAddressText] = useState(r.deliveryAddress || '');
+
+  useEffect(() => {
+    setAddressText(r.deliveryAddress || '');
+  }, [r.deliveryAddress]);
+
+  const handleModeChange = (newMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO') => {
+    let newAddress = r.deliveryAddress;
+    let destId = r.destinationHubId;
+
+    if (newMode === 'HUB_L1') {
+      const currentMatch = level1Hubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
+      const targetHub = currentMatch || level1Hubs[0];
+      if (targetHub) {
+        newAddress = `${targetHub.name} · nhận trung chuyển`;
+        destId = targetHub.id;
+      }
+    } else if (newMode === 'XE_BO') {
+      const currentMatch = level2XeBoHubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
+      const targetXeBo = currentMatch || level2XeBoHubs[0];
+      if (targetXeBo) {
+        newAddress = `${targetXeBo.name} · gom hàng tuyến nội thành`;
+        destId = targetXeBo.id;
+      }
+    }
+
+    meta?.updateRow(idx, {
+      ...r,
+      deliveryMode: newMode,
+      deliveryAddress: newAddress,
+      destinationHubId: destId,
+    });
+  };
+
+  const handleHubSelect = (selectedHub: HubOption) => {
+    meta?.updateRow(idx, {
+      ...r,
+      destinationHubId: selectedHub.id,
+      deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
+    });
+  };
+
+  const handleXeBoSelect = (selectedXeBo: HubOption) => {
+    meta?.updateRow(idx, {
+      ...r,
+      destinationHubId: selectedXeBo.id,
+      deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
+    });
+  };
+
+  const handleAddressTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextVal = e.target.value;
+    setAddressText(nextVal);
+    meta?.updateData(idx, 'deliveryAddress', nextVal);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      {/* Top Tier: Mode Selector */}
+      <select
+        value={r.deliveryMode}
+        onChange={(e) => handleModeChange(e.target.value as any)}
+        className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      >
+        <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
+        <option value="HUB_L1">Hub cấp 1</option>
+        <option value="XE_BO">Xe bo</option>
+      </select>
+
+      {/* Bottom Tier: Mode-specific selector or input */}
+      {r.deliveryMode === 'HUB_L1' ? (
+        <div className="space-y-1">
+          <SearchableHubSelect
+            type="HUB_L1"
+            value={r.destinationHubId}
+            deliveryAddress={r.deliveryAddress}
+            options={level1Hubs}
+            placeholder="Chọn Hub cấp 1..."
+            searchPlaceholder="Tìm Hub (tên, mã, tỉnh)..."
+            onSelect={handleHubSelect}
+          />
+          <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
+            Đích: {r.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
+          </div>
+        </div>
+      ) : r.deliveryMode === 'XE_BO' ? (
+        <div className="space-y-1">
+          <SearchableHubSelect
+            type="XE_BO"
+            value={r.destinationHubId}
+            deliveryAddress={r.deliveryAddress}
+            options={level2XeBoHubs}
+            placeholder="Chọn Tuyến xe bo..."
+            searchPlaceholder="Tìm Tuyến xe bo (tên, mã, tỉnh)..."
+            onSelect={handleXeBoSelect}
+          />
+          <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
+            Tuyến: {r.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
+          </div>
+        </div>
+      ) : (
+        <textarea
+          rows={2}
+          value={addressText}
+          onChange={handleAddressTextChange}
+          placeholder="25 Nguyễn Văn Linh, Q.7, TP.HCM..."
+          className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
+        />
+      )}
+    </div>
+  );
+}
+
+function NotesCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, string>) {
+  const initialValue = getValue() ?? '';
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextVal = e.target.value;
+    setValue(nextVal);
+    table.options.meta?.updateData(row.index, column.id, nextVal);
+  };
+
+  return (
+    <textarea
+      rows={2}
+      value={value}
+      onChange={handleChange}
+      placeholder="Ghi chú bốc dỡ, lưu ý..."
+      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+    />
+  );
+}
+
+function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
+  const r = row.original;
+  const idx = row.index;
+  const meta = table.options.meta;
+  const rowsCount = meta?.rowsCount ?? 1;
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() =>
+          meta?.openPrintLabel?.({
+            orderCode: r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
+            goodsDescription: r.goodsDescription || 'Hàng hóa tổng quan',
+            totalQuantity: r.totalQuantity || 1,
+            originHub: r.pickupAddress,
+            destinationHub: r.deliveryAddress,
+            createdAt: new Date(),
+          })
+        }
+        className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
+        title="In tem nhận diện A4"
+      >
+        <IconPrinter className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => meta?.duplicateRow?.(idx)}
+        className="h-7 w-7 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+        title="Nhân bản dòng"
+      >
+        <IconCopy className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        disabled={rowsCount <= 1}
+        onClick={() => meta?.deleteRow?.(idx)}
+        className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
+        title="Xóa dòng"
+      >
+        <IconTrash className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
 export function WarehouseEditableGrid({
   rows,
   onChange,
@@ -310,14 +769,34 @@ export function WarehouseEditableGrid({
   const level2XeBoHubs = hubs.filter((h) => h.level === 2 || h.code.startsWith('HUB-BO-'));
 
   // Update a single field in a specific row
-  const handleCellChange = useCallback(
-    (index: number, field: keyof WarehouseRowItem, value: any) => {
-      const updated = [...rows];
-      updated[index] = {
-        ...updated[index],
-        [field]: value,
-      };
-      onChange(updated);
+  const updateData = useCallback(
+    (rowIndex: number, columnId: string, value: unknown) => {
+      onChange(
+        rows.map((row, index) => {
+          if (index === rowIndex) {
+            return {
+              ...row,
+              [columnId]: value,
+            };
+          }
+          return row;
+        }),
+      );
+    },
+    [rows, onChange],
+  );
+
+  // Update an entire row object
+  const updateRow = useCallback(
+    (rowIndex: number, updatedRow: WarehouseRowItem) => {
+      onChange(
+        rows.map((row, index) => {
+          if (index === rowIndex) {
+            return updatedRow;
+          }
+          return row;
+        }),
+      );
     },
     [rows, onChange],
   );
@@ -442,60 +921,23 @@ export function WarehouseEditableGrid({
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
   const totalVolume = rows.reduce((sum, r) => sum + (Number(r.totalVolume) || 0), 0);
 
-  // ── TanStack Table Columns Definition ──
+  // ── TanStack Table Columns Definition (Static - Zero Dependent Re-renders) ──
   const columns = useMemo<ColumnDef<WarehouseRowItem>[]>(
     () => [
       {
         id: 'stt',
         header: 'STT',
         size: 48,
-        cell: ({ row }) => (
-          <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
-            {(row.index + 1).toString().padStart(2, '0')}
-          </span>
-        ),
+        cell: SttCell,
       },
       {
         id: 'orderCode',
         header: 'MÃ ĐƠN HÀNG',
         size: 130,
-        cell: ({ row }) => {
-          const r = row.original;
-          const idx = row.index;
-
-          if (isOutboundMode) {
-            return (
-              <div className="flex items-center gap-1">
-                <Input
-                  value={r.orderCode}
-                  readOnly
-                  placeholder="Chọn mã đơn..."
-                  className="h-7 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setLookupRowIndex(idx)}
-                  className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0"
-                  title="Tra cứu kho để gán mã đơn"
-                >
-                  <IconSearch className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          }
-
-          return (
-            <div className="h-[30px] flex items-center justify-center px-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md">
-              <span className="text-[10px] font-semibold text-slate-500 font-mono tracking-tight">
-                {r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'Tự sinh · khóa'}
-              </span>
-            </div>
-          );
-        },
+        cell: OrderCodeCell,
       },
       {
+        accessorKey: 'pickupAddress',
         id: 'pickupAddress',
         header: () => (
           <span>
@@ -503,20 +945,10 @@ export function WarehouseEditableGrid({
           </span>
         ),
         size: 210,
-        cell: ({ row }) => {
-          const idx = row.index;
-          return (
-            <textarea
-              rows={2}
-              value={row.original.pickupAddress}
-              onChange={(e) => handleCellChange(idx, 'pickupAddress', e.target.value)}
-              placeholder="Địa chỉ / Hub nhận hàng..."
-              className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
-            />
-          );
-        },
+        cell: PickupAddressCell,
       },
       {
+        accessorKey: 'goodsDescription',
         id: 'goodsDescription',
         header: () => (
           <span>
@@ -524,21 +956,10 @@ export function WarehouseEditableGrid({
           </span>
         ),
         size: 210,
-        cell: ({ row }) => {
-          const idx = row.index;
-          return (
-            <div className="relative">
-              <Input
-                value={row.original.goodsDescription}
-                onChange={(e) => handleCellChange(idx, 'goodsDescription', e.target.value)}
-                placeholder="Tên loại hàng..."
-                className="h-[30px] pr-6 text-xs font-medium border-slate-300 dark:border-slate-700"
-              />
-            </div>
-          );
-        },
+        cell: GoodsDescriptionCell,
       },
       {
+        accessorKey: 'totalQuantity',
         id: 'totalQuantity',
         header: () => (
           <span>
@@ -546,20 +967,10 @@ export function WarehouseEditableGrid({
           </span>
         ),
         size: 95,
-        cell: ({ row }) => {
-          const idx = row.index;
-          return (
-            <Input
-              type="number"
-              min={1}
-              value={row.original.totalQuantity}
-              onChange={(e) => handleCellChange(idx, 'totalQuantity', parseInt(e.target.value, 10) || 1)}
-              className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-            />
-          );
-        },
+        cell: QuantityCell,
       },
       {
+        accessorKey: 'totalWeight',
         id: 'totalWeight',
         header: () => (
           <span>
@@ -567,21 +978,10 @@ export function WarehouseEditableGrid({
           </span>
         ),
         size: 115,
-        cell: ({ row }) => {
-          const idx = row.index;
-          return (
-            <Input
-              type="number"
-              step="any"
-              min={0.1}
-              value={row.original.totalWeight}
-              onChange={(e) => handleCellChange(idx, 'totalWeight', parseFloat(e.target.value) || 0)}
-              className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-            />
-          );
-        },
+        cell: WeightCell,
       },
       {
+        accessorKey: 'totalVolume',
         id: 'totalVolume',
         header: () => (
           <span>
@@ -589,19 +989,7 @@ export function WarehouseEditableGrid({
           </span>
         ),
         size: 95,
-        cell: ({ row }) => {
-          const idx = row.index;
-          return (
-            <Input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={row.original.totalVolume}
-              onChange={(e) => handleCellChange(idx, 'totalVolume', parseFloat(e.target.value) || 0)}
-              className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-            />
-          );
-        },
+        cell: VolumeCell,
       },
       {
         id: 'deliveryAddress',
@@ -611,185 +999,23 @@ export function WarehouseEditableGrid({
           </span>
         ),
         size: 280,
-        cell: ({ row }) => {
-          const idx = row.index;
-          const r = row.original;
-
-          return (
-            <div className="space-y-1.5">
-              {/* Top Tier: Mode Selector */}
-              <select
-                value={r.deliveryMode}
-                onChange={(e) => {
-                  const newMode = e.target.value as 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
-                  const updated = [...rows];
-                  let newAddress = updated[idx].deliveryAddress;
-                  let destId = updated[idx].destinationHubId;
-
-                  if (newMode === 'HUB_L1') {
-                    const currentMatch = level1Hubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
-                    const targetHub = currentMatch || level1Hubs[0];
-                    if (targetHub) {
-                      newAddress = `${targetHub.name} · nhận trung chuyển`;
-                      destId = targetHub.id;
-                    }
-                  } else if (newMode === 'XE_BO') {
-                    const currentMatch = level2XeBoHubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
-                    const targetXeBo = currentMatch || level2XeBoHubs[0];
-                    if (targetXeBo) {
-                      newAddress = `${targetXeBo.name} · gom hàng tuyến nội thành`;
-                      destId = targetXeBo.id;
-                    }
-                  }
-
-                  updated[idx] = {
-                    ...updated[idx],
-                    deliveryMode: newMode,
-                    deliveryAddress: newAddress,
-                    destinationHubId: destId,
-                  };
-                  onChange(updated);
-                }}
-                className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
-                <option value="HUB_L1">Hub cấp 1</option>
-                <option value="XE_BO">Xe bo</option>
-              </select>
-
-              {/* Bottom Tier: Mode-specific selector or input */}
-              {r.deliveryMode === 'HUB_L1' ? (
-                <div className="space-y-1">
-                  <SearchableHubSelect
-                    type="HUB_L1"
-                    value={r.destinationHubId}
-                    deliveryAddress={r.deliveryAddress}
-                    options={level1Hubs}
-                    placeholder="Chọn Hub cấp 1..."
-                    searchPlaceholder="Tìm Hub (tên, mã, tỉnh)..."
-                    onSelect={(selectedHub) => {
-                      const updated = [...rows];
-                      updated[idx] = {
-                        ...updated[idx],
-                        destinationHubId: selectedHub.id,
-                        deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
-                      };
-                      onChange(updated);
-                    }}
-                  />
-                  <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
-                    Đích: {r.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
-                  </div>
-                </div>
-              ) : r.deliveryMode === 'XE_BO' ? (
-                <div className="space-y-1">
-                  <SearchableHubSelect
-                    type="XE_BO"
-                    value={r.destinationHubId}
-                    deliveryAddress={r.deliveryAddress}
-                    options={level2XeBoHubs}
-                    placeholder="Chọn Tuyến xe bo..."
-                    searchPlaceholder="Tìm Tuyến xe bo (tên, mã, tỉnh)..."
-                    onSelect={(selectedXeBo) => {
-                      const updated = [...rows];
-                      updated[idx] = {
-                        ...updated[idx],
-                        destinationHubId: selectedXeBo.id,
-                        deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
-                      };
-                      onChange(updated);
-                    }}
-                  />
-                  <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
-                    Tuyến: {r.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
-                  </div>
-                </div>
-              ) : (
-                <textarea
-                  rows={2}
-                  value={r.deliveryAddress}
-                  onChange={(e) => handleCellChange(idx, 'deliveryAddress', e.target.value)}
-                  placeholder="25 Nguyễn Văn Linh, Q.7, TP.HCM..."
-                  className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
-                />
-              )}
-            </div>
-          );
-        },
+        cell: DeliveryAddressCell,
       },
       {
+        accessorKey: 'notes',
         id: 'notes',
         header: 'GHI CHÚ',
         size: 240,
-        cell: ({ row }) => {
-          const idx = row.index;
-          return (
-            <textarea
-              rows={2}
-              value={row.original.notes}
-              onChange={(e) => handleCellChange(idx, 'notes', e.target.value)}
-              placeholder="Ghi chú bốc dỡ, lưu ý..."
-              className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
-            />
-          );
-        },
+        cell: NotesCell,
       },
       {
         id: 'actions',
         header: 'THAO TÁC',
         size: 90,
-        cell: ({ row }) => {
-          const r = row.original;
-          const idx = row.index;
-
-          return (
-            <div className="flex items-center justify-center gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  setPrintLabelData({
-                    orderCode: r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
-                    goodsDescription: r.goodsDescription || 'Hàng hóa tổng quan',
-                    totalQuantity: r.totalQuantity || 1,
-                    originHub: r.pickupAddress,
-                    destinationHub: r.deliveryAddress,
-                    createdAt: new Date(),
-                  })
-                }
-                className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
-                title="In tem nhận diện A4"
-              >
-                <IconPrinter className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => handleDuplicateRow(idx)}
-                className="h-7 w-7 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-                title="Nhân bản dòng"
-              >
-                <IconCopy className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={rows.length <= 1}
-                onClick={() => handleDeleteRow(idx)}
-                className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
-                title="Xóa dòng"
-              >
-                <IconTrash className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          );
-        },
+        cell: ActionsCell,
       },
     ],
-    [handleCellChange, handleDeleteRow, handleDuplicateRow, isOutboundMode, level1Hubs, level2XeBoHubs, rows],
+    [],
   );
 
   // Column Pinning State (STT & Mã Đơn Pinned Left, Thao Tác Pinned Right)
@@ -808,6 +1034,18 @@ export function WarehouseEditableGrid({
     onColumnPinningChange: setColumnPinning,
     getCoreRowModel: getCoreRowModel(),
     enablePinning: true,
+    meta: {
+      updateData,
+      updateRow,
+      duplicateRow: handleDuplicateRow,
+      deleteRow: handleDeleteRow,
+      openPrintLabel: (data) => setPrintLabelData(data),
+      openLookup: (idx) => setLookupRowIndex(idx),
+      level1Hubs,
+      level2XeBoHubs,
+      isOutboundMode,
+      rowsCount: rows.length,
+    },
   });
 
   // Precise Pinning Style Generator
