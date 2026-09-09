@@ -491,7 +491,7 @@ export function WarehouseEditableGrid({
 
       {/* ── 10-Column Canonical Editable Table Container (Frame xTfjC in WH_CASE_01) ── */}
       <div className="relative border rounded-xl overflow-x-auto shadow-sm bg-white dark:bg-slate-900">
-        <table className="w-full text-xs text-left border-collapse min-w-[1100px]">
+        <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
           <thead className="select-none font-bold">
             <tr className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
               {/* STT */}
@@ -510,32 +510,32 @@ export function WarehouseEditableGrid({
               </th>
 
               {/* TÊN HÀNG */}
-              <th className="p-2.5 w-[120px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[210px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 TÊN HÀNG <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* SỐ THÙNG / SỐ KIỆN */}
-              <th className="p-2.5 w-[75px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 SỐ KIỆN <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* SỐ KG */}
-              <th className="p-2.5 w-[85px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[115px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 SỐ KG <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* SỐ KHỐI / SỐ M³ */}
-              <th className="p-2.5 w-[75px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[95px] text-right bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#991B1B] dark:text-red-300 font-bold text-[11px]">
                 SỐ M³ <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* ĐỊA CHỈ GIAO HÀNG */}
-              <th className="p-2.5 w-[260px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#B91C1C] dark:text-red-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[280px] bg-[#FEF2F2] dark:bg-red-950/40 border-r border-b border-red-200 dark:border-red-900/60 text-[#B91C1C] dark:text-red-300 font-bold text-[11px]">
                 ĐỊA CHỈ GIAO HÀNG <span className="text-red-600 font-black">*</span>
               </th>
 
               {/* GHI CHÚ */}
-              <th className="p-2.5 w-[190px] bg-[#F1F5F9] dark:bg-slate-800 border-r border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px]">
+              <th className="p-2.5 w-[240px] bg-[#F1F5F9] dark:bg-slate-800 border-r border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px]">
                 GHI CHÚ
               </th>
 
