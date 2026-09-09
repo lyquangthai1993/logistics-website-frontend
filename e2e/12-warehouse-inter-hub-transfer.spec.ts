@@ -112,7 +112,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     const lookupBtn = page.locator('button[title="Tra cứu kho để gán mã đơn"]').first();
     if (await lookupBtn.isVisible()) {
       await lookupBtn.click();
-      await expect(page.locator('text=Tra Cứu Hàng Trong Kho')).toBeVisible();
+      await expect(page.locator('text=/Tra Cứu.*Kho/i')).toBeVisible();
       await page.keyboard.press('Escape');
     }
   });

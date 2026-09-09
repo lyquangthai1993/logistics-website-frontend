@@ -9,6 +9,12 @@ const WAREHOUSE_HYN = {
   role: 'WAREHOUSE_MANAGER' as const,
 };
 
+const WAREHOUSE_DAD = {
+  email: 'lyquangthai1993+5@gmail.com',
+  password: 'secret',
+  role: 'WAREHOUSE_MANAGER' as const,
+};
+
 const ARTIFACT_SCREENSHOT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/8c1cdb2a-5228-45f9-a6ff-0c9d427e1f1a/screenshots';
 
 test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => {
@@ -192,4 +198,37 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.screenshot({ path: screenshotPath });
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
+
+  test('Screenshot 10: WH_OUTBOUND_LOOKUP_MODAL (Modal Tra Cứu & Chọn Hàng Trong Kho theo chuẩn Design Pen)', async ({ page }) => {
+    await loginAs(page, WAREHOUSE_DAD);
+    await page.goto('/dashboard/warehouse/outbound');
+    await page.waitForLoadState('networkidle');
+
+    // Click 'Xuất cho khách hàng' to enter editable grid mode
+    await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
+    await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
+
+    // Click the search lookup icon on row 1 of the editable table
+    const lookupBtn = page.locator('button[title*="Tra cứu"]').first();
+    await expect(lookupBtn).toBeVisible();
+    await lookupBtn.click();
+
+    // Wait for the Lookup Modal to appear
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog.locator('text=Tra Cứu & Chọn Đơn Hàng Từ Kho')).toBeVisible();
+    await expect(dialog.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
+    await expect(dialog.locator('th:has-text("TÊN HÀNG HÓA")')).toBeVisible();
+    await expect(dialog.locator('th:has-text("SỐ KIỆN")')).toBeVisible();
+    await expect(dialog.locator('th:has-text("SỐ KG")')).toBeVisible();
+    await expect(dialog.locator('th:has-text("SỐ M³")')).toBeVisible();
+    await expect(dialog.locator('th:has-text("TRẠNG THÁI")')).toBeVisible();
+    await expect(dialog.locator('th:has-text("THAO TÁC")')).toBeVisible();
+
+    await page.waitForTimeout(1500);
+
+    const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '10_WH_OUTBOUND_LOOKUP_MODAL.png');
+    await page.screenshot({ path: screenshotPath });
+    console.log(`Saved screenshot: ${screenshotPath}`);
+  });
 });
+

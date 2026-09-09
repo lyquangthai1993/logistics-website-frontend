@@ -62,7 +62,10 @@ export function PalletLabelA4Modal({
       <DialogContent className="max-w-2xl bg-white p-6 dark:bg-slate-900 print:p-0 print:border-none">
         <DialogHeader className="print:hidden">
           <DialogTitle className="flex items-center justify-between text-lg font-bold">
-            <span>🖨️ Xem & In Tem Nhận Diện Hàng Hóa A4</span>
+            <span className="flex items-center gap-2">
+              <IconPrinter className="w-5 h-5 text-blue-600" />
+              <span>Xem & In Tem Nhận Diện Hàng Hóa A4</span>
+            </span>
           </DialogTitle>
         </DialogHeader>
 
