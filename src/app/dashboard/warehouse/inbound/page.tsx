@@ -97,6 +97,7 @@ export default function WarehouseInboundPage() {
 
   // Submitting State
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // KPI Stats
   const [kpiStats, setKpiStats] = useState({
@@ -295,6 +296,19 @@ export default function WarehouseInboundPage() {
             ? rawCode.toUpperCase()
             : undefined;
 
+        const extraNotes: string[] = [];
+        if (licensePlate.trim()) extraNotes.push(`Xe: ${licensePlate.trim()}`);
+        if (driverName.trim()) extraNotes.push(`TX: ${driverName.trim()}`);
+        if (receiveDate) extraNotes.push(`Ngày tiếp nhận: ${receiveDate}`);
+
+        const rowNote = row.notes?.trim() || '';
+        const combinedNotes =
+          extraNotes.length > 0
+            ? rowNote
+              ? `[${extraNotes.join(' - ')}] ${rowNote}`
+              : `[${extraNotes.join(' - ')}]`
+            : rowNote || null;
+
         const res = await fetch('/api/v1/warehouse/inbound/quick-create', {
           method: 'POST',
           headers: {
@@ -311,7 +325,7 @@ export default function WarehouseInboundPage() {
             deliveryAddress: row.deliveryAddress?.trim() || '',
             deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
             destinationHubId: row.destinationHubId || null,
-            notes: row.notes?.trim() || null,
+            notes: combinedNotes,
             initialStatus: 'INBOUND', // LƯU KHO
           }),
         });
@@ -336,6 +350,8 @@ export default function WarehouseInboundPage() {
           notes: '',
         },
       ]);
+      setLicensePlate('');
+      setDriverName('');
       setActiveView('BOARD');
       fetchKpi();
       fetchInboundOrders();
@@ -343,6 +359,105 @@ export default function WarehouseInboundPage() {
       showApiErrorToast(err, 'Lỗi khi tiếp nhận hàng vào kho');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Submit Mode 1 as Draft (Lưu nháp đơn hàng nhập kho)
+  const handleSaveDraftMode1 = async () => {
+    if (mode1Rows.length === 0) {
+      toast.error('Vui lòng có ít nhất 1 dòng hàng để lưu nháp');
+      return;
+    }
+
+    // Check duplicate order codes among input rows if filled
+    const filledCodes = mode1Rows
+      .map((r, idx) => ({ code: r.orderCode?.trim()?.toUpperCase(), line: idx + 1 }))
+      .filter((x) => Boolean(x.code && x.code !== '(TỰ SINH KHI LƯU)' && !x.code.startsWith('(TỰ SINH')));
+
+    const seenCodes = new Set<string>();
+    for (const item of filledCodes) {
+      if (seenCodes.has(item.code!)) {
+        toast.error(`Trùng lặp mã vận đơn '${item.code}' giữa các dòng trong bảng kê. Vui lòng kiểm tra lại.`);
+        return;
+      }
+      seenCodes.add(item.code!);
+    }
+
+    setIsSavingDraft(true);
+    const token = tokenManager.getAccessToken();
+
+    try {
+      for (const row of mode1Rows) {
+        const rawCode = row.orderCode?.trim();
+        const finalCode =
+          rawCode && rawCode !== '(Tự sinh khi lưu)' && !rawCode.startsWith('(Tự sinh')
+            ? rawCode.toUpperCase()
+            : undefined;
+
+        const extraNotes: string[] = [];
+        if (licensePlate.trim()) extraNotes.push(`Xe: ${licensePlate.trim()}`);
+        if (driverName.trim()) extraNotes.push(`TX: ${driverName.trim()}`);
+        if (receiveDate) extraNotes.push(`Ngày tiếp nhận: ${receiveDate}`);
+
+        const rowNote = row.notes?.trim() || '';
+        const combinedNotes =
+          extraNotes.length > 0
+            ? rowNote
+              ? `[${extraNotes.join(' - ')}] ${rowNote}`
+              : `[${extraNotes.join(' - ')}]`
+            : rowNote || null;
+
+        const res = await fetch('/api/v1/warehouse/inbound/quick-create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            orderCode: finalCode,
+            goodsDescription: row.goodsDescription?.trim() || 'Hàng lưu kho (Nháp)',
+            totalQuantity: Number(row.totalQuantity) > 0 ? Number(row.totalQuantity) : 1,
+            totalWeight: Number(row.totalWeight) >= 0 ? Number(row.totalWeight) : 0,
+            totalVolume: Number(row.totalVolume) >= 0 ? Number(row.totalVolume) : 0,
+            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
+            deliveryAddress: row.deliveryAddress?.trim() || '',
+            deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
+            destinationHubId: row.destinationHubId || null,
+            notes: combinedNotes,
+            initialStatus: 'DRAFT', // LƯU NHÁP
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
+        }
+      }
+
+      toast.success(`Đã lưu nháp thành công ${mode1Rows.length} đơn hàng nhập kho!`);
+      setMode1Rows([
+        {
+          orderCode: '',
+          pickupAddress: user?.hub?.name || '',
+          goodsDescription: '',
+          totalQuantity: 1,
+          totalWeight: 0,
+          totalVolume: 0,
+          deliveryMode: 'DIRECT_CUSTOMER',
+          deliveryAddress: '',
+          notes: '',
+        },
+      ]);
+      setLicensePlate('');
+      setDriverName('');
+      setActiveView('BOARD');
+      setStatusTab('WAITING');
+      fetchKpi();
+      fetchInboundOrders();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Lỗi khi lưu nháp đơn hàng');
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -855,10 +970,17 @@ export default function WarehouseInboundPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => toast.success('Đã lưu nháp bảng kê nhập kho thành công!')}
+                      onClick={handleSaveDraftMode1}
+                      disabled={isSavingDraft || isSubmitting || mode1Rows.length === 0}
                       className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
                     >
-                      Lưu nháp
+                      {isSavingDraft ? (
+                        <>
+                          <IconLoader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Đang lưu nháp...
+                        </>
+                      ) : (
+                        'Lưu nháp'
+                      )}
                     </Button>
 
                     <Button
