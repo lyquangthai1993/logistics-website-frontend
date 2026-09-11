@@ -70,7 +70,7 @@ export default function WarehouseInboundPage() {
   // Mode 1 Rows (Pure Clean Initial State for Warehouse Intake)
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
     {
-      orderCode: '(Tự sinh khi lưu)',
+      orderCode: '',
       pickupAddress: '',
       goodsDescription: '',
       totalQuantity: 1,
@@ -270,11 +270,31 @@ export default function WarehouseInboundPage() {
       }
     }
 
+    // Check duplicate order codes among input rows
+    const filledCodes = mode1Rows
+      .map((r, idx) => ({ code: r.orderCode?.trim()?.toUpperCase(), line: idx + 1 }))
+      .filter((x) => Boolean(x.code && x.code !== '(TỰ SINH KHI LƯU)' && !x.code.startsWith('(TỰ SINH')));
+
+    const seenCodes = new Set<string>();
+    for (const item of filledCodes) {
+      if (seenCodes.has(item.code!)) {
+        toast.error(`Trùng lặp mã vận đơn '${item.code}' giữa các dòng trong bảng kê. Vui lòng kiểm tra lại.`);
+        return;
+      }
+      seenCodes.add(item.code!);
+    }
+
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
 
     try {
       for (const row of mode1Rows) {
+        const rawCode = row.orderCode?.trim();
+        const finalCode =
+          rawCode && rawCode !== '(Tự sinh khi lưu)' && !rawCode.startsWith('(Tự sinh')
+            ? rawCode.toUpperCase()
+            : undefined;
+
         const res = await fetch('/api/v1/warehouse/inbound/quick-create', {
           method: 'POST',
           headers: {
@@ -282,6 +302,7 @@ export default function WarehouseInboundPage() {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
+            orderCode: finalCode,
             goodsDescription: row.goodsDescription.trim(),
             totalQuantity: Number(row.totalQuantity) || 1,
             totalWeight: Number(row.totalWeight) || 0,
@@ -301,10 +322,10 @@ export default function WarehouseInboundPage() {
         }
       }
 
-      toast.success(`Đã tiếp nhận thành công ${mode1Rows.length} lô hàng vào kho! Mã đơn hàng đã tự động cấp phát.`);
+      toast.success(`Đã tiếp nhận thành công ${mode1Rows.length} lô hàng vào kho!`);
       setMode1Rows([
         {
-          orderCode: '(Tự sinh khi lưu)',
+          orderCode: '',
           pickupAddress: user?.hub?.name || '',
           goodsDescription: '',
           totalQuantity: 1,

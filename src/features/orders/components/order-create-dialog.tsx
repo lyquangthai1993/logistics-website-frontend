@@ -26,6 +26,8 @@ import { activeHubsQueryOptions } from '@/features/hubs/api/queries';
 import { useCreateOrderMutation, useGenerateOrderCodeMutation } from '../api/mutations';
 import { DEFAULT_HUBS } from './orders-tables/options';
 import type { Hub } from '@/features/hubs/api/types';
+import { cn } from '@/lib/utils';
+import { tokenManager } from '@/lib/token-manager';
 
 interface OrderCreateDialogProps {
   open: boolean;
@@ -56,6 +58,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
 
   // Form states
   const [orderCode, setOrderCode] = useState('');
+  const [isDuplicateCode, setIsDuplicateCode] = useState(false);
+  const [isCheckingCode, setIsCheckingCode] = useState(false);
   const [totalQuantity, setTotalQuantity] = useState<number | ''>('');
   const [totalWeight, setTotalWeight] = useState<number | ''>('');
   const [totalVolume, setTotalVolume] = useState<number | ''>('');
@@ -63,6 +67,29 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
   const [notes, setNotes] = useState('');
   const [isExternalNeeded, setIsExternalNeeded] = useState(false);
   const [externalNote, setExternalNote] = useState('');
+
+  const checkDuplicateCode = async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setIsDuplicateCode(false);
+      return;
+    }
+    setIsCheckingCode(true);
+    try {
+      const token = tokenManager.getAccessToken();
+      const res = await fetch(`/api/v1/orders/check-code?code=${encodeURIComponent(trimmed)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsDuplicateCode(Boolean(data.exists));
+      }
+    } catch {
+      // silent
+    } finally {
+      setIsCheckingCode(false);
+    }
+  };
 
   // Auto-select first/third hub when activeHubs loads
   useEffect(() => {
@@ -113,6 +140,7 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
     try {
       const res = await generateCodeMutation.mutateAsync(suggestedInitials);
       setOrderCode(res.orderCode);
+      setIsDuplicateCode(false);
       toast.success(`Đã sinh mã: ${res.orderCode}`, { duration: 2000 });
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -123,6 +151,8 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
 
   const resetForm = () => {
     setOrderCode('');
+    setIsDuplicateCode(false);
+    setIsCheckingCode(false);
     setSelectedOriginHub(activeHubs?.[0] ?? null);
     setSelectedDestinationHub(activeHubs?.[2] ?? activeHubs?.[1] ?? null);
     setTotalQuantity('');
@@ -139,6 +169,10 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
 
     if (!orderCode.trim()) {
       toast.error('Vui lòng nhập mã đơn hàng');
+      return;
+    }
+    if (isDuplicateCode) {
+      toast.error('Mã đơn hàng đã tồn tại trong hệ thống. Vui lòng chọn mã khác.');
       return;
     }
     if (originHubDisplay === destinationHubDisplay) {
@@ -245,15 +279,38 @@ export function OrderCreateDialog({ open, onOpenChange }: OrderCreateDialogProps
                   id='order-code-input'
                   placeholder={placeholderCode}
                   value={orderCode}
-                  onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setOrderCode(e.target.value.toUpperCase());
+                    setIsDuplicateCode(false);
+                  }}
+                  onBlur={() => checkDuplicateCode(orderCode)}
                   required
-                  className='font-mono uppercase font-semibold text-sm tracking-wide bg-white dark:bg-slate-950'
+                  className={cn(
+                    'font-mono uppercase font-semibold text-sm tracking-wide bg-white dark:bg-slate-950 pr-24',
+                    isDuplicateCode &&
+                      'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:border-rose-700 dark:text-rose-300 focus-visible:ring-rose-500'
+                  )}
                 />
+                {isCheckingCode ? (
+                  <span className='absolute right-2.5 top-2.5 text-xs text-muted-foreground'>
+                    Đang kiểm tra...
+                  </span>
+                ) : isDuplicateCode ? (
+                  <span className='absolute right-2.5 top-2.5 text-xs font-bold text-rose-600 dark:text-rose-400'>
+                    Trùng mã!
+                  </span>
+                ) : null}
               </div>
-              <p className='text-[11px] text-muted-foreground'>
-                Định dạng gợi ý: [TIỀN TỐ]-[THÁNG NĂM]-[STT], ví dụ:{' '}
-                <span className='font-mono font-medium'>{placeholderCode}</span>
-              </p>
+              {isDuplicateCode ? (
+                <p className='text-xs text-rose-500 font-medium'>
+                  Mã đơn hàng này đã tồn tại trong cơ sở dữ liệu. Vui lòng chọn mã khác hoặc bấm Tự động sinh mã.
+                </p>
+              ) : (
+                <p className='text-[11px] text-muted-foreground'>
+                  Định dạng gợi ý: [TIỀN TỐ]-[THÁNG NĂM]-[STT], ví dụ:{' '}
+                  <span className='font-mono font-medium'>{placeholderCode}</span>
+                </p>
+              )}
             </div>
 
             {/* Tuyến đường: Điểm lấy hàng & Điểm giao hàng */}

@@ -139,6 +139,23 @@ export function WarehouseExcelImportModal({
           return matchKey ? row[matchKey] : '';
         };
 
+        const orderCodeRaw = findVal([
+          'mã vận đơn',
+          'mã đơn hàng',
+          'mã đơn',
+          'mã bill',
+          'số vận đơn',
+          'tracking number',
+          'tracking',
+          'waybill',
+          'code',
+        ]);
+        const parsedCode = String(orderCodeRaw || '').trim().toUpperCase();
+        const orderCode =
+          parsedCode === '(TỰ SINH KHI LƯU)' || parsedCode.startsWith('(TỰ SINH')
+            ? ''
+            : parsedCode;
+
         const pickupAddress =
           findVal(['địa chỉ nhận', 'nguồn gửi', 'nơi nhận', 'pickup', 'origin']) ||
           currentHubName ||
@@ -155,6 +172,7 @@ export function WarehouseExcelImportModal({
 
         // Skip completely blank rows in Excel
         if (
+          !String(orderCode).trim() &&
           !String(goodsDescription).trim() &&
           !String(totalQuantityRaw).trim() &&
           !String(totalWeightRaw).trim() &&
@@ -185,7 +203,7 @@ export function WarehouseExcelImportModal({
         }
 
         validRowsList.push({
-          orderCode: '(Tự sinh khi lưu)',
+          orderCode,
           pickupAddress: String(pickupAddress).trim(),
           goodsDescription: String(goodsDescription).trim(),
           totalQuantity,
@@ -203,6 +221,20 @@ export function WarehouseExcelImportModal({
       if (validRowsList.length === 0) {
         toast.error('File Excel không có dòng dữ liệu hàng hóa nào');
         return;
+      }
+
+      // Check duplicate order codes within the imported Excel file
+      const codeOccurrences: Record<string, number> = {};
+      for (const r of validRowsList) {
+        if (r.orderCode) {
+          codeOccurrences[r.orderCode] = (codeOccurrences[r.orderCode] || 0) + 1;
+        }
+      }
+      for (const r of validRowsList) {
+        if (r.orderCode && codeOccurrences[r.orderCode] > 1) {
+          r.errors.push(`Trùng mã vận đơn '${r.orderCode}' trong file Excel`);
+          r.isValid = false;
+        }
       }
 
       setParsedRows(validRowsList);
@@ -410,6 +442,7 @@ export function WarehouseExcelImportModal({
                   <thead className="bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10">
                     <tr>
                       <th className="p-2.5 w-[45px] text-center">STT</th>
+                      <th className="p-2.5 w-[140px]">MÃ VẬN ĐƠN</th>
                       <th className="p-2.5 min-w-[180px]">TÊN HÀNG</th>
                       <th className="p-2.5 text-center w-[85px]">SỐ KIỆN</th>
                       <th className="p-2.5 text-right w-[95px]">SỐ KG</th>
@@ -430,6 +463,13 @@ export function WarehouseExcelImportModal({
                       >
                         <td className="p-2.5 text-center font-mono font-bold text-gray-500">
                           {(idx + 1).toString().padStart(2, '0')}
+                        </td>
+                        <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                          {r.orderCode ? (
+                            <span>{r.orderCode}</span>
+                          ) : (
+                            <span className="text-gray-400 font-normal italic">(Tự sinh)</span>
+                          )}
                         </td>
                         <td className="p-2.5 font-semibold text-slate-900 dark:text-white">
                           <div>{r.goodsDescription || <span className="text-red-500 italic">Chưa nhập</span>}</div>

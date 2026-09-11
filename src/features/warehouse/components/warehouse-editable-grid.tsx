@@ -28,6 +28,7 @@ import {
   IconBuildingWarehouse,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { tokenManager } from '@/lib/token-manager';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
@@ -69,6 +70,7 @@ declare module '@tanstack/react-table' {
     level2XeBoHubs?: HubOption[];
     isOutboundMode?: boolean;
     rowsCount?: number;
+    allRows?: WarehouseRowItem[];
   }
 }
 
@@ -284,7 +286,7 @@ function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
   );
 }
 
-function OrderCodeCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
+function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unknown>) {
   const r = row.original;
   const idx = row.index;
   const meta = table.options.meta;
@@ -313,11 +315,94 @@ function OrderCodeCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
     );
   }
 
+  const initialCode = r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
+  const [value, setValue] = useState(initialCode);
+  const [isDbDuplicate, setIsDbDuplicate] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+
+  useEffect(() => {
+    const fresh = r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
+    setValue(fresh);
+  }, [r.orderCode]);
+
+  // Check duplicate with another row in the same table
+  const trimmed = value.trim().toUpperCase();
+  const isLocalDuplicate = Boolean(
+    trimmed &&
+    meta?.allRows?.some((other, otherIdx) => {
+      if (otherIdx === idx) return false;
+      const otherCode = other.orderCode?.trim()?.toUpperCase();
+      return otherCode && otherCode !== '(TỰ SINH KHI LƯU)' && otherCode === trimmed;
+    })
+  );
+
+  const checkDbDuplicate = async (valToCheck: string) => {
+    const code = valToCheck.trim();
+    if (!code || code === '(Tự sinh khi lưu)' || code.startsWith('(Tự sinh')) {
+      setIsDbDuplicate(false);
+      return;
+    }
+    setIsChecking(true);
+    try {
+      const token = tokenManager.getAccessToken();
+      const res = await fetch(`/api/v1/orders/check-code?code=${encodeURIComponent(code)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsDbDuplicate(Boolean(data.exists));
+      }
+    } catch {
+      // silent fallback
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value.toUpperCase();
+    setValue(nextVal);
+    meta?.updateData(row.index, column.id, nextVal);
+    setIsDbDuplicate(false);
+  };
+
+  const handleBlur = () => {
+    checkDbDuplicate(value);
+  };
+
+  const hasDuplicate = isLocalDuplicate || isDbDuplicate;
+
   return (
-    <div className="h-[30px] flex items-center justify-center px-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md">
-      <span className="text-[10px] font-semibold text-slate-500 font-mono tracking-tight">
-        {r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'Tự sinh · khóa'}
-      </span>
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder="(Tự sinh nếu trống)"
+        title={
+          isLocalDuplicate
+            ? 'Mã vận đơn này trùng lặp với một dòng khác trong bảng!'
+            : isDbDuplicate
+            ? 'Mã vận đơn này đã tồn tại trong cơ sở dữ liệu!'
+            : 'Nhập mã vận đơn tùy ý, nếu để trống hệ thống sẽ tự động cấp mã'
+        }
+        className={cn(
+          "h-[30px] px-2 text-xs font-mono font-bold uppercase tracking-tight",
+          hasDuplicate
+            ? "border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:border-rose-700 dark:text-rose-300 focus:ring-rose-500 focus:border-rose-500"
+            : "border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100"
+        )}
+      />
+      {isChecking ? (
+        <span className="absolute right-2 top-2 text-[10px] text-gray-400">...</span>
+      ) : hasDuplicate ? (
+        <span
+          className="absolute right-2 top-2 text-[10px] font-bold text-rose-600 dark:text-rose-400 cursor-help"
+          title={isLocalDuplicate ? 'Trùng trong bảng' : 'Đã có trong DB'}
+        >
+          Trùng!
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -811,7 +896,7 @@ export function WarehouseEditableGrid({
       (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
       '';
     const newRow: WarehouseRowItem = {
-      orderCode: isOutboundMode ? '' : '(Tự sinh khi lưu)',
+      orderCode: '',
       pickupAddress: defaultPickup,
       goodsDescription: '',
       totalQuantity: 1,
@@ -840,13 +925,13 @@ export function WarehouseEditableGrid({
       const target = rows[index];
       const duplicated: WarehouseRowItem = {
         ...target,
-        orderCode: isOutboundMode ? '' : '(Tự sinh khi lưu)',
+        orderCode: '',
       };
       const updated = [...rows];
       updated.splice(index + 1, 0, duplicated);
       onChange(updated);
     },
-    [rows, onChange, isOutboundMode],
+    [rows, onChange],
   );
 
   // Smart Paste from Excel (TSV clipboard)
@@ -863,8 +948,13 @@ export function WarehouseEditableGrid({
       const lines = text.trim().split(/\r?\n/);
       const parsedRows: WarehouseRowItem[] = lines.map((line) => {
         const cols = line.split('\t');
+        const pastedCode = cols[0]?.trim() || '';
+        const cleanCode =
+          pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
+            ? ''
+            : pastedCode;
         return {
-          orderCode: isOutboundMode ? cols[0]?.trim() || '' : '(Tự sinh khi lưu)',
+          orderCode: cleanCode,
           pickupAddress: cols[1]?.trim() || defaultPickup,
           goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
           totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
@@ -880,7 +970,7 @@ export function WarehouseEditableGrid({
         onChange(parsedRows);
       }
     },
-    [isOutboundMode, onChange, rows, user?.hub?.name],
+    [onChange, rows, user?.hub?.name],
   );
 
   // Trigger manual paste notification
@@ -894,8 +984,13 @@ export function WarehouseEditableGrid({
         const lines = text.trim().split(/\r?\n/);
         const parsedRows: WarehouseRowItem[] = lines.map((line) => {
           const cols = line.split('\t');
+          const pastedCode = cols[0]?.trim() || '';
+          const cleanCode =
+            pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
+              ? ''
+              : pastedCode;
           return {
-            orderCode: isOutboundMode ? cols[0]?.trim() || '' : '(Tự sinh khi lưu)',
+            orderCode: cleanCode,
             pickupAddress: cols[1]?.trim() || defaultPickup,
             goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
             totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
@@ -925,7 +1020,9 @@ export function WarehouseEditableGrid({
       totalQuantity: order.totalQuantity || 1,
       totalWeight: order.totalWeight || 0,
       totalVolume: order.totalVolume || 0,
-      deliveryAddress: order.destinationHub || order.route || order.deliveryAddress || '',
+      pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
+      deliveryAddress: order.destinationHub || order.deliveryAddress || '',
+      notes: order.notes || '',
     };
     onChange(updated);
     setLookupRowIndex(null);
@@ -964,7 +1061,7 @@ export function WarehouseEditableGrid({
       },
       {
         id: 'orderCode',
-        header: 'MÃ ĐƠN HÀNG',
+        header: isOutboundMode ? 'MÃ ĐƠN HÀNG' : 'MÃ VẬN ĐƠN',
         size: 210,
         cell: OrderCodeCell,
       },
@@ -1047,7 +1144,7 @@ export function WarehouseEditableGrid({
         cell: ActionsCell,
       },
     ],
-    [],
+    [isOutboundMode],
   );
 
   // Column Pinning State (STT & Mã Đơn Pinned Left, Thao Tác Pinned Right)
@@ -1077,6 +1174,7 @@ export function WarehouseEditableGrid({
       level2XeBoHubs,
       isOutboundMode,
       rowsCount: rows.length,
+      allRows: rows,
     },
   });
 
