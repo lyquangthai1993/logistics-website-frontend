@@ -43,26 +43,6 @@ const DEMO_ACCOUNTS = [
     description: 'Quản trị hệ thống toàn quyền'
   },
   {
-    role: 'Điều phối viên',
-    roleCode: 'DISPATCHER',
-    username: 'dispatcher',
-    email: 'lyquangthai1993+2@gmail.com',
-    password: 'secret',
-    altPassword: 'Dispatcher@123',
-    badgeVariant: 'default' as const,
-    description: 'Tạo & điều phối đơn hàng, chuyến xe'
-  },
-  {
-    role: 'Quản lý Đội xe',
-    roleCode: 'FLEET_MANAGER',
-    username: 'fleet',
-    email: 'lyquangthai1993+3@gmail.com',
-    password: 'secret',
-    altPassword: 'Fleet@123',
-    badgeVariant: 'secondary' as const,
-    description: 'Quản lý phương tiện và tài xế'
-  },
-  {
     role: 'Quản lý Kho (Hưng Yên)',
     roleCode: 'WAREHOUSE_MANAGER',
     username: 'warehouse_hyn',
