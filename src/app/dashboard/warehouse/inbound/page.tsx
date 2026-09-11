@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -119,8 +119,9 @@ export default function WarehouseInboundPage() {
       },
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data) => {
-        if (data) setKpiStats((prev) => ({ ...prev, ...data }));
+      .then((resData) => {
+        const payload = resData?.data || resData;
+        if (payload) setKpiStats((prev) => ({ ...prev, ...payload }));
       })
       .catch(() => {});
   }, []);
@@ -283,8 +284,8 @@ export default function WarehouseInboundPage() {
           body: JSON.stringify({
             goodsDescription: row.goodsDescription.trim(),
             totalQuantity: Number(row.totalQuantity) || 1,
-            totalWeight: Number(row.totalWeight) ?? 0,
-            totalVolume: Number(row.totalVolume) ?? 0,
+            totalWeight: Number(row.totalWeight) || 0,
+            totalVolume: Number(row.totalVolume) || 0,
             pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
             deliveryAddress: row.deliveryAddress?.trim() || '',
             deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
@@ -726,7 +727,12 @@ export default function WarehouseInboundPage() {
                     totalPages={meta.totalPages}
                     total={meta.total}
                     pageSize={pageSize}
+                    pageSizeOptions={[10, 20, 50, 100]}
                     onPageChange={(newPage) => setPage(newPage)}
+                    onPageSizeChange={(newSize) => {
+                      setPageSize(newSize);
+                      setPage(1);
+                    }}
                   />
                 </div>
               </CardContent>

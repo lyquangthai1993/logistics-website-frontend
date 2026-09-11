@@ -91,7 +91,7 @@ export function WarehouseOutboundTransferFlow({
 
   // Step 2 & 3 Pagination & Dynamic Counters
   const [page, setPage] = useState(1);
-  const [limit] = useState(8);
+  const [limit] = useState(20);
   const [counts, setCounts] = useState({ total: 0, stored: 0, draft: 0 });
 
   // Pallet Label Modal

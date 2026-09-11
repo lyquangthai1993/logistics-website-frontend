@@ -17,6 +17,7 @@ import {
   IconX,
   IconLoader2,
   IconFileSpreadsheet,
+  IconCalendar,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -26,6 +27,7 @@ import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
+import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 
 export default function WarehouseOutboundPage() {
   const user = useAuthStore((state) => state.user);
@@ -40,6 +42,20 @@ export default function WarehouseOutboundPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Date Range Filter: Default from 1st of current month to today
+  const getDefaultFromDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  };
+
+  const getDefaultToDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const [fromDate, setFromDate] = useState(getDefaultFromDate);
+  const [toDate, setToDate] = useState(getDefaultToDate);
+
   // KPI Stats
   const [kpiStats, setKpiStats] = useState({
     total: 0,
@@ -48,23 +64,31 @@ export default function WarehouseOutboundPage() {
     transferInbound: 0,
     storedInbound: 0,
     waitingOutbound: 0,
+    customerOutbound: 0,
+    transferOutbound: 0,
     completedOutboundToday: 0,
+    completedOutbound: 0,
   });
 
   const fetchKpi = useCallback(() => {
     const token = tokenManager.getAccessToken();
-    fetch('/api/v1/warehouse/kpi', {
+    const query = new URLSearchParams({
+      ...(fromDate ? { fromDate } : {}),
+      ...(toDate ? { toDate } : {}),
+    });
+    fetch(`/api/v1/warehouse/kpi?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data) => {
-        if (data) setKpiStats((prev) => ({ ...prev, ...data }));
+      .then((resData) => {
+        const payload = resData?.data || resData;
+        if (payload) setKpiStats((prev) => ({ ...prev, ...payload }));
       })
       .catch(() => {});
-  }, []);
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     fetchKpi();
@@ -134,6 +158,21 @@ export default function WarehouseOutboundPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Board Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [meta, setMeta] = useState({
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 1,
+  });
+
+  // Reset page to 1 when search, tab, or dates change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusTab, fromDate, toDate]);
+
   // Fetch Board Orders
   const fetchOrders = useCallback(() => {
     setIsLoading(true);
@@ -144,9 +183,12 @@ export default function WarehouseOutboundPage() {
           document.cookie.match(/(?:^|; )access_token=([^;]*)/)?.[1]
         : null;
     const query = new URLSearchParams({
-      limit: '20',
+      page: page.toString(),
+      limit: pageSize.toString(),
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusTab !== 'ALL' ? { status: statusTab } : {}),
+      ...(fromDate ? { fromDate } : {}),
+      ...(toDate ? { toDate } : {}),
     });
 
     fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -158,12 +200,20 @@ export default function WarehouseOutboundPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         setOrders(resData?.data || []);
+        if (resData?.meta) {
+          setMeta({
+            total: resData.meta.total ?? 0,
+            page: resData.meta.page ?? 1,
+            limit: resData.meta.limit ?? pageSize,
+            totalPages: resData.meta.totalPages ?? 1,
+          });
+        }
       })
       .catch(() => {
         setOrders([]);
       })
       .finally(() => setIsLoading(false));
-  }, [search, statusTab]);
+  }, [page, pageSize, search, statusTab, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -212,6 +262,7 @@ export default function WarehouseOutboundPage() {
           toast.success('Đã tải lại thông số tải trọng và khối lượng tươi mới nhất!');
         }
       } else {
+        fetchKpi();
         fetchOrders();
         toast.success('Đã cập nhật lại thông số danh sách xuất kho!');
       }
@@ -264,6 +315,7 @@ export default function WarehouseOutboundPage() {
           : 'Đã lập phiếu xuất luân chuyển và sẵn sàng in Loading Plan!',
       );
       setActiveView('BOARD');
+      fetchKpi();
       fetchOrders();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xuất kho');
@@ -325,75 +377,120 @@ export default function WarehouseOutboundPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-amber-500 shadow-sm">
               <CardContent className="p-3">
-                <span className="text-xs text-gray-500 font-semibold block">Chờ xuất kho</span>
+                <span className="text-[11px] text-gray-500 font-bold tracking-wider block">CHỜ XUẤT KHO</span>
                 <div className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">
                   {kpiStats.waitingOutbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">Đơn hàng lưu kho sẵn sàng xuất bến</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-blue-600 shadow-sm">
               <CardContent className="p-3">
-                <span className="text-xs text-gray-500 font-semibold block">Xuất cho khách hàng</span>
+                <span className="text-[11px] text-gray-500 font-bold tracking-wider block">XUẤT CHO KHÁCH HÀNG</span>
                 <div className="text-xl font-black text-blue-700 dark:text-blue-400 mt-1">
-                  {kpiStats.storedInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
+                  {kpiStats.customerOutbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">Giao thẳng tới khách hàng cuối</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-emerald-600 shadow-sm">
+            <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-slate-700 shadow-sm">
               <CardContent className="p-3">
-                <span className="text-xs text-gray-500 font-semibold block">Luân chuyển nội bộ</span>
-                <div className="text-xl font-black text-emerald-700 dark:text-emerald-400 mt-1">
-                  {kpiStats.transferInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
+                <span className="text-[11px] text-gray-500 font-bold tracking-wider block">LUÂN CHUYỂN NỘI BỘ</span>
+                <div className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">
+                  {kpiStats.transferOutbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">Chuyển tiếp qua Hub vệ tinh khác</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-purple-600 shadow-sm">
               <CardContent className="p-3">
-                <span className="text-xs text-gray-500 font-semibold block">Đã xuất kho hôm nay</span>
+                <span className="text-[11px] text-gray-500 font-bold tracking-wider block">ĐÃ XUẤT KHO</span>
                 <div className="text-xl font-black text-purple-700 dark:text-purple-400 mt-1">
-                  {kpiStats.completedOutboundToday ?? 0} <span className="text-xs font-normal text-gray-500">chuyến</span>
+                  {kpiStats.completedOutbound ?? kpiStats.completedOutboundToday ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
                 </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">Đã xuất kho & bàn giao thành công</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Toolbar with Search, Status Tabs & Refresh Button */}
+          {/* Toolbar with Search, Date Range Filter, Status Tabs & Refresh Button */}
           <Card className="bg-white dark:bg-slate-900 shadow-sm border">
             <CardContent className="p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* Search Box */}
-                <div className="relative flex-1 min-w-[280px]">
-                  <IconSearch className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Tìm kiếm theo mã đơn hoặc tên hàng hóa..."
-                    className="pl-9 h-9 text-xs"
-                  />
+                {/* Search Box & Date Range Filter */}
+                <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+                  {/* Search Box */}
+                  <div className="relative flex-1 min-w-[200px]">
+                    <IconSearch className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Tìm kiếm theo mã đơn hoặc tên hàng hóa..."
+                      className="pl-9 h-9 text-xs"
+                    />
+                  </div>
+
+                  {/* Date Range: Từ ngày -> Đến ngày (Default: Đầu tháng -> Hôm nay) */}
+                  <div className="flex items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
+                      <IconCalendar className="h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400" />
+                      <span>Từ:</span>
+                    </div>
+                    <input
+                      type="date"
+                      aria-label="Từ ngày"
+                      value={fromDate}
+                      max={toDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7"
+                    />
+                    <span className="text-slate-400 font-medium px-0.5">đến:</span>
+                    <input
+                      type="date"
+                      aria-label="Đến ngày"
+                      value={toDate}
+                      min={fromDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7"
+                    />
+                    {(fromDate !== getDefaultFromDate() || toDate !== getDefaultToDate()) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFromDate(getDefaultFromDate());
+                          setToDate(getDefaultToDate());
+                        }}
+                        className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium"
+                        title="Đặt lại về tháng này"
+                      >
+                        Đặt lại
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Status Tabs */}
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold">
-                  {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
+                  {[
+                    { key: 'ALL', label: `Tất cả (${kpiStats.total ?? orders.length})` },
+                    { key: 'INBOUND', label: `Lưu kho (${kpiStats.waitingOutbound ?? 0})` },
+                    { key: 'CUSTOMER', label: `Xuất khách (${kpiStats.customerOutbound ?? 0})` },
+                    { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferOutbound ?? 0})` },
+                    { key: 'COMPLETED_INBOUND', label: `Đã xuất kho (${kpiStats.completedOutbound ?? kpiStats.completedOutboundToday ?? 0})` },
+                  ].map((tab) => (
                     <button
-                      key={tab}
-                      onClick={() => setStatusTab(tab)}
-                      className={`px-3 py-1 rounded-md transition-all ${
-                        statusTab === tab
-                          ? 'bg-white text-slate-900 shadow-sm font-bold dark:bg-slate-700 dark:text-white'
+                      key={tab.key}
+                      onClick={() => setStatusTab(tab.key)}
+                      className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
+                        statusTab === tab.key
+                          ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                           : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
                       }`}
                     >
-                      {tab === 'ALL'
-                        ? 'Tất cả'
-                        : tab === 'INBOUND'
-                          ? 'LƯU KHO'
-                          : tab === 'DRAFT'
-                            ? 'DRAFT'
-                            : 'ĐÃ XUẤT KHO'}
+                      {tab.label}
                     </button>
                   ))}
                 </div>
@@ -460,6 +557,22 @@ export default function WarehouseOutboundPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Pagination Bar with Page Size Selector */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <TablePaginationBar
+                  page={page}
+                  totalPages={meta.totalPages}
+                  total={meta.total}
+                  pageSize={pageSize}
+                  pageSizeOptions={[10, 20, 50, 100]}
+                  onPageChange={(newPage) => setPage(newPage)}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                />
               </div>
             </CardContent>
           </Card>

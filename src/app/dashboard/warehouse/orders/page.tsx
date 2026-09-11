@@ -21,6 +21,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
+import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
@@ -28,6 +29,7 @@ export default function WarehouseOrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [data, setData] = useState<any[]>([]);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function WarehouseOrdersPage() {
     const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
       page: page.toString(),
-      limit: '15',
+      limit: pageSize.toString(),
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
     });
@@ -61,7 +63,7 @@ export default function WarehouseOrdersPage() {
         setData([]);
       })
       .finally(() => setIsLoading(false));
-  }, [page, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter]);
 
   useEffect(() => {
     fetchOrders();
@@ -224,52 +226,20 @@ export default function WarehouseOrdersPage() {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between text-xs text-gray-500 pt-2">
-            <span>
-              Hiển thị {data.length} / {meta.total} đơn hàng
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-                className="h-7 w-7 p-0"
-              >
-                <IconChevronsLeft className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="h-7 w-7 p-0"
-              >
-                <IconChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="px-2 font-semibold">
-                Trang {page} / {meta.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= meta.totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="h-7 w-7 p-0"
-              >
-                <IconChevronRight className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= meta.totalPages}
-                onClick={() => setPage(meta.totalPages)}
-                className="h-7 w-7 p-0"
-              >
-                <IconChevronsRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+          {/* Pagination Bar with Page Size Selector */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <TablePaginationBar
+              page={page}
+              totalPages={meta.totalPages}
+              total={meta.total}
+              pageSize={pageSize}
+              pageSizeOptions={[10, 15, 20, 50, 100]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
           </div>
         </CardContent>
       </Card>

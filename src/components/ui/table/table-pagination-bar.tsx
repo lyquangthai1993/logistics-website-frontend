@@ -1,4 +1,12 @@
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Icons } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +15,9 @@ interface TablePaginationBarProps extends React.ComponentProps<'div'> {
   totalPages: number;
   total: number;
   pageSize: number;
+  pageSizeOptions?: number[];
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 /**
@@ -19,7 +29,9 @@ export function TablePaginationBar({
   totalPages,
   total,
   pageSize,
+  pageSizeOptions = [10, 20, 50, 100],
   onPageChange,
+  onPageSizeChange,
   className,
   ...props
 }: TablePaginationBarProps) {
@@ -29,13 +41,13 @@ export function TablePaginationBar({
   return (
     <div
       className={cn(
-        'flex w-full flex-wrap items-center justify-between gap-2 overflow-auto p-1 sm:gap-8',
+        'flex w-full flex-wrap items-center justify-between gap-2 overflow-auto p-1 sm:gap-6',
         className
       )}
       {...props}
     >
       {/* Left: row count info */}
-      <div className='text-muted-foreground text-sm whitespace-nowrap'>
+      <div className='text-muted-foreground text-xs sm:text-sm whitespace-nowrap'>
         {total === 0 ? (
           <>0 đơn hàng</>
         ) : (
@@ -45,10 +57,38 @@ export function TablePaginationBar({
         )}
       </div>
 
-      {/* Right: page controls */}
-      <div className='flex items-center gap-2 sm:gap-6 lg:gap-8'>
-        <div className='flex items-center justify-center text-sm font-medium whitespace-nowrap'>
-          Trang {page} / {totalPages}
+      {/* Right: page controls & page size selector */}
+      <div className='flex items-center gap-2 sm:gap-4 lg:gap-6'>
+        {/* Page size limit per page selector */}
+        {onPageSizeChange && (
+          <div className='flex items-center space-x-2'>
+            <p className='text-xs sm:text-sm font-medium whitespace-nowrap text-slate-600 dark:text-slate-400'>
+              Số dòng / trang
+            </p>
+            <Select
+              value={`${pageSize}`}
+              onValueChange={(value) => {
+                onPageSizeChange(Number(value));
+              }}
+            >
+              <SelectTrigger className='h-8 w-[4.5rem] text-xs [&[data-size]]:h-8 cursor-pointer'>
+                <SelectValue placeholder={pageSize} />
+              </SelectTrigger>
+              <SelectContent side='top'>
+                <SelectGroup>
+                  {pageSizeOptions.map((size) => (
+                    <SelectItem key={size} value={`${size}`} className='text-xs cursor-pointer'>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className='flex items-center justify-center text-xs sm:text-sm font-medium whitespace-nowrap'>
+          Trang {page} / {Math.max(1, totalPages)}
         </div>
 
         <div className='flex items-center space-x-1'>
