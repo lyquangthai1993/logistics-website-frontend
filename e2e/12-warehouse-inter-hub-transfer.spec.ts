@@ -112,7 +112,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 4. Bấm "Xuất cho khách hàng" (Mode 1)
     await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
-    await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng (Mode 1)')).toBeVisible();
+    await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng')).toBeVisible();
 
     // 5. Kiểm tra Form người nhận & Icon Tra cứu kho
     await expect(page.locator('label:has-text("Khách hàng / Người nhận")')).toBeVisible();

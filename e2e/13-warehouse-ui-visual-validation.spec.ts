@@ -216,7 +216,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.waitForLoadState('networkidle');
 
     await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
-    await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng (Mode 1)')).toBeVisible();
+    await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng')).toBeVisible();
     await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
 
     await page.waitForTimeout(1000);

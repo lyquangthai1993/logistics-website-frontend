@@ -471,7 +471,7 @@ export default function WarehouseOutboundPage() {
         <Card className="bg-white dark:bg-slate-900 shadow-sm border">
           <CardHeader className="py-3 px-4 border-b">
             <CardTitle className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
-              <span>Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng (Mode 1)</span>
+              <span>Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng</span>
               <Badge className="bg-blue-100 text-blue-800 font-mono">Phiếu xuất trực tiếp</Badge>
             </CardTitle>
           </CardHeader>
