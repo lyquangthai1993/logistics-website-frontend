@@ -1,51 +1,63 @@
-# Deployment
+# Logistics TMS — Frontend Deployment Guide
 
-The starter deploys to Vercel out of the box, or anywhere Docker runs. `next.config.ts` sets `output: 'standalone'`, so production builds are optimized for self-hosting.
+Tài liệu hướng dẫn triển khai ứng dụng Frontend Next.js 15+ (App Router) cho hệ thống Quản lý Vận tải & Kho bãi (Logistics TMS).
 
-## Vercel (Recommended)
+---
 
-1. Connect the repository to Vercel
-2. Add environment variables in the dashboard
-3. Deploy
+## 1. Môi trường Triển khai (Hosting & Domains)
 
-For other platforms, see the [Next.js deployment docs](https://nextjs.org/docs/app/getting-started/deploying).
+Frontend được triển khai tự động qua **Vercel** tích hợp trực tiếp với GitHub repository `logistics-website-frontend`:
 
-## Environment Variables for Production
+| Môi trường | Nhánh Git | Target Vercel | URL Triển Khai | Backend API Tương Ứng |
+|---|---|---|---|---|
+| **Production** | `master` | `production` | [logistics-website-frontend-kappa.vercel.app](https://logistics-website-frontend-kappa.vercel.app) | `https://logistics-website-backend-1.onrender.com` |
+| **Dev / Preview** | `dev` | `preview` | [logistics-website-frontend-git-dev-thai-lys-projects.vercel.app](https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app) | `https://logistics-website-backend-1jho.onrender.com` |
+| **Local Dev** | `feature/*` | Localhost | `http://localhost:3000` | `http://localhost:3001` |
 
-Ensure these are set in your deployment platform:
+---
 
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_SECRET_KEY`
-- All `NEXT_PUBLIC_*` variables for client-side access
-- `SENTRY_*` variables if using error tracking
+## 2. Cấu hình Biến Môi Trường (Environment Variables)
 
-Sentry source maps are uploaded automatically in CI.
+Thiết lập trên Vercel Dashboard (**Project Settings** → **Environment Variables**):
 
-## Docker
+| Tên biến | Môi trường `development` | Môi trường `preview` | Môi trường `production` | Mô tả |
+|---|---|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | `https://logistics-website-backend-1jho.onrender.com` | `https://logistics-website-backend-1.onrender.com` | URL trỏ tới NestJS Backend API trên Render |
 
-Two production-ready Dockerfiles are included: `Dockerfile` (Node.js) and `Dockerfile.bun` (Bun). Pass `NEXT_PUBLIC_*` variables as `--build-arg` at build time and runtime secrets via `-e` at run time.
+> ⚠️ **Lưu ý**: Hệ thống sử dụng kiến trúc Custom JWT Auth với HTTP-only Cookie (`refreshToken`) và `TokenManager` đồng bộ đa tab qua `BroadcastChannel`. Không cần cấu hình Clerk hay các third-party auth providers bên ngoài.
 
-Build the image:
+---
+
+## 3. Kiến trúc Edge Proxy & Điều hướng API (`src/proxy.ts`)
+
+- **Bảo mật Cookie**: Trình duyệt gọi `/api/proxy/*`, Edge Proxy chuyển tiếp request đến Render backend kèm HTTP-only cookie `refreshToken`.
+- **Resilient Fallback**: Trong trường hợp biến môi trường chưa kịp nạp, Edge Proxy tự động fallback về domain Production `https://logistics-website-backend-1.onrender.com` và không bao giờ tự ý xóa cookie phiên đăng nhập khi backend đang khởi động.
+
+---
+
+## 4. Quy trình CI/CD & Auto Deploy
+
+1. Mọi commit được push vào nhánh `dev` sẽ tự động trigger bản build **Vercel Preview**.
+2. Mọi pull request hoặc merge vào nhánh `master` sẽ tự động trigger bản build **Vercel Production**.
+3. Trước khi commit, cần đảm bảo:
+   ```bash
+   npm run typecheck   # 0 lỗi TypeScript
+   npm run build       # Biên dịch thành công Turbopack / Next.js
+   ```
+
+---
+
+## 5. Docker Standalone (Tùy chọn Self-Hosting)
+
+`next.config.ts` đã bật `output: 'standalone'` tối ưu hóa cho Docker container:
 
 ```bash
-# Node.js
-docker build \
-  --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_xxxxx \
-  -t shadcn-dashboard .
+# Build Docker Image
+docker build -t logistics-frontend:latest .
 
-# OR Bun
-docker build -f Dockerfile.bun \
-  --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_xxxxx \
-  -t shadcn-dashboard .
-```
-
-Run the container:
-
-```bash
+# Run Container
 docker run -d -p 3000:3000 \
-  -e NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_xxxxx \
-  -e CLERK_SECRET_KEY=sk_live_xxxxx \
-  --restart unless-stopped \
-  --name shadcn-dashboard \
-  shadcn-dashboard
+  -e NEXT_PUBLIC_API_URL=https://logistics-website-backend-1.onrender.com \
+  --name logistics-frontend \
+  logistics-frontend:latest
 ```
