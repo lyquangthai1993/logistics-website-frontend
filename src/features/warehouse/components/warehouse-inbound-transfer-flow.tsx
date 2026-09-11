@@ -847,7 +847,7 @@ export function WarehouseInboundTransferFlow({
                           className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
                         />
                       </th>
-                      <th className="p-3 w-[140px]">MÃ ĐƠN HÀNG</th>
+                      <th className="p-3 w-[190px]">MÃ ĐƠN HÀNG</th>
                       <th className="p-3">TÊN HÀNG HÓA</th>
                       <th className="p-3 text-center w-[100px]">SỐ KIỆN</th>
                       <th className="p-3 text-right w-[120px]">KG / M³</th>

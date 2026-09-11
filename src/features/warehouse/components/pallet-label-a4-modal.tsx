@@ -40,10 +40,6 @@ export function PalletLabelA4Modal({
   const user = useAuthStore((state) => state.user);
 
   const currentHubName = (data?.originHub || user?.hub?.name || 'Kho tiếp nhận').toUpperCase();
-  const rawOperator = user
-    ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.name
-    : 'THỦ KHO';
-  const operatorName = (data?.receiverOrDriverName || rawOperator).toUpperCase();
 
   const formattedDate = data?.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
@@ -180,6 +176,7 @@ export function PalletLabelA4Modal({
               font-weight: bold;
               text-align: center;
               padding: 6px 4px;
+              height: 12mm;
             }
             .val-dest {
               font-size: 36pt;
@@ -234,7 +231,7 @@ export function PalletLabelA4Modal({
                 <!-- Row 9: NGƯỜI NHẬP -->
                 <tr>
                   <td class="col-label">NGƯỜI NHẬP :</td>
-                  <td colspan="3" class="val-operator">${operatorName}</td>
+                  <td colspan="3" class="val-operator"></td>
                 </tr>
 
                 <!-- Row 10: GIAO ĐẾN -->
@@ -280,7 +277,7 @@ export function PalletLabelA4Modal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, data, currentHubName, operatorName, formattedDate, quantityDisplay, palletIndex, totalPallets, goodsDescription]);
+  }, [isOpen, data, currentHubName, formattedDate, quantityDisplay, palletIndex, totalPallets, goodsDescription]);
 
   if (!data) return null;
 
@@ -373,8 +370,7 @@ export function PalletLabelA4Modal({
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
                     NGƯỜI NHẬP :
                   </td>
-                  <td colSpan={3} className="px-4 py-2 text-center align-middle text-base sm:text-xl font-bold text-black">
-                    {operatorName}
+                  <td colSpan={3} className="px-4 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-9 sm:h-11">
                   </td>
                 </tr>
 

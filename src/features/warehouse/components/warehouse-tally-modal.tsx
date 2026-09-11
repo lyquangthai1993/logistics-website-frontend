@@ -148,7 +148,7 @@ export function WarehouseTallyModal({
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="p-2.5 w-[45px] text-center">STT</th>
-                      <th className="p-2.5 w-[140px]">MÃ ĐƠN HÀNG *</th>
+                      <th className="p-2.5 w-[180px]">MÃ ĐƠN HÀNG *</th>
                       <th className="p-2.5">TÊN HÀNG *</th>
                       <th className="p-2.5 text-center w-[90px]">SỐ KIỆN *</th>
                       <th className="p-2.5 text-right w-[95px]">SỐ KG *</th>

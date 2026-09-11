@@ -297,7 +297,7 @@ function OrderCodeCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
           value={r.orderCode}
           readOnly
           placeholder="Chọn mã đơn..."
-          className="h-7 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
+          className="h-7 px-2 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
         />
         <Button
           type="button"
@@ -965,7 +965,7 @@ export function WarehouseEditableGrid({
       {
         id: 'orderCode',
         header: 'MÃ ĐƠN HÀNG',
-        size: 130,
+        size: 210,
         cell: OrderCodeCell,
       },
       {

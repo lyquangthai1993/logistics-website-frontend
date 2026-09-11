@@ -416,7 +416,7 @@ export default function WarehouseOutboundPage() {
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
                     <tr>
-                      <th className="p-2.5 w-[140px]">MÃ ĐƠN HÀNG</th>
+                      <th className="p-2.5 w-[180px]">MÃ ĐƠN HÀNG</th>
                       <th className="p-2.5">KHÁCH HÀNG / ĐÍCH ĐẾN</th>
                       <th className="p-2.5">TÊN HÀNG HÓA</th>
                       <th className="p-2.5 text-right w-[90px]">SỐ KIỆN</th>

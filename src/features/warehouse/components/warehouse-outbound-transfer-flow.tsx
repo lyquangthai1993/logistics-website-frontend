@@ -780,7 +780,7 @@ export function WarehouseOutboundTransferFlow({
                           className="rounded text-blue-600 h-4 w-4 border-slate-300"
                         />
                       </th>
-                      <th className="p-3 w-[170px]">MÃ ĐƠN HÀNG</th>
+                      <th className="p-3 w-[200px]">MÃ ĐƠN HÀNG</th>
                       <th className="p-3 w-[220px]">TÊN HÀNG</th>
                       <th className="p-3 text-right w-[90px]">SỐ KIỆN</th>
                       <th className="p-3 text-right w-[100px]">SỐ KG</th>
@@ -1047,7 +1047,7 @@ export function WarehouseOutboundTransferFlow({
               <thead className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="p-3 w-10 text-center">STT</th>
-                  <th className="p-3 w-[170px]">MÃ ĐƠN HÀNG</th>
+                  <th className="p-3 w-[200px]">MÃ ĐƠN HÀNG</th>
                   <th className="p-3 w-[220px]">TÊN HÀNG</th>
                   <th className="p-3 text-right w-[90px]">SỐ KIỆN</th>
                   <th className="p-3 text-right w-[110px]">SỐ KG</th>

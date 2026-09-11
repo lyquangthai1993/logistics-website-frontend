@@ -146,7 +146,7 @@ export default function WarehouseOrdersPage() {
               <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
                 <tr>
                   <th className="p-2.5 w-[50px] text-center">STT</th>
-                  <th className="p-2.5 w-[160px]">MÃ ĐƠN HÀNG</th>
+                  <th className="p-2.5 w-[180px]">MÃ ĐƠN HÀNG</th>
                   <th className="p-2.5 min-w-[160px]">TÊN HÀNG HÓA</th>
                   <th className="p-2.5 w-[90px] text-right">SỐ KIỆN</th>
                   <th className="p-2.5 w-[100px] text-right">SỐ KG</th>

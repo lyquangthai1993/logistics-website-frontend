@@ -531,7 +531,7 @@ export default function WarehouseInboundPage() {
                             className="rounded border-gray-300 text-blue-600 cursor-pointer"
                           />
                         </th>
-                        <th className="p-2.5 w-[150px]">MÃ VẬN ĐƠN</th>
+                        <th className="p-2.5 w-[180px]">MÃ VẬN ĐƠN</th>
                         <th className="p-2.5 min-w-[180px]">TÊN HÀNG HÓA</th>
                         <th className="p-2.5 text-right w-[160px]">SỐ KIỆN / TẢI TRỌNG</th>
                         <th className="p-2.5 w-[130px] text-center">TRẠNG THÁI</th>
