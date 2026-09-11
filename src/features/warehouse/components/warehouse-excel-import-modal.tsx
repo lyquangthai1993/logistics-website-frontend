@@ -272,10 +272,13 @@ export function WarehouseExcelImportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="w-[95vw] sm:max-w-4xl max-w-4xl p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl">
+      <DialogContent
+        showCloseButton={false}
+        className="w-[95vw] sm:max-w-4xl max-w-4xl p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl"
+      >
         {/* ── Navy Header (#0F3D62) ── */}
-        <div className="bg-[#0F3D62] text-white p-5 border-b border-blue-900/40 flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="bg-[#0F3D62] text-white p-5 border-b border-blue-900/40 flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0 pr-2">
             <div className="flex items-center gap-2 text-blue-200 text-xs font-semibold mb-1">
               <IconFileSpreadsheet className="h-4 w-4 text-emerald-400" />
               <span>Tiếp nhận hàng loạt qua bảng tính</span>
@@ -288,51 +291,41 @@ export function WarehouseExcelImportModal({
             </p>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadTemplate}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold shadow-xs h-9"
-          >
-            <IconDownload className="mr-1.5 h-4 w-4 text-emerald-300" /> Tải file mẫu Excel
-          </Button>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadTemplate}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold shadow-xs h-9 cursor-pointer"
+            >
+              <IconDownload className="mr-1.5 h-4 w-4 text-emerald-300" /> Tải file mẫu Excel
+            </Button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors cursor-pointer"
+              title="Đóng modal"
+            >
+              <IconX className="w-5 h-5 text-white" />
+            </button>
+          </div>
         </div>
 
         {/* ── Modal Body ── */}
         <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
-          {/* Step 1: Template Info Banner */}
-          <div className="bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="space-y-0.5">
-              <span className="font-bold text-emerald-900 dark:text-emerald-300 block">
-                Mẫu file chuẩn (.xlsx / .csv)
-              </span>
-              <p className="text-emerald-700 dark:text-emerald-400 text-[11px]">
-                File gồm các cột: Tên hàng (*), Số kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Ghi chú. (Hình thức giao và Hub đích sẽ chọn trực tiếp trên bảng kê).
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleDownloadTemplate}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs h-8"
-            >
-              <IconDownload className="mr-1 h-3.5 w-3.5" /> Tải file mẫu (.xlsx)
-            </Button>
-          </div>
-
-          {/* Step 2: Upload Zone */}
+          {/* Upload Zone */}
           {!file ? (
             <div
               {...getRootProps()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+              className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
                 isDragActive
                   ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/30'
                   : 'border-slate-300 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
               }`}
             >
               <input {...getInputProps()} />
-              <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 shadow-inner">
                 <IconUpload className="h-6 w-6" />
               </div>
               <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -340,8 +333,8 @@ export function WarehouseExcelImportModal({
                   ? 'Thả file Excel vào đây...'
                   : 'Kéo thả file Excel vào đây hoặc click để chọn file'}
               </p>
-              <p className="text-xs text-slate-400 mt-1">
-                Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB)
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB) &bull; Các cột: Tên hàng (*), Số kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Ghi chú
               </p>
             </div>
           ) : (
