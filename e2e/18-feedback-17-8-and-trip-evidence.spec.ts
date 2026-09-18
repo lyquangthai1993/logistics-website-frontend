@@ -155,4 +155,39 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
       await captureEvidence(page, '06_pallet_label_a4_modal.png');
     }
   });
+
+  test('Evidence 6: DRAFT Order with Red Trash Delete Button in Warehouse Orders Table', async ({ page }) => {
+    await loginAs(page, WAREHOUSE_USER);
+
+    // 1. Go to Inbound and save a DRAFT order
+    await page.goto('/dashboard/warehouse/inbound');
+    await page.waitForLoadState('networkidle');
+
+    const newOrderBtn = page.getByRole('button', { name: /Tạo đơn nhập mới/i });
+    await expect(newOrderBtn).toBeVisible();
+    await newOrderBtn.click();
+    await page.waitForTimeout(500);
+
+    const saveDraftBtn = page.getByRole('button', { name: /Lưu nháp/i });
+    await expect(saveDraftBtn).toBeVisible();
+    await saveDraftBtn.click();
+    await page.waitForTimeout(1500);
+
+    // 2. Go to Warehouse Orders table and click DRAFT tab
+    await page.goto('/dashboard/warehouse/orders');
+    await page.waitForLoadState('networkidle');
+
+    const draftTab = page.locator('button:has-text("DRAFT")');
+    await expect(draftTab).toBeVisible();
+    await draftTab.click();
+    await page.waitForTimeout(1000);
+
+    // 3. Verify DRAFT order exists and shows red trash can delete button
+    const trashBtn = page.locator('button[title="Xóa đơn nháp"]').first();
+    await expect(trashBtn).toBeVisible({ timeout: 5000 });
+
+    // 4. Capture screenshot
+    await captureEvidence(page, '08_draft_order_delete_button.png');
+  });
 });
+
