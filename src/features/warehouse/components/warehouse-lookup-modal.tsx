@@ -29,6 +29,9 @@ export interface WarehouseLookupItem {
   orderCode: string;
   goodsDescription?: string | null;
   totalQuantity: number;
+  remainingQuantity?: number;
+  inboundQuantity?: number;
+  outboundQuantity?: number;
   totalWeight: number;
   totalVolume: number;
   pickupAddress: string;

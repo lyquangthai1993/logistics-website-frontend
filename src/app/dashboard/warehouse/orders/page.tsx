@@ -15,10 +15,16 @@ import {
   IconChevronRight,
   IconChevronsRight,
   IconRefresh,
+  IconTrash,
+  IconEye,
+  IconTruck,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
+import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
+import { toast } from 'sonner';
+import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
@@ -34,6 +40,30 @@ export default function WarehouseOrdersPage() {
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(false);
   const [printData, setPrintData] = useState<PalletLabelData | null>(null);
+
+  // Waybill Detail Modal State
+  const [selectedWaybill, setSelectedWaybill] = useState<WaybillDetailData | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  // Delete draft handler
+  const handleDeleteDraft = async (id: number, code: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng nháp "${code}" không?`)) return;
+    try {
+      const token = tokenManager.getAccessToken();
+      const res = await fetch(`/api/v1/orders/${id}`, {
+        method: 'DELETE',
+        headers: (token ? { Authorization: `Bearer ${token}` } : {}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: err, status: res.status } };
+      }
+      toast.success(`Đã xóa đơn hàng nháp ${code} thành công`);
+      fetchOrders();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Không thể xóa đơn hàng');
+    }
+  };
 
   const fetchOrders = useCallback(() => {
     setIsLoading(true);
@@ -144,80 +174,165 @@ export default function WarehouseOrdersPage() {
 
           {/* Table */}
           <div className="border rounded-lg overflow-x-auto">
-            <table className="w-full text-xs text-left min-w-[900px]">
-              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
+            <table className="w-full text-xs text-left min-w-[950px]">
+              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[11px]">
                 <tr>
-                  <th className="p-2.5 w-[50px] text-center">STT</th>
-                  <th className="p-2.5 w-[180px]">MÃ ĐƠN HÀNG</th>
-                  <th className="p-2.5 min-w-[160px]">TÊN HÀNG HÓA</th>
-                  <th className="p-2.5 w-[90px] text-right">SỐ KIỆN</th>
-                  <th className="p-2.5 w-[100px] text-right">SỐ KG</th>
-                  <th className="p-2.5 w-[90px] text-right">SỐ M³</th>
-                  <th className="p-2.5 min-w-[180px]">ĐÍCH ĐẾN</th>
-                  <th className="p-2.5 w-[120px] text-center">TRẠNG THÁI</th>
-                  <th className="p-2.5 w-[90px] text-center">THAO TÁC</th>
+                  <th className="py-1.5 px-2 w-[45px] text-center">STT</th>
+                  <th className="py-1.5 px-2 w-[160px]">MÃ ĐƠN HÀNG</th>
+                  <th className="py-1.5 px-2 min-w-[150px]">TÊN HÀNG HÓA</th>
+                  <th className="py-1.5 px-2 w-[140px]">CHUYẾN XE / TRIP</th>
+                  <th className="py-1.5 px-2 w-[85px] text-right">TỒN KHO</th>
+                  <th className="py-1.5 px-2 w-[75px] text-right">SỐ KIỆN</th>
+                  <th className="py-1.5 px-2 w-[85px] text-right">SỐ KG</th>
+                  <th className="py-1.5 px-2 w-[75px] text-right">SỐ M³</th>
+                  <th className="py-1.5 px-2 min-w-[160px]">ĐÍCH ĐẾN</th>
+                  <th className="py-1.5 px-2 w-[110px] text-center">TRẠNG THÁI</th>
+                  <th className="py-1.5 px-2 w-[100px] text-center">THAO TÁC</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-gray-500">
+                    <td colSpan={11} className="p-8 text-center text-gray-500">
                       <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                       Đang tải dữ liệu đơn hàng...
                     </td>
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-gray-400">
+                    <td colSpan={11} className="p-8 text-center text-gray-400">
                       Không tìm thấy đơn hàng nào
                     </td>
                   </tr>
                 ) : (
                   data.map((row, idx) => (
-                    <tr key={row.id} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40">
-                      <td className="p-2.5 text-center font-mono text-gray-400">
+                    <tr
+                      key={row.id}
+                      onClick={() => {
+                        setSelectedWaybill(row);
+                        setIsDetailModalOpen(true);
+                      }}
+                      className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
+                    >
+                      <td className="py-1.5 px-2 text-center font-mono text-gray-400 text-[11px]">
                         {((page - 1) * 15 + idx + 1).toString().padStart(2, '0')}
                       </td>
-                      <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                      <td className="py-1.5 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
                         {row.orderCode}
                       </td>
-                      <td className="p-2.5 font-semibold text-slate-800 dark:text-slate-200">
+                      <td className="py-1.5 px-2 font-semibold text-slate-800 dark:text-slate-200">
                         {row.goodsDescription || 'Hàng hóa tổng quan'}
                       </td>
-                      <td className="p-2.5 text-right font-bold">{row.totalQuantity ?? 1}</td>
-                      <td className="p-2.5 text-right font-bold text-slate-700 dark:text-slate-300">
+                      <td className="py-1.5 px-2">
+                        {(() => {
+                          const activeTrip = row.trips?.[0];
+                          const tripCode =
+                            activeTrip?.tripCode ||
+                            (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
+                          const plate = activeTrip?.licensePlate || row.vehicleLicensePlate;
+                          const driver = activeTrip?.driverName || row.driverName;
+
+                          if (!tripCode && !plate) {
+                            return <span className="text-gray-400 italic text-[11px]">—</span>;
+                          }
+
+                          return (
+                            <div className="text-xs space-y-0.5">
+                              {tripCode && (
+                                <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] flex items-center gap-1">
+                                  <span>{tripCode}</span>
+                                  {row.trips && row.trips.length > 1 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50"
+                                    >
+                                      +{row.trips.length - 1}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                              {plate && (
+                                <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
+                                  <IconTruck className="h-3 w-3 text-slate-400 shrink-0" />
+                                  <span>{plate}</span>
+                                </div>
+                              )}
+                              {driver && (
+                                <div
+                                  className="text-[10px] text-gray-400 truncate max-w-[120px]"
+                                  title={driver}
+                                >
+                                  {driver}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {row.remainingQuantity ?? row.totalQuantity ?? 0} kiện
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-bold text-slate-900 dark:text-white">
+                        {row.totalQuantity ?? 1}
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300">
                         {row.totalWeight?.toLocaleString('vi-VN')} kg
                       </td>
-                      <td className="p-2.5 text-right font-bold text-slate-700 dark:text-slate-300">
+                      <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300">
                         {row.totalVolume?.toLocaleString('vi-VN')} m³
                       </td>
-                      <td className="p-2.5 text-slate-600 dark:text-slate-300">
+                      <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300">
                         {row.destinationHub || row.route || 'Giao khách lẻ'}
                       </td>
-                      <td className="p-2.5 text-center">
+                      <td className="py-1.5 px-2 text-center">
                         {renderWarehouseOrderStatusBadge(row.status)}
                       </td>
-                      <td className="p-2.5 text-center">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            setPrintData({
-                              orderCode: row.orderCode,
-                              goodsDescription: row.goodsDescription || 'Hàng hóa tổng quan',
-                              totalQuantity: row.totalQuantity || 10,
-                              packagesOnPallet: row.totalQuantity || 10,
-                              palletIndex: 1,
-                              totalPallets: 1,
-                              destinationHub: row.destinationHub || row.route,
-                              createdAt: row.createdAt,
-                            })
-                          }
-                          className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50"
-                          title="In tem nhận diện A4"
-                        >
-                          <IconPrinter className="h-4 w-4" />
-                        </Button>
+                      <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedWaybill(row);
+                              setIsDetailModalOpen(true);
+                            }}
+                            className="h-7 w-7 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                            title="Xem chi tiết vận đơn & Timeline 3 chặng xe"
+                          >
+                            <IconEye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setPrintData({
+                                orderCode: row.orderCode,
+                                goodsDescription: row.goodsDescription || 'Hàng hóa tổng quan',
+                                totalQuantity: row.totalQuantity || 10,
+                                packagesOnPallet: row.totalQuantity || 10,
+                                palletIndex: 1,
+                                totalPallets: 1,
+                                destinationHub: row.destinationHub || row.route,
+                                createdAt: row.createdAt,
+                              })
+                            }
+                            className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50"
+                            title="In tem nhận diện A4"
+                          >
+                            <IconPrinter className="h-4 w-4" />
+                          </Button>
+                          {row.status === 'DRAFT' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteDraft(row.id, row.orderCode)}
+                              className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                              title="Xóa đơn nháp"
+                            >
+                              <IconTrash className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -249,6 +364,26 @@ export default function WarehouseOrdersPage() {
         isOpen={!!printData}
         onClose={() => setPrintData(null)}
         data={printData}
+      />
+
+      {/* Modal Chi Tiết Vận Đơn & Timeline 3 Chặng Xe */}
+      <WarehouseWaybillDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        waybill={selectedWaybill}
+        onPrintLabel={(w) => {
+          setIsDetailModalOpen(false);
+          setPrintData({
+            orderCode: w.orderCode,
+            goodsDescription: w.goodsDescription || 'Hàng hóa tổng quan',
+            totalQuantity: w.totalQuantity || 10,
+            packagesOnPallet: w.totalQuantity || 10,
+            palletIndex: 1,
+            totalPallets: 1,
+            destinationHub: w.destinationHub || w.route,
+            createdAt: w.createdAt,
+          });
+        }}
       />
       </div>
     </PageContainer>

@@ -9,7 +9,7 @@ import { notificationKeys } from './query-keys';
 import type { InfiniteData } from '@tanstack/react-query';
 import type { NotificationItem, NotificationsResponse } from './use-notifications-query';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
 /** Singleton socket — chỉ tạo 1 lần cho toàn app */
 let sharedSocket: Socket | null = null;

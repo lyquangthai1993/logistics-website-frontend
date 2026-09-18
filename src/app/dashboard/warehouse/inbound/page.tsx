@@ -25,6 +25,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { WarehouseInboundTransferFlow } from '@/features/warehouse/components/warehouse-inbound-transfer-flow';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
+import { WarehouseInboundReceiptModal, InboundReceiptData } from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
 import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
 import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-tally-modal';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
@@ -61,6 +62,10 @@ export default function WarehouseInboundPage() {
   // Pallet Label A4 Modal State
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
   const [selectedLabelData, setSelectedLabelData] = useState<PalletLabelData | null>(null);
+
+  // Inbound Receipt A4 Modal State
+  const [isInboundReceiptModalOpen, setIsInboundReceiptModalOpen] = useState(false);
+  const [selectedReceiptData, setSelectedReceiptData] = useState<InboundReceiptData | null>(null);
 
   // Vehicle Header Fields (3 Red-Border Required Fields for Mode 1 - Frame UVtv4)
   const [receiveDate, setReceiveDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -240,10 +245,6 @@ export default function WarehouseInboundPage() {
       toast.error('Vui lòng nhập Biển số xe tiếp nhận');
       return;
     }
-    if (!driverName.trim()) {
-      toast.error('Vui lòng nhập Họ tên tài xế / người giao');
-      return;
-    }
 
     // Client-side row validations
     for (let i = 0; i < mode1Rows.length; i++) {
@@ -269,20 +270,6 @@ export default function WarehouseInboundPage() {
         toast.error(`Dòng ${rowNum}: Vui lòng nhập Địa chỉ giao hàng`);
         return;
       }
-    }
-
-    // Check duplicate order codes among input rows
-    const filledCodes = mode1Rows
-      .map((r, idx) => ({ code: r.orderCode?.trim()?.toUpperCase(), line: idx + 1 }))
-      .filter((x) => Boolean(x.code && x.code !== '(TỰ SINH KHI LƯU)' && !x.code.startsWith('(TỰ SINH')));
-
-    const seenCodes = new Set<string>();
-    for (const item of filledCodes) {
-      if (seenCodes.has(item.code!)) {
-        toast.error(`Trùng lặp mã vận đơn '${item.code}' giữa các dòng trong bảng kê. Vui lòng kiểm tra lại.`);
-        return;
-      }
-      seenCodes.add(item.code!);
     }
 
     setIsSubmitting(true);
@@ -367,20 +354,6 @@ export default function WarehouseInboundPage() {
     if (mode1Rows.length === 0) {
       toast.error('Vui lòng có ít nhất 1 dòng hàng để lưu nháp');
       return;
-    }
-
-    // Check duplicate order codes among input rows if filled
-    const filledCodes = mode1Rows
-      .map((r, idx) => ({ code: r.orderCode?.trim()?.toUpperCase(), line: idx + 1 }))
-      .filter((x) => Boolean(x.code && x.code !== '(TỰ SINH KHI LƯU)' && !x.code.startsWith('(TỰ SINH')));
-
-    const seenCodes = new Set<string>();
-    for (const item of filledCodes) {
-      if (seenCodes.has(item.code!)) {
-        toast.error(`Trùng lặp mã vận đơn '${item.code}' giữa các dòng trong bảng kê. Vui lòng kiểm tra lại.`);
-        return;
-      }
-      seenCodes.add(item.code!);
     }
 
     setIsSavingDraft(true);
@@ -508,48 +481,6 @@ export default function WarehouseInboundPage() {
         {/* ── View 1: Main Inbound Board (Frame sq2P6 Danh sách nhập kho) ── */}
         {activeView === 'BOARD' && (
           <div className="space-y-4">
-            {/* 4 Stat Cards (sq2P6 Inbound Status Metrics) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-amber-500 shadow-sm">
-                <CardContent className="p-3">
-                  <span className="text-[11px] text-gray-500 font-bold tracking-wider block">CHỜ NHẬP KHO</span>
-                  <div className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                    {kpiStats.waitingInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Đang chờ tiếp nhận & kiểm đếm</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-blue-600 shadow-sm">
-                <CardContent className="p-3">
-                  <span className="text-[11px] text-gray-500 font-bold tracking-wider block">KHÁCH GỬI TẠI KHO</span>
-                  <div className="text-xl font-black text-blue-700 dark:text-blue-400 mt-1">
-                    {kpiStats.customerInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Tiếp nhận trực tiếp từ khách hàng</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-slate-700 shadow-sm">
-                <CardContent className="p-3">
-                  <span className="text-[11px] text-gray-500 font-bold tracking-wider block">LUÂN CHUYỂN NỘI BỘ</span>
-                  <div className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">
-                    {kpiStats.transferInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Chuyển tiếp từ các Hub vệ tinh</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-slate-900 border-l-4 border-l-emerald-600 shadow-sm">
-                <CardContent className="p-3">
-                  <span className="text-[11px] text-gray-500 font-bold tracking-wider block">ĐÃ NHẬP KHO</span>
-                  <div className="text-xl font-black text-emerald-700 dark:text-emerald-400 mt-1">
-                    {kpiStats.storedInbound ?? 0} <span className="text-xs font-normal text-gray-500">đơn</span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Đã lưu kho an toàn & dán tem A4</p>
-                </CardContent>
-              </Card>
-            </div>
 
             {/* Toolbar: Search, Status Tabs & Refresh Button */}
             <Card className="bg-white dark:bg-slate-900 shadow-sm border">
@@ -668,26 +599,27 @@ export default function WarehouseInboundPage() {
                             className="rounded border-gray-300 text-blue-600 cursor-pointer"
                           />
                         </th>
-                        <th className="p-2.5 w-[180px]">MÃ VẬN ĐƠN</th>
-                        <th className="p-2.5 min-w-[180px]">TÊN HÀNG HÓA</th>
-                        <th className="p-2.5 text-right w-[160px]">SỐ KIỆN / TẢI TRỌNG</th>
-                        <th className="p-2.5 w-[130px] text-center">TRẠNG THÁI</th>
-                        <th className="p-2.5 text-center w-[140px]">LOẠI NHẬP KHO</th>
-                        <th className="p-2.5 min-w-[160px]">GHI CHÚ</th>
-                        <th className="p-2.5 text-center w-[180px]">THAO TÁC</th>
+                        <th className="p-2.5 w-[160px]">MÃ VẬN ĐƠN</th>
+                        <th className="p-2.5 min-w-[160px]">TÊN HÀNG HÓA</th>
+                        <th className="p-2.5 w-[150px]">CHUYẾN XE / TRIP</th>
+                        <th className="p-2.5 text-right w-[150px]">SỐ KIỆN / TẢI TRỌNG</th>
+                        <th className="p-2.5 w-[120px] text-center">TRẠNG THÁI</th>
+                        <th className="p-2.5 text-center w-[130px]">LOẠI NHẬP KHO</th>
+                        <th className="p-2.5 min-w-[140px]">GHI CHÚ</th>
+                        <th className="p-2.5 text-center w-[170px]">THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-gray-500">
+                          <td colSpan={9} className="p-8 text-center text-gray-500">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : orders.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-gray-400">
+                          <td colSpan={9} className="p-8 text-center text-gray-400">
                             Không có đơn hàng nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -720,34 +652,80 @@ export default function WarehouseInboundPage() {
                                   className="rounded border-gray-300 text-blue-600 cursor-pointer"
                                 />
                               </td>
-                              <td className="p-2.5">
+                              <td className="py-1.5 px-2">
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setSelectedWaybillForDetail(o);
                                     setIsDetailModalOpen(true);
                                   }}
-                                  className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block"
+                                  className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-xs"
                                   title="Xem chi tiết mã vận đơn"
                                 >
                                   {o.orderCode}
                                 </button>
                               </td>
-                              <td className="p-2.5">
-                                <div className="text-slate-900 dark:text-white font-semibold">
+                              <td className="py-1.5 px-2">
+                                <div className="text-slate-900 dark:text-white font-semibold text-xs">
                                   {o.goodsDescription || 'Hàng hóa tổng quan'}
                                 </div>
                               </td>
-                              <td className="p-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
-                                <div>{o.totalQuantity ?? 1} kiện</div>
-                                <div className="text-gray-400 text-[11px]">
+                              <td className="py-1.5 px-2">
+                                {(() => {
+                                  const activeTrip = o.trips?.[0];
+                                  const tripCode =
+                                    activeTrip?.tripCode ||
+                                    (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
+                                  const plate = activeTrip?.licensePlate || o.vehicleLicensePlate;
+                                  const driver = activeTrip?.driverName || o.driverName;
+
+                                  if (!tripCode && !plate) {
+                                    return <span className="text-gray-400 italic text-[11px]">—</span>;
+                                  }
+
+                                  return (
+                                    <div className="text-xs space-y-0.5">
+                                      {tripCode && (
+                                        <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] flex items-center gap-1">
+                                          <span>{tripCode}</span>
+                                          {o.trips && o.trips.length > 1 && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50"
+                                            >
+                                              +{o.trips.length - 1}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )}
+                                      {plate && (
+                                        <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
+                                          <IconTruck className="h-3 w-3 text-slate-400 shrink-0" />
+                                          <span>{plate}</span>
+                                        </div>
+                                      )}
+                                      {driver && (
+                                        <div
+                                          className="text-[10px] text-gray-400 truncate max-w-[130px]"
+                                          title={driver}
+                                        >
+                                          {driver}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                              <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                <div>{o.inboundQuantity ?? o.totalQuantity ?? 1} kiện</div>
+                                <div className="text-gray-400 text-[10px]">
                                   {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
                                 </div>
                               </td>
-                              <td className="p-2.5 text-center">
+                              <td className="py-1.5 px-2 text-center">
                                 {renderWarehouseOrderStatusBadge(o.status)}
                               </td>
-                              <td className="p-2.5 text-center">
+                              <td className="py-1.5 px-2 text-center">
                                 {(() => {
                                   const isTransfer =
                                     o.inboundType === 'TRANSFER' ||
@@ -763,8 +741,8 @@ export default function WarehouseInboundPage() {
                                       variant="outline"
                                       className={
                                         isTransfer
-                                          ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold'
-                                          : 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                                          ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
+                                          : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
                                       }
                                     >
                                       {isTransfer ? 'Luân chuyển' : 'Khách gửi'}
@@ -772,7 +750,7 @@ export default function WarehouseInboundPage() {
                                   );
                                 })()}
                               </td>
-                              <td className="p-2.5 text-slate-600 dark:text-slate-300 text-xs">
+                              <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300 text-xs">
                                 {o.notes ? (
                                   <div className="truncate max-w-[200px]" title={o.notes}>
                                     {o.notes}
@@ -781,7 +759,7 @@ export default function WarehouseInboundPage() {
                                   <span className="text-gray-400">—</span>
                                 )}
                               </td>
-                              <td className="p-2.5 text-center">
+                              <td className="py-1.5 px-2 text-center">
                                 <div className="flex items-center justify-center gap-1.5">
                                   {isWaiting ? (
                                     <Button
@@ -807,6 +785,46 @@ export default function WarehouseInboundPage() {
                                       title="Xem chi tiết vận đơn"
                                     >
                                       <IconEye className="h-3.5 w-3.5 mr-1" /> Chi tiết
+                                    </Button>
+                                  )}
+
+                                  {['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(o.status) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const orig =
+                                          o.pickupAddress?.trim() ||
+                                          o.originHubEntity?.name ||
+                                          o.originHub ||
+                                          user?.hub?.name;
+                                        const dest =
+                                          o.destinationHubEntity?.name ||
+                                          o.destinationHub ||
+                                          o.deliveryAddress?.trim() ||
+                                          '';
+                                        setSelectedReceiptData({
+                                          orderCode: o.orderCode,
+                                          goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
+                                          totalQuantity: o.totalQuantity || 1,
+                                          inboundQuantity: o.inboundQuantity || o.totalQuantity || 1,
+                                          totalWeight: o.totalWeight || 0,
+                                          totalVolume: o.totalVolume || 0,
+                                          originHub: orig,
+                                          destinationHub: dest,
+                                          pickupAddress: o.pickupAddress,
+                                          deliveryAddress: o.deliveryAddress,
+                                          notes: o.notes,
+                                          driverName: o.trips?.[0]?.driverName || '',
+                                          licensePlate: o.trips?.[0]?.licensePlate || '',
+                                          createdAt: o.createdAt,
+                                        });
+                                        setIsInboundReceiptModalOpen(true);
+                                      }}
+                                      className="h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold"
+                                      title="In phiếu nhập kho"
+                                    >
+                                      <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu
                                     </Button>
                                   )}
 
@@ -886,14 +904,14 @@ export default function WarehouseInboundPage() {
                 onClick={() => setActiveView('MODE1_CUSTOMER')}
                 className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm"
               >
-                Mới hoàn toàn · Khách hàng đưa vào kho
+                Mới hoàn toàn
               </button>
               <button
                 type="button"
                 onClick={() => setActiveView('MODE2_TRANSFER')}
                 className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white"
               >
-                Luân chuyển nội bộ · Chọn chuyến hàng
+                Luân chuyển nội bộ
               </button>
             </div>
 
@@ -932,18 +950,18 @@ export default function WarehouseInboundPage() {
                   </div>
                 </div>
 
-                {/* 3. Tài xế / Người giao */}
+                {/* 3. Tài xế / Người giao (Không bắt buộc) */}
                 <div>
-                  <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">
-                    3. Họ tên người nhận / tài xế <span className="text-red-600 font-black">*</span>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                    3. Họ tên người nhận / tài xế <span className="text-slate-400 font-normal">(Tùy chọn)</span>
                   </label>
                   <div className="relative">
-                    <IconUser className="absolute left-2.5 top-2.5 h-4 w-4 text-red-400" />
+                    <IconUser className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                     <Input
                       value={driverName}
                       onChange={(e) => setDriverName(e.target.value)}
                       placeholder="VD: Nguyễn Văn A"
-                      className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
+                      className="h-9 pl-8 text-xs font-medium border-slate-300 focus:border-blue-500 bg-white dark:bg-slate-800 dark:border-slate-700"
                     />
                   </div>
                 </div>
@@ -1124,6 +1142,16 @@ export default function WarehouseInboundPage() {
             setSelectedLabelData(null);
           }}
           data={selectedLabelData}
+        />
+
+        {/* ── Modal In Phiếu Nhập Kho A4 ── */}
+        <WarehouseInboundReceiptModal
+          isOpen={isInboundReceiptModalOpen}
+          onClose={() => {
+            setIsInboundReceiptModalOpen(false);
+            setSelectedReceiptData(null);
+          }}
+          data={selectedReceiptData}
         />
       </div>
     </PageContainer>

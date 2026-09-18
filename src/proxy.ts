@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const publicRoutes = ['/auth/sign-in', '/auth/forgot-password', '/auth/reset-password', '/auth'];
-const publicApiRoutes = [
+const _publicApiRoutes = [
   '/api/v1/auth/email/login',
   '/api/v1/auth/forgot/password',
   '/api/v1/auth/reset/password',
@@ -45,7 +45,7 @@ function parseJwt(token: string) {
 const DEFAULT_API_URL =
   process.env.NODE_ENV === 'production'
     ? 'https://logistics-website-backend-1.onrender.com'
-    : 'http://127.0.0.1:3001';
+    : 'http://127.0.0.1:4001';
 
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||

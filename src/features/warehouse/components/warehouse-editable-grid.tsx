@@ -49,6 +49,10 @@ export interface WarehouseRowItem {
   pickupAddress: string;
   goodsDescription: string;
   totalQuantity: number;
+  remainingQuantity?: number;
+  inboundQuantity?: number;
+  outboundQuantity?: number;
+  quantityToExport?: number;
   totalWeight: number;
   totalVolume: number;
   deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
@@ -276,6 +280,70 @@ function SearchableHubSelect({
   );
 }
 
+/**
+ * RFC 4180 / Excel TSV quote-aware parser.
+ * Handles multiline cell values wrapped in quotes ("...") without breaking rows.
+ */
+export function parseTsvWithQuotes(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentCell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentCell += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === '\t') {
+        currentRow.push(currentCell.trim());
+        currentCell = '';
+      } else if (char === '\r') {
+        if (nextChar === '\n') {
+          i++;
+        }
+        currentRow.push(currentCell.trim());
+        if (currentRow.some((c) => c !== '')) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentCell = '';
+      } else if (char === '\n') {
+        currentRow.push(currentCell.trim());
+        if (currentRow.some((c) => c !== '')) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentCell = '';
+      } else {
+        currentCell += char;
+      }
+    }
+  }
+
+  if (currentCell || currentRow.length > 0) {
+    currentRow.push(currentCell.trim());
+    if (currentRow.some((c) => c !== '')) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+}
+
 // ── Stable Cell Components (Defined Outside to Prevent Unmounting & Focus Loss) ──
 
 function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
@@ -286,11 +354,25 @@ function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
   );
 }
 
-function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unknown>) {
+function OrderCodeCell({
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, unknown>) {
   const r = row.original;
   const idx = row.index;
   const meta = table.options.meta;
   const isOutbound = meta?.isOutboundMode;
+
+  const [value, setValue] = useState(
+    r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '',
+  );
+
+  useEffect(() => {
+    const fresh =
+      r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
+    setValue(fresh);
+  }, [r.orderCode]);
 
   if (isOutbound) {
     return (
@@ -315,94 +397,21 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
     );
   }
 
-  const initialCode = r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
-  const [value, setValue] = useState(initialCode);
-  const [isDbDuplicate, setIsDbDuplicate] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-
-  useEffect(() => {
-    const fresh = r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
-    setValue(fresh);
-  }, [r.orderCode]);
-
-  // Check duplicate with another row in the same table
-  const trimmed = value.trim().toUpperCase();
-  const isLocalDuplicate = Boolean(
-    trimmed &&
-    meta?.allRows?.some((other, otherIdx) => {
-      if (otherIdx === idx) return false;
-      const otherCode = other.orderCode?.trim()?.toUpperCase();
-      return otherCode && otherCode !== '(TỰ SINH KHI LƯU)' && otherCode === trimmed;
-    })
-  );
-
-  const checkDbDuplicate = async (valToCheck: string) => {
-    const code = valToCheck.trim();
-    if (!code || code === '(Tự sinh khi lưu)' || code.startsWith('(Tự sinh')) {
-      setIsDbDuplicate(false);
-      return;
-    }
-    setIsChecking(true);
-    try {
-      const token = tokenManager.getAccessToken();
-      const res = await fetch(`/api/v1/orders/check-code?code=${encodeURIComponent(code)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setIsDbDuplicate(Boolean(data.exists));
-      }
-    } catch {
-      // silent fallback
-    } finally {
-      setIsChecking(false);
-    }
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.value.toUpperCase();
     setValue(nextVal);
     meta?.updateData(row.index, column.id, nextVal);
-    setIsDbDuplicate(false);
   };
-
-  const handleBlur = () => {
-    checkDbDuplicate(value);
-  };
-
-  const hasDuplicate = isLocalDuplicate || isDbDuplicate;
 
   return (
     <div className="relative">
       <Input
         value={value}
         onChange={handleChange}
-        onBlur={handleBlur}
         placeholder="(Tự sinh nếu trống)"
-        title={
-          isLocalDuplicate
-            ? 'Mã vận đơn này trùng lặp với một dòng khác trong bảng!'
-            : isDbDuplicate
-            ? 'Mã vận đơn này đã tồn tại trong cơ sở dữ liệu!'
-            : 'Nhập mã vận đơn tùy ý, nếu để trống hệ thống sẽ tự động cấp mã'
-        }
-        className={cn(
-          "h-[30px] px-2 text-xs font-mono font-bold uppercase tracking-tight",
-          hasDuplicate
-            ? "border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:border-rose-700 dark:text-rose-300 focus:ring-rose-500 focus:border-rose-500"
-            : "border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100"
-        )}
+        title="Nhập mã vận đơn tùy ý, nếu để trống hệ thống sẽ tự động cấp mã. Cho phép trùng mã đơn hàng."
+        className="h-[30px] px-2 text-xs font-mono font-bold uppercase tracking-tight border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500"
       />
-      {isChecking ? (
-        <span className="absolute right-2 top-2 text-[10px] text-gray-400">...</span>
-      ) : hasDuplicate ? (
-        <span
-          className="absolute right-2 top-2 text-[10px] font-bold text-rose-600 dark:text-rose-400 cursor-help"
-          title={isLocalDuplicate ? 'Trùng trong bảng' : 'Đã có trong DB'}
-        >
-          Trùng!
-        </span>
-      ) : null}
     </div>
   );
 }
@@ -474,6 +483,8 @@ function QuantityCell({
   column,
   table,
 }: CellContext<WarehouseRowItem, any>) {
+  const r = row.original;
+  const isOutbound = table.options.meta?.isOutboundMode;
   const initialValue = getValue() ?? 1;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -497,15 +508,40 @@ function QuantityCell({
     }
   };
 
+  const availStock =
+    r.remainingQuantity !== undefined && r.remainingQuantity !== null
+      ? r.remainingQuantity
+      : undefined;
+
+  const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
+
   return (
-    <Input
-      type="number"
-      min={1}
-      value={value}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
-    />
+    <div className="space-y-0.5">
+      <Input
+        type="number"
+        min={1}
+        max={isOutbound && availStock !== undefined ? availStock : undefined}
+        value={value}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={cn(
+          "h-[30px] px-2 text-xs text-right font-bold",
+          isExceeded
+            ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300"
+            : "border-slate-300 dark:border-slate-700"
+        )}
+      />
+      {isOutbound && availStock !== undefined && (
+        <div
+          className={cn(
+            "text-[10px] text-right font-semibold",
+            isExceeded ? "text-red-600 font-bold" : "text-slate-500"
+          )}
+        >
+          {isExceeded ? `Vượt tồn! (Tồn: ${availStock})` : `Tồn: ${availStock} kiện`}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -658,6 +694,20 @@ function DeliveryAddressCell({
     setAddressText(nextVal);
     meta?.updateData(idx, 'deliveryAddress', nextVal);
   };
+
+  const isOutbound = meta?.isOutboundMode;
+
+  if (!isOutbound) {
+    return (
+      <textarea
+        rows={2}
+        value={addressText}
+        onChange={handleAddressTextChange}
+        placeholder="Nhập địa chỉ giao hàng bất kỳ..."
+        className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      />
+    );
+  }
 
   return (
     <div className="space-y-1.5">
@@ -945,9 +995,8 @@ export function WarehouseEditableGrid({
         user?.hub?.name ||
         (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
         '';
-      const lines = text.trim().split(/\r?\n/);
-      const parsedRows: WarehouseRowItem[] = lines.map((line) => {
-        const cols = line.split('\t');
+      const parsedMatrix = parseTsvWithQuotes(text);
+      const parsedRows: WarehouseRowItem[] = parsedMatrix.map((cols) => {
         const pastedCode = cols[0]?.trim() || '';
         const cleanCode =
           pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
@@ -958,8 +1007,8 @@ export function WarehouseEditableGrid({
           pickupAddress: cols[1]?.trim() || defaultPickup,
           goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
           totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
-          totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 0,
-          totalVolume: parseFloat(cols[5]?.trim().replace(/,/g, '')) || 0,
+          totalWeight: parseFloat((cols[4] || '0').replace(/,/g, '')) || 0,
+          totalVolume: parseFloat((cols[5] || '0').replace(/,/g, '')) || 0,
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: cols[6]?.trim() || '',
           notes: cols[7]?.trim() || '',
@@ -975,49 +1024,59 @@ export function WarehouseEditableGrid({
 
   // Trigger manual paste notification
   const handleManualPaste = () => {
-    navigator.clipboard?.readText().then((text) => {
-      if (text && text.includes('\t')) {
-        const defaultPickup =
-          user?.hub?.name ||
-          (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
-          '';
-        const lines = text.trim().split(/\r?\n/);
-        const parsedRows: WarehouseRowItem[] = lines.map((line) => {
-          const cols = line.split('\t');
-          const pastedCode = cols[0]?.trim() || '';
-          const cleanCode =
-            pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
-              ? ''
-              : pastedCode;
-          return {
-            orderCode: cleanCode,
-            pickupAddress: cols[1]?.trim() || defaultPickup,
-            goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
-            totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
-            totalWeight: parseFloat(cols[4]?.trim().replace(/,/g, '')) || 0,
-            totalVolume: parseFloat(cols[5]?.trim().replace(/,/g, '')) || 0,
-            deliveryMode: 'DIRECT_CUSTOMER',
-            deliveryAddress: cols[6]?.trim() || '',
-            notes: cols[7]?.trim() || '',
-          };
-        });
-        if (parsedRows.length > 0) {
-          onChange(parsedRows);
+    navigator.clipboard
+      ?.readText()
+      .then((text) => {
+        if (text && text.includes('\t')) {
+          const defaultPickup =
+            user?.hub?.name ||
+            (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
+            '';
+          const parsedMatrix = parseTsvWithQuotes(text);
+          const parsedRows: WarehouseRowItem[] = parsedMatrix.map((cols) => {
+            const pastedCode = cols[0]?.trim() || '';
+            const cleanCode =
+              pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
+                ? ''
+                : pastedCode;
+            return {
+              orderCode: cleanCode,
+              pickupAddress: cols[1]?.trim() || defaultPickup,
+              goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
+              totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
+              totalWeight: parseFloat((cols[4] || '0').replace(/,/g, '')) || 0,
+              totalVolume: parseFloat((cols[5] || '0').replace(/,/g, '')) || 0,
+              deliveryMode: 'DIRECT_CUSTOMER',
+              deliveryAddress: cols[6]?.trim() || '',
+              notes: cols[7]?.trim() || '',
+            };
+          });
+          if (parsedRows.length > 0) {
+            onChange(parsedRows);
+          }
         }
-      }
-    }).catch(() => {});
+      })
+      .catch(() => {});
   };
 
   // Handle selected order from lookup modal
   const handleSelectFromLookup = (order: WarehouseLookupItem) => {
     if (lookupRowIndex === null) return;
     const updated = [...rows];
+    const availStock =
+      order.remainingQuantity !== undefined && order.remainingQuantity !== null
+        ? order.remainingQuantity
+        : order.totalQuantity || 1;
     updated[lookupRowIndex] = {
       ...updated[lookupRowIndex],
       id: order.id,
       orderCode: order.orderCode,
       goodsDescription: order.goodsDescription || '',
-      totalQuantity: order.totalQuantity || 1,
+      totalQuantity: availStock,
+      inboundQuantity: order.inboundQuantity,
+      outboundQuantity: order.outboundQuantity,
+      remainingQuantity: availStock,
+      quantityToExport: availStock,
       totalWeight: order.totalWeight || 0,
       totalVolume: order.totalVolume || 0,
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
@@ -1279,7 +1338,7 @@ export function WarehouseEditableGrid({
                       key={header.id}
                       style={getPinningStyles(header.column, true)}
                       className={cn(
-                        'p-2.5 text-[11px] font-bold border-b border-slate-200 dark:border-slate-700',
+                        'py-1.5 px-2 text-[11px] font-bold border-b border-slate-200 dark:border-slate-700',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
                         ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
                         isPinned === 'left' && colId === 'orderCode'
@@ -1316,7 +1375,7 @@ export function WarehouseEditableGrid({
                       key={cell.id}
                       style={getPinningStyles(cell.column, false)}
                       className={cn(
-                        'p-2',
+                        'py-1 px-1.5 text-xs',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
                         ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
                         isPinned

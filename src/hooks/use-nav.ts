@@ -26,10 +26,20 @@ export function useFilteredNavItems(items: NavItem[]) {
       role: user?.role ?? undefined,
       hasUser: !!user
     };
-  }, [user?.role, user]);
+  }, [user]);
 
   // Filter items synchronously (all client-side)
   const filteredItems = useMemo(() => {
+    // Role WAREHOUSE_MANAGER is strictly restricted to only 3 warehouse pages
+    if (accessContext.role === 'WAREHOUSE_MANAGER') {
+      const allowedUrls = new Set([
+        '/dashboard/warehouse/inbound',
+        '/dashboard/warehouse/outbound',
+        '/dashboard/warehouse/orders'
+      ]);
+      return items.filter((item) => allowedUrls.has(item.url));
+    }
+
     return items
       .filter((item) => {
         // No access restrictions

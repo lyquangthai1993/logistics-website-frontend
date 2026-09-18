@@ -45,12 +45,9 @@ export function PalletLabelA4Modal({
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
 
-  const totalQuantity = data?.totalQuantity ?? 1;
-  const quantityDisplay = data?.packagesOnPallet
-    ? `${data.packagesOnPallet} / ${totalQuantity}`
-    : `... / ${totalQuantity}`;
-  const palletIndex = data?.palletIndex ? data.palletIndex.toString().padStart(2, '0') : '...';
-  const totalPallets = data?.totalPallets ? data.totalPallets.toString().padStart(2, '0') : '...';
+  const quantityDisplay = '';
+  const palletIndex = '';
+  const totalPallets = '';
   const goodsDescription = (data?.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
 
   const handlePrint = () => {
@@ -103,17 +100,27 @@ export function PalletLabelA4Modal({
               flex-direction: column;
               justify-content: flex-start;
               box-sizing: border-box;
-              padding: 2mm 4mm;
+              padding: 4mm;
+            }
+            .header-bar {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            }
+            .qr-code {
+              width: 26mm;
+              height: 26mm;
+              object-fit: contain;
             }
             .header-title {
-              text-align: center;
-              font-size: 32pt;
+              font-size: 30pt;
               font-weight: 900;
-              letter-spacing: 1px;
-              text-transform: uppercase;
-              margin-bottom: 6px;
-              color: #000000;
+              text-align: center;
               font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
+              letter-spacing: 2px;
+              flex: 1;
+              color: #000000;
             }
             .sub-header {
               display: flex;
@@ -121,7 +128,7 @@ export function PalletLabelA4Modal({
               align-items: center;
               font-size: 14pt;
               font-weight: bold;
-              margin-bottom: 12px;
+              margin-bottom: 10px;
               padding: 0 4px;
               color: #000000;
               font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
@@ -129,24 +136,26 @@ export function PalletLabelA4Modal({
             .table-grid {
               width: 100%;
               border-collapse: collapse;
-              border: 2px solid #000000;
+              border: 3.5px solid #000000;
+              flex: 1;
               table-layout: fixed;
             }
             .table-grid td {
-              border: 1.5px solid #000000;
+              border: 2px solid #000000;
               padding: 6px 12px;
               color: #000000;
               vertical-align: middle;
             }
             .col-label {
-              font-size: 13.5pt;
+              font-size: 15pt;
               font-weight: bold;
               white-space: nowrap;
               text-align: left;
+              padding: 8px 12px;
               font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
             }
             .val-order {
-              font-size: 44pt;
+              font-size: 40pt;
               font-weight: 900;
               text-align: center;
               font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
@@ -164,19 +173,14 @@ export function PalletLabelA4Modal({
               font-weight: 900;
               text-align: center;
               padding: 6px 4px;
+              height: 18mm;
             }
             .val-pallet {
               font-size: 24pt;
               font-weight: bold;
               text-align: center;
               padding: 6px 4px;
-            }
-            .val-operator {
-              font-size: 24pt;
-              font-weight: bold;
-              text-align: center;
-              padding: 6px 4px;
-              height: 12mm;
+              height: 18mm;
             }
             .val-dest {
               font-size: 36pt;
@@ -184,43 +188,47 @@ export function PalletLabelA4Modal({
               text-align: center;
               text-transform: uppercase;
               padding: 12px 8px;
-              height: 32mm;
+              height: 38mm;
             }
           </style>
         </head>
         <body>
           <div class="page-container">
-            <!-- Row 2: Header Title -->
-            <div class="header-title">TEM NHẬN DIỆN HÀNG HÓA</div>
+            <!-- Row 1: QR Code & Header Title -->
+            <div class="header-bar">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data.orderCode)}" class="qr-code" alt="QR" />
+              <div class="header-title">TEM NHẬN DIỆN HÀNG HÓA</div>
+              <div style="width: 26mm;"></div>
+            </div>
 
-            <!-- Row 3: Sub Header -->
+            <!-- Row 2: Sub Header -->
             <div class="sub-header">
               <div>KHO : ${currentHubName}</div>
               <div>TÊN HÀNG: ${goodsDescription}</div>
             </div>
 
-            <!-- Rows 5-10: Main Grid -->
+            <!-- Main Grid -->
             <table class="table-grid">
               <tbody>
-                <!-- Row 5: MÃ ĐƠN HÀNG -->
+                <!-- Row 1: MÃ ĐƠN HÀNG -->
                 <tr>
                   <td class="col-label" style="width: 22%;">MÃ ĐƠN HÀNG :</td>
                   <td colspan="3" class="val-order">${data.orderCode}</td>
                 </tr>
 
-                <!-- Row 6: NGÀY NHẬP -->
+                <!-- Row 2: NGÀY NHẬP -->
                 <tr>
                   <td class="col-label">NGÀY NHẬP :</td>
                   <td colspan="3" class="val-date">${formattedDate}</td>
                 </tr>
 
-                <!-- Row 7: SỐ LƯỢNG -->
+                <!-- Row 3: SỐ LƯỢNG (Viết tay kiện trên pallet) -->
                 <tr>
                   <td class="col-label">SỐ LƯỢNG :</td>
                   <td colspan="3" class="val-qty">${quantityDisplay}</td>
                 </tr>
 
-                <!-- Row 8: PALET SỐ & TỔNG SỐ PALET -->
+                <!-- Row 4: PALET SỐ & TỔNG SỐ PALET (Viết tay) -->
                 <tr>
                   <td class="col-label" style="width: 22%;">PALET SỐ :</td>
                   <td class="val-pallet" style="width: 28%;">${palletIndex}</td>
@@ -228,13 +236,7 @@ export function PalletLabelA4Modal({
                   <td class="val-pallet" style="width: 25%;">${totalPallets}</td>
                 </tr>
 
-                <!-- Row 9: NGƯỜI NHẬP -->
-                <tr>
-                  <td class="col-label">NGƯỜI NHẬP :</td>
-                  <td colspan="3" class="val-operator"></td>
-                </tr>
-
-                <!-- Row 10: GIAO ĐẾN -->
+                <!-- Row 5: GIAO ĐẾN -->
                 <tr>
                   <td class="col-label">GIAO ĐẾN :</td>
                   <td colspan="3" class="val-dest"></td>
@@ -301,12 +303,20 @@ export function PalletLabelA4Modal({
             className="w-full max-w-[850px] bg-white text-black p-6 sm:p-8 rounded shadow-2xl border border-slate-300 font-sans select-none"
             style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
           >
-            {/* Row 2: Header Title */}
-            <h1 className="text-center text-2xl sm:text-3xl font-black tracking-wide uppercase text-black mb-3" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
-              TEM NHẬN DIỆN HÀNG HÓA
-            </h1>
+            {/* Row 1: Header Bar with QR Code */}
+            <div className="flex items-center justify-between mb-3 relative">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data.orderCode)}`}
+                alt="QR Code"
+                className="w-14 h-14 sm:w-16 sm:h-16 object-contain"
+              />
+              <h1 className="flex-1 text-center text-xl sm:text-3xl font-black tracking-wide uppercase text-black" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
+                TEM NHẬN DIỆN HÀNG HÓA
+              </h1>
+              <div className="w-14 sm:w-16" />
+            </div>
 
-            {/* Row 3: Sub Header (Kho & Tên hàng) */}
+            {/* Row 2: Sub Header (Kho & Tên hàng) */}
             <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-black mb-4 px-1" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
               <div>
                 KHO : <span className="font-black">{currentHubName}</span>
@@ -316,10 +326,10 @@ export function PalletLabelA4Modal({
               </div>
             </div>
 
-            {/* Rows 5-10: Main Grid (Bordered Table) */}
+            {/* Main Grid (Bordered Table) */}
             <table className="w-full border-collapse border-2 border-black text-black">
               <tbody>
-                {/* Row 5: MÃ ĐƠN HÀNG */}
+                {/* Row 1: MÃ ĐƠN HÀNG */}
                 <tr className="border-b-[1.5px] border-black">
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2.5 text-xs sm:text-sm font-bold align-middle">
                     MÃ ĐƠN HÀNG :
@@ -329,7 +339,7 @@ export function PalletLabelA4Modal({
                   </td>
                 </tr>
 
-                {/* Row 6: NGÀY NHẬP */}
+                {/* Row 2: NGÀY NHẬP */}
                 <tr className="border-b-[1.5px] border-black">
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
                     NGÀY NHẬP :
@@ -339,42 +349,33 @@ export function PalletLabelA4Modal({
                   </td>
                 </tr>
 
-                {/* Row 7: SỐ LƯỢNG */}
+                {/* Row 3: SỐ LƯỢNG */}
                 <tr className="border-b-[1.5px] border-black">
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
                     SỐ LƯỢNG :
                   </td>
-                  <td colSpan={3} className="px-4 py-2.5 text-center align-middle text-2xl sm:text-3xl font-black text-black">
+                  <td colSpan={3} className="px-4 py-2.5 text-center align-middle text-2xl sm:text-3xl font-black text-black h-12 sm:h-14">
                     {quantityDisplay}
                   </td>
                 </tr>
 
-                {/* Row 8: PALET SỐ & TỔNG SỐ PALET */}
+                {/* Row 4: PALET SỐ & TỔNG SỐ PALET */}
                 <tr className="border-b-[1.5px] border-black">
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
                     PALET SỐ :
                   </td>
-                  <td className="w-[28%] border-r-[1.5px] border-black px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black">
+                  <td className="w-[28%] border-r-[1.5px] border-black px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12">
                     {palletIndex}
                   </td>
                   <td className="w-[25%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold text-center align-middle">
                     TỔNG SỐ PALET :
                   </td>
-                  <td className="w-[25%] px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black">
+                  <td className="w-[25%] px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12">
                     {totalPallets}
                   </td>
                 </tr>
 
-                {/* Row 9: NGƯỜI NHẬP */}
-                <tr className="border-b-[1.5px] border-black">
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
-                    NGƯỜI NHẬP :
-                  </td>
-                  <td colSpan={3} className="px-4 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-9 sm:h-11">
-                  </td>
-                </tr>
-
-                {/* Row 10: GIAO ĐẾN */}
+                {/* Row 5: GIAO ĐẾN */}
                 <tr>
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-4 text-xs sm:text-sm font-bold align-middle">
                     GIAO ĐẾN :

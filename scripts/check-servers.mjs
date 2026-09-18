@@ -22,8 +22,8 @@ async function checkUrl(url, timeoutMs = 3000) {
 async function main() {
   console.log('🔍 [Pre-Flight Check] Verifying dev servers before running E2E tests...');
   
-  const frontendUrl = 'http://localhost:3000';
-  const backendUrl = process.env.API_URL || 'http://localhost:3001';
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+  const backendUrl = process.env.API_URL || 'http://localhost:4001';
   
   const frontend = await checkUrl(frontendUrl);
   // Try backend root first, fallback to /api/v1 if root returned 404

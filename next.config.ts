@@ -1,8 +1,10 @@
 import type { NextConfig } from 'next';
+import path from 'path';
 import { withSentryConfig } from '@sentry/nextjs';
 
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
+  outputFileTracingRoot: path.resolve(__dirname),
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   images: {
     remotePatterns: [
@@ -34,7 +36,7 @@ const baseConfig: NextConfig = {
   },
   async rewrites() {
     const backendUrl =
-      process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+      process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4001';
     return [
       {
         source: '/api/:path*',

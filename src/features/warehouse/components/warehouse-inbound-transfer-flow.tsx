@@ -296,14 +296,14 @@ export function WarehouseInboundTransferFlow({
           onClick={onSwitchToCustomerMode}
           className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white"
         >
-          Mới hoàn toàn · Khách hàng đưa vào kho
+          Mới hoàn toàn
         </button>
         <button
           type="button"
           className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm flex items-center justify-center gap-1.5"
         >
           <IconTruck className="h-4 w-4" />
-          <span>Luân chuyển nội bộ · Chọn chuyến xe</span>
+          <span>Luân chuyển nội bộ</span>
         </button>
       </div>
 
