@@ -14,14 +14,11 @@ import {
   IconPrinter,
   IconCopy,
   IconCheck,
-  IconUser,
-  IconCalendar,
+  IconPackage,
   IconX,
   IconCircleCheck,
-  IconLoader2,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 
 export interface WaybillDetailData {
@@ -137,13 +134,6 @@ export function WarehouseWaybillDetailModal({
   onPrintLabel,
 }: WarehouseWaybillDetailModalProps) {
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'NEW' | 'TRANSFER'>('NEW');
-  const [receiveDate, setReceiveDate] = useState<string>('');
-  const [licensePlate, setLicensePlate] = useState<string>('');
-  const [driverName, setDriverName] = useState<string>('');
-  const [rows, setRows] = useState<WarehouseRowItem[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [previewLabelData, setPreviewLabelData] = useState<PalletLabelData | null>(null);
 
   const inboundTrip =
@@ -152,47 +142,6 @@ export function WarehouseWaybillDetailModal({
     (waybill?.vehicleLicensePlate
       ? { licensePlate: waybill.vehicleLicensePlate, driverName: waybill.driverName }
       : null);
-
-  useEffect(() => {
-    if (waybill) {
-      const isTransfer =
-        waybill.inboundType === 'TRANSFER' ||
-        waybill.orderCode?.startsWith('TRIP') ||
-        Boolean(waybill.originHub && waybill.destinationHub && waybill.originHub !== waybill.destinationHub);
-
-      setActiveTab(isTransfer ? 'TRANSFER' : 'NEW');
-
-      const d = waybill.createdAt ? new Date(waybill.createdAt) : new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      setReceiveDate(`${yyyy}-${mm}-${dd}`);
-
-      setLicensePlate(waybill.vehicleLicensePlate || inboundTrip?.licensePlate || '');
-      setDriverName(waybill.driverName || inboundTrip?.driverName || '');
-
-      setRows([
-        {
-          id: waybill.id,
-          orderCode: waybill.orderCode || '',
-          pickupAddress: waybill.pickupAddress || waybill.originHub || 'Polaris Hub - Hưng Yên',
-          goodsDescription: waybill.goodsDescription || 'Hàng hóa tiếp nhận',
-          totalQuantity: waybill.totalQuantity || 1,
-          remainingQuantity: waybill.remainingQuantity ?? waybill.totalQuantity ?? 1,
-          inboundQuantity: waybill.inboundQuantity ?? waybill.totalQuantity ?? 1,
-          outboundQuantity: waybill.outboundQuantity ?? 0,
-          totalWeight: waybill.totalWeight || 0,
-          totalVolume: waybill.totalVolume || 0,
-          deliveryMode:
-            (waybill.deliveryMode as any) ||
-            (waybill.destinationHubId ? 'HUB_L1' : 'DIRECT_CUSTOMER'),
-          deliveryAddress: waybill.deliveryAddress || waybill.destinationHub || '',
-          destinationHubId: waybill.destinationHubId ?? null,
-          notes: waybill.notes || '',
-        },
-      ]);
-    }
-  }, [waybill]);
 
   if (!waybill) return null;
 
@@ -203,42 +152,21 @@ export function WarehouseWaybillDetailModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSaveDraft = async () => {
-    setIsSavingDraft(true);
-    try {
-      toast.success('Đã lưu nháp thay đổi thành công!');
-      onClose();
-    } finally {
-      setIsSavingDraft(false);
-    }
-  };
-
-  const handleConfirmInbound = async () => {
-    setIsSubmitting(true);
-    try {
-      toast.success('Đã xác nhận tiếp nhận & lưu kho thành công!');
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleOpenPreviewLabel = () => {
-    if (rows.length > 0) {
-      const r = rows[0];
+    if (onPrintLabel) {
+      onPrintLabel(waybill);
+    } else {
       setPreviewLabelData({
-        orderCode: r.orderCode || waybill.orderCode,
-        goodsDescription: r.goodsDescription || 'HÀNG HÓA TIẾP NHẬN',
-        totalQuantity: r.totalQuantity || 1,
-        packagesOnPallet: r.totalQuantity || 1,
+        orderCode: waybill.orderCode,
+        goodsDescription: waybill.goodsDescription || 'HÀNG HÓA TIẾP NHẬN',
+        totalQuantity: waybill.totalQuantity || 1,
+        packagesOnPallet: waybill.totalQuantity || 1,
         palletIndex: 1,
         totalPallets: 1,
-        originHub: r.pickupAddress,
-        destinationHub: r.deliveryAddress,
+        originHub: waybill.pickupAddress || waybill.originHub,
+        destinationHub: waybill.deliveryAddress || waybill.destinationHub,
         createdAt: waybill.createdAt,
       });
-    } else if (onPrintLabel) {
-      onPrintLabel(waybill);
     }
   };
 
@@ -286,143 +214,286 @@ export function WarehouseWaybillDetailModal({
 
           {/* ── Scrollable Body Structured Like Inbound Create Form ── */}
           <div className="p-4 sm:p-5 space-y-4 max-h-[82vh] overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
-            {/* 1. Mode Tabs (Mới hoàn toàn | Luân chuyển nội bộ) */}
-            <div className="w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner">
-              <button
-                type="button"
-                onClick={() => setActiveTab('NEW')}
-                className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold text-center transition-all ${
-                  activeTab === 'NEW'
-                    ? 'bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Mới hoàn toàn
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('TRANSFER')}
-                className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold text-center transition-all ${
-                  activeTab === 'TRANSFER'
-                    ? 'bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Luân chuyển nội bộ
-              </button>
-            </div>
-
-            {/* 2. Three Receipt Header Fields */}
-            <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              {/* 1. Ngày tiếp nhận */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  1. Ngày tiếp nhận <span className="text-red-600 font-black">*</span>
-                </label>
-                <div className="relative">
-                  <IconCalendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="date"
-                    value={receiveDate}
-                    onChange={(e) => setReceiveDate(e.target.value)}
-                    className="h-9 pl-8 text-xs border-red-300 focus:border-red-500 bg-red-50/20 dark:bg-red-950/20 dark:border-red-900"
-                  />
-                </div>
-              </div>
-
-              {/* 2. Biển số xe */}
-              <div>
-                <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">
-                  2. Biển số xe <span className="text-red-600 font-black">*</span>
-                </label>
-                <div className="relative">
-                  <IconTruck className="absolute left-2.5 top-2.5 h-4 w-4 text-red-400" />
-                  <Input
-                    value={licensePlate}
-                    onChange={(e) => setLicensePlate(e.target.value)}
-                    placeholder="VD: 29C-123.45"
-                    className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 uppercase bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
-                  />
-                </div>
-              </div>
-
-              {/* 3. Họ tên người nhận / tài xế */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  3. Họ tên người nhận / tài xế <span className="text-slate-400 font-normal">(Tùy chọn)</span>
-                </label>
-                <div className="relative">
-                  <IconUser className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                  <Input
-                    value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    placeholder="VD: Nguyễn Văn A"
-                    className="h-9 pl-8 text-xs font-medium border-slate-300 focus:border-blue-500 bg-white dark:bg-slate-800 dark:border-slate-700"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 3. The WarehouseEditableGrid Card matching media_1789701292590.png */}
-            <div className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-4">
-              <WarehouseEditableGrid
-                rows={rows}
-                onChange={setRows}
-                isOutboundMode={false}
-              />
-
-              {/* Sticky Action Footer */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {rows.length} dòng hàng
-                </span>
-
+            {/* ── Theo Dõi Tồn Kho & Lộ Trình Vận Chuyển ── */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSaveDraft}
-                    disabled={isSavingDraft || isSubmitting || rows.length === 0}
-                    className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
-                  >
-                    {isSavingDraft ? (
-                      <>
-                        <IconLoader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Đang lưu nháp...
-                      </>
-                    ) : (
-                      'Lưu nháp'
-                    )}
-                  </Button>
+                  <IconBuildingWarehouse className="h-5 w-5 text-[#0F3D62] dark:text-blue-400" />
+                  <h3 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                    Tiến trình vận chuyển & Tồn kho
+                  </h3>
+                </div>
+                <Badge variant="outline" className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                  Mã đơn: <span className="font-mono text-[#0F3D62] dark:text-blue-400 ml-1">{waybill.orderCode}</span>
+                </Badge>
+              </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenPreviewLabel}
-                    className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
-                  >
-                    <IconPrinter className="mr-1.5 h-4 w-4 text-blue-600" /> Xem trước
-                  </Button>
+              {/* 1. Bảng Thống Kê Nhập - Xuất - Tồn Chi Tiết (Stat Cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Tổng Nhập */}
+                <div className="p-3 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-400 block">
+                      Tổng đã nhập
+                    </span>
+                    <span className="text-xl font-black text-blue-900 dark:text-blue-200 font-mono">
+                      {waybill.inboundQuantity ?? waybill.totalQuantity ?? 0}
+                    </span>
+                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-300 ml-1">kiện</span>
+                  </div>
+                  <IconTruck className="h-7 w-7 text-blue-400/80 shrink-0" />
+                </div>
 
-                  <Button
-                    type="button"
-                    onClick={handleConfirmInbound}
-                    disabled={isSubmitting || rows.length === 0}
-                    className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-5 font-bold shadow-md h-9 text-xs"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu dữ liệu...
-                      </>
-                    ) : (
-                      <>
-                        <IconCircleCheck className="mr-1.5 h-4 w-4 text-emerald-400" /> Xác nhận tiếp nhận & Lưu kho
-                      </>
-                    )}
-                  </Button>
+                {/* Đã Xuất */}
+                <div className="p-3 rounded-lg bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase text-purple-700 dark:text-purple-400 block">
+                      Tổng đã xuất
+                    </span>
+                    <span className="text-xl font-black text-purple-900 dark:text-purple-200 font-mono">
+                      {waybill.outboundQuantity ?? 0}
+                    </span>
+                    <span className="text-xs font-semibold text-purple-600 dark:text-purple-300 ml-1">kiện</span>
+                  </div>
+                  <IconTruck className="h-7 w-7 text-purple-400/80 shrink-0" />
+                </div>
+
+                {/* Tồn Kho Khả Dụng */}
+                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 flex items-center justify-between shadow-xs">
+                  <div>
+                    <span className="text-[11px] font-black uppercase text-emerald-800 dark:text-emerald-300 block">
+                      Tồn kho khả dụng
+                    </span>
+                    <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono">
+                      {waybill.remainingQuantity ?? waybill.totalQuantity ?? 0}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 ml-1">kiện</span>
+                  </div>
+                  <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                    <IconCircleCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
                 </div>
               </div>
+
+              {/* 2. Khối Lộ Trình Vận Chuyển Chi Tiết */}
+              <div className="pt-2">
+                <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-3.5 pl-6 space-y-4">
+                  {/* Chặng 1: Xe nhập kho */}
+                  <div className="relative">
+                    <div className="absolute -left-[33px] top-0.5 h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
+                      1
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                          1. Xe nhập kho
+                        </span>
+                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border-0 text-[10px] font-bold">
+                          Đã nhập kho
+                        </Badge>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Xe chở vào: </span>
+                          <span className="font-mono font-bold text-[#0F3D62] dark:text-blue-400">
+                            {waybill.vehicleLicensePlate || inboundTrip?.licensePlate || 'Xe tiếp nhận kho'}
+                          </span>
+                          {(waybill.driverName || inboundTrip?.driverName) && (
+                            <span className="ml-2 text-slate-500">
+                              (Tài xế: {waybill.driverName || inboundTrip?.driverName})
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-bold text-blue-700 dark:text-blue-300">
+                          Nhập: {waybill.inboundQuantity ?? waybill.totalQuantity ?? 0} kiện
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chặng 2: Tuyến trung chuyển liên Hub */}
+                  <div className="relative">
+                    <div className="absolute -left-[33px] top-0.5 h-6 w-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
+                      2
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                          2. Trung chuyển liên Hub
+                        </span>
+                        <Badge variant="outline" className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 border-amber-300">
+                          {waybill.destinationHub && waybill.originHub !== waybill.destinationHub ? 'Tuyến liên Hub' : 'Lưu kho trực tiếp'}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Lộ trình: </span>
+                          <span>{waybill.originHub || 'Hub gửi'}</span>
+                          <span className="mx-1 text-slate-400">➔</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {waybill.destinationHub || waybill.deliveryAddress || 'Điểm đích'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chặng 3: Xe xuất kho */}
+                  <div className="relative">
+                    <div className={`absolute -left-[33px] top-0.5 h-6 w-6 rounded-full text-white flex items-center justify-center text-[10px] font-bold shadow-xs ${
+                      (waybill.outboundQuantity ?? 0) > 0 ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700 text-slate-600'
+                    }`}>
+                      3
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                          3. Xe xuất kho
+                        </span>
+                        <Badge className={`text-[10px] font-bold border-0 ${
+                          (waybill.remainingQuantity ?? 0) === 0 && (waybill.outboundQuantity ?? 0) > 0
+                            ? 'bg-emerald-600 text-white'
+                            : (waybill.outboundQuantity ?? 0) > 0
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {(waybill.remainingQuantity ?? 0) === 0 && (waybill.outboundQuantity ?? 0) > 0
+                            ? 'Đã xuất kho toàn bộ'
+                            : (waybill.outboundQuantity ?? 0) > 0
+                            ? 'Đang xuất từng phần'
+                            : 'Chờ xuất kho'}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 space-y-1.5">
+                        {/* List all outbound trips if any */}
+                        {waybill.trips?.filter((t) => t.notes?.includes('XUẤT KHO') || t.status === 'IN_TRANSIT').length ? (
+                          waybill.trips
+                            ?.filter((t) => t.notes?.includes('XUẤT KHO') || t.status === 'IN_TRANSIT')
+                            .map((t, idx) => (
+                              <div key={t.id || idx} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/50 dark:border-slate-700/50 pb-1 last:border-b-0 last:pb-0">
+                                <div>
+                                  <span className="font-semibold text-slate-700 dark:text-slate-300">Đợt xuất {idx + 1}: </span>
+                                  <span className="font-mono font-bold text-purple-700 dark:text-purple-400">{t.licensePlate}</span>
+                                  {t.driverName && <span className="ml-1 text-slate-500">({t.driverName})</span>}
+                                  <span className="text-slate-400 text-[11px] ml-1.5">· {t.notes}</span>
+                                </div>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span>
+                              {(waybill.outboundQuantity ?? 0) > 0
+                                ? `Đã xuất ${waybill.outboundQuantity} kiện qua các xe xuất kho.`
+                                : 'Chưa có xe xuất kho cho đơn hàng này.'}
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              Còn tồn: <span className="text-emerald-600 font-black">{waybill.remainingQuantity ?? waybill.totalQuantity ?? 0}</span> kiện
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Bảng Danh Mục Hàng Hóa Vận Đơn (Read-only Table) ── */}
+            <div className="bg-white dark:bg-slate-900 shadow-xs border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <IconPackage className="h-4 w-4 text-[#0F3D62] dark:text-blue-400" />
+                  <span>Danh mục hàng hóa vận đơn</span>
+                </h4>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Tổng kiện: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{waybill.totalQuantity ?? 1}</span> kiện · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> m³
+                </span>
+              </div>
+
+              <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 text-[11px]">
+                    <tr>
+                      <th className="py-2.5 px-3 w-[50px] text-center">STT</th>
+                      <th className="py-2.5 px-3 w-[150px]">MÃ VẬN ĐƠN</th>
+                      <th className="py-2.5 px-3">ĐỊA CHỈ NHẬN HÀNG</th>
+                      <th className="py-2.5 px-3">TÊN HÀNG HÓA</th>
+                      <th className="py-2.5 px-3 text-right w-[90px]">SỐ KIỆN</th>
+                      <th className="py-2.5 px-3 text-right w-[100px]">SỐ KG</th>
+                      <th className="py-2.5 px-3 text-right w-[90px]">SỐ M³</th>
+                      <th className="py-2.5 px-3">ĐỊA CHỈ GIAO HÀNG</th>
+                      <th className="py-2.5 px-3 text-center w-[120px]">HÌNH THỨC GIAO</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-400">01</td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+                        {waybill.orderCode}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-700 dark:text-slate-300">
+                        {waybill.pickupAddress || waybill.originHub || 'Kho gửi'}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                        {waybill.goodsDescription || 'Hàng hóa tổng quan'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                        {waybill.totalQuantity ?? 1}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
+                        {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')} kg
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
+                        {waybill.totalVolume ?? 0} m³
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">
+                        {waybill.destinationHub || waybill.deliveryAddress || 'Điểm đích'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <Badge variant="outline" className="text-[10px] font-semibold bg-slate-50 dark:bg-slate-800">
+                          {waybill.deliveryMode === 'HUB_L1' || waybill.destinationHub
+                            ? 'Hub Cấp 1'
+                            : waybill.deliveryMode === 'XE_BO'
+                            ? 'Xe bo'
+                            : 'Giao thẳng'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {waybill.notes && (
+                <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                  <span className="font-bold">Ghi chú vận đơn:</span> {waybill.notes}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Dialog Footer (Clean Close & Print Actions) ── */}
+          <div className="p-3.5 px-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-slate-500 font-medium">
+              Trạng thái vận đơn: {getWaybillStatusBadge(waybill.status)}
+            </span>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleOpenPreviewLabel}
+                className="text-xs font-bold text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 dark:hover:bg-slate-800 h-8"
+              >
+                <IconPrinter className="mr-1.5 h-4 w-4" /> In tem Pallet A4
+              </Button>
+              <Button
+                type="button"
+                onClick={onClose}
+                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white text-xs font-bold px-4 h-8"
+              >
+                Đóng
+              </Button>
             </div>
           </div>
         </DialogContent>

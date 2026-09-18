@@ -100,7 +100,18 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
     const tripHeader = page.locator('th:has-text("CHUYẾN XE / TRIP")');
     await expect(tripHeader.first()).toBeVisible();
 
-    // Capture Screenshot of Outbound Board
+    // 4. Verify Collapsible toolbar button exists
+    const collapseAllBtn = page.getByRole('button', { name: /Thu gọn tất cả/i });
+    await expect(collapseAllBtn).toBeVisible();
+
+    // 5. Click the second vehicle group header (51D-999.99) to collapse it and demonstrate neatness!
+    const secondVehicleHeader = page.locator('text=51D-999.99').first();
+    if (await secondVehicleHeader.isVisible()) {
+      await secondVehicleHeader.click();
+      await page.waitForTimeout(400);
+    }
+
+    // Capture Screenshot of Outbound Board showing both expanded & collapsed vehicle cards
     await captureEvidence(page, '03_outbound_grouped_vehicles_with_trip.png', { fullPage: true });
   });
 

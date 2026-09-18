@@ -18,6 +18,10 @@ import {
   IconLoader2,
   IconFileSpreadsheet,
   IconCalendar,
+  IconChevronDown,
+  IconChevronRight,
+  IconFoldUp,
+  IconFoldDown,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -435,6 +439,33 @@ export default function WarehouseOutboundPage() {
     return Array.from(map.values());
   }, [orders]);
 
+  // Collapsed Vehicle Groups State (Feedback 17/8 Outbound collapsible)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (licensePlate: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [licensePlate]: !prev[licensePlate],
+    }));
+  };
+
+  const allCollapsed = useMemo(() => {
+    if (vehicleGroups.length === 0) return false;
+    return vehicleGroups.every((g) => !!collapsedGroups[g.licensePlate]);
+  }, [vehicleGroups, collapsedGroups]);
+
+  const toggleAllGroups = () => {
+    if (allCollapsed) {
+      setCollapsedGroups({});
+    } else {
+      const next: Record<string, boolean> = {};
+      vehicleGroups.forEach((g) => {
+        next[g.licensePlate] = true;
+      });
+      setCollapsedGroups(next);
+    }
+  };
+
   // Quick export for an entire vehicle trip
   const handleExportVehicleTrip = async (group: VehicleGroup) => {
     const exportableOrders = group.orders.filter((o) =>
@@ -619,6 +650,29 @@ export default function WarehouseOutboundPage() {
                   ))}
                 </div>
 
+                {/* Collapse / Expand All Button */}
+                {vehicleGroups.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleAllGroups}
+                    className="h-9 text-xs font-semibold border-slate-300 dark:border-slate-700"
+                    title={allCollapsed ? 'Mở rộng tất cả các nhóm xe' : 'Thu gọn tất cả các nhóm xe'}
+                  >
+                    {allCollapsed ? (
+                      <>
+                        <IconFoldDown className="mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        Mở rộng tất cả ({vehicleGroups.length} xe)
+                      </>
+                    ) : (
+                      <>
+                        <IconFoldUp className="mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        Thu gọn tất cả ({vehicleGroups.length} xe)
+                      </>
+                    )}
+                  </Button>
+                )}
+
                 {/* Refresh Metrics Button */}
                 <Button
                   variant="outline"
@@ -649,10 +703,27 @@ export default function WarehouseOutboundPage() {
                       key={group.licensePlate}
                       className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-xs"
                     >
-                      {/* Vehicle Header */}
-                      <div className="bg-slate-50 dark:bg-slate-800/80 px-3 py-2 border-b flex flex-wrap items-center justify-between gap-2">
+                      {/* Vehicle Header (Collapsible) */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleGroup(group.licensePlate)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleGroup(group.licensePlate);
+                          }
+                        }}
+                        className="bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/80 dark:hover:bg-slate-800 px-3 py-2 border-b flex flex-wrap items-center justify-between gap-2 cursor-pointer select-none transition-colors"
+                        title="Nhấn để thu gọn hoặc mở rộng danh sách đơn của xe này"
+                      >
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1.5 font-black text-slate-800 dark:text-slate-100 text-xs">
+                            {collapsedGroups[group.licensePlate] ? (
+                              <IconChevronRight className="h-4 w-4 text-slate-400 transition-transform" />
+                            ) : (
+                              <IconChevronDown className="h-4 w-4 text-[#0F3D62] dark:text-blue-400 transition-transform" />
+                            )}
                             <IconTruck className="h-4 w-4 text-[#0F3D62] dark:text-blue-400" />
                             <span>
                               Biển số xe:{' '}
@@ -676,12 +747,20 @@ export default function WarehouseOutboundPage() {
                             {group.orders.length} đơn hàng · {group.totalPackages} kiện ·{' '}
                             {group.totalWeight ? `${group.totalWeight.toLocaleString('vi-VN')} kg` : '0 kg'}
                           </Badge>
+                          {collapsedGroups[group.licensePlate] && (
+                            <span className="text-[11px] text-slate-400 italic">
+                              (Đã thu gọn — bấm để xem chi tiết)
+                            </span>
+                          )}
                         </div>
 
                         {group.canExport && (
                           <Button
                             size="sm"
-                            onClick={() => handleExportVehicleTrip(group)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportVehicleTrip(group);
+                            }}
                             className="bg-[#0F3D62] text-white hover:bg-[#0c314f] h-7 text-xs font-bold px-3 shadow-xs"
                           >
                             Xuất chuyến xe này
@@ -690,8 +769,9 @@ export default function WarehouseOutboundPage() {
                       </div>
 
                       {/* Vehicle Orders Table */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-left">
+                      {!collapsedGroups[group.licensePlate] && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-left">
                           <thead className="bg-slate-100/60 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-bold border-b text-[11px]">
                             <tr>
                               <th className="py-1.5 px-2 w-[160px]">MÃ ĐƠN HÀNG</th>
@@ -798,6 +878,7 @@ export default function WarehouseOutboundPage() {
                           </tbody>
                         </table>
                       </div>
+                    )}
                     </div>
                   ))
                 )}
