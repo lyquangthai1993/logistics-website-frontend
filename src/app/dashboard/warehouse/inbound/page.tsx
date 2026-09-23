@@ -83,6 +83,7 @@ export default function WarehouseInboundPage() {
       totalVolume: 0,
       deliveryMode: 'DIRECT_CUSTOMER',
       deliveryAddress: '',
+      province: '',
       notes: '',
     },
   ]);
@@ -310,6 +311,7 @@ export default function WarehouseInboundPage() {
             totalVolume: Number(row.totalVolume) || 0,
             pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
             deliveryAddress: row.deliveryAddress?.trim() || '',
+            province: row.province?.trim() || undefined,
             deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
             destinationHubId: row.destinationHubId || null,
             notes: combinedNotes,
@@ -334,6 +336,7 @@ export default function WarehouseInboundPage() {
           totalVolume: 0,
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: '',
+          province: '',
           notes: '',
         },
       ]);
@@ -394,6 +397,7 @@ export default function WarehouseInboundPage() {
             totalVolume: Number(row.totalVolume) >= 0 ? Number(row.totalVolume) : 0,
             pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
             deliveryAddress: row.deliveryAddress?.trim() || '',
+            province: row.province?.trim() || undefined,
             deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
             destinationHubId: row.destinationHubId || null,
             notes: combinedNotes,
@@ -418,6 +422,7 @@ export default function WarehouseInboundPage() {
           totalVolume: 0,
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: '',
+          province: '',
           notes: '',
         },
       ]);

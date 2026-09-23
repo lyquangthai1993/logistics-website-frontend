@@ -27,6 +27,7 @@ export interface WaybillDetailData {
   senderName?: string;
   pickupAddress?: string;
   deliveryAddress?: string;
+  province?: string | null;
   deliveryMode?: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' | string;
   destinationHub?: string;
   destinationHubId?: number | null;
@@ -422,6 +423,7 @@ export function WarehouseWaybillDetailModal({
                       <th className="py-2.5 px-3 text-right w-[100px]">SỐ KG</th>
                       <th className="py-2.5 px-3 text-right w-[90px]">SỐ M³</th>
                       <th className="py-2.5 px-3">ĐỊA CHỈ GIAO HÀNG</th>
+                      <th className="py-2.5 px-3">TỈNH / TP</th>
                       <th className="py-2.5 px-3 text-center w-[120px]">HÌNH THỨC GIAO</th>
                     </tr>
                   </thead>
@@ -448,6 +450,15 @@ export function WarehouseWaybillDetailModal({
                       </td>
                       <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">
                         {waybill.destinationHub || waybill.deliveryAddress || 'Điểm đích'}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                        {waybill.province ? (
+                          <Badge variant="outline" className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 font-bold text-[11px]">
+                            {waybill.province}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <Badge variant="outline" className="text-[10px] font-semibold bg-slate-50 dark:bg-slate-800">

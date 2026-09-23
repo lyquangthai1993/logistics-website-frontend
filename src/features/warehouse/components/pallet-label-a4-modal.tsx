@@ -155,12 +155,13 @@ export function PalletLabelA4Modal({
               font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
             }
             .val-order {
-              font-size: 40pt;
+              font-size: 32pt;
               font-weight: 900;
               text-align: center;
               font-family: Arial, 'Segoe UI', Tahoma, sans-serif;
-              letter-spacing: 2px;
-              padding: 10px 4px;
+              letter-spacing: 1.5px;
+              padding: 3px 4px;
+              line-height: 1.1;
             }
             .val-date {
               font-size: 24pt;
@@ -173,7 +174,7 @@ export function PalletLabelA4Modal({
               font-weight: 900;
               text-align: center;
               padding: 6px 4px;
-              height: 18mm;
+              height: 34mm;
             }
             .val-pallet {
               font-size: 24pt;
@@ -305,6 +306,8 @@ export function PalletLabelA4Modal({
           >
             {/* Row 1: Header Bar with QR Code */}
             <div className="flex items-center justify-between mb-3 relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* oxlint-disable-next-line next/no-img-element */}
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data.orderCode)}`}
                 alt="QR Code"
@@ -331,10 +334,10 @@ export function PalletLabelA4Modal({
               <tbody>
                 {/* Row 1: MÃ ĐƠN HÀNG */}
                 <tr className="border-b-[1.5px] border-black">
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2.5 text-xs sm:text-sm font-bold align-middle">
+                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-1.5 text-xs sm:text-sm font-bold align-middle">
                     MÃ ĐƠN HÀNG :
                   </td>
-                  <td colSpan={3} className="px-4 py-3 text-center align-middle font-sans text-2xl sm:text-4xl font-black tracking-widest text-black" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
+                  <td colSpan={3} className="px-4 py-1.5 text-center align-middle font-sans text-xl sm:text-3xl font-black tracking-wider text-black leading-tight" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
                     {data.orderCode}
                   </td>
                 </tr>
@@ -354,7 +357,7 @@ export function PalletLabelA4Modal({
                   <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
                     SỐ LƯỢNG :
                   </td>
-                  <td colSpan={3} className="px-4 py-2.5 text-center align-middle text-2xl sm:text-3xl font-black text-black h-12 sm:h-14">
+                  <td colSpan={3} className="px-4 py-3 text-center align-middle text-2xl sm:text-4xl font-black text-black h-20 sm:h-24">
                     {quantityDisplay}
                   </td>
                 </tr>

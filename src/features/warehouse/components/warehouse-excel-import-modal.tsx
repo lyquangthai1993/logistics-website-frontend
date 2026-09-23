@@ -72,16 +72,17 @@ export function WarehouseExcelImportModal({
         'Số kg',
         'Số m³',
         'Địa chỉ giao hàng (*)',
+        'Tỉnh/TP',
         'Ghi chú',
       ];
 
       // Provide clean empty rows ready for user/customer to fill in directly
       const emptyRows = [
-        [1, '', '', '', '', '', '', ''],
-        [2, '', '', '', '', '', '', ''],
-        [3, '', '', '', '', '', '', ''],
-        [4, '', '', '', '', '', '', ''],
-        [5, '', '', '', '', '', '', ''],
+        [1, '', '', '', '', '', '', '', ''],
+        [2, '', '', '', '', '', '', '', ''],
+        [3, '', '', '', '', '', '', '', ''],
+        [4, '', '', '', '', '', '', '', ''],
+        [5, '', '', '', '', '', '', '', ''],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...emptyRows]);
@@ -95,6 +96,7 @@ export function WarehouseExcelImportModal({
         { wch: 12 }, // Số kg
         { wch: 12 }, // Số m3
         { wch: 45 }, // Địa chỉ giao
+        { wch: 20 }, // Tỉnh/TP
         { wch: 35 }, // Ghi chú
       ];
 
@@ -168,6 +170,8 @@ export function WarehouseExcelImportModal({
         const deliveryModeRaw = findVal(['hình thức giao', 'chế độ', 'mode', 'delivery mode']);
         const deliveryAddress =
           findVal(['địa chỉ giao', 'nơi giao', 'đích nhận', 'delivery', 'destination']) || '';
+        const province =
+          findVal(['tỉnh/tp', 'tỉnh / tp', 'tỉnh', 'thành phố', 'province', 'city']) || '';
         const notes = findVal(['ghi chú', 'note', 'notes', 'remark']) || '';
 
         // Skip completely blank rows in Excel
@@ -178,6 +182,7 @@ export function WarehouseExcelImportModal({
           !String(totalWeightRaw).trim() &&
           !String(totalVolumeRaw).trim() &&
           !String(deliveryAddress).trim() &&
+          !String(province).trim() &&
           !String(notes).trim()
         ) {
           continue;
@@ -212,6 +217,7 @@ export function WarehouseExcelImportModal({
           deliveryMode,
           deliveryAddress: String(deliveryAddress).trim(),
           destinationHubId: null,
+          province: String(province).trim(),
           notes: String(notes).trim(),
           isValid: errors.length === 0,
           errors,
@@ -366,7 +372,7 @@ export function WarehouseExcelImportModal({
                   : 'Kéo thả file Excel vào đây hoặc click để chọn file'}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB) &bull; Các cột: Tên hàng (*), Số kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Ghi chú
+                Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB) &bull; Các cột: Tên hàng (*), Số kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Tỉnh/TP, Ghi chú
               </p>
             </div>
           ) : (
@@ -448,6 +454,7 @@ export function WarehouseExcelImportModal({
                       <th className="p-2.5 text-right w-[95px]">SỐ KG</th>
                       <th className="p-2.5 text-right w-[85px]">SỐ M³</th>
                       <th className="p-2.5 min-w-[200px]">ĐỊA CHỈ GIAO</th>
+                      <th className="p-2.5 min-w-[120px]">TỈNH/TP</th>
                       <th className="p-2.5 text-center w-[90px]">TRẠNG THÁI</th>
                     </tr>
                   </thead>
@@ -487,6 +494,11 @@ export function WarehouseExcelImportModal({
                         <td className="p-2.5 text-slate-700 dark:text-slate-300">
                           <span className="truncate block max-w-[220px]" title={r.deliveryAddress}>
                             {r.deliveryAddress || <span className="text-red-500 italic">Chưa nhập</span>}
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-slate-700 dark:text-slate-300">
+                          <span className="truncate block max-w-[130px]" title={r.province}>
+                            {r.province || <span className="text-gray-400">—</span>}
                           </span>
                         </td>
                         <td className="p-2.5 text-center">

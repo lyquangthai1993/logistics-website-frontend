@@ -5,6 +5,7 @@ import {
   useReactTable,
   getCoreRowModel,
   flexRender,
+  type Column,
   type ColumnDef,
   type ColumnPinningState,
   type CellContext,
@@ -58,6 +59,7 @@ export interface WarehouseRowItem {
   deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
   deliveryAddress: string;
   destinationHubId?: number | null;
+  province?: string;
   notes: string;
 }
 
@@ -766,6 +768,36 @@ function DeliveryAddressCell({
   );
 }
 
+function ProvinceCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, any>) {
+  const initialValue = getValue() ?? '';
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
+    setValue(nextVal);
+    table.options.meta?.updateData(row.index, column.id, nextVal);
+  };
+
+  return (
+    <Input
+      type="text"
+      value={value}
+      onChange={handleChange}
+      placeholder="VD: Hà Nội, TP.HCM..."
+      className="h-[30px] px-2 text-xs font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+}
+
 function NotesCell({
   getValue,
   row,
@@ -954,6 +986,7 @@ export function WarehouseEditableGrid({
       totalVolume: 0,
       deliveryMode: 'DIRECT_CUSTOMER',
       deliveryAddress: '',
+      province: '',
       notes: '',
     };
     onChange([...rows, newRow]);
@@ -976,6 +1009,7 @@ export function WarehouseEditableGrid({
       const duplicated: WarehouseRowItem = {
         ...target,
         orderCode: '',
+        province: target.province || '',
       };
       const updated = [...rows];
       updated.splice(index + 1, 0, duplicated);
@@ -1002,6 +1036,12 @@ export function WarehouseEditableGrid({
           pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
             ? ''
             : pastedCode;
+        const col7 = cols[7]?.trim() || '';
+        const col8 = cols[8]?.trim() || '';
+        const hasProvinceCol = cols.length >= 9;
+        const province = hasProvinceCol ? col7 : '';
+        const notes = hasProvinceCol ? col8 : col7;
+
         return {
           orderCode: cleanCode,
           pickupAddress: cols[1]?.trim() || defaultPickup,
@@ -1011,7 +1051,8 @@ export function WarehouseEditableGrid({
           totalVolume: parseFloat((cols[5] || '0').replace(/,/g, '')) || 0,
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: cols[6]?.trim() || '',
-          notes: cols[7]?.trim() || '',
+          province,
+          notes,
         };
       });
 
@@ -1039,6 +1080,12 @@ export function WarehouseEditableGrid({
               pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
                 ? ''
                 : pastedCode;
+            const col7 = cols[7]?.trim() || '';
+            const col8 = cols[8]?.trim() || '';
+            const hasProvinceCol = cols.length >= 9;
+            const province = hasProvinceCol ? col7 : '';
+            const notes = hasProvinceCol ? col8 : col7;
+
             return {
               orderCode: cleanCode,
               pickupAddress: cols[1]?.trim() || defaultPickup,
@@ -1048,7 +1095,8 @@ export function WarehouseEditableGrid({
               totalVolume: parseFloat((cols[5] || '0').replace(/,/g, '')) || 0,
               deliveryMode: 'DIRECT_CUSTOMER',
               deliveryAddress: cols[6]?.trim() || '',
-              notes: cols[7]?.trim() || '',
+              province,
+              notes,
             };
           });
           if (parsedRows.length > 0) {
@@ -1081,6 +1129,7 @@ export function WarehouseEditableGrid({
       totalVolume: order.totalVolume || 0,
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
+      province: (order as any).province || updated[lookupRowIndex].province || '',
       notes: order.notes || '',
     };
     onChange(updated);
@@ -1190,6 +1239,13 @@ export function WarehouseEditableGrid({
         cell: DeliveryAddressCell,
       },
       {
+        accessorKey: 'province',
+        id: 'province',
+        header: 'TỈNH / TP',
+        size: 140,
+        cell: ProvinceCell,
+      },
+      {
         accessorKey: 'notes',
         id: 'notes',
         header: 'GHI CHÚ',
@@ -1238,7 +1294,7 @@ export function WarehouseEditableGrid({
   });
 
   // Precise Pinning Style Generator
-  const getPinningStyles = (column: any, isHeader = false): React.CSSProperties => {
+  const getPinningStyles = (column: Column<WarehouseRowItem, unknown>, isHeader = false): React.CSSProperties => {
     const isPinned = column.getIsPinned();
     const isLastLeft = isPinned === 'left' && column.getIsLastColumn('left');
     const isFirstRight = isPinned === 'right' && column.getIsFirstColumn('right');
