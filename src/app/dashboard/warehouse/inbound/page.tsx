@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,13 +19,17 @@ import {
   IconClipboardCheck,
   IconEye,
   IconX,
+  IconChevronDown,
+  IconChevronRight,
+  IconFoldUp,
+  IconFoldDown,
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { WarehouseInboundTransferFlow } from '@/features/warehouse/components/warehouse-inbound-transfer-flow';
 import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
-import { WarehouseInboundReceiptModal, InboundReceiptData } from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
+import { WarehouseInboundReceiptModal, InboundReceiptData, InboundReceiptItem } from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
 import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
 import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-tally-modal';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
@@ -175,6 +179,173 @@ export default function WarehouseInboundPage() {
     }
   }, [activeView, fetchInboundOrders]);
 
+  // Vehicle Group Interface (Feedback 17/8 & Prompt: 1 dòng là 1 xe)
+  interface InboundVehicleGroup {
+    groupKey: string;
+    licensePlate: string;
+    driverName: string;
+    tripCode: string;
+    receiveDate?: string;
+    status: string;
+    isTransfer: boolean;
+    orders: any[];
+    totalQuantity: number;
+    totalWeight: number;
+    totalVolume: number;
+    goodsDescription: string;
+    notes?: string;
+  }
+
+  // Collapsed / Expanded Vehicle Groups State
+  const [expandedVehicleKeys, setExpandedVehicleKeys] = useState<Record<string, boolean>>({});
+
+  const toggleExpandVehicle = (key: string) => {
+    setExpandedVehicleKeys((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // Group inbound orders by vehicle / trip
+  const vehicleGroups: InboundVehicleGroup[] = useMemo(() => {
+    const map = new Map<string, InboundVehicleGroup>();
+
+    for (const o of orders) {
+      const activeTrip = o.trips?.[0];
+      let plate =
+        activeTrip?.licensePlate?.trim()?.toUpperCase() ||
+        o.vehicleLicensePlate?.trim()?.toUpperCase() ||
+        '';
+      let driver = activeTrip?.driverName?.trim() || o.driverName?.trim() || '';
+      let tripCode =
+        activeTrip?.tripCode?.trim() ||
+        (activeTrip?.id ? `TRIP-${activeTrip.id}` : '');
+
+      if (!plate && o.notes) {
+        const m = o.notes.match(/\[Xe:\s*([^-\]]+)/i);
+        if (m) plate = m[1].trim().toUpperCase();
+      }
+      if (!driver && o.notes) {
+        const m = o.notes.match(/TX:\s*([^-\]]+)/i);
+        if (m) driver = m[1].trim();
+      }
+
+      // Grouping key: prefer tripCode, then plate, then order id fallback
+      const key = tripCode || (plate ? `PLATE-${plate}` : `ORD-${o.id}`);
+
+      const isTransfer =
+        o.inboundType === 'TRANSFER' ||
+        o.orderCode?.startsWith('TRIP') ||
+        (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
+        (o.originHubEntity?.id &&
+          o.destinationHubEntity?.id &&
+          o.originHubEntity.id !== o.destinationHubEntity.id);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          groupKey: key,
+          licensePlate: plate || 'CHƯA GÁN XE',
+          driverName: driver,
+          tripCode: tripCode || '—',
+          receiveDate: activeTrip?.pickupDate || o.createdAt?.split('T')[0],
+          status: o.status,
+          isTransfer,
+          orders: [],
+          totalQuantity: 0,
+          totalWeight: 0,
+          totalVolume: 0,
+          goodsDescription: '',
+          notes: o.notes || '',
+        });
+      }
+
+      const grp = map.get(key)!;
+      grp.orders.push(o);
+      grp.totalQuantity += Number(o.inboundQuantity ?? o.totalQuantity ?? 1);
+      grp.totalWeight += Number(o.totalWeight ?? 0);
+      grp.totalVolume += Number(o.totalVolume ?? 0);
+
+      // If any order is waiting/draft, show waiting status
+      if (['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status)) {
+        grp.status = o.status;
+      }
+    }
+
+    map.forEach((grp) => {
+      const descs = Array.from(
+        new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)),
+      );
+      if (descs.length === 1) {
+        grp.goodsDescription = descs[0];
+      } else if (descs.length > 1) {
+        grp.goodsDescription = `${descs[0]} (+${descs.length - 1} loại hàng)`;
+      } else {
+        grp.goodsDescription = 'Hàng hóa tổng quan';
+      }
+    });
+
+    return Array.from(map.values());
+  }, [orders]);
+
+  const allExpanded = useMemo(() => {
+    if (vehicleGroups.length === 0) return false;
+    return vehicleGroups.every((g) => !!expandedVehicleKeys[g.groupKey]);
+  }, [vehicleGroups, expandedVehicleKeys]);
+
+  const toggleAllGroups = () => {
+    if (allExpanded) {
+      setExpandedVehicleKeys({});
+    } else {
+      const next: Record<string, boolean> = {};
+      vehicleGroups.forEach((g) => {
+        next[g.groupKey] = true;
+      });
+      setExpandedVehicleKeys(next);
+    }
+  };
+
+  const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
+    const orig =
+      grp.orders[0]?.pickupAddress?.trim() ||
+      grp.orders[0]?.originHubEntity?.name ||
+      grp.orders[0]?.originHub ||
+      user?.hub?.name;
+    const dest =
+      grp.orders[0]?.destinationHubEntity?.name ||
+      grp.orders[0]?.destinationHub ||
+      grp.orders[0]?.deliveryAddress?.trim() ||
+      '';
+
+    const items: InboundReceiptItem[] = grp.orders.map((o) => ({
+      orderCode: o.orderCode,
+      goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
+      quantity: o.inboundQuantity ?? o.totalQuantity ?? 1,
+      unit: 'Kiện',
+      deliveryAddress: o.deliveryAddress || o.destinationHub || '—',
+      notes: o.notes || '',
+    }));
+
+    setSelectedReceiptData({
+      tripCode: grp.tripCode !== '—' ? grp.tripCode : undefined,
+      orderCode: grp.orders[0]?.orderCode || grp.tripCode,
+      goodsDescription: grp.goodsDescription,
+      totalQuantity: grp.totalQuantity,
+      inboundQuantity: grp.totalQuantity,
+      totalWeight: grp.totalWeight,
+      totalVolume: grp.totalVolume,
+      originHub: orig,
+      destinationHub: dest,
+      pickupAddress: grp.orders[0]?.pickupAddress,
+      deliveryAddress: grp.orders[0]?.deliveryAddress,
+      notes: grp.notes,
+      driverName: grp.driverName,
+      licensePlate: grp.licensePlate,
+      createdAt: grp.orders[0]?.createdAt || new Date(),
+      items,
+    });
+    setIsInboundReceiptModalOpen(true);
+  };
+
   // Refresh Metrics Button Action
   const handleRefreshMetrics = async () => {
     setIsRefreshing(true);
@@ -277,55 +448,55 @@ export default function WarehouseInboundPage() {
     const token = tokenManager.getAccessToken();
 
     try {
-      for (const row of mode1Rows) {
+      const itemsPayload = mode1Rows.map((row) => {
         const rawCode = row.orderCode?.trim();
         const finalCode =
           rawCode && rawCode !== '(Tự sinh khi lưu)' && !rawCode.startsWith('(Tự sinh')
             ? rawCode.toUpperCase()
             : undefined;
 
-        const extraNotes: string[] = [];
-        if (licensePlate.trim()) extraNotes.push(`Xe: ${licensePlate.trim()}`);
-        if (driverName.trim()) extraNotes.push(`TX: ${driverName.trim()}`);
-        if (receiveDate) extraNotes.push(`Ngày tiếp nhận: ${receiveDate}`);
+        return {
+          orderCode: finalCode,
+          goodsDescription: row.goodsDescription.trim(),
+          totalQuantity: Number(row.totalQuantity) || 1,
+          totalWeight: Number(row.totalWeight) || 0,
+          totalVolume: Number(row.totalVolume) || 0,
+          pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
+          deliveryAddress: row.deliveryAddress?.trim() || '',
+          province: row.province?.trim() || undefined,
+          deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
+          destinationHubId: row.destinationHubId || null,
+          notes: row.notes?.trim() || undefined,
+          initialStatus: 'INBOUND',
+        };
+      });
 
-        const rowNote = row.notes?.trim() || '';
-        const combinedNotes =
-          extraNotes.length > 0
-            ? rowNote
-              ? `[${extraNotes.join(' - ')}] ${rowNote}`
-              : `[${extraNotes.join(' - ')}]`
-            : rowNote || null;
+      const res = await fetch('/api/v1/warehouse/inbound/batch-create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          licensePlate: licensePlate.trim().toUpperCase(),
+          driverName: driverName.trim() || undefined,
+          receiveDate: receiveDate || undefined,
+          items: itemsPayload,
+        }),
+      });
 
-        const res = await fetch('/api/v1/warehouse/inbound/quick-create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            orderCode: finalCode,
-            goodsDescription: row.goodsDescription.trim(),
-            totalQuantity: Number(row.totalQuantity) || 1,
-            totalWeight: Number(row.totalWeight) || 0,
-            totalVolume: Number(row.totalVolume) || 0,
-            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
-            deliveryAddress: row.deliveryAddress?.trim() || '',
-            province: row.province?.trim() || undefined,
-            deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
-            destinationHubId: row.destinationHubId || null,
-            notes: combinedNotes,
-            initialStatus: 'INBOUND', // LƯU KHO
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: res.statusText }));
-          throw { response: { data: errData, status: res.status } };
-        }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
       }
 
-      toast.success(`Đã tiếp nhận thành công ${mode1Rows.length} lô hàng vào kho!`);
+      const resJson = await res.json().catch(() => null);
+      const batchResult = resJson?.data || resJson;
+
+      toast.success(
+        `Đã tiếp nhận thành công xe ${licensePlate.trim().toUpperCase()} (${mode1Rows.length} dòng hàng) - Mã chuyến: ${batchResult?.tripCode || 'TRIP'}!`,
+      );
+
       setMode1Rows([
         {
           orderCode: '',
@@ -358,57 +529,55 @@ export default function WarehouseInboundPage() {
       toast.error('Vui lòng có ít nhất 1 dòng hàng để lưu nháp');
       return;
     }
+    if (!licensePlate.trim()) {
+      toast.error('Vui lòng nhập Biển số xe để lưu nháp');
+      return;
+    }
 
     setIsSavingDraft(true);
     const token = tokenManager.getAccessToken();
 
     try {
-      for (const row of mode1Rows) {
+      const itemsPayload = mode1Rows.map((row) => {
         const rawCode = row.orderCode?.trim();
         const finalCode =
           rawCode && rawCode !== '(Tự sinh khi lưu)' && !rawCode.startsWith('(Tự sinh')
             ? rawCode.toUpperCase()
             : undefined;
 
-        const extraNotes: string[] = [];
-        if (licensePlate.trim()) extraNotes.push(`Xe: ${licensePlate.trim()}`);
-        if (driverName.trim()) extraNotes.push(`TX: ${driverName.trim()}`);
-        if (receiveDate) extraNotes.push(`Ngày tiếp nhận: ${receiveDate}`);
+        return {
+          orderCode: finalCode,
+          goodsDescription: row.goodsDescription?.trim() || 'Hàng lưu kho (Nháp)',
+          totalQuantity: Number(row.totalQuantity) > 0 ? Number(row.totalQuantity) : 1,
+          totalWeight: Number(row.totalWeight) >= 0 ? Number(row.totalWeight) : 0,
+          totalVolume: Number(row.totalVolume) >= 0 ? Number(row.totalVolume) : 0,
+          pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
+          deliveryAddress: row.deliveryAddress?.trim() || '',
+          province: row.province?.trim() || undefined,
+          deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
+          destinationHubId: row.destinationHubId || null,
+          notes: row.notes?.trim() || undefined,
+          initialStatus: 'DRAFT',
+        };
+      });
 
-        const rowNote = row.notes?.trim() || '';
-        const combinedNotes =
-          extraNotes.length > 0
-            ? rowNote
-              ? `[${extraNotes.join(' - ')}] ${rowNote}`
-              : `[${extraNotes.join(' - ')}]`
-            : rowNote || null;
+      const res = await fetch('/api/v1/warehouse/inbound/batch-create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          licensePlate: licensePlate.trim().toUpperCase(),
+          driverName: driverName.trim() || undefined,
+          receiveDate: receiveDate || undefined,
+          items: itemsPayload,
+        }),
+      });
 
-        const res = await fetch('/api/v1/warehouse/inbound/quick-create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            orderCode: finalCode,
-            goodsDescription: row.goodsDescription?.trim() || 'Hàng lưu kho (Nháp)',
-            totalQuantity: Number(row.totalQuantity) > 0 ? Number(row.totalQuantity) : 1,
-            totalWeight: Number(row.totalWeight) >= 0 ? Number(row.totalWeight) : 0,
-            totalVolume: Number(row.totalVolume) >= 0 ? Number(row.totalVolume) : 0,
-            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
-            deliveryAddress: row.deliveryAddress?.trim() || '',
-            province: row.province?.trim() || undefined,
-            deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
-            destinationHubId: row.destinationHubId || null,
-            notes: combinedNotes,
-            initialStatus: 'DRAFT', // LƯU NHÁP
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: res.statusText }));
-          throw { response: { data: errData, status: res.status } };
-        }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
       }
 
       toast.success(`Đã lưu nháp thành công ${mode1Rows.length} đơn hàng nhập kho!`);
@@ -533,6 +702,27 @@ export default function WarehouseInboundPage() {
                       />
                     </div>
 
+                    {/* Expand / Collapse All Vehicles */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleAllGroups}
+                      className="h-9 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50"
+                      title={allExpanded ? 'Thu gọn tất cả xe' : 'Mở rộng tất cả xe'}
+                    >
+                      {allExpanded ? (
+                        <>
+                          <IconFoldUp className="mr-1.5 h-4 w-4 text-slate-600" />
+                          <span>Thu gọn tất cả</span>
+                        </>
+                      ) : (
+                        <>
+                          <IconFoldDown className="mr-1.5 h-4 w-4 text-slate-600" />
+                          <span>Mở rộng tất cả</span>
+                        </>
+                      )}
+                    </Button>
+
                     {/* Refresh Metrics Button */}
                     <Button
                       variant="outline"
@@ -604,14 +794,14 @@ export default function WarehouseInboundPage() {
                             className="rounded border-gray-300 text-blue-600 cursor-pointer"
                           />
                         </th>
-                        <th className="p-2.5 w-[160px]">MÃ VẬN ĐƠN</th>
-                        <th className="p-2.5 min-w-[160px]">TÊN HÀNG HÓA</th>
-                        <th className="p-2.5 w-[150px]">CHUYẾN XE / TRIP</th>
-                        <th className="p-2.5 text-right w-[150px]">SỐ KIỆN / TẢI TRỌNG</th>
-                        <th className="p-2.5 w-[120px] text-center">TRẠNG THÁI</th>
-                        <th className="p-2.5 text-center w-[130px]">LOẠI NHẬP KHO</th>
-                        <th className="p-2.5 min-w-[140px]">GHI CHÚ</th>
-                        <th className="p-2.5 text-center w-[170px]">THAO TÁC</th>
+                        <th className="p-2.5 w-[160px]">CHUYẾN XE / TRIP</th>
+                        <th className="p-2.5 w-[160px]">XE & TÀI XẾ</th>
+                        <th className="p-2.5 min-w-[170px]">ĐƠN HÀNG TRÊN XE</th>
+                        <th className="p-2.5 min-w-[150px]">HÀNG HÓA TỔNG HỢP</th>
+                        <th className="p-2.5 text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
+                        <th className="p-2.5 w-[110px] text-center">TRẠNG THÁI</th>
+                        <th className="p-2.5 text-center w-[110px]">LOẠI TIẾP NHẬN</th>
+                        <th className="p-2.5 text-center w-[190px]">THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -622,256 +812,321 @@ export default function WarehouseInboundPage() {
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
-                      ) : orders.length === 0 ? (
+                      ) : vehicleGroups.length === 0 ? (
                         <tr>
                           <td colSpan={9} className="p-8 text-center text-gray-400">
-                            Không có đơn hàng nhập kho phù hợp bộ lọc
+                            Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
                       ) : (
-                        orders.map((o) => {
-                          const isWaiting =
-                            o.status === 'DRAFT' ||
-                            o.status === 'PENDING' ||
-                            o.status === 'PENDING_INBOUND' ||
-                            o.status === 'WAITING';
+                        vehicleGroups.map((grp) => {
+                          const isExpanded = !!expandedVehicleKeys[grp.groupKey];
+                          const groupOrderIds = grp.orders.map((o) => Number(o.id));
+                          const isGroupSelected =
+                            groupOrderIds.length > 0 &&
+                            groupOrderIds.every((id) => selectedOrderIds.includes(id));
+                          const hasWaiting = grp.orders.some((o) =>
+                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status),
+                          );
 
                           return (
-                            <tr
-                              key={o.id}
-                              className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors"
-                            >
-                              <td className="p-2.5 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedOrderIds.includes(Number(o.id))}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedOrderIds((prev) => [...prev, Number(o.id)]);
-                                    } else {
-                                      setSelectedOrderIds((prev) =>
-                                        prev.filter((id) => id !== Number(o.id))
-                                      );
-                                    }
-                                  }}
-                                  className="rounded border-gray-300 text-blue-600 cursor-pointer"
-                                />
-                              </td>
-                              <td className="py-1.5 px-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedWaybillForDetail(o);
-                                    setIsDetailModalOpen(true);
-                                  }}
-                                  className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-xs"
-                                  title="Xem chi tiết mã vận đơn"
-                                >
-                                  {o.orderCode}
-                                </button>
-                              </td>
-                              <td className="py-1.5 px-2">
-                                <div className="text-slate-900 dark:text-white font-semibold text-xs">
-                                  {o.goodsDescription || 'Hàng hóa tổng quan'}
-                                </div>
-                              </td>
-                              <td className="py-1.5 px-2">
-                                {(() => {
-                                  const activeTrip = o.trips?.[0];
-                                  const tripCode =
-                                    activeTrip?.tripCode ||
-                                    (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
-                                  const plate = activeTrip?.licensePlate || o.vehicleLicensePlate;
-                                  const driver = activeTrip?.driverName || o.driverName;
-
-                                  if (!tripCode && !plate) {
-                                    return <span className="text-gray-400 italic text-[11px]">—</span>;
-                                  }
-
-                                  return (
-                                    <div className="text-xs space-y-0.5">
-                                      {tripCode && (
-                                        <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] flex items-center gap-1">
-                                          <span>{tripCode}</span>
-                                          {o.trips && o.trips.length > 1 && (
-                                            <Badge
-                                              variant="outline"
-                                              className="text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50"
-                                            >
-                                              +{o.trips.length - 1}
-                                            </Badge>
-                                          )}
-                                        </div>
+                            <React.Fragment key={grp.groupKey}>
+                              <tr className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                                <td className="p-2.5 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isGroupSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedOrderIds((prev) =>
+                                          Array.from(new Set([...prev, ...groupOrderIds])),
+                                        );
+                                      } else {
+                                        setSelectedOrderIds((prev) =>
+                                          prev.filter((id) => !groupOrderIds.includes(id)),
+                                        );
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                                  />
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleExpandVehicle(grp.groupKey)}
+                                      className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer"
+                                      title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem chi tiết các đơn trên xe'}
+                                    >
+                                      {isExpanded ? (
+                                        <IconChevronDown className="h-4 w-4 text-blue-600 font-bold" />
+                                      ) : (
+                                        <IconChevronRight className="h-4 w-4 text-slate-400" />
                                       )}
-                                      {plate && (
-                                        <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
-                                          <IconTruck className="h-3 w-3 text-slate-400 shrink-0" />
-                                          <span>{plate}</span>
-                                        </div>
-                                      )}
-                                      {driver && (
-                                        <div
-                                          className="text-[10px] text-gray-400 truncate max-w-[130px]"
-                                          title={driver}
+                                    </button>
+                                    <div>
+                                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs">
+                                        {grp.tripCode}
+                                      </span>
+                                      {grp.orders.length > 1 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="ml-1.5 text-[10px] px-1.5 py-0 h-4 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold"
                                         >
-                                          {driver}
-                                        </div>
+                                          {grp.orders.length} đơn
+                                        </Badge>
                                       )}
                                     </div>
-                                  );
-                                })()}
-                              </td>
-                              <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
-                                <div>{o.inboundQuantity ?? o.totalQuantity ?? 1} kiện</div>
-                                <div className="text-gray-400 text-[10px]">
-                                  {o.totalWeight?.toLocaleString('vi-VN')} kg &bull; {o.totalVolume} m³
-                                </div>
-                              </td>
-                              <td className="py-1.5 px-2 text-center">
-                                {renderWarehouseOrderStatusBadge(o.status)}
-                              </td>
-                              <td className="py-1.5 px-2 text-center">
-                                {(() => {
-                                  const isTransfer =
-                                    o.inboundType === 'TRANSFER' ||
-                                    o.orderCode?.startsWith('TRIP') ||
-                                    (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
-                                    (o.originHubEntity?.id &&
-                                      o.destinationHubEntity?.id &&
-                                      o.originHubEntity.id !== o.destinationHubEntity.id) ||
-                                    (o.trips && o.trips.length > 0);
-
-                                  return (
-                                    <Badge
-                                      variant="outline"
-                                      className={
-                                        isTransfer
-                                          ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
-                                          : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
-                                      }
-                                    >
-                                      {isTransfer ? 'Luân chuyển' : 'Khách gửi'}
-                                    </Badge>
-                                  );
-                                })()}
-                              </td>
-                              <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300 text-xs">
-                                {o.notes ? (
-                                  <div className="truncate max-w-[200px]" title={o.notes}>
-                                    {o.notes}
                                   </div>
-                                ) : (
-                                  <span className="text-gray-400">—</span>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-2 text-center">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  {isWaiting ? (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedWaybillForTally(o);
-                                        setIsTallyModalOpen(true);
-                                      }}
-                                      className="h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2.5 shadow-xs"
-                                      title="Kiểm đếm & Xác nhận nhập kho"
-                                    >
-                                      <IconClipboardCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Kiểm đếm
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedWaybillForDetail(o);
-                                        setIsDetailModalOpen(true);
-                                      }}
-                                      className="h-7 text-[11px] text-slate-700 dark:text-slate-300 hover:text-blue-700 font-semibold px-2"
-                                      title="Xem chi tiết vận đơn"
-                                    >
-                                      <IconEye className="h-3.5 w-3.5 mr-1" /> Chi tiết
-                                    </Button>
-                                  )}
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  <div className="text-xs space-y-0.5">
+                                    <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1">
+                                      <IconTruck className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                                      <span>{grp.licensePlate}</span>
+                                    </div>
+                                    {grp.driverName && (
+                                      <div
+                                        className="text-[11px] text-gray-500 truncate max-w-[140px]"
+                                        title={grp.driverName}
+                                      >
+                                        {grp.driverName}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  <div className="flex flex-wrap items-center gap-1 max-w-[260px]">
+                                    {grp.orders.slice(0, 3).map((o) => (
+                                      <button
+                                        key={o.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedWaybillForDetail(o);
+                                          setIsDetailModalOpen(true);
+                                        }}
+                                        className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
+                                        title={`Xem chi tiết đơn ${o.orderCode}`}
+                                      >
+                                        {o.orderCode}
+                                      </button>
+                                    ))}
+                                    {grp.orders.length > 3 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleExpandVehicle(grp.groupKey)}
+                                        className="text-[11px] font-semibold text-blue-600 hover:underline px-1 py-0.5"
+                                      >
+                                        +{grp.orders.length - 3} đơn
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  <div
+                                    className="text-slate-900 dark:text-white font-medium text-xs truncate max-w-[160px]"
+                                    title={grp.goodsDescription}
+                                  >
+                                    {grp.goodsDescription}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                  <div>{grp.totalQuantity} kiện</div>
+                                  <div className="text-gray-400 text-[10px]">
+                                    {grp.totalWeight.toLocaleString('vi-VN')} kg &bull; {grp.totalVolume} m³
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-center">
+                                  {renderWarehouseOrderStatusBadge(grp.status)}
+                                </td>
+                                <td className="py-2 px-2.5 text-center">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      grp.isTransfer
+                                        ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
+                                        : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
+                                    }
+                                  >
+                                    {grp.isTransfer ? 'Luân chuyển' : 'Khách gửi'}
+                                  </Badge>
+                                </td>
+                                <td className="py-2 px-2.5 text-center">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                    {hasWaiting ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          const firstWaiting = grp.orders.find((o) =>
+                                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status),
+                                          );
+                                          if (firstWaiting) {
+                                            setSelectedWaybillForTally(firstWaiting);
+                                            setIsTallyModalOpen(true);
+                                          }
+                                        }}
+                                        className="h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs"
+                                        title="Kiểm đếm nhận hàng"
+                                      >
+                                        <IconClipboardCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Kiểm đếm
+                                      </Button>
+                                    ) : null}
 
-                                  {['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(o.status) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => {
-                                        const orig =
-                                          o.pickupAddress?.trim() ||
-                                          o.originHubEntity?.name ||
-                                          o.originHub ||
-                                          user?.hub?.name;
-                                        const dest =
-                                          o.destinationHubEntity?.name ||
-                                          o.destinationHub ||
-                                          o.deliveryAddress?.trim() ||
-                                          '';
-                                        setSelectedReceiptData({
-                                          orderCode: o.orderCode,
-                                          goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
-                                          totalQuantity: o.totalQuantity || 1,
-                                          inboundQuantity: o.inboundQuantity || o.totalQuantity || 1,
-                                          totalWeight: o.totalWeight || 0,
-                                          totalVolume: o.totalVolume || 0,
-                                          originHub: orig,
-                                          destinationHub: dest,
-                                          pickupAddress: o.pickupAddress,
-                                          deliveryAddress: o.deliveryAddress,
-                                          notes: o.notes,
-                                          driverName: o.trips?.[0]?.driverName || '',
-                                          licensePlate: o.trips?.[0]?.licensePlate || '',
-                                          createdAt: o.createdAt,
-                                        });
-                                        setIsInboundReceiptModalOpen(true);
-                                      }}
+                                      onClick={() => handleOpenReceiptForVehicle(grp)}
                                       className="h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold"
-                                      title="In phiếu nhập"
+                                      title="In phiếu nhập xe (chứa tất cả đơn hàng của xe)"
                                     >
                                       <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu nhập
                                     </Button>
-                                  )}
 
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      const isTrans =
-                                        o.inboundType === 'TRANSFER' ||
-                                        o.orderCode?.startsWith('TRIP') ||
-                                        (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
-                                        (o.trips && o.trips.length > 0);
-                                      const orig =
-                                        o.pickupAddress?.trim() ||
-                                        (isTrans ? o.originHub : null) ||
-                                        o.originHubEntity?.name ||
-                                        o.originHub ||
-                                        (o.route?.includes('→') ? o.route.split('→')[0].trim() : '') ||
-                                        user?.hub?.name;
-                                      const dest =
-                                        o.destinationHubEntity?.name ||
-                                        o.destinationHub ||
-                                        o.deliveryAddress?.trim() ||
-                                        (o.route?.includes('→') ? o.route.split('→')[1].trim() : '');
-                                      setSelectedLabelData({
-                                        orderCode: o.orderCode,
-                                        goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
-                                        totalQuantity: o.totalQuantity || 1,
-                                        originHub: orig,
-                                        destinationHub: dest,
-                                        createdAt: new Date(),
-                                      });
-                                      setIsLabelModalOpen(true);
-                                    }}
-                                    className="h-7 text-[11px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 px-2 font-semibold"
-                                    title="In tem nhận diện A4"
-                                  >
-                                    <IconPrinter className="h-3.5 w-3.5 mr-1" /> In tem
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleExpandVehicle(grp.groupKey)}
+                                      className="h-7 text-[11px] text-slate-600 hover:text-blue-700 px-1.5"
+                                      title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem các đơn'}
+                                    >
+                                      {isExpanded ? 'Thu gọn' : 'Xem đơn'}
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* Nested Sub-row with all orders of this vehicle */}
+                              {isExpanded && (
+                                <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
+                                  <td colSpan={9} className="p-3 pl-10 pr-4">
+                                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 shadow-xs space-y-2">
+                                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                                        <span className="flex items-center gap-1.5">
+                                          <IconTruck className="h-3.5 w-3.5 text-blue-600" />
+                                          <span>Chi tiết các đơn hàng thuộc xe {grp.licensePlate} ({grp.tripCode})</span>
+                                        </span>
+                                        <span>Tổng cộng: {grp.orders.length} đơn &bull; {grp.totalQuantity} kiện</span>
+                                      </div>
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="text-slate-400 text-[11px] border-b border-slate-100 dark:border-slate-700 text-left">
+                                            <th className="py-1 px-2 font-medium w-[140px]">MÃ VẬN ĐƠN</th>
+                                            <th className="py-1 px-2 font-medium min-w-[160px]">HÀNG HÓA</th>
+                                            <th className="py-1 px-2 font-medium text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
+                                            <th className="py-1 px-2 font-medium text-center w-[110px]">TRẠNG THÁI</th>
+                                            <th className="py-1 px-2 font-medium min-w-[140px]">GHI CHÚ</th>
+                                            <th className="py-1 px-2 font-medium text-center w-[160px]">THAO TÁC</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                          {grp.orders.map((subOrder) => {
+                                            const subWaiting = ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(subOrder.status);
+
+                                            return (
+                                              <tr key={subOrder.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                                <td className="py-1.5 px-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setSelectedWaybillForDetail(subOrder);
+                                                      setIsDetailModalOpen(true);
+                                                    }}
+                                                    className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-xs"
+                                                    title="Xem chi tiết mã vận đơn"
+                                                  >
+                                                    {subOrder.orderCode}
+                                                  </button>
+                                                </td>
+                                                <td className="py-1.5 px-2 font-medium text-slate-800 dark:text-slate-200">
+                                                  {subOrder.goodsDescription || 'Hàng hóa nhập kho'}
+                                                </td>
+                                                <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                                  <div>{subOrder.inboundQuantity ?? subOrder.totalQuantity ?? 1} kiện</div>
+                                                  <div className="text-gray-400 text-[10px]">
+                                                    {subOrder.totalWeight?.toLocaleString('vi-VN')} kg &bull; {subOrder.totalVolume} m³
+                                                  </div>
+                                                </td>
+                                                <td className="py-1.5 px-2 text-center">
+                                                  {renderWarehouseOrderStatusBadge(subOrder.status)}
+                                                </td>
+                                                <td className="py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]" title={subOrder.notes}>
+                                                  {subOrder.notes || '—'}
+                                                </td>
+                                                <td className="py-1.5 px-2 text-center">
+                                                  <div className="flex items-center justify-center gap-1">
+                                                    {subWaiting ? (
+                                                      <Button
+                                                        size="sm"
+                                                        onClick={() => {
+                                                          setSelectedWaybillForTally(subOrder);
+                                                          setIsTallyModalOpen(true);
+                                                        }}
+                                                        className="h-6 text-[10px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs"
+                                                      >
+                                                        <IconClipboardCheck className="h-3 w-3 mr-1 text-emerald-400" /> Kiểm đếm
+                                                      </Button>
+                                                    ) : (
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                          setSelectedWaybillForDetail(subOrder);
+                                                          setIsDetailModalOpen(true);
+                                                        }}
+                                                        className="h-6 text-[10px] px-1.5 text-slate-600 hover:text-blue-700 font-semibold"
+                                                      >
+                                                        <IconEye className="h-3 w-3 mr-1" /> Chi tiết
+                                                      </Button>
+                                                    )}
+
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      onClick={() => {
+                                                        const isTrans =
+                                                          subOrder.inboundType === 'TRANSFER' ||
+                                                          subOrder.orderCode?.startsWith('TRIP') ||
+                                                          (subOrder.originHub && subOrder.destinationHub && subOrder.originHub !== subOrder.destinationHub) ||
+                                                          (subOrder.trips && subOrder.trips.length > 0);
+                                                        const orig =
+                                                          subOrder.pickupAddress?.trim() ||
+                                                          (isTrans ? subOrder.originHub : null) ||
+                                                          subOrder.originHubEntity?.name ||
+                                                          subOrder.originHub ||
+                                                          (subOrder.route?.includes('→') ? subOrder.route.split('→')[0].trim() : '') ||
+                                                          user?.hub?.name;
+                                                        const dest =
+                                                          subOrder.destinationHubEntity?.name ||
+                                                          subOrder.destinationHub ||
+                                                          subOrder.deliveryAddress?.trim() ||
+                                                          (subOrder.route?.includes('→') ? subOrder.route.split('→')[1].trim() : '');
+                                                        setSelectedLabelData({
+                                                          orderCode: subOrder.orderCode,
+                                                          goodsDescription: subOrder.goodsDescription || 'Hàng hóa nhập kho',
+                                                          totalQuantity: subOrder.totalQuantity || 1,
+                                                          originHub: orig,
+                                                          destinationHub: dest,
+                                                          createdAt: new Date(),
+                                                        });
+                                                        setIsLabelModalOpen(true);
+                                                      }}
+                                                      className="h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 px-1.5 font-semibold"
+                                                      title="In tem nhận diện A4"
+                                                    >
+                                                      <IconPrinter className="h-3 w-3 mr-1" /> In tem
+                                                    </Button>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })
                       )}

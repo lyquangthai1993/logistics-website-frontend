@@ -13,10 +13,21 @@ import { IconPrinter, IconX, IconBuildingWarehouse } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { SPIDER_LOGO_BASE64, SPIDER_LOGO_SRC } from '@/features/warehouse/constants/receipt-logo';
 
-export interface InboundReceiptData {
+export interface InboundReceiptItem {
   orderCode: string;
   goodsDescription: string;
-  totalQuantity: number;
+  quantity: number;
+  unit?: string;
+  deliveryAddress?: string;
+  accompanyingDocs?: string;
+  notes?: string;
+}
+
+export interface InboundReceiptData {
+  orderCode: string;
+  tripCode?: string;
+  goodsDescription?: string;
+  totalQuantity?: number;
   inboundQuantity?: number;
   unit?: string;
   totalWeight?: number;
@@ -30,6 +41,7 @@ export interface InboundReceiptData {
   createdAt?: string | Date;
   notes?: string;
   accompanyingDocs?: string;
+  items?: InboundReceiptItem[];
 }
 
 interface WarehouseInboundReceiptModalProps {
@@ -51,10 +63,26 @@ export function WarehouseInboundReceiptModal({
   const formattedDate = data.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
-  const qty = data.inboundQuantity ?? data.totalQuantity ?? 1;
-  const unit = data.unit || 'Kiện';
-  const accompanyingDocs = data.accompanyingDocs || '01 BỘ CT';
-  const deliveryAddress = data.deliveryAddress || data.destinationHub || '—';
+  const receiptItems: InboundReceiptItem[] =
+    data.items && data.items.length > 0
+      ? data.items
+      : [
+          {
+            orderCode: data.orderCode,
+            goodsDescription: data.goodsDescription || 'Hàng hóa nhập kho',
+            quantity: data.inboundQuantity ?? data.totalQuantity ?? 1,
+            unit: data.unit || 'Kiện',
+            deliveryAddress: data.deliveryAddress || data.destinationHub || '—',
+            accompanyingDocs: data.accompanyingDocs || '01 BỘ CT',
+            notes: data.notes || '',
+          },
+        ];
+
+  const totalReceiptQty = receiptItems.reduce(
+    (sum, item) => sum + (Number(item.quantity) || 1),
+    0,
+  );
+  const displayDocCode = data.tripCode || data.orderCode;
 
   const handlePrint = () => {
     const printFrame = document.createElement('iframe');
@@ -77,7 +105,7 @@ export function WarehouseInboundReceiptModal({
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Phiếu Nhập Kho - ${data.orderCode}</title>
+          <title>Phiếu Nhập Kho - ${displayDocCode}</title>
           <style>
             @page {
               size: A4 portrait;
@@ -145,7 +173,7 @@ export function WarehouseInboundReceiptModal({
               </td>
               <td style="width: 65%; text-align: center; vertical-align: middle; padding-right: 15%;">
                 <div class="doc-title">PHIẾU NHẬP KHO</div>
-                <div class="doc-code">${data.orderCode}</div>
+                <div class="doc-code">${displayDocCode}</div>
               </td>
             </tr>
           </table>
@@ -183,19 +211,25 @@ export function WarehouseInboundReceiptModal({
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td class="text-center">1</td>
-                <td class="text-center font-bold">${data.orderCode}</td>
-                <td><strong>${data.goodsDescription || 'Hàng hóa nhập kho'}</strong></td>
-                <td class="text-center font-bold">${qty.toLocaleString('vi-VN')}</td>
-                <td class="text-center">${unit}</td>
-                <td>${deliveryAddress}</td>
-                <td class="text-center">${accompanyingDocs}</td>
-                <td>${data.notes || ''}</td>
-              </tr>
+              ${receiptItems
+                .map(
+                  (it, idx) => `
+                <tr>
+                  <td class="text-center">${idx + 1}</td>
+                  <td class="text-center font-bold">${it.orderCode}</td>
+                  <td><strong>${it.goodsDescription || 'Hàng hóa nhập kho'}</strong></td>
+                  <td class="text-center font-bold">${(it.quantity || 1).toLocaleString('vi-VN')}</td>
+                  <td class="text-center">${it.unit || 'Kiện'}</td>
+                  <td>${it.deliveryAddress || '—'}</td>
+                  <td class="text-center">${it.accompanyingDocs || '01 BỘ CT'}</td>
+                  <td>${it.notes || ''}</td>
+                </tr>
+              `,
+                )
+                .join('')}
               <tr>
                 <td colspan="3" class="text-center font-bold"><strong>Tổng cộng</strong></td>
-                <td class="text-center font-bold"><strong>${qty.toLocaleString('vi-VN')}</strong></td>
+                <td class="text-center font-bold"><strong>${totalReceiptQty.toLocaleString('vi-VN')}</strong></td>
                 <td></td>
                 <td></td>
                 <td></td>
@@ -252,7 +286,7 @@ export function WarehouseInboundReceiptModal({
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white'>
             <IconBuildingWarehouse className='w-5 h-5 text-blue-600' />
-            <span>Phiếu Nhập Kho · Mã {data.orderCode}</span>
+            <span>Phiếu Nhập Kho · Mã {displayDocCode}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -272,7 +306,7 @@ export function WarehouseInboundReceiptModal({
                 PHIẾU NHẬP KHO
               </div>
               <div className='font-mono font-bold text-slate-600 dark:text-slate-300 text-xs mt-0.5'>
-                {data.orderCode}
+                {displayDocCode}
               </div>
             </div>
           </div>
@@ -327,30 +361,36 @@ export function WarehouseInboundReceiptModal({
                 </tr>
               </thead>
               <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
-                <tr>
-                  <td className='p-2 text-center font-medium'>1</td>
-                  <td className='p-2 font-mono font-bold text-blue-700 dark:text-blue-400'>
-                    {data.orderCode}
-                  </td>
-                  <td className='p-2 font-semibold text-slate-800 dark:text-slate-200'>
-                    {data.goodsDescription || 'Hàng hóa nhập kho'}
-                  </td>
-                  <td className='p-2 text-center font-bold text-slate-900 dark:text-white'>
-                    {qty.toLocaleString('vi-VN')}
-                  </td>
-                  <td className='p-2 text-center text-slate-600 dark:text-slate-400'>{unit}</td>
-                  <td className='p-2 text-slate-600 dark:text-slate-400'>{deliveryAddress}</td>
-                  <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
-                    {accompanyingDocs}
-                  </td>
-                  <td className='p-2 text-slate-500'>{data.notes || '—'}</td>
-                </tr>
+                {receiptItems.map((item, index) => (
+                  <tr key={`${item.orderCode}-${index}`}>
+                    <td className='p-2 text-center font-medium'>{index + 1}</td>
+                    <td className='p-2 font-mono font-bold text-blue-700 dark:text-blue-400'>
+                      {item.orderCode}
+                    </td>
+                    <td className='p-2 font-semibold text-slate-800 dark:text-slate-200'>
+                      {item.goodsDescription || 'Hàng hóa nhập kho'}
+                    </td>
+                    <td className='p-2 text-center font-bold text-slate-900 dark:text-white'>
+                      {(item.quantity || 1).toLocaleString('vi-VN')}
+                    </td>
+                    <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                      {item.unit || 'Kiện'}
+                    </td>
+                    <td className='p-2 text-slate-600 dark:text-slate-400'>
+                      {item.deliveryAddress || '—'}
+                    </td>
+                    <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                      {item.accompanyingDocs || '01 BỘ CT'}
+                    </td>
+                    <td className='p-2 text-slate-500'>{item.notes || '—'}</td>
+                  </tr>
+                ))}
                 <tr className='bg-slate-50 dark:bg-slate-800/40 font-bold'>
                   <td colSpan={3} className='p-2 text-center text-slate-800 dark:text-slate-200'>
                     Tổng cộng
                   </td>
                   <td className='p-2 text-center text-slate-900 dark:text-white'>
-                    {qty.toLocaleString('vi-VN')}
+                    {totalReceiptQty.toLocaleString('vi-VN')}
                   </td>
                   <td colSpan={4}></td>
                 </tr>
