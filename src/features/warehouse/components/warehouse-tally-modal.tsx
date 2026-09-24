@@ -10,16 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   IconBuildingWarehouse,
-  IconTruck,
   IconPrinter,
   IconCircleCheck,
   IconCamera,
-  IconPhoto,
   IconLoader2,
   IconFileDescription,
-  IconRefresh,
-  IconCheck,
-  IconX,
 } from '@tabler/icons-react';
 import { tokenManager } from '@/lib/token-manager';
 import { toast } from 'sonner';
@@ -110,7 +105,7 @@ export function WarehouseTallyModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-[#F4F7FB] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+      <DialogContent className="sm:max-w-5xl max-w-[96vw] w-full p-0 overflow-hidden bg-[#F4F7FB] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl">
         {/* Frame SkFD5 Header (Receiving Header) */}
         <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-5 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -143,26 +138,26 @@ export function WarehouseTallyModal({
               </div>
 
               {/* Table Card (od_table_card_container) */}
-              <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="border rounded-lg overflow-x-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
+                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800 whitespace-nowrap">
                     <tr>
                       <th className="p-2.5 w-[45px] text-center">STT</th>
-                      <th className="p-2.5 w-[180px]">MÃ ĐƠN HÀNG *</th>
-                      <th className="p-2.5">TÊN HÀNG *</th>
-                      <th className="p-2.5 text-center w-[90px]">SỐ KIỆN *</th>
-                      <th className="p-2.5 text-right w-[95px]">SỐ KG *</th>
-                      <th className="p-2.5 text-right w-[85px]">SỐ M³ *</th>
-                      <th className="p-2.5 text-center w-[75px]">TEM</th>
+                      <th className="p-2.5 min-w-[160px]">MÃ ĐƠN HÀNG *</th>
+                      <th className="p-2.5 min-w-[180px]">TÊN HÀNG *</th>
+                      <th className="p-2.5 text-center min-w-[90px]">SỐ KIỆN *</th>
+                      <th className="p-2.5 text-right min-w-[95px]">SỐ KG *</th>
+                      <th className="p-2.5 text-right min-w-[85px]">SỐ M³ *</th>
+                      <th className="p-2.5 text-center min-w-[75px]">TEM</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                    <tr>
+                    <tr className="whitespace-nowrap">
                       <td className="p-2.5 text-center font-mono font-bold text-slate-500">01</td>
                       <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
                         {waybill.orderCode}
                       </td>
-                      <td className="p-2.5 font-semibold text-slate-900 dark:text-white">
+                      <td className="p-2.5 font-semibold text-slate-900 dark:text-white max-w-[220px] truncate" title={waybill.goodsDescription || 'Hàng hóa tiếp nhận'}>
                         {waybill.goodsDescription || 'Hàng hóa tiếp nhận'}
                       </td>
                       <td className="p-2.5 text-center">
@@ -209,7 +204,7 @@ export function WarehouseTallyModal({
                       </td>
                     </tr>
                   </tbody>
-                  <tfoot className="bg-slate-50 dark:bg-slate-800/80 font-bold border-t border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-xs">
+                  <tfoot className="bg-slate-50 dark:bg-slate-800/80 font-bold border-t border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-xs whitespace-nowrap">
                     <tr>
                       <td colSpan={3} className="p-2.5 text-left">
                         Tổng cộng: 1 dòng hàng tiếp nhận
@@ -258,6 +253,8 @@ export function WarehouseTallyModal({
                     key={idx}
                     className="relative aspect-video rounded-md overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 group"
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {/* oxlint-disable-next-line next/no-img-element */}
                     <img
                       src={url}
                       alt={`Kiện hàng ${idx + 1}`}
