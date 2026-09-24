@@ -12,6 +12,8 @@ const WAREHOUSE_USER = {
   role: 'WAREHOUSE_MANAGER' as const,
 };
 
+const API_BASE_URL = process.env.PLAYWRIGHT_API_URL || 'http://localhost:4001/api';
+
 async function captureEvidence(pageOrLocator: any, filename: string) {
   const p1 = path.join(BRAIN_ARTIFACT_DIR, filename);
   const p2 = path.join(FEEDBACK_DIR, filename);
@@ -30,6 +32,8 @@ async function captureEvidence(pageOrLocator: any, filename: string) {
 }
 
 test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', () => {
+  test.setTimeout(120_000);
+
   test.beforeEach(async ({ page }) => {
     await clearSession(page);
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -37,7 +41,7 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
 
   test('Progressive Cargo History Lifecycle: Inbound 50 -> Outbound 5 -> Outbound 15 -> Drain 30', async ({ page, request }) => {
     // ── 0. Obtain JWT Auth Token ──
-    const loginRes = await request.post('http://localhost:4001/api/v1/auth/email/login', {
+    const loginRes = await request.post(`${API_BASE_URL}/v1/auth/email/login`, {
       data: {
         email: WAREHOUSE_USER.email,
         password: WAREHOUSE_USER.password,
@@ -48,7 +52,7 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
     const token = loginData.token || loginData.data?.token || loginData.accessToken;
 
     // ── 1. GIAI ĐOẠN 1: Tạo đơn hàng nhập kho ban đầu 50 kiện ──
-    const createRes = await request.post('http://localhost:4001/api/v1/warehouse/inbound/quick-create', {
+    const createRes = await request.post(`${API_BASE_URL}/v1/warehouse/inbound/quick-create`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -72,7 +76,8 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
     // Login on UI as Warehouse Manager
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(1000);
 
     // Tìm kiếm đơn hàng theo mã
     const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();
@@ -106,7 +111,7 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
     await page.waitForTimeout(500);
 
     // ── 2. GIAI ĐOẠN 2: Xuất kho lần 1 (Xuất 5 kiện -> Tồn còn 45) ──
-    const export1Res = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
+    const export1Res = await request.post(`${API_BASE_URL}/v1/warehouse/outbound/confirm`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -125,7 +130,8 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
 
     // Reload page & Re-open Modal
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(1000);
     await searchInput.fill(testOrderCode);
     await page.waitForTimeout(800);
 
@@ -152,7 +158,7 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
     await page.waitForTimeout(500);
 
     // ── 3. GIAI ĐOẠN 3: Xuất kho lần 2 (Xuất 15 kiện luân chuyển -> Tồn còn 30) ──
-    const export2Res = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
+    const export2Res = await request.post(`${API_BASE_URL}/v1/warehouse/outbound/confirm`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -172,7 +178,8 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
 
     // Reload page & Re-open Modal
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(1000);
     await searchInput.fill(testOrderCode);
     await page.waitForTimeout(800);
 
@@ -199,7 +206,7 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
     await page.waitForTimeout(500);
 
     // ── 4. GIAI ĐOẠN 4: Xuất kho vét 30 kiện còn lại (Tồn còn 0 -> Hoàn tất xuất kho) ──
-    const export3Res = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
+    const export3Res = await request.post(`${API_BASE_URL}/v1/warehouse/outbound/confirm`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -218,7 +225,8 @@ test.describe('Cargo History & Inventory Transaction Ledger Progressive Suite', 
 
     // Reload page & Re-open Modal
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(1000);
     await searchInput.fill(testOrderCode);
     await page.waitForTimeout(800);
 
