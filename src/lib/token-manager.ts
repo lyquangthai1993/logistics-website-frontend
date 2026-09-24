@@ -195,9 +195,12 @@ class TokenManager {
 
   public clearCookies() {
     if (typeof document === 'undefined') return;
-    document.cookie = 'access_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    document.cookie = 'refreshToken=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    document.cookie = 'refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie =
+      'access_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie =
+      'refreshToken=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie =
+      'refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem('access_token');
@@ -253,12 +256,18 @@ class TokenManager {
       return;
     }
 
-    // Refresh when 75% of lifetime has elapsed (or 25s before expiry)
-    const refreshDelay = Math.max(timeUntilExp - 25 * 1000, timeUntilExp * 0.75, 5000);
+    // Refresh when 80% of lifetime has elapsed (or at least 60s before expiry)
+    const refreshDelay = Math.max(timeUntilExp - 60 * 1000, timeUntilExp * 0.8, 5000);
 
     this.refreshTimeout = setTimeout(() => {
       this.refreshToken().catch(() => {
-        // Silent fail, reactive interceptor will retry on demand
+        // Retry silently after 10s if token is still expiring soon
+        setTimeout(() => {
+          const currentToken = this.getAccessToken();
+          if (currentToken && this.isTokenExpiringSoon(currentToken, 30)) {
+            this.refreshToken().catch(() => {});
+          }
+        }, 10000);
       });
     }, refreshDelay);
   }
@@ -318,15 +327,19 @@ class TokenManager {
 
         return newToken;
       } catch (err: any) {
-        const isAuthRejection =
-          err?.response?.status === 401 ||
-          err?.response?.status === 403 ||
-          err?.message?.includes('Revoked') ||
-          err?.message?.includes('Refresh') ||
-          err?.message === 'No refresh token available';
+        const status = err?.response?.status;
+        const isExplicitAuthRejection =
+          status === 401 || status === 403 || err?.message === 'No refresh token available';
 
-        // ONLY trigger hard logout if the backend explicitly rejected credentials
-        if (isAuthRejection) {
+        const isTransientError =
+          !err?.response ||
+          err?.code === 'ECONNABORTED' ||
+          err?.code === 'ERR_NETWORK' ||
+          status >= 500;
+
+        // ONLY trigger hard logout if the backend explicitly rejected credentials (401/403)
+        // NEVER log the user out on network glitches, cold-start timeouts, or 502/503 during deploy!
+        if (isExplicitAuthRejection && !isTransientError) {
           useAuthStore.getState().logout();
           this.clearCookies();
           if (this.channel) {

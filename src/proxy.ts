@@ -55,31 +55,47 @@ const API_BASE_URL = (
 
 async function refreshAccessToken(
   refreshToken: string
-): Promise<{ token: string; refreshToken?: string } | null> {
+): Promise<{ token?: string; refreshToken?: string; isAuthError?: boolean }> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${refreshToken}`
-      }
+      },
+      signal: controller.signal
     });
 
-    if (!res.ok) return null;
+    clearTimeout(timeoutId);
+
+    if (res.status === 401 || res.status === 403) {
+      return { isAuthError: true };
+    }
+
+    if (!res.ok) {
+      // 5xx server error, deploy in progress, or cold start -> transient, NOT auth error
+      return { isAuthError: false };
+    }
+
     const data = await res.json();
     const payload = data?.data || data || {};
     const token = payload?.token || payload?.access_token || data?.token || data?.access_token;
-    if (!token) return null;
+    if (!token) return { isAuthError: false };
 
     const newRefreshToken =
       payload?.refreshToken || payload?.refresh_token || data?.refreshToken || data?.refresh_token;
 
     return {
       token,
-      refreshToken: newRefreshToken
+      refreshToken: newRefreshToken,
+      isAuthError: false
     };
   } catch {
-    return null;
+    // Network glitch, aborted, or cold-start timeout -> transient, NOT auth error
+    return { isAuthError: false };
   }
 }
 
@@ -113,6 +129,13 @@ export async function proxy(request: NextRequest) {
       payload = parseJwt(token);
       isRefreshed = true;
       newRefreshToken = refreshResult.refreshToken;
+    } else if (refreshResult?.isAuthError) {
+      // Refresh token is definitively invalid/revoked (401/403) -> clear cookies and redirect to sign-in
+      const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
+      response.cookies.delete('access_token');
+      response.cookies.delete('refreshToken');
+      response.cookies.delete('refresh_token');
+      return response;
     }
   }
 
@@ -149,12 +172,15 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // If user has NO valid token (or refresh failed), redirect protected routes to sign-in
+  // If user has NO valid token (or refresh failed with auth error), redirect protected routes to sign-in
   if (!isAuthenticated) {
+    // If we still have a refreshToken (transient network/cold-start error), do NOT wipe refreshToken
     const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
     response.cookies.delete('access_token');
-    response.cookies.delete('refreshToken');
-    response.cookies.delete('refresh_token');
+    if (!refreshToken) {
+      response.cookies.delete('refreshToken');
+      response.cookies.delete('refresh_token');
+    }
     return response;
   }
 
@@ -227,5 +253,3 @@ export const config = {
     '/(api|trpc)(.*)'
   ]
 };
-
-
