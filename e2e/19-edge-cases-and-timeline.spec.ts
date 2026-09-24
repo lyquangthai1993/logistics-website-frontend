@@ -116,8 +116,8 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible();
 
-    // 1. Kiểm tra tiêu đề khối Tiến trình vận chuyển & Tồn kho
-    const trackingHeader = modal.locator('text=Tiến trình vận chuyển & Tồn kho');
+    // 1. Kiểm tra tiêu đề khối Lịch sử hàng hóa & Biến động kho
+    const trackingHeader = modal.locator('text=Lịch sử hàng hóa & Biến động kho');
     await expect(trackingHeader).toBeVisible();
 
     // 2. Kiểm tra Bảng Thống Kê Nhập - Xuất - Tồn Chi Tiết (50 nhập, 20 xuất, 30 tồn)
@@ -126,14 +126,11 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     await expect(modal.locator('text=Tồn kho khả dụng')).toBeVisible();
     await expect(modal.locator('text=30').first()).toBeVisible();
 
-    // 3. Kiểm tra Timeline 3 Chặng Xe
-    await expect(modal.locator('text=1. Xe nhập kho')).toBeVisible();
-    await expect(modal.locator('text=29C-888.88')).toBeVisible();
-
-    await expect(modal.locator('text=2. Trung chuyển liên Hub')).toBeVisible();
-    await expect(modal.locator('text=Polaris Hub - Hưng Yên').first()).toBeVisible();
-
-    await expect(modal.locator('text=3. Xe xuất kho')).toBeVisible();
+    // 3. Kiểm tra Timeline Lịch sử biến động hàng hóa
+    await expect(modal.locator('text=Tiếp nhận nhập kho ban đầu')).toBeVisible();
+    await expect(modal.locator('text=+50 kiện')).toBeVisible();
+    await expect(modal.locator('text=Xuất kho giao hàng')).toBeVisible();
+    await expect(modal.locator('text=-20 kiện')).toBeVisible();
     await expect(modal.locator('text=29C-999.01')).toBeVisible();
     await expect(modal.locator('text=Lê Văn Xuất')).toBeVisible();
 

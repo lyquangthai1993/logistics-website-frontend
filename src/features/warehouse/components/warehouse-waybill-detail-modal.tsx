@@ -17,9 +17,26 @@ import {
   IconPackage,
   IconX,
   IconCircleCheck,
+  IconHistory,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
+
+export interface OrderInventoryTransaction {
+  id: number;
+  orderId: number;
+  type: 'INBOUND' | 'OUTBOUND' | 'TRANSFER' | 'ADJUSTMENT' | string;
+  quantity: number;
+  remainingQuantity: number;
+  weight?: number;
+  volume?: number;
+  licensePlate?: string | null;
+  driverName?: string | null;
+  destination?: string | null;
+  performedByUserId?: number | null;
+  notes?: string | null;
+  createdAt: string | Date;
+}
 
 export interface WaybillDetailData {
   id: number;
@@ -62,6 +79,7 @@ export interface WaybillDetailData {
     driverName?: string;
     driverPhone?: string;
   };
+  inventoryTransactions?: OrderInventoryTransaction[];
 }
 
 interface WarehouseWaybillDetailModalProps {
@@ -137,12 +155,70 @@ export function WarehouseWaybillDetailModal({
   const [copied, setCopied] = useState(false);
   const [previewLabelData, setPreviewLabelData] = useState<PalletLabelData | null>(null);
 
-  const inboundTrip =
-    waybill?.trips?.find((t) => t.notes?.includes('NHẬP KHO') || t.tripRole === 'PICKUP') ||
-    (waybill?.trips && waybill.trips.length > 0 ? waybill.trips[0] : null) ||
-    (waybill?.vehicleLicensePlate
-      ? { licensePlate: waybill.vehicleLicensePlate, driverName: waybill.driverName }
-      : null);
+  const formatDateTime = (dateValue?: string | Date) => {
+    if (!dateValue) return '--';
+    try {
+      const d = new Date(dateValue);
+      return d.toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return String(dateValue);
+    }
+  };
+
+  // Chronological inventory transactions
+  const transactions: OrderInventoryTransaction[] = React.useMemo(() => {
+    if (waybill?.inventoryTransactions && waybill.inventoryTransactions.length > 0) {
+      return [...waybill.inventoryTransactions].sort((a, b) => {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+    }
+
+    // Graceful fallback for legacy records without transaction rows
+    const fallback: OrderInventoryTransaction[] = [];
+    const inboundQty = waybill?.inboundQuantity ?? waybill?.totalQuantity ?? 1;
+    const remainingQty = waybill?.remainingQuantity ?? waybill?.totalQuantity ?? 1;
+    const outboundQty = waybill?.outboundQuantity ?? 0;
+
+    fallback.push({
+      id: 1,
+      orderId: waybill?.id || 0,
+      type: 'INBOUND',
+      quantity: inboundQty,
+      remainingQuantity: inboundQty,
+      weight: waybill?.totalWeight || 0,
+      volume: waybill?.totalVolume || 0,
+      licensePlate: waybill?.vehicleLicensePlate || null,
+      driverName: waybill?.driverName || null,
+      destination: waybill?.destinationHub || waybill?.province || 'Kho nhận',
+      notes: 'Tiếp nhận nhập kho ban đầu',
+      createdAt: waybill?.createdAt || new Date(),
+    });
+
+    if (outboundQty > 0) {
+      fallback.push({
+        id: 2,
+        orderId: waybill?.id || 0,
+        type: 'OUTBOUND',
+        quantity: outboundQty,
+        remainingQuantity: remainingQty,
+        weight: 0,
+        volume: 0,
+        licensePlate: null,
+        driverName: null,
+        destination: waybill?.deliveryAddress || waybill?.destinationHub || 'Giao khách',
+        notes: `Đã xuất ${outboundQty} kiện`,
+        createdAt: waybill?.updatedAt || new Date(),
+      });
+    }
+
+    return fallback;
+  }, [waybill]);
 
   if (!waybill) return null;
 
@@ -215,13 +291,13 @@ export function WarehouseWaybillDetailModal({
 
           {/* ── Scrollable Body Structured Like Inbound Create Form ── */}
           <div className="p-4 sm:p-5 space-y-4 max-h-[82vh] overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
-            {/* ── Theo Dõi Tồn Kho & Lộ Trình Vận Chuyển ── */}
+            {/* ── Lịch Sử Hàng Hóa & Biến Động Kho ── */}
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <IconBuildingWarehouse className="h-5 w-5 text-[#0F3D62] dark:text-blue-400" />
+                  <IconHistory className="h-5 w-5 text-[#0F3D62] dark:text-blue-400" />
                   <h3 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                    Tiến trình vận chuyển & Tồn kho
+                    Lịch sử hàng hóa & Biến động kho
                   </h3>
                 </div>
                 <Badge variant="outline" className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
@@ -276,123 +352,138 @@ export function WarehouseWaybillDetailModal({
                 </div>
               </div>
 
-              {/* 2. Khối Lộ Trình Vận Chuyển Chi Tiết */}
+              {/* 2. Dòng Thời Gian Lịch Sử Biến Động Hàng Hóa (Transaction Ledger) */}
               <div className="pt-2">
-                <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-3.5 pl-6 space-y-4">
-                  {/* Chặng 1: Xe nhập kho */}
-                  <div className="relative">
-                    <div className="absolute -left-[33px] top-0.5 h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
-                      1
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-                          1. Xe nhập kho
-                        </span>
-                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border-0 text-[10px] font-bold">
-                          Đã nhập kho
-                        </Badge>
-                      </div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">Xe chở vào: </span>
-                          <span className="font-mono font-bold text-[#0F3D62] dark:text-blue-400">
-                            {waybill.vehicleLicensePlate || inboundTrip?.licensePlate || 'Xe tiếp nhận kho'}
-                          </span>
-                          {(waybill.driverName || inboundTrip?.driverName) && (
-                            <span className="ml-2 text-slate-500">
-                              (Tài xế: {waybill.driverName || inboundTrip?.driverName})
-                            </span>
-                          )}
-                        </div>
-                        <div className="font-bold text-blue-700 dark:text-blue-300">
-                          Nhập: {waybill.inboundQuantity ?? waybill.totalQuantity ?? 0} kiện
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="space-y-0">
+                  {transactions.map((tx, idx) => {
+                    const isInbound = tx.type === 'INBOUND';
+                    const isTransfer = tx.type === 'TRANSFER';
+                    const outboundOrderNum = transactions
+                      .slice(0, idx + 1)
+                      .filter((t) => t.type !== 'INBOUND').length;
 
-                  {/* Chặng 2: Tuyến trung chuyển liên Hub */}
-                  <div className="relative">
-                    <div className="absolute -left-[33px] top-0.5 h-6 w-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
-                      2
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-                          2. Trung chuyển liên Hub
-                        </span>
-                        <Badge variant="outline" className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 border-amber-300">
-                          {waybill.destinationHub && waybill.originHub !== waybill.destinationHub ? 'Tuyến liên Hub' : 'Lưu kho trực tiếp'}
-                        </Badge>
-                      </div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">Lộ trình: </span>
-                          <span>{waybill.originHub || 'Hub gửi'}</span>
-                          <span className="mx-1 text-slate-400">➔</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {waybill.destinationHub || waybill.deliveryAddress || 'Điểm đích'}
-                          </span>
+                    return (
+                      <div key={tx.id || idx} className="relative flex items-stretch gap-3">
+                        {/* Cột timeline: Vòng tròn số thứ tự và đường line dọc đồng tâm tuyệt đối */}
+                        <div className="flex flex-col items-center shrink-0 w-6">
+                          <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-[#0F3D62] text-white text-[11px] font-black shadow-xs ring-4 ring-white dark:ring-slate-900">
+                            {idx + 1}
+                          </div>
+                          <div className="w-0.5 bg-slate-200 dark:bg-slate-700 flex-1" />
                         </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Chặng 3: Xe xuất kho */}
-                  <div className="relative">
-                    <div className={`absolute -left-[33px] top-0.5 h-6 w-6 rounded-full text-white flex items-center justify-center text-[10px] font-bold shadow-xs ${
-                      (waybill.outboundQuantity ?? 0) > 0 ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700 text-slate-600'
-                    }`}>
-                      3
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-                          3. Xe xuất kho
-                        </span>
-                        <Badge className={`text-[10px] font-bold border-0 ${
-                          (waybill.remainingQuantity ?? 0) === 0 && (waybill.outboundQuantity ?? 0) > 0
-                            ? 'bg-emerald-600 text-white'
-                            : (waybill.outboundQuantity ?? 0) > 0
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
-                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                        }`}>
-                          {(waybill.remainingQuantity ?? 0) === 0 && (waybill.outboundQuantity ?? 0) > 0
-                            ? 'Đã xuất kho toàn bộ'
-                            : (waybill.outboundQuantity ?? 0) > 0
-                            ? 'Đang xuất từng phần'
-                            : 'Chờ xuất kho'}
-                        </Badge>
-                      </div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 space-y-1.5">
-                        {/* List all outbound trips if any */}
-                        {waybill.trips?.filter((t) => t.notes?.includes('XUẤT KHO') || t.status === 'IN_TRANSIT').length ? (
-                          waybill.trips
-                            ?.filter((t) => t.notes?.includes('XUẤT KHO') || t.status === 'IN_TRANSIT')
-                            .map((t, idx) => (
-                              <div key={t.id || idx} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/50 dark:border-slate-700/50 pb-1 last:border-b-0 last:pb-0">
-                                <div>
-                                  <span className="font-semibold text-slate-700 dark:text-slate-300">Đợt xuất {idx + 1}: </span>
-                                  <span className="font-mono font-bold text-purple-700 dark:text-purple-400">{t.licensePlate}</span>
-                                  {t.driverName && <span className="ml-1 text-slate-500">({t.driverName})</span>}
-                                  <span className="text-slate-400 text-[11px] ml-1.5">· {t.notes}</span>
-                                </div>
-                              </div>
-                            ))
-                        ) : (
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span>
-                              {(waybill.outboundQuantity ?? 0) > 0
-                                ? `Đã xuất ${waybill.outboundQuantity} kiện qua các xe xuất kho.`
-                                : 'Chưa có xe xuất kho cho đơn hàng này.'}
+                        {/* Cột nội dung biến động */}
+                        <div className="flex-1 min-w-0 pb-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                              {isInbound
+                                ? 'Tiếp nhận nhập kho ban đầu'
+                                : isTransfer
+                                ? `Xuất luân chuyển liên Hub (Đợt ${outboundOrderNum})`
+                                : `Xuất kho giao hàng (Đợt ${outboundOrderNum})`}
                             </span>
-                            <span className="font-bold text-slate-700 dark:text-slate-300">
-                              Còn tồn: <span className="text-emerald-600 font-black">{waybill.remainingQuantity ?? waybill.totalQuantity ?? 0}</span> kiện
+                            <Badge
+                              className={`text-[10px] font-bold border-0 ${
+                                isInbound
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                                  : isTransfer
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                                  : 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                              }`}
+                            >
+                              {isInbound
+                                ? `+${tx.quantity} kiện`
+                                : `-${tx.quantity} kiện`}
+                            </Badge>
+                            <span className="text-[11px] text-slate-400 font-mono">
+                              {formatDateTime(tx.createdAt)}
                             </span>
                           </div>
-                        )}
+
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800 space-y-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {isInbound ? 'Số lượng nhập: ' : 'Số lượng xuất: '}
+                                </span>
+                                <span
+                                  className={`font-black font-mono ${
+                                    isInbound ? 'text-blue-700 dark:text-blue-400' : 'text-purple-700 dark:text-purple-400'
+                                  }`}
+                                >
+                                  {isInbound ? `+${tx.quantity}` : `-${tx.quantity}`} kiện
+                                </span>
+                                {(tx.weight || tx.volume) ? (
+                                  <span className="text-slate-500 ml-1.5 font-mono text-[11px]">
+                                    ({tx.weight ? `${Number(tx.weight).toLocaleString('vi-VN')} kg` : ''}
+                                    {tx.weight && tx.volume ? ' · ' : ''}
+                                    {tx.volume ? `${tx.volume} m³` : ''})
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <div className="text-[11px] font-bold">
+                                <span className="text-slate-500">Tồn sau thao tác: </span>
+                                <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black">
+                                  {tx.remainingQuantity} kiện
+                                </span>
+                              </div>
+                            </div>
+
+                            {(tx.licensePlate || tx.driverName) && (
+                              <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {isInbound ? 'Xe chở vào: ' : 'Xe vận chuyển: '}
+                                </span>
+                                <span className="font-mono font-bold text-[#0F3D62] dark:text-blue-400">
+                                  {tx.licensePlate || '--'}
+                                </span>
+                                {tx.driverName && (
+                                  <span className="ml-1 text-slate-500">
+                                    (Tài xế: {tx.driverName})
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {tx.destination && (
+                              <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  Đích đến:{' '}
+                                </span>
+                                <span>{tx.destination}</span>
+                              </div>
+                            )}
+
+                            {tx.notes && (
+                              <div className="text-[11px] text-slate-500 italic">
+                                <span>Ghi chú: {tx.notes}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+
+                  {/* Trạng thái tồn kho hiện tại */}
+                  <div className="relative flex items-start gap-3">
+                    <div className="flex flex-col items-center shrink-0 w-6">
+                      <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-emerald-600 text-white shadow-xs ring-4 ring-white dark:ring-slate-900">
+                        <IconCheck className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs">
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                        {(waybill.remainingQuantity ?? waybill.totalQuantity ?? 0) === 0 && (waybill.outboundQuantity ?? 0) > 0
+                          ? 'Đã xuất kho toàn bộ · Đơn hàng đã hoàn tất xuất kho'
+                          : (waybill.outboundQuantity ?? 0) > 0
+                          ? `Đang xuất từng phần · Còn tồn ${waybill.remainingQuantity ?? 0} kiện sẵn sàng xuất tiếp`
+                          : `Đang lưu kho an toàn tại ${waybill.originHub || 'Hub'} · Tồn khả dụng sẵn sàng xuất`}
+                      </span>
+                      <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">
+                        {waybill.remainingQuantity ?? waybill.totalQuantity ?? 0} kiện
+                      </span>
                     </div>
                   </div>
                 </div>

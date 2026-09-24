@@ -10,3 +10,4 @@ export { PalletLabelA4Modal } from './pallet-label-a4-modal';
 export { WarehouseWaybillDetailModal } from './warehouse-waybill-detail-modal';
 export { WarehouseTallyModal } from './warehouse-tally-modal';
 export { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
+export { CargoImageLightboxModal } from './cargo-image-lightbox-modal';

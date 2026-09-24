@@ -15,10 +15,14 @@ import {
   IconCamera,
   IconLoader2,
   IconFileDescription,
+  IconZoomIn,
+  IconTrash,
 } from '@tabler/icons-react';
 import { tokenManager } from '@/lib/token-manager';
 import { toast } from 'sonner';
 import { WaybillDetailData } from './warehouse-waybill-detail-modal';
+import { CargoImageLightboxModal } from './cargo-image-lightbox-modal';
+import { apiClient } from '@/lib/api-client';
 
 interface WarehouseTallyModalProps {
   isOpen: boolean;
@@ -39,11 +43,17 @@ export function WarehouseTallyModal({
   const [actualWeight, setActualWeight] = useState<number>(() => waybill?.totalWeight || 0);
   const [actualVolume, setActualVolume] = useState<number>(() => waybill?.totalVolume || 0);
   const [tallyNote, setTallyNote] = useState<string>('Nguyên đai nguyên kiện, bao bì nguyên vẹn');
-  const [photos, setPhotos] = useState<string[]>([
-    'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=300&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1553413077-190dd305871c?w=300&auto=format&fit=crop&q=60',
-  ]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [previewImageIndex, setPreviewImageIndex] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleRemovePhoto = (idxToRemove: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPhotos((prev) => prev.filter((_, i) => i !== idxToRemove));
+    toast.info('Đã xóa ảnh kiện hàng');
+  };
 
   // Sync state when waybill opens
   React.useEffect(() => {
@@ -51,20 +61,67 @@ export function WarehouseTallyModal({
       setActualQuantity(waybill.totalQuantity || 1);
       setActualWeight(waybill.totalWeight || 0);
       setActualVolume(waybill.totalVolume || 0);
+      setPhotos([]);
     }
   }, [waybill]);
 
   if (!waybill) return null;
 
-  const handleAddPhoto = () => {
-    // Mock image capture / upload
-    const dummyImages = [
-      'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=300&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1580674684081-7617fbf3d745?w=300&auto=format&fit=crop&q=60',
-    ];
-    const newImg = dummyImages[photos.length % dummyImages.length];
-    setPhotos((prev) => [...prev, newImg]);
-    toast.success('Đã tải lên ảnh chụp hiện trường kiện hàng!');
+  const handleTriggerUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files);
+    const validFiles = fileList.filter((f) => f.type.startsWith('image/'));
+
+    if (validFiles.length === 0) {
+      toast.error('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, JPEG, WebP)');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    for (const file of validFiles) {
+      // 1. Tạo local preview URL tức thì trên UI
+      const localPreviewUrl = URL.createObjectURL(file);
+      setPhotos((prev) => [...prev, localPreviewUrl]);
+
+      // 2. Upload file thực tế lên endpoint /api/v1/files/upload
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await apiClient.post('/api/v1/files/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        const uploadData = res?.data?.data || res?.data;
+        const uploadedFilePath = uploadData?.file?.path;
+        if (uploadedFilePath) {
+          const serverUrl = uploadedFilePath.startsWith('http')
+            ? uploadedFilePath
+            : `${apiClient.defaults.baseURL || ''}${uploadedFilePath.startsWith('/') ? '' : '/'}${uploadedFilePath}`;
+          setPhotos((prev) =>
+            prev.map((url) => (url === localPreviewUrl ? serverUrl : url))
+          );
+        }
+      } catch (uploadErr) {
+        console.warn('Lưu ảnh cục bộ khi backend upload chưa sẵn sàng:', uploadErr);
+      }
+    }
+
+    setIsUploadingPhoto(false);
+    toast.success(`Đã thêm ${validFiles.length} ảnh kiện hàng thành công!`);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleConfirmInbound = async () => {
@@ -96,8 +153,8 @@ export function WarehouseTallyModal({
       toast.success(`Đã xác nhận kiểm đếm và tiếp nhận thành công đơn hàng ${waybill.orderCode} vào kho!`);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      toast.error('Lỗi nhập kho: ' + (err.message || 'Vui lòng thử lại'));
+    } catch (err: unknown) {
+      toast.error('Lỗi nhập kho: ' + (err instanceof Error ? err.message : 'Vui lòng thử lại'));
     } finally {
       setIsSubmitting(false);
     }
@@ -246,36 +303,108 @@ export function WarehouseTallyModal({
                 </Badge>
               </div>
 
-              {/* Photo Grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {photos.map((url, idx) => (
-                  <div
-                    key={idx}
-                    className="relative aspect-video rounded-md overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 group"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {/* oxlint-disable-next-line next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={`Kiện hàng ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-[10px] text-white font-bold">Ảnh #{idx + 1}</span>
-                    </div>
+              {/* Hidden File Input for Real Upload */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {/* Photo Grid or Empty Placeholder */}
+              {photos.length === 0 ? (
+                <div
+                  onClick={handleTriggerUpload}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') handleTriggerUpload();
+                  }}
+                  className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 cursor-pointer transition-colors text-center group"
+                >
+                  <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:text-blue-600 group-hover:bg-blue-100 dark:group-hover:bg-blue-900 transition-colors mb-2">
+                    <IconCamera className="h-5 w-5" />
                   </div>
-                ))}
-              </div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Chưa có ảnh chụp kiện hàng
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Bấm để chọn tệp ảnh từ máy tính hoặc chụp ảnh
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-0.5">
+                  {photos.map((url, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setPreviewImageIndex(idx)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setPreviewImageIndex(idx);
+                        }
+                      }}
+                      title="Nhấn để phóng to ảnh kiện hàng"
+                      className="relative aspect-video rounded-md overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 group cursor-pointer hover:border-blue-500 hover:shadow-md transition-all ring-offset-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {/* oxlint-disable-next-line next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Kiện hàng ${idx + 1}`}
+                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
+
+                      {/* Corner Photo Number Badge */}
+                      <div className="absolute top-1.5 left-1.5 z-10 pointer-events-none">
+                        <span className="text-[9px] font-mono font-bold bg-black/60 backdrop-blur-xs text-white px-1.5 py-0.5 rounded shadow">
+                          #{idx + 1}
+                        </span>
+                      </div>
+
+                      {/* Quick Delete button (hover) */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemovePhoto(idx, e)}
+                        title="Xóa ảnh này"
+                        className="absolute top-1.5 right-1.5 z-20 h-6 w-6 rounded-full bg-black/60 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow"
+                      >
+                        <IconTrash className="h-3.5 w-3.5" />
+                      </button>
+
+                      {/* Hover Overlay with Zoom Icon */}
+                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white">
+                        <div className="h-7 w-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center shadow">
+                          <IconZoomIn className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-[10px] font-bold tracking-tight">Phóng to</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Add Photo Button */}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleAddPhoto}
-                className="w-full h-9 text-xs font-bold border-dashed border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                disabled={isUploadingPhoto}
+                onClick={handleTriggerUpload}
+                className="w-full h-9 text-xs font-bold border-dashed border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600"
               >
-                <IconCamera className="h-4 w-4 mr-1.5" /> Chụp / thêm ảnh
+                {isUploadingPhoto ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 mr-1.5 animate-spin" /> Đang tải ảnh...
+                  </>
+                ) : (
+                  <>
+                    <IconCamera className="h-4 w-4 mr-1.5" /> Chụp / thêm ảnh
+                  </>
+                )}
               </Button>
               <p className="text-[10px] text-gray-400 text-center">
                 Chụp ảnh kiện hàng thực tế tại cửa kho để lưu vết kiểm toán
@@ -326,6 +455,15 @@ export function WarehouseTallyModal({
             </Button>
           </div>
         </div>
+
+        {/* Cargo Photo Lightbox / Zoom Modal */}
+        <CargoImageLightboxModal
+          isOpen={previewImageIndex !== null}
+          onClose={() => setPreviewImageIndex(null)}
+          images={photos}
+          initialIndex={previewImageIndex ?? 0}
+          title={`Ảnh kiện hàng · ${waybill.orderCode}`}
+        />
       </DialogContent>
     </Dialog>
   );
