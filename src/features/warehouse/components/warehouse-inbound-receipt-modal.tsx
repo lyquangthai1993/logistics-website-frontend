@@ -6,17 +6,19 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { IconPrinter, IconX, IconBuildingWarehouse } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { SPIDER_LOGO_BASE64, SPIDER_LOGO_SRC } from '@/features/warehouse/constants/receipt-logo';
 
 export interface InboundReceiptData {
   orderCode: string;
   goodsDescription: string;
   totalQuantity: number;
   inboundQuantity?: number;
+  unit?: string;
   totalWeight?: number;
   totalVolume?: number;
   originHub?: string;
@@ -27,6 +29,7 @@ export interface InboundReceiptData {
   licensePlate?: string;
   createdAt?: string | Date;
   notes?: string;
+  accompanyingDocs?: string;
 }
 
 interface WarehouseInboundReceiptModalProps {
@@ -38,17 +41,20 @@ interface WarehouseInboundReceiptModalProps {
 export function WarehouseInboundReceiptModal({
   isOpen,
   onClose,
-  data,
+  data
 }: WarehouseInboundReceiptModalProps) {
   const user = useAuthStore((state) => state.user);
 
   if (!data) return null;
 
-  const currentHubName = (data.originHub || user?.hub?.name || 'Kho tiếp nhận').toUpperCase();
+  const currentHubName = (data.originHub || user?.hub?.name || 'Hub Polaris').toUpperCase();
   const formattedDate = data.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
   const qty = data.inboundQuantity ?? data.totalQuantity ?? 1;
+  const unit = data.unit || 'Kiện';
+  const accompanyingDocs = data.accompanyingDocs || '01 BỘ CT';
+  const deliveryAddress = data.deliveryAddress || data.destinationHub || '—';
 
   const handlePrint = () => {
     const printFrame = document.createElement('iframe');
@@ -75,32 +81,45 @@ export function WarehouseInboundReceiptModal({
           <style>
             @page {
               size: A4 portrait;
-              margin: 15mm 20mm;
+              margin: 12mm 15mm;
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
               font-family: 'Times New Roman', Times, serif;
-              font-size: 13pt;
-              line-height: 1.4;
+              font-size: 12pt;
+              line-height: 1.35;
               color: #000;
               background: #fff;
             }
-            .header-table { width: 100%; margin-bottom: 12px; }
-            .company-name { font-weight: bold; font-size: 11pt; text-transform: uppercase; }
-            .doc-title { text-align: center; font-size: 18pt; font-weight: bold; margin: 12px 0 4px; text-transform: uppercase; }
-            .doc-date { text-align: center; font-style: italic; font-size: 11pt; margin-bottom: 16px; }
-            .info-table { width: 100%; margin-bottom: 16px; font-size: 12pt; }
-            .info-table td { padding: 3px 0; }
+            .header-table { width: 100%; margin-bottom: 10px; border: none; }
+            .header-table td { border: none; vertical-align: middle; }
+            .logo-img { height: 48px; max-width: 220px; object-fit: contain; }
+            .doc-title { text-align: center; font-size: 18pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+            .doc-code { text-align: center; font-size: 13pt; font-weight: bold; font-family: 'Times New Roman', Times, serif; }
+            
+            .info-grid-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 8px;
+              margin-bottom: 16px;
+              font-size: 11.5pt;
+            }
+            .info-grid-table td {
+              border: 1px solid #000;
+              padding: 4px 8px;
+            }
+            .info-label { width: 22%; font-weight: bold; }
+            .info-value { width: 78%; }
+
             .grid-table {
               width: 100%;
               border-collapse: collapse;
               margin-bottom: 24px;
-              font-size: 11.5pt;
+              font-size: 11pt;
             }
             .grid-table th, .grid-table td {
               border: 1px solid #000;
-              padding: 6px 8px;
-              text-align: left;
+              padding: 5px 6px;
             }
             .grid-table th {
               background-color: #f2f2f2;
@@ -109,76 +128,78 @@ export function WarehouseInboundReceiptModal({
             }
             .text-center { text-align: center !important; }
             .text-right { text-align: right !important; }
-            .signature-table { width: 100%; margin-top: 30px; font-size: 12pt; }
-            .signature-table td { text-align: center; vertical-align: top; width: 33.3%; }
+            .font-bold { font-weight: bold !important; }
+
+            .signature-table { width: 100%; margin-top: 24px; font-size: 11.5pt; border: none; }
+            .signature-table td { text-align: center; vertical-align: top; width: 33.3%; border: none; }
             .sign-title { font-weight: bold; }
             .sign-sub { font-style: italic; font-size: 10pt; }
-            .sign-space { height: 65px; }
+            .sign-space { height: 60px; }
           </style>
         </head>
         <body>
           <table class="header-table">
             <tr>
-              <td>
-                <div class="company-name">HỆ THỐNG QUẢN LÝ VẬN TẢI & KHO BÃI (TMS)</div>
-                <div>Đơn vị tiếp nhận: <strong>${currentHubName}</strong></div>
+              <td style="width: 35%; vertical-align: middle;">
+                <img src="${SPIDER_LOGO_BASE64}" alt="Spider Express" class="logo-img" />
               </td>
-              <td class="text-right" style="font-size: 11pt;">
-                <div>Mã phiếu: <strong>PNK-${data.orderCode}</strong></div>
-                <div>Mã vận đơn: <strong>${data.orderCode}</strong></div>
+              <td style="width: 65%; text-align: center; vertical-align: middle; padding-right: 15%;">
+                <div class="doc-title">PHIẾU NHẬP KHO</div>
+                <div class="doc-code">${data.orderCode}</div>
               </td>
             </tr>
           </table>
 
-          <div class="doc-title">PHIẾU NHẬP KHO</div>
-          <div class="doc-date">Ngày ${formattedDate}</div>
-
-          <table class="info-table">
+          <table class="info-grid-table">
             <tr>
-              <td style="width: 20%;">Họ tên người giao:</td>
-              <td style="width: 45%;"><strong>${data.driverName || 'Khách hàng / Tài xế'}</strong></td>
-              <td style="width: 15%;">Biển số xe:</td>
-              <td><strong>${data.licensePlate || 'Xe giao hàng'}</strong></td>
+              <td class="info-label">Ngày/tháng/năm</td>
+              <td class="info-value">${formattedDate}</td>
             </tr>
             <tr>
-              <td>Nơi lấy / Gửi hàng:</td>
-              <td colspan="3">${data.pickupAddress || currentHubName}</td>
+              <td class="info-label">Tài xế giao hàng</td>
+              <td class="info-value"><strong>${(data.driverName || '—').toUpperCase()}</strong></td>
             </tr>
             <tr>
-              <td>Địa chỉ giao đến:</td>
-              <td colspan="3">${data.deliveryAddress || data.destinationHub || 'Theo chỉ định'}</td>
+              <td class="info-label">Biển số xe</td>
+              <td class="info-value"><strong>${data.licensePlate || '—'}</strong></td>
             </tr>
             <tr>
-              <td>Ghi chú / Diễn giải:</td>
-              <td colspan="3">${data.notes || 'Nhập hàng lưu kho bãi'}</td>
+              <td class="info-label">Nhập Tại Kho</td>
+              <td class="info-value"><strong>${currentHubName}</strong></td>
             </tr>
           </table>
 
           <table class="grid-table">
             <thead>
               <tr>
-                <th style="width: 8%;">STT</th>
-                <th style="width: 42%;">Tên mặt hàng / Quy cách</th>
-                <th style="width: 12%;">ĐVT</th>
-                <th style="width: 14%;">Số lượng</th>
-                <th style="width: 12%;">Khối lượng (kg)</th>
-                <th style="width: 12%;">Thể tích (m³)</th>
+                <th style="width: 5%;">STT</th>
+                <th style="width: 17%;">Mã Đơn Hàng</th>
+                <th style="width: 25%;">Tên mặt hàng</th>
+                <th style="width: 10%;">Số lượng</th>
+                <th style="width: 8%;">Đơn vị</th>
+                <th style="width: 17%;">Địa chỉ giao hàng</th>
+                <th style="width: 9%;">Chứng từ đi kèm</th>
+                <th style="width: 9%;">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td class="text-center">1</td>
+                <td class="text-center font-bold">${data.orderCode}</td>
                 <td><strong>${data.goodsDescription || 'Hàng hóa nhập kho'}</strong></td>
-                <td class="text-center">Kiện</td>
-                <td class="text-center font-bold"><strong>${qty}</strong></td>
-                <td class="text-right">${data.totalWeight || 0}</td>
-                <td class="text-right">${data.totalVolume || 0}</td>
+                <td class="text-center font-bold">${qty.toLocaleString('vi-VN')}</td>
+                <td class="text-center">${unit}</td>
+                <td>${deliveryAddress}</td>
+                <td class="text-center">${accompanyingDocs}</td>
+                <td>${data.notes || ''}</td>
               </tr>
               <tr>
-                <td colspan="3" class="text-center"><strong>Tổng cộng</strong></td>
-                <td class="text-center"><strong>${qty}</strong></td>
-                <td class="text-right"><strong>${data.totalWeight || 0}</strong></td>
-                <td class="text-right"><strong>${data.totalVolume || 0}</strong></td>
+                <td colspan="3" class="text-center font-bold"><strong>Tổng cộng</strong></td>
+                <td class="text-center font-bold"><strong>${qty.toLocaleString('vi-VN')}</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
               </tr>
             </tbody>
           </table>
@@ -186,22 +207,22 @@ export function WarehouseInboundReceiptModal({
           <table class="signature-table">
             <tr>
               <td>
-                <div class="sign-title">Người giao hàng</div>
+                <div class="sign-title">Người Lập Phiếu</div>
+                <div class="sign-sub">(Ký, họ tên)</div>
+                <div class="sign-space"></div>
+                <div>${user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''}</div>
+              </td>
+              <td>
+                <div class="sign-title">Lái Xe</div>
                 <div class="sign-sub">(Ký, họ tên)</div>
                 <div class="sign-space"></div>
                 <div>${data.driverName || ''}</div>
               </td>
               <td>
-                <div class="sign-title">Thủ kho tiếp nhận</div>
+                <div class="sign-title">Thủ Kho</div>
                 <div class="sign-sub">(Ký, họ tên)</div>
                 <div class="sign-space"></div>
-                <div>${user?.firstName ? `${user.firstName} ${user.lastName || ''}` : ''}</div>
-              </td>
-              <td>
-                <div class="sign-title">Người lập phiếu</div>
-                <div class="sign-sub">(Ký, họ tên)</div>
-                <div class="sign-space"></div>
-                <div>${user?.firstName ? `${user.firstName} ${user.lastName || ''}` : ''}</div>
+                <div>${user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''}</div>
               </td>
             </tr>
           </table>
@@ -227,45 +248,149 @@ export function WarehouseInboundReceiptModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-w-[95vw] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+      <DialogContent className='sm:max-w-3xl max-w-[95vw] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6'>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
-            <IconBuildingWarehouse className="w-5 h-5 text-blue-600" />
+          <DialogTitle className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white'>
+            <IconBuildingWarehouse className='w-5 h-5 text-blue-600' />
             <span>Phiếu Nhập Kho · Mã {data.orderCode}</span>
           </DialogTitle>
         </DialogHeader>
 
         {/* Paper Preview */}
-        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-5 bg-slate-50 dark:bg-slate-950 text-xs space-y-3">
-          <div className="flex justify-between border-b pb-2">
+        <div className='border border-slate-200 dark:border-slate-700 rounded-lg p-5 bg-slate-50 dark:bg-slate-950 text-xs space-y-3'>
+          <div className='flex items-center justify-between border-b pb-3'>
+            <div className='flex items-center'>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={SPIDER_LOGO_SRC}
+                alt='Spider Express'
+                className='h-9 w-auto object-contain rounded'
+              />
+            </div>
+            <div className='text-center flex-1 pr-14'>
+              <div className='font-black text-sm text-slate-900 dark:text-slate-100 uppercase tracking-wide'>
+                PHIẾU NHẬP KHO
+              </div>
+              <div className='font-mono font-bold text-slate-600 dark:text-slate-300 text-xs mt-0.5'>
+                {data.orderCode}
+              </div>
+            </div>
+          </div>
+
+          <div className='border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900 overflow-hidden divide-y divide-slate-200 dark:divide-slate-800'>
+            <div className='grid grid-cols-4 text-xs'>
+              <span className='p-2 font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300'>
+                Ngày/tháng/năm
+              </span>
+              <span className='p-2 col-span-3 text-slate-800 dark:text-slate-200'>
+                {formattedDate}
+              </span>
+            </div>
+            <div className='grid grid-cols-4 text-xs'>
+              <span className='p-2 font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300'>
+                Tài xế giao hàng
+              </span>
+              <span className='p-2 col-span-3 font-semibold text-slate-900 dark:text-white'>
+                {(data.driverName || '—').toUpperCase()}
+              </span>
+            </div>
+            <div className='grid grid-cols-4 text-xs'>
+              <span className='p-2 font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300'>
+                Biển số xe
+              </span>
+              <span className='p-2 col-span-3 font-semibold text-slate-900 dark:text-white'>
+                {data.licensePlate || '—'}
+              </span>
+            </div>
+            <div className='grid grid-cols-4 text-xs'>
+              <span className='p-2 font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300'>
+                Nhập Tại Kho
+              </span>
+              <span className='p-2 col-span-3 font-semibold text-slate-900 dark:text-white'>
+                {currentHubName}
+              </span>
+            </div>
+          </div>
+
+          <div className='overflow-x-auto border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900'>
+            <table className='w-full text-[11px] text-left'>
+              <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800'>
+                <tr>
+                  <th className='p-2 text-center w-8'>STT</th>
+                  <th className='p-2'>Mã Đơn Hàng</th>
+                  <th className='p-2'>Tên mặt hàng</th>
+                  <th className='p-2 text-center'>Số lượng</th>
+                  <th className='p-2 text-center'>Đơn vị</th>
+                  <th className='p-2'>Địa chỉ giao hàng</th>
+                  <th className='p-2 text-center'>Chứng từ đi kèm</th>
+                  <th className='p-2'>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
+                <tr>
+                  <td className='p-2 text-center font-medium'>1</td>
+                  <td className='p-2 font-mono font-bold text-blue-700 dark:text-blue-400'>
+                    {data.orderCode}
+                  </td>
+                  <td className='p-2 font-semibold text-slate-800 dark:text-slate-200'>
+                    {data.goodsDescription || 'Hàng hóa nhập kho'}
+                  </td>
+                  <td className='p-2 text-center font-bold text-slate-900 dark:text-white'>
+                    {qty.toLocaleString('vi-VN')}
+                  </td>
+                  <td className='p-2 text-center text-slate-600 dark:text-slate-400'>{unit}</td>
+                  <td className='p-2 text-slate-600 dark:text-slate-400'>{deliveryAddress}</td>
+                  <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                    {accompanyingDocs}
+                  </td>
+                  <td className='p-2 text-slate-500'>{data.notes || '—'}</td>
+                </tr>
+                <tr className='bg-slate-50 dark:bg-slate-800/40 font-bold'>
+                  <td colSpan={3} className='p-2 text-center text-slate-800 dark:text-slate-200'>
+                    Tổng cộng
+                  </td>
+                  <td className='p-2 text-center text-slate-900 dark:text-white'>
+                    {qty.toLocaleString('vi-VN')}
+                  </td>
+                  <td colSpan={4}></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className='grid grid-cols-3 pt-2 text-center text-slate-700 dark:text-slate-300 text-[11px]'>
             <div>
-              <div className="font-bold text-[#0F3D62] uppercase">Hệ thống Logistics TMS</div>
-              <div className="text-slate-500">Kho: {currentHubName}</div>
+              <div className='font-bold'>Người Lập Phiếu</div>
+              <div className='text-[10px] text-slate-400'>(Ký, họ tên)</div>
+              <div className='mt-8 font-medium'>
+                {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''}
+              </div>
             </div>
-            <div className="text-right">
-              <div className="font-mono font-bold text-slate-800 dark:text-slate-200">MÃ: {data.orderCode}</div>
-              <div className="text-slate-500">Ngày: {formattedDate}</div>
+            <div>
+              <div className='font-bold'>Lái Xe</div>
+              <div className='text-[10px] text-slate-400'>(Ký, họ tên)</div>
+              <div className='mt-8 font-medium'>{data.driverName || ''}</div>
             </div>
-          </div>
-
-          <div className="text-center py-1">
-            <div className="font-black text-sm text-slate-900 dark:text-slate-100 uppercase tracking-wide">PHIẾU NHẬP KHO</div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-slate-700 dark:text-slate-300">
-            <div>Người giao: <strong>{data.driverName || 'Khách hàng / Tài xế'}</strong></div>
-            <div>Biển số xe: <strong>{data.licensePlate || 'Xe giao hàng'}</strong></div>
-            <div className="col-span-2">Hàng hóa: <strong>{data.goodsDescription}</strong> ({qty} kiện - {data.totalWeight || 0} kg - {data.totalVolume || 0} m³)</div>
-            <div className="col-span-2 text-slate-500">Giao đến: {data.deliveryAddress || data.destinationHub || 'Theo chỉ định'}</div>
+            <div>
+              <div className='font-bold'>Thủ Kho</div>
+              <div className='text-[10px] text-slate-400'>(Ký, họ tên)</div>
+              <div className='mt-8 font-medium'>
+                {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''}
+              </div>
+            </div>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 flex justify-end">
-          <Button variant="outline" onClick={onClose} size="sm">
-            <IconX className="mr-1 h-4 w-4" /> Đóng
+        <DialogFooter className='gap-2 flex justify-end'>
+          <Button variant='outline' onClick={onClose} size='sm'>
+            <IconX className='mr-1 h-4 w-4' /> Đóng
           </Button>
-          <Button onClick={handlePrint} size="sm" className="bg-[#0F3D62] text-white hover:bg-[#0c314f]">
-            <IconPrinter className="mr-1.5 h-4 w-4" /> In phiếu nhập
+          <Button
+            onClick={handlePrint}
+            size='sm'
+            className='bg-[#0F3D62] text-white hover:bg-[#0c314f]'
+          >
+            <IconPrinter className='mr-1.5 h-4 w-4' /> In phiếu nhập
           </Button>
         </DialogFooter>
       </DialogContent>
