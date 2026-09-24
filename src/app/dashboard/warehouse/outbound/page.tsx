@@ -868,9 +868,9 @@ export default function WarehouseOutboundPage() {
                                     variant="outline"
                                     onClick={() => handlePrintOrderReceipt(o)}
                                     className="h-6 px-2 text-[11px] font-bold text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-slate-800"
-                                    title="In phiếu xuất kho"
+                                    title="In phiếu xuất"
                                   >
-                                    <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu
+                                    <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu xuất
                                   </Button>
                                 </td>
                               </tr>

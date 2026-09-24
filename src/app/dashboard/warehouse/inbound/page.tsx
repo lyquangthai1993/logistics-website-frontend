@@ -827,9 +827,9 @@ export default function WarehouseInboundPage() {
                                         setIsInboundReceiptModalOpen(true);
                                       }}
                                       className="h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold"
-                                      title="In phiếu nhập kho"
+                                      title="In phiếu nhập"
                                     >
-                                      <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu
+                                      <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu nhập
                                     </Button>
                                   )}
 

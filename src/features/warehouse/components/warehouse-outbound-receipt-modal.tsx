@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import {
@@ -273,7 +273,7 @@ export function WarehouseOutboundReceiptModal({
             <IconX className="mr-1 h-4 w-4" /> Đóng
           </Button>
           <Button onClick={handlePrint} size="sm" className="bg-emerald-700 text-white hover:bg-emerald-800">
-            <IconPrinter className="mr-1.5 h-4 w-4" /> In phiếu xuất A4
+            <IconPrinter className="mr-1.5 h-4 w-4" /> In phiếu xuất
           </Button>
         </DialogFooter>
       </DialogContent>
