@@ -781,19 +781,19 @@ function ProvinceCell({
     setValue(initialValue);
   }, [initialValue]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextVal = e.target.value;
     setValue(nextVal);
     table.options.meta?.updateData(row.index, column.id, nextVal);
   };
 
   return (
-    <Input
-      type="text"
+    <textarea
+      rows={2}
       value={value}
       onChange={handleChange}
       placeholder="VD: Hà Nội, TP.HCM..."
-      className="h-[30px] px-2 text-xs font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500"
+      className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
     />
   );
 }
@@ -1242,7 +1242,7 @@ export function WarehouseEditableGrid({
         accessorKey: 'province',
         id: 'province',
         header: 'TỈNH / TP',
-        size: 140,
+        size: 240,
         cell: ProvinceCell,
       },
       {
