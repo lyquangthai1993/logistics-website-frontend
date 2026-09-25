@@ -72,19 +72,15 @@ test.describe('Phân Hệ Nhập Kho - Bổ Sung Cột Chứng Từ Đi Kèm (Op
     const provinceInput1 = page.locator('table tbody tr').nth(0).locator('textarea[placeholder*="Hà Nội, TP.HCM"]');
     await provinceInput1.fill('TP.HCM');
 
-    // Click quick pill "1 BCT" trên dòng 1
-    const pill1BCT = page.locator('table tbody tr').nth(0).getByRole('button', { name: '1 BCT' });
-    await expect(pill1BCT).toBeVisible();
-    await pill1BCT.click();
-
-    // Xác nhận ô input chứng từ đã nhận giá trị "1 BCT"
+    // Nhập freetext "1 BCT" cho cột Chứng từ đi kèm dòng 1
     const docsInput1 = page.locator('table tbody tr').nth(0).locator('input[placeholder*="1 BCT, KHÔNG CÓ"]');
+    await docsInput1.fill('1 BCT');
     await expect(docsInput1).toHaveValue('1 BCT');
 
     const notesInput1 = page.locator('table tbody tr').nth(0).locator('textarea[placeholder*="Ghi chú bốc dỡ"]');
     await notesInput1.fill('Đơn hàng có 1 bộ chứng từ gốc kèm xe');
 
-    // ── 6. Thêm Dòng 2: Đơn KHÔNG CÓ chứng từ (sử dụng pill "Không có") ────────
+    // ── 6. Thêm Dòng 2: Đơn KHÔNG CÓ chứng từ (nhập freetext "KHÔNG CÓ") ────────
     const addRowBtn = page.getByRole('button', { name: /Thêm 1 dòng đơn mới/ });
     await addRowBtn.click();
 
@@ -109,13 +105,9 @@ test.describe('Phân Hệ Nhập Kho - Bổ Sung Cột Chứng Từ Đi Kèm (Op
     const provinceInput2 = page.locator('table tbody tr').nth(1).locator('textarea[placeholder*="Hà Nội, TP.HCM"]');
     await provinceInput2.fill('TP.HCM');
 
-    // Click quick pill "Không có" trên dòng 2
-    const pillNoDocs = page.locator('table tbody tr').nth(1).getByRole('button', { name: 'Không có' });
-    await expect(pillNoDocs).toBeVisible();
-    await pillNoDocs.click();
-
-    // Xác nhận ô input chứng từ dòng 2 đã nhận giá trị "KHÔNG CÓ"
+    // Nhập freetext "KHÔNG CÓ" cho cột Chứng từ đi kèm dòng 2
     const docsInput2 = page.locator('table tbody tr').nth(1).locator('input[placeholder*="1 BCT, KHÔNG CÓ"]');
+    await docsInput2.fill('KHÔNG CÓ');
     await expect(docsInput2).toHaveValue('KHÔNG CÓ');
 
     const notesInput2 = page.locator('table tbody tr').nth(1).locator('textarea[placeholder*="Ghi chú bốc dỡ"]');

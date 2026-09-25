@@ -812,45 +812,20 @@ function AccompanyingDocsCell({
     setValue(initialValue);
   }, [initialValue]);
 
-  const handleChange = (nextVal: string) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
     setValue(nextVal);
     table.options.meta?.updateData(row.index, column.id, nextVal);
   };
 
   return (
-    <div className="space-y-1 py-0.5">
-      <input
-        list={`docs-list-${row.index}`}
-        value={value}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder="VD: 1 BCT, KHÔNG CÓ..."
-        className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 h-[28px]"
-      />
-      <datalist id={`docs-list-${row.index}`}>
-        <option value="1 BCT" />
-        <option value="KHÔNG CÓ" />
-        <option value="2 BCT" />
-        <option value="Hóa đơn & Phiếu XK" />
-      </datalist>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => handleChange('1 BCT')}
-          className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold cursor-pointer transition-colors"
-          title="Gán nhanh: 1 BCT"
-        >
-          1 BCT
-        </button>
-        <button
-          type="button"
-          onClick={() => handleChange('KHÔNG CÓ')}
-          className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-semibold cursor-pointer transition-colors"
-          title="Gán nhanh: KHÔNG CÓ"
-        >
-          Không có
-        </button>
-      </div>
-    </div>
+    <Input
+      type="text"
+      value={value}
+      onChange={handleChange}
+      placeholder="1 BCT, KHÔNG CÓ..."
+      className="h-[30px] text-xs font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+    />
   );
 }
 
