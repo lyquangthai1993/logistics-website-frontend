@@ -796,7 +796,6 @@ export default function WarehouseInboundPage() {
                         </th>
                         <th className="p-2.5 w-[160px]">CHUYẾN XE / TRIP</th>
                         <th className="p-2.5 w-[160px]">XE & TÀI XẾ</th>
-                        <th className="p-2.5 min-w-[170px]">ĐƠN HÀNG TRÊN XE</th>
                         <th className="p-2.5 min-w-[150px]">HÀNG HÓA TỔNG HỢP</th>
                         <th className="p-2.5 text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
                         <th className="p-2.5 w-[110px] text-center">TRẠNG THÁI</th>
@@ -807,14 +806,14 @@ export default function WarehouseInboundPage() {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={9} className="p-8 text-center text-gray-500">
+                          <td colSpan={8} className="p-8 text-center text-gray-500">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="p-8 text-center text-gray-400">
+                          <td colSpan={8} className="p-8 text-center text-gray-400">
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -896,33 +895,6 @@ export default function WarehouseInboundPage() {
                                   </div>
                                 </td>
                                 <td className="py-2 px-2.5">
-                                  <div className="flex flex-wrap items-center gap-1 max-w-[260px]">
-                                    {grp.orders.slice(0, 3).map((o) => (
-                                      <button
-                                        key={o.id}
-                                        type="button"
-                                        onClick={() => {
-                                          setSelectedWaybillForDetail(o);
-                                          setIsDetailModalOpen(true);
-                                        }}
-                                        className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
-                                        title={`Xem chi tiết đơn ${o.orderCode}`}
-                                      >
-                                        {o.orderCode}
-                                      </button>
-                                    ))}
-                                    {grp.orders.length > 3 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                        className="text-[11px] font-semibold text-blue-600 hover:underline px-1 py-0.5"
-                                      >
-                                        +{grp.orders.length - 3} đơn
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="py-2 px-2.5">
                                   <div
                                     className="text-slate-900 dark:text-white font-medium text-xs truncate max-w-[160px]"
                                     title={grp.goodsDescription}
@@ -998,7 +970,7 @@ export default function WarehouseInboundPage() {
                               {/* Nested Sub-row with all orders of this vehicle */}
                               {isExpanded && (
                                 <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-                                  <td colSpan={9} className="p-3 pl-10 pr-4">
+                                  <td colSpan={8} className="p-3 pl-10 pr-4">
                                     <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 shadow-xs space-y-2">
                                       <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300">
                                         <span className="flex items-center gap-1.5">
