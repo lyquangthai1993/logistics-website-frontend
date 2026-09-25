@@ -88,6 +88,7 @@ export default function WarehouseInboundPage() {
       deliveryMode: 'DIRECT_CUSTOMER',
       deliveryAddress: '',
       province: '',
+      accompanyingDocs: '',
       notes: '',
     },
   ]);
@@ -322,6 +323,7 @@ export default function WarehouseInboundPage() {
       quantity: o.inboundQuantity ?? o.totalQuantity ?? 1,
       unit: 'Kiện',
       deliveryAddress: o.deliveryAddress || o.destinationHub || '—',
+      accompanyingDocs: o.accompanyingDocs || 'KHÔNG CÓ',
       notes: o.notes || '',
     }));
 
@@ -464,6 +466,7 @@ export default function WarehouseInboundPage() {
           pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
           deliveryAddress: row.deliveryAddress?.trim() || '',
           province: row.province?.trim() || undefined,
+          accompanyingDocs: row.accompanyingDocs?.trim() || undefined,
           deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
           destinationHubId: row.destinationHubId || null,
           notes: row.notes?.trim() || undefined,
@@ -508,6 +511,7 @@ export default function WarehouseInboundPage() {
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: '',
           province: '',
+          accompanyingDocs: '',
           notes: '',
         },
       ]);
@@ -554,6 +558,7 @@ export default function WarehouseInboundPage() {
           pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
           deliveryAddress: row.deliveryAddress?.trim() || '',
           province: row.province?.trim() || undefined,
+          accompanyingDocs: row.accompanyingDocs?.trim() || undefined,
           deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
           destinationHubId: row.destinationHubId || null,
           notes: row.notes?.trim() || undefined,
@@ -592,6 +597,7 @@ export default function WarehouseInboundPage() {
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: '',
           province: '',
+          accompanyingDocs: '',
           notes: '',
         },
       ]);
@@ -977,6 +983,7 @@ export default function WarehouseInboundPage() {
                                             <th className="py-1 px-2 font-medium min-w-[160px]">HÀNG HÓA</th>
                                             <th className="py-1 px-2 font-medium text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
                                             <th className="py-1 px-2 font-medium text-center w-[110px]">TRẠNG THÁI</th>
+                                            <th className="py-1 px-2 font-medium text-center w-[110px]">CHỨNG TỪ</th>
                                             <th className="py-1 px-2 font-medium min-w-[140px]">GHI CHÚ</th>
                                             <th className="py-1 px-2 font-medium text-center w-[160px]">THAO TÁC</th>
                                           </tr>
@@ -1011,6 +1018,23 @@ export default function WarehouseInboundPage() {
                                                 </td>
                                                 <td className="py-1.5 px-2 text-center">
                                                   {renderWarehouseOrderStatusBadge(subOrder.status)}
+                                                </td>
+                                                <td className="py-1.5 px-2 text-center">
+                                                  {subOrder.accompanyingDocs && subOrder.accompanyingDocs.toUpperCase() !== 'KHÔNG CÓ' ? (
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]"
+                                                    >
+                                                      {subOrder.accompanyingDocs}
+                                                    </Badge>
+                                                  ) : (
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]"
+                                                    >
+                                                      {subOrder.accompanyingDocs || 'Không có'}
+                                                    </Badge>
+                                                  )}
                                                 </td>
                                                 <td className="py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]" title={subOrder.notes}>
                                                   {subOrder.notes || '—'}

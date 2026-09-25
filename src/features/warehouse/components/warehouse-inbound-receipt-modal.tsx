@@ -73,7 +73,7 @@ export function WarehouseInboundReceiptModal({
             quantity: data.inboundQuantity ?? data.totalQuantity ?? 1,
             unit: data.unit || 'Kiện',
             deliveryAddress: data.deliveryAddress || data.destinationHub || '—',
-            accompanyingDocs: data.accompanyingDocs || '01 BỘ CT',
+            accompanyingDocs: data.accompanyingDocs || 'KHÔNG CÓ',
             notes: data.notes || '',
           },
         ];
@@ -221,7 +221,7 @@ export function WarehouseInboundReceiptModal({
                   <td class="text-center font-bold">${(it.quantity || 1).toLocaleString('vi-VN')}</td>
                   <td class="text-center">${it.unit || 'Kiện'}</td>
                   <td>${it.deliveryAddress || '—'}</td>
-                  <td class="text-center">${it.accompanyingDocs || '01 BỘ CT'}</td>
+                  <td class="text-center">${it.accompanyingDocs || 'KHÔNG CÓ'}</td>
                   <td>${it.notes || ''}</td>
                 </tr>
               `,
@@ -380,7 +380,7 @@ export function WarehouseInboundReceiptModal({
                       {item.deliveryAddress || '—'}
                     </td>
                     <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
-                      {item.accompanyingDocs || '01 BỘ CT'}
+                      {item.accompanyingDocs || 'KHÔNG CÓ'}
                     </td>
                     <td className='p-2 text-slate-500'>{item.notes || '—'}</td>
                   </tr>

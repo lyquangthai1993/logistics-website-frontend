@@ -73,16 +73,17 @@ export function WarehouseExcelImportModal({
         'Số m³',
         'Địa chỉ giao hàng (*)',
         'Tỉnh/TP',
+        'Chứng từ đi kèm',
         'Ghi chú',
       ];
 
       // Provide clean empty rows ready for user/customer to fill in directly
       const emptyRows = [
-        [1, '', '', '', '', '', '', '', ''],
-        [2, '', '', '', '', '', '', '', ''],
-        [3, '', '', '', '', '', '', '', ''],
-        [4, '', '', '', '', '', '', '', ''],
-        [5, '', '', '', '', '', '', '', ''],
+        [1, '', '', '', '', '', '', '', '', ''],
+        [2, '', '', '', '', '', '', '', '', ''],
+        [3, '', '', '', '', '', '', '', '', ''],
+        [4, '', '', '', '', '', '', '', '', ''],
+        [5, '', '', '', '', '', '', '', '', ''],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...emptyRows]);
@@ -97,6 +98,7 @@ export function WarehouseExcelImportModal({
         { wch: 12 }, // Số m3
         { wch: 45 }, // Địa chỉ giao
         { wch: 20 }, // Tỉnh/TP
+        { wch: 18 }, // Chứng từ đi kèm
         { wch: 35 }, // Ghi chú
       ];
 
@@ -172,6 +174,8 @@ export function WarehouseExcelImportModal({
           findVal(['địa chỉ giao', 'nơi giao', 'đích nhận', 'delivery', 'destination']) || '';
         const province =
           findVal(['tỉnh/tp', 'tỉnh / tp', 'tỉnh', 'thành phố', 'province', 'city']) || '';
+        const accompanyingDocs =
+          findVal(['chứng từ đi kèm', 'chứng từ', 'bct', 'accompanying docs', 'documents', 'kèm theo']) || '';
         const notes = findVal(['ghi chú', 'note', 'notes', 'remark']) || '';
 
         // Skip completely blank rows in Excel
@@ -183,6 +187,7 @@ export function WarehouseExcelImportModal({
           !String(totalVolumeRaw).trim() &&
           !String(deliveryAddress).trim() &&
           !String(province).trim() &&
+          !String(accompanyingDocs).trim() &&
           !String(notes).trim()
         ) {
           continue;
@@ -218,6 +223,7 @@ export function WarehouseExcelImportModal({
           deliveryAddress: String(deliveryAddress).trim(),
           destinationHubId: null,
           province: String(province).trim(),
+          accompanyingDocs: String(accompanyingDocs).trim(),
           notes: String(notes).trim(),
           isValid: errors.length === 0,
           errors,
@@ -455,6 +461,7 @@ export function WarehouseExcelImportModal({
                       <th className="p-2.5 text-right w-[85px]">SỐ M³</th>
                       <th className="p-2.5 min-w-[200px]">ĐỊA CHỈ GIAO</th>
                       <th className="p-2.5 min-w-[120px]">TỈNH/TP</th>
+                      <th className="p-2.5 min-w-[110px] text-center">CHỨNG TỪ</th>
                       <th className="p-2.5 text-center w-[90px]">TRẠNG THÁI</th>
                     </tr>
                   </thead>
@@ -500,6 +507,15 @@ export function WarehouseExcelImportModal({
                           <span className="truncate block max-w-[130px]" title={r.province}>
                             {r.province || <span className="text-gray-400">—</span>}
                           </span>
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {r.accompanyingDocs ? (
+                            <Badge variant="outline" className="text-[10px] font-semibold bg-blue-50 text-blue-700 border-blue-200">
+                              {r.accompanyingDocs}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-400 text-[10px]">—</span>
+                          )}
                         </td>
                         <td className="p-2.5 text-center">
                           {r.isValid ? (

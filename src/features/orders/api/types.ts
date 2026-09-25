@@ -28,6 +28,8 @@ export interface Order {
   externalNote?: string | null;
   createdByUserId?: number | null;
   notes?: string | null;
+  province?: string | null;
+  accompanyingDocs?: string | null;
   trips?: Trip[];
   createdAt: string;
   updatedAt: string;
@@ -63,6 +65,8 @@ export interface CreateOrderPayload {
   isExternalVehicleNeeded?: boolean;
   externalNote?: string;
   notes?: string;
+  province?: string;
+  accompanyingDocs?: string;
 }
 
 export type UpdateOrderPayload = Partial<CreateOrderPayload>;

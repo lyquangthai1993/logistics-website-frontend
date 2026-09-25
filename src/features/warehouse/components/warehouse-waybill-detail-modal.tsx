@@ -45,6 +45,7 @@ export interface WaybillDetailData {
   pickupAddress?: string;
   deliveryAddress?: string;
   province?: string | null;
+  accompanyingDocs?: string | null;
   deliveryMode?: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' | string;
   destinationHub?: string;
   destinationHubId?: number | null;
@@ -515,6 +516,7 @@ export function WarehouseWaybillDetailModal({
                       <th className="py-2.5 px-3 text-right w-[90px]">SỐ M³</th>
                       <th className="py-2.5 px-3">ĐỊA CHỈ GIAO HÀNG</th>
                       <th className="py-2.5 px-3">TỈNH / TP</th>
+                      <th className="py-2.5 px-3 text-center w-[120px]">CHỨNG TỪ</th>
                       <th className="py-2.5 px-3 text-center w-[120px]">HÌNH THỨC GIAO</th>
                     </tr>
                   </thead>
@@ -549,6 +551,17 @@ export function WarehouseWaybillDetailModal({
                           </Badge>
                         ) : (
                           <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {waybill.accompanyingDocs && waybill.accompanyingDocs.toUpperCase() !== 'KHÔNG CÓ' ? (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]">
+                            {waybill.accompanyingDocs}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]">
+                            {waybill.accompanyingDocs || 'Không có'}
+                          </Badge>
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-center">

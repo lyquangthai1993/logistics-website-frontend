@@ -60,6 +60,7 @@ export interface WarehouseRowItem {
   deliveryAddress: string;
   destinationHubId?: number | null;
   province?: string;
+  accompanyingDocs?: string;
   notes: string;
 }
 
@@ -798,6 +799,61 @@ function ProvinceCell({
   );
 }
 
+function AccompanyingDocsCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<WarehouseRowItem, any>) {
+  const initialValue = getValue() ?? '';
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (nextVal: string) => {
+    setValue(nextVal);
+    table.options.meta?.updateData(row.index, column.id, nextVal);
+  };
+
+  return (
+    <div className="space-y-1 py-0.5">
+      <input
+        list={`docs-list-${row.index}`}
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="VD: 1 BCT, KHÔNG CÓ..."
+        className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 h-[28px]"
+      />
+      <datalist id={`docs-list-${row.index}`}>
+        <option value="1 BCT" />
+        <option value="KHÔNG CÓ" />
+        <option value="2 BCT" />
+        <option value="Hóa đơn & Phiếu XK" />
+      </datalist>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => handleChange('1 BCT')}
+          className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold cursor-pointer transition-colors"
+          title="Gán nhanh: 1 BCT"
+        >
+          1 BCT
+        </button>
+        <button
+          type="button"
+          onClick={() => handleChange('KHÔNG CÓ')}
+          className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-semibold cursor-pointer transition-colors"
+          title="Gán nhanh: KHÔNG CÓ"
+        >
+          Không có
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NotesCell({
   getValue,
   row,
@@ -987,6 +1043,7 @@ export function WarehouseEditableGrid({
       deliveryMode: 'DIRECT_CUSTOMER',
       deliveryAddress: '',
       province: '',
+      accompanyingDocs: '',
       notes: '',
     };
     onChange([...rows, newRow]);
@@ -1010,6 +1067,7 @@ export function WarehouseEditableGrid({
         ...target,
         orderCode: '',
         province: target.province || '',
+        accompanyingDocs: target.accompanyingDocs || '',
       };
       const updated = [...rows];
       updated.splice(index + 1, 0, duplicated);
@@ -1038,9 +1096,12 @@ export function WarehouseEditableGrid({
             : pastedCode;
         const col7 = cols[7]?.trim() || '';
         const col8 = cols[8]?.trim() || '';
-        const hasProvinceCol = cols.length >= 9;
-        const province = hasProvinceCol ? col7 : '';
-        const notes = hasProvinceCol ? col8 : col7;
+        const col9 = cols[9]?.trim() || '';
+        const has10Cols = cols.length >= 10;
+        const has9Cols = cols.length === 9;
+        const province = has10Cols || has9Cols ? col7 : '';
+        const accompanyingDocs = has10Cols ? col8 : '';
+        const notes = has10Cols ? col9 : (has9Cols ? col8 : col7);
 
         return {
           orderCode: cleanCode,
@@ -1052,6 +1113,7 @@ export function WarehouseEditableGrid({
           deliveryMode: 'DIRECT_CUSTOMER',
           deliveryAddress: cols[6]?.trim() || '',
           province,
+          accompanyingDocs,
           notes,
         };
       });
@@ -1082,9 +1144,12 @@ export function WarehouseEditableGrid({
                 : pastedCode;
             const col7 = cols[7]?.trim() || '';
             const col8 = cols[8]?.trim() || '';
-            const hasProvinceCol = cols.length >= 9;
-            const province = hasProvinceCol ? col7 : '';
-            const notes = hasProvinceCol ? col8 : col7;
+            const col9 = cols[9]?.trim() || '';
+            const has10Cols = cols.length >= 10;
+            const has9Cols = cols.length === 9;
+            const province = has10Cols || has9Cols ? col7 : '';
+            const accompanyingDocs = has10Cols ? col8 : '';
+            const notes = has10Cols ? col9 : (has9Cols ? col8 : col7);
 
             return {
               orderCode: cleanCode,
@@ -1096,6 +1161,7 @@ export function WarehouseEditableGrid({
               deliveryMode: 'DIRECT_CUSTOMER',
               deliveryAddress: cols[6]?.trim() || '',
               province,
+              accompanyingDocs,
               notes,
             };
           });
@@ -1130,6 +1196,7 @@ export function WarehouseEditableGrid({
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
       province: (order as any).province || updated[lookupRowIndex].province || '',
+      accompanyingDocs: (order as any).accompanyingDocs || updated[lookupRowIndex].accompanyingDocs || '',
       notes: order.notes || '',
     };
     onChange(updated);
@@ -1242,14 +1309,21 @@ export function WarehouseEditableGrid({
         accessorKey: 'province',
         id: 'province',
         header: 'TỈNH / TP',
-        size: 240,
+        size: 180,
         cell: ProvinceCell,
+      },
+      {
+        accessorKey: 'accompanyingDocs',
+        id: 'accompanyingDocs',
+        header: 'CHỨNG TỪ ĐI KÈM',
+        size: 160,
+        cell: AccompanyingDocsCell,
       },
       {
         accessorKey: 'notes',
         id: 'notes',
         header: 'GHI CHÚ',
-        size: 240,
+        size: 220,
         cell: NotesCell,
       },
       {
