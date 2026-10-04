@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
+import { useDebounce } from '@/hooks/use-debounce';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -67,6 +68,7 @@ export default function WarehouseInboundPage() {
 
   // Inbound Board State (sq2P6)
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [statusTab, setStatusTab] = useState<
     'ALL' | 'WAITING' | 'CUSTOMER' | 'TRANSFER' | 'STORED'
   >('ALL');
@@ -174,7 +176,7 @@ export default function WarehouseInboundPage() {
       page: page.toString(),
       limit: pageSize.toString(),
       flow: 'INBOUND',
-      ...(search.trim() ? { search: search.trim() } : {}),
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
       ...(statusTab !== 'ALL' ? { status: statusTab } : {})
     });
 
@@ -197,7 +199,7 @@ export default function WarehouseInboundPage() {
         setMeta({ total: 0, totalPages: 1 });
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, search, statusTab]);
+  }, [page, pageSize, debouncedSearch, statusTab]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {

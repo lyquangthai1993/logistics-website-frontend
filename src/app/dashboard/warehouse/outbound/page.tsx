@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
+import { useDebounce } from '@/hooks/use-debounce';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -60,6 +61,7 @@ export default function WarehouseOutboundPage() {
 
   // Board Filter & Data
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [statusTab, setStatusTab] = useState('ALL');
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -231,7 +233,7 @@ export default function WarehouseOutboundPage() {
   // Reset page to 1 when search, tab, or dates change
   useEffect(() => {
     setPage(1);
-  }, [search, statusTab, fromDate, toDate]);
+  }, [debouncedSearch, statusTab, fromDate, toDate]);
 
   // Fetch Board Orders
   const fetchOrders = useCallback(() => {
@@ -246,7 +248,7 @@ export default function WarehouseOutboundPage() {
       page: page.toString(),
       limit: pageSize.toString(),
       flow: 'OUTBOUND',
-      ...(search.trim() ? { search: search.trim() } : {}),
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
       ...(statusTab !== 'ALL' ? { status: statusTab } : {}),
       ...(fromDate ? { fromDate } : {}),
       ...(toDate ? { toDate } : {})
@@ -274,7 +276,7 @@ export default function WarehouseOutboundPage() {
         setOrders([]);
       })
       .finally(() => setIsLoading(false));
-  }, [page, pageSize, search, statusTab, fromDate, toDate]);
+  }, [page, pageSize, debouncedSearch, statusTab, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
