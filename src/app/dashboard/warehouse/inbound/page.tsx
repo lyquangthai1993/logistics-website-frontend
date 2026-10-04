@@ -32,6 +32,7 @@ import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/compon
 import { WarehouseInboundReceiptModal, InboundReceiptData, InboundReceiptItem } from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
 import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
 import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-tally-modal';
+import { WarehouseTripDetailModal, InboundVehicleGroup } from '@/features/warehouse/components/warehouse-trip-detail-modal';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
@@ -62,6 +63,15 @@ export default function WarehouseInboundPage() {
 
   const [isTallyModalOpen, setIsTallyModalOpen] = useState(false);
   const [selectedWaybillForTally, setSelectedWaybillForTally] = useState<WaybillDetailData | null>(null);
+
+  // Vehicle Trip Detail & Tally Modal State
+  const [isTripDetailModalOpen, setIsTripDetailModalOpen] = useState(false);
+  const [selectedTripGroup, setSelectedTripGroup] = useState<InboundVehicleGroup | null>(null);
+
+  const handleOpenTripDetail = (grp: InboundVehicleGroup) => {
+    setSelectedTripGroup(grp);
+    setIsTripDetailModalOpen(true);
+  };
 
   // Pallet Label A4 Modal State
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
@@ -179,23 +189,6 @@ export default function WarehouseInboundPage() {
       fetchInboundOrders();
     }
   }, [activeView, fetchInboundOrders]);
-
-  // Vehicle Group Interface (Feedback 17/8 & Prompt: 1 dòng là 1 xe)
-  interface InboundVehicleGroup {
-    groupKey: string;
-    licensePlate: string;
-    driverName: string;
-    tripCode: string;
-    receiveDate?: string;
-    status: string;
-    isTransfer: boolean;
-    orders: any[];
-    totalQuantity: number;
-    totalWeight: number;
-    totalVolume: number;
-    goodsDescription: string;
-    notes?: string;
-  }
 
   // Collapsed / Expanded Vehicle Groups State
   const [expandedVehicleKeys, setExpandedVehicleKeys] = useState<Record<string, boolean>>({});
@@ -702,7 +695,7 @@ export default function WarehouseInboundPage() {
 
                   <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
                     {/* Search Input */}
-                    <div className="relative min-w-[240px] max-w-xs">
+                    <div className="relative min-w-[340px] max-w-xs">
                       <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                       <Input
                         value={search}
@@ -876,17 +869,22 @@ export default function WarehouseInboundPage() {
                                       )}
                                     </button>
                                     <div>
-                                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs">
-                                        {grp.tripCode}
-                                      </span>
-                                      {grp.orders.length > 1 && (
-                                        <Badge
-                                          variant="outline"
-                                          className="ml-1.5 text-[10px] px-1.5 py-0 h-4 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold"
-                                        >
-                                          {grp.orders.length} đơn
-                                        </Badge>
-                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenTripDetail(grp)}
+                                        className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left"
+                                        title="Nhấp để xem chi tiết & kiểm đếm chuyến xe"
+                                      >
+                                        <span>{grp.tripCode}</span>
+                                        {grp.orders.length > 1 && (
+                                          <Badge
+                                            variant="outline"
+                                            className="ml-1.5 text-[10px] px-1.5 py-0 h-4 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer"
+                                          >
+                                            {grp.orders.length} đơn
+                                          </Badge>
+                                        )}
+                                      </button>
                                     </div>
                                   </div>
                                 </td>
@@ -932,17 +930,9 @@ export default function WarehouseInboundPage() {
                                     {hasWaiting ? (
                                       <Button
                                         size="sm"
-                                        onClick={() => {
-                                          const firstWaiting = grp.orders.find((o) =>
-                                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status),
-                                          );
-                                          if (firstWaiting) {
-                                            setSelectedWaybillForTally(firstWaiting);
-                                            setIsTallyModalOpen(true);
-                                          }
-                                        }}
+                                        onClick={() => handleOpenTripDetail(grp)}
                                         className="h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs"
-                                        title="Kiểm đếm nhận hàng"
+                                        title="Kiểm đếm nhận hàng chuyến xe"
                                       >
                                         <IconClipboardCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Kiểm đếm
                                       </Button>
@@ -1406,6 +1396,21 @@ export default function WarehouseInboundPage() {
             setSelectedReceiptData(null);
           }}
           data={selectedReceiptData}
+        />
+
+        {/* ── Modal Chi Tiết & Kiểm Đếm Chuyến Xe Nhập Kho ── */}
+        <WarehouseTripDetailModal
+          isOpen={isTripDetailModalOpen}
+          onClose={() => {
+            setIsTripDetailModalOpen(false);
+            setSelectedTripGroup(null);
+          }}
+          tripGroup={selectedTripGroup}
+          onSuccess={() => {
+            fetchInboundOrders();
+            fetchKpi();
+          }}
+          onOpenReceipt={handleOpenReceiptForVehicle}
         />
       </div>
     </PageContainer>

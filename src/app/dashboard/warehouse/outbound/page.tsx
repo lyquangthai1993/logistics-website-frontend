@@ -18,6 +18,7 @@ import {
   IconLoader2,
   IconFileSpreadsheet,
   IconCalendar,
+  IconUser,
   IconChevronDown,
   IconChevronRight,
   IconFoldUp,
@@ -28,6 +29,12 @@ import { tokenManager } from '@/lib/token-manager';
 import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
 import { WarehouseOutboundTransferFlow } from '@/features/warehouse/components/warehouse-outbound-transfer-flow';
 import { WarehouseOutboundReceiptModal, OutboundReceiptData } from '@/features/warehouse/components/warehouse-outbound-receipt-modal';
+import {
+  WarehouseTripDetailModal,
+  type InboundVehicleGroup,
+  WarehouseWaybillDetailModal,
+} from '@/features/warehouse/components';
+import type { WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
@@ -50,6 +57,33 @@ export default function WarehouseOutboundPage() {
   // Outbound Receipt Modal State
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [selectedReceiptData, setSelectedReceiptData] = useState<OutboundReceiptData | null>(null);
+
+  // Waybill Detail Modal State (Read-only audit view)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedWaybillForDetail, setSelectedWaybillForDetail] = useState<WaybillDetailData | null>(null);
+
+  // Vehicle Trip Detail Modal State (Read-only audit view: "khi click vào TRIP cũng sẽ tương tự như chỉ là dạng view thôi")
+  const [isTripDetailModalOpen, setIsTripDetailModalOpen] = useState(false);
+  const [selectedTripGroup, setSelectedTripGroup] = useState<InboundVehicleGroup | null>(null);
+
+  const handleOpenTripDetail = (grp: InboundVehicleGroup) => {
+    setSelectedTripGroup(grp);
+    setIsTripDetailModalOpen(true);
+  };
+
+  // Checkbox selection & batch confirm outbound
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+  const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
+
+  // Expanded Vehicle Groups State
+  const [expandedVehicleKeys, setExpandedVehicleKeys] = useState<Record<string, boolean>>({});
+
+  const toggleExpandVehicle = (key: string) => {
+    setExpandedVehicleKeys((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   // Date Range Filter: Default from 1st of current month to today
   const getDefaultFromDate = () => {
@@ -287,6 +321,18 @@ export default function WarehouseOutboundPage() {
 
   // Submit Outbound
   const handleSubmitOutbound = async (mode: 'CUSTOMER' | 'TRANSFER') => {
+    if (mode === 'CUSTOMER') {
+      if (!outboundLicensePlate.trim()) {
+        toast.error('Vui lòng nhập Biển số xe xuất kho (bắt buộc)');
+        return;
+      }
+    } else if (mode === 'TRANSFER') {
+      if (!transferLicensePlate.trim()) {
+        toast.error('Vui lòng nhập Biển số xe luân chuyển (bắt buộc)');
+        return;
+      }
+    }
+
     const activeRows = mode === 'CUSTOMER' ? mode1Rows : mode2Rows;
     const validRows = activeRows.filter((r) => r.orderCode && r.orderCode.trim() !== '');
 
@@ -391,85 +437,155 @@ export default function WarehouseOutboundPage() {
   };
 
   const handleSaveDraftMode1 = () => {
+    if (!outboundLicensePlate.trim()) {
+      toast.error('Vui lòng nhập Biển số xe để lưu nháp');
+      return;
+    }
     toast.success('Đã lưu nháp phiếu xuất kho thành công!');
     setActiveView('BOARD');
   };
 
-  // Group orders by vehicle license plate (Feedback 17/8: group_theo_xe.png)
-  interface VehicleGroup {
-    licensePlate: string;
-    driverName?: string;
-    orders: any[];
-    totalPackages: number;
-    totalWeight: number;
-    totalVolume: number;
-    canExport: boolean;
-  }
-
-  const vehicleGroups: VehicleGroup[] = useMemo(() => {
-    const map = new Map<string, VehicleGroup>();
+  // Group outbound orders by vehicle / trip (identical structure to Inbound)
+  const vehicleGroups: InboundVehicleGroup[] = useMemo(() => {
+    const map = new Map<string, InboundVehicleGroup>();
 
     for (const o of orders) {
-      const trip = o.trips?.[0];
-      const plate = trip?.licensePlate?.trim() || o.vehicleLicensePlate?.trim() || 'CHƯA GÁN XE';
-      const driver = trip?.driverName?.trim() || o.driverName?.trim() || '';
+      const activeTrip = o.trips?.[0];
+      let plate =
+        activeTrip?.licensePlate?.trim()?.toUpperCase() ||
+        o.vehicleLicensePlate?.trim()?.toUpperCase() ||
+        '';
+      let driver = activeTrip?.driverName?.trim() || o.driverName?.trim() || '';
+      let tripCode =
+        activeTrip?.tripCode?.trim() ||
+        (activeTrip?.id ? `TRIP-${activeTrip.id}` : '');
 
-      if (!map.has(plate)) {
-        map.set(plate, {
-          licensePlate: plate,
+      if (!plate && o.notes) {
+        const m = o.notes.match(/\[Xe:\s*([^-\]]+)/i);
+        if (m) plate = m[1].trim().toUpperCase();
+      }
+      if (!driver && o.notes) {
+        const m = o.notes.match(/TX:\s*([^-\]]+)/i);
+        if (m) driver = m[1].trim();
+      }
+
+      // Grouping key: prefer tripCode, then plate, then order id fallback
+      const key = tripCode || (plate ? `PLATE-${plate}` : `ORD-${o.id}`);
+
+      const isTransfer =
+        o.inboundType === 'TRANSFER' ||
+        o.orderCode?.startsWith('TRIP') ||
+        (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
+        (o.originHubEntity?.id &&
+          o.destinationHubEntity?.id &&
+          o.originHubEntity.id !== o.destinationHubEntity.id);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          groupKey: key,
+          licensePlate: plate || 'CHƯA GÁN XE',
           driverName: driver,
+          tripCode: tripCode || '—',
+          receiveDate: activeTrip?.pickupDate || o.createdAt?.split('T')[0],
+          status: o.status,
+          isTransfer,
           orders: [],
-          totalPackages: 0,
+          totalQuantity: 0,
           totalWeight: 0,
           totalVolume: 0,
-          canExport: false,
+          goodsDescription: '',
+          notes: o.notes || '',
         });
       }
 
-      const group = map.get(plate)!;
-      group.orders.push(o);
-      group.totalPackages += Number(o.totalQuantity) || 0;
-      group.totalWeight += Number(o.totalWeight) || 0;
-      group.totalVolume += Number(o.totalVolume) || 0;
+      const grp = map.get(key)!;
+      grp.orders.push(o);
+      grp.totalQuantity += Number(o.totalQuantity ?? 1);
+      grp.totalWeight += Number(o.totalWeight ?? 0);
+      grp.totalVolume += Number(o.totalVolume ?? 0);
+
+      // If any order is waiting/draft/inbound, show that status
       if (['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.status)) {
-        group.canExport = true;
+        grp.status = o.status;
       }
     }
+
+    map.forEach((grp) => {
+      const descs = Array.from(
+        new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)),
+      );
+      if (descs.length === 1) {
+        grp.goodsDescription = descs[0];
+      } else if (descs.length > 1) {
+        grp.goodsDescription = `${descs[0]} (+${descs.length - 1} loại hàng)`;
+      } else {
+        grp.goodsDescription = 'Hàng hóa tổng quan';
+      }
+    });
 
     return Array.from(map.values());
   }, [orders]);
 
-  // Collapsed Vehicle Groups State (Feedback 17/8 Outbound collapsible)
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-
-  const toggleGroup = (licensePlate: string) => {
-    setCollapsedGroups((prev) => ({
-      ...prev,
-      [licensePlate]: !prev[licensePlate],
-    }));
-  };
-
-  const allCollapsed = useMemo(() => {
+  const allExpanded = useMemo(() => {
     if (vehicleGroups.length === 0) return false;
-    return vehicleGroups.every((g) => !!collapsedGroups[g.licensePlate]);
-  }, [vehicleGroups, collapsedGroups]);
+    return vehicleGroups.every((g) => !!expandedVehicleKeys[g.groupKey]);
+  }, [vehicleGroups, expandedVehicleKeys]);
 
   const toggleAllGroups = () => {
-    if (allCollapsed) {
-      setCollapsedGroups({});
+    if (allExpanded) {
+      setExpandedVehicleKeys({});
     } else {
       const next: Record<string, boolean> = {};
       vehicleGroups.forEach((g) => {
-        next[g.licensePlate] = true;
+        next[g.groupKey] = true;
       });
-      setCollapsedGroups(next);
+      setExpandedVehicleKeys(next);
+    }
+  };
+
+  // Batch Outbound Confirmation
+  const handleBatchConfirmOutbound = async () => {
+    if (selectedOrderIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 đơn hàng để xuất kho');
+      return;
+    }
+
+    setIsBatchSubmitting(true);
+    const token = tokenManager.getAccessToken();
+
+    try {
+      const res = await fetch('/api/v1/warehouse/outbound/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          orderIds: selectedOrderIds,
+          mode: 'CUSTOMER',
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
+      }
+
+      toast.success(`Đã xác nhận xuất kho thành công cho ${selectedOrderIds.length} đơn hàng!`);
+      setSelectedOrderIds([]);
+      fetchKpi();
+      fetchOrders();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Lỗi khi xác nhận xuất kho hàng loạt');
+    } finally {
+      setIsBatchSubmitting(false);
     }
   };
 
   // Quick export for an entire vehicle trip
-  const handleExportVehicleTrip = async (group: VehicleGroup) => {
-    const exportableOrders = group.orders.filter((o) =>
-      ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.status)
+  const handleExportVehicleTrip = async (grp: InboundVehicleGroup) => {
+    const exportableOrders = grp.orders.filter((o) =>
+      ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.status),
     );
     if (exportableOrders.length === 0) {
       toast.error('Không có đơn hàng nào chờ xuất kho trong chuyến xe này');
@@ -486,9 +602,9 @@ export default function WarehouseOutboundPage() {
         },
         body: JSON.stringify({
           orderIds: exportableOrders.map((o) => o.id),
-          mode: 'CUSTOMER',
-          licensePlate: group.licensePlate !== 'CHƯA GÁN XE' ? group.licensePlate : undefined,
-          driverName: group.driverName || undefined,
+          mode: grp.isTransfer ? 'TRANSFER' : 'CUSTOMER',
+          licensePlate: grp.licensePlate !== 'CHƯA GÁN XE' ? grp.licensePlate : undefined,
+          driverName: grp.driverName || undefined,
         }),
       });
 
@@ -497,12 +613,44 @@ export default function WarehouseOutboundPage() {
         throw { response: { data: errData, status: res.status } };
       }
 
-      toast.success(`Đã xuất kho chuyến xe ${group.licensePlate} (${exportableOrders.length} đơn)!`);
+      toast.success(`Đã xuất kho chuyến xe ${grp.licensePlate} (${exportableOrders.length} đơn)!`);
       fetchKpi();
       fetchOrders();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xuất chuyến xe');
     }
+  };
+
+  // Open Outbound Receipt modal for an entire vehicle trip
+  const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
+    const orig =
+      grp.orders[0]?.pickupAddress?.trim() ||
+      grp.orders[0]?.originHubEntity?.name ||
+      grp.orders[0]?.originHub ||
+      user?.hub?.name;
+    const dest =
+      grp.orders[0]?.destinationHubEntity?.name ||
+      grp.orders[0]?.destinationHub ||
+      grp.orders[0]?.deliveryAddress?.trim() ||
+      '';
+
+    const receiptData: OutboundReceiptData = {
+      orderCode: grp.orders[0]?.orderCode || grp.tripCode,
+      goodsDescription: grp.goodsDescription,
+      totalQuantity: grp.totalQuantity,
+      outboundQuantity: grp.totalQuantity,
+      totalWeight: grp.totalWeight,
+      totalVolume: grp.totalVolume,
+      driverName: grp.driverName,
+      licensePlate: grp.licensePlate,
+      deliveryAddress: dest,
+      destinationHub: dest,
+      mode: grp.isTransfer ? 'TRANSFER' : 'CUSTOMER',
+      dispatchDate: grp.receiveDate || new Date().toISOString().split('T')[0],
+      notes: grp.notes || '',
+    };
+    setSelectedReceiptData(receiptData);
+    setIsReceiptModalOpen(true);
   };
 
   // Open Outbound Receipt modal for printing
@@ -657,17 +805,17 @@ export default function WarehouseOutboundPage() {
                     size="sm"
                     onClick={toggleAllGroups}
                     className="h-9 text-xs font-semibold border-slate-300 dark:border-slate-700"
-                    title={allCollapsed ? 'Mở rộng tất cả các nhóm xe' : 'Thu gọn tất cả các nhóm xe'}
+                    title={allExpanded ? 'Thu gọn tất cả các nhóm xe' : 'Mở rộng tất cả các nhóm xe'}
                   >
-                    {allCollapsed ? (
-                      <>
-                        <IconFoldDown className="mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400" />
-                        Mở rộng tất cả ({vehicleGroups.length} xe)
-                      </>
-                    ) : (
+                    {allExpanded ? (
                       <>
                         <IconFoldUp className="mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400" />
                         Thu gọn tất cả ({vehicleGroups.length} xe)
+                      </>
+                    ) : (
+                      <>
+                        <IconFoldDown className="mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        Mở rộng tất cả ({vehicleGroups.length} xe)
                       </>
                     )}
                   </Button>
@@ -686,202 +834,318 @@ export default function WarehouseOutboundPage() {
                 </Button>
               </div>
 
-              {/* Vehicle-grouped Table List (feedback_17_8: group_theo_xe.png) */}
-              <div className="space-y-4">
-                {isLoading ? (
-                  <div className="border rounded-lg p-10 text-center text-gray-500 bg-white dark:bg-slate-900">
-                    <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
-                    Đang tải dữ liệu xuất kho...
-                  </div>
-                ) : orders.length === 0 ? (
-                  <div className="border rounded-lg p-10 text-center text-gray-400 bg-white dark:bg-slate-900">
-                    Chưa có đơn hàng nào trong danh sách xuất kho
-                  </div>
-                ) : (
-                  vehicleGroups.map((group) => (
-                    <div
-                      key={group.licensePlate}
-                      className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-xs"
+              {/* Batch Action Bar */}
+              {selectedOrderIds.length > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-blue-900 dark:text-blue-200">
+                    Đã chọn {selectedOrderIds.length} đơn hàng
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedOrderIds([])}
+                      className="h-7 text-xs text-slate-600"
                     >
-                      {/* Vehicle Header (Collapsible) */}
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => toggleGroup(group.licensePlate)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            toggleGroup(group.licensePlate);
+                      Bỏ chọn
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleBatchConfirmOutbound}
+                      disabled={isBatchSubmitting}
+                      className="h-7 text-xs font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f]"
+                    >
+                      {isBatchSubmitting ? (
+                        <>
+                          <IconLoader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Đang xuất kho...
+                        </>
+                      ) : (
+                        <>
+                          <IconCircleCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Xác nhận xuất kho {selectedOrderIds.length} đơn
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Outbound Board Table (Frame sq2P6 parity với Inbound) */}
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
+                    <tr>
+                      <th className="p-2.5 w-[40px] text-center">
+                        <input
+                          type="checkbox"
+                          checked={
+                            orders.length > 0 &&
+                            orders.every((o) => selectedOrderIds.includes(Number(o.id)))
                           }
-                        }}
-                        className="bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/80 dark:hover:bg-slate-800 px-3 py-2 border-b flex flex-wrap items-center justify-between gap-2 cursor-pointer select-none transition-colors"
-                        title="Nhấn để thu gọn hoặc mở rộng danh sách đơn của xe này"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 font-black text-slate-800 dark:text-slate-100 text-xs">
-                            {collapsedGroups[group.licensePlate] ? (
-                              <IconChevronRight className="h-4 w-4 text-slate-400 transition-transform" />
-                            ) : (
-                              <IconChevronDown className="h-4 w-4 text-[#0F3D62] dark:text-blue-400 transition-transform" />
-                            )}
-                            <IconTruck className="h-4 w-4 text-[#0F3D62] dark:text-blue-400" />
-                            <span>
-                              Biển số xe:{' '}
-                              <span className="font-mono text-[#0F3D62] dark:text-blue-400 font-bold">
-                                {group.licensePlate}
-                              </span>
-                            </span>
-                          </div>
-                          {group.driverName && (
-                            <span className="text-xs text-slate-500 font-medium">
-                              Tài xế:{' '}
-                              <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                {group.driverName}
-                              </span>
-                            </span>
-                          )}
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                          >
-                            {group.orders.length} đơn hàng · {group.totalPackages} kiện ·{' '}
-                            {group.totalWeight ? `${group.totalWeight.toLocaleString('vi-VN')} kg` : '0 kg'}
-                          </Badge>
-                          {collapsedGroups[group.licensePlate] && (
-                            <span className="text-[11px] text-slate-400 italic">
-                              (Đã thu gọn — bấm để xem chi tiết)
-                            </span>
-                          )}
-                        </div>
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedOrderIds(orders.map((o) => Number(o.id)));
+                            } else {
+                              setSelectedOrderIds([]);
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                        />
+                      </th>
+                      <th className="p-2.5 w-[160px]">CHUYẾN XE / TRIP</th>
+                      <th className="p-2.5 w-[160px]">XE & TÀI XẾ</th>
+                      <th className="p-2.5 text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
+                      <th className="p-2.5 w-[110px] text-center">TRẠNG THÁI</th>
+                      <th className="p-2.5 text-center w-[110px]">LOẠI XUẤT KHO</th>
+                      <th className="p-2.5 text-center w-[190px]">THAO TÁC</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-gray-500">
+                          <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          Đang tải danh sách đơn xuất kho...
+                        </td>
+                      </tr>
+                    ) : vehicleGroups.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-gray-400">
+                          Không có chuyến xe xuất kho phù hợp bộ lọc
+                        </td>
+                      </tr>
+                    ) : (
+                      vehicleGroups.map((grp) => {
+                        const isExpanded = !!expandedVehicleKeys[grp.groupKey];
+                        const groupOrderIds = grp.orders.map((o) => Number(o.id));
+                        const isGroupSelected =
+                          groupOrderIds.length > 0 &&
+                          groupOrderIds.every((id) => selectedOrderIds.includes(id));
+                        const canExport = grp.orders.some((o) =>
+                          ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.status),
+                        );
 
-                        {group.canExport && (
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportVehicleTrip(group);
-                            }}
-                            className="bg-[#0F3D62] text-white hover:bg-[#0c314f] h-7 text-xs font-bold px-3 shadow-xs"
-                          >
-                            Xuất chuyến xe này
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Vehicle Orders Table */}
-                      {!collapsedGroups[group.licensePlate] && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs text-left">
-                          <thead className="bg-slate-100/60 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-bold border-b text-[11px]">
-                            <tr>
-                              <th className="py-1.5 px-2 w-[160px]">MÃ ĐƠN HÀNG</th>
-                              <th className="py-1.5 px-2">KHÁCH HÀNG / ĐÍCH ĐẾN</th>
-                              <th className="py-1.5 px-2">TÊN HÀNG HÓA</th>
-                              <th className="py-1.5 px-2 w-[140px]">CHUYẾN XE / TRIP</th>
-                              <th className="py-1.5 px-2 text-right w-[90px]">TỒN KHO</th>
-                              <th className="py-1.5 px-2 text-right w-[80px]">SỐ KIỆN</th>
-                              <th className="py-1.5 px-2 text-right w-[90px]">SỐ KG</th>
-                              <th className="py-1.5 px-2 text-right w-[80px]">SỐ M³</th>
-                              <th className="py-1.5 px-2 text-center w-[110px]">TRẠNG THÁI</th>
-                              <th className="py-1.5 px-2 text-center w-[90px]">THAO TÁC</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {group.orders.map((o) => (
-                              <tr
-                                key={o.id}
-                                className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors"
-                              >
-                                <td className="py-1.5 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
-                                  {o.orderCode}
-                                </td>
-                                <td className="py-1.5 px-2 font-medium text-slate-800 dark:text-slate-200">
-                                  {o.destinationHub || o.route || o.deliveryAddress || 'Giao khách lẻ'}
-                                </td>
-                                <td className="py-1.5 px-2 text-slate-700 dark:text-slate-300">
-                                  {o.goodsDescription || 'Hàng tổng quan'}
-                                </td>
-                                <td className="py-1.5 px-2">
-                                  {(() => {
-                                    const activeTrip = o.trips?.[0];
-                                    const tripCode =
-                                      activeTrip?.tripCode ||
-                                      (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
-                                    const plate = activeTrip?.licensePlate || o.vehicleLicensePlate;
-                                    const driver = activeTrip?.driverName || o.driverName;
-
-                                    if (!tripCode && !plate) {
-                                      return <span className="text-gray-400 italic text-[11px]">—</span>;
+                        return (
+                          <React.Fragment key={grp.groupKey}>
+                            <tr className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isGroupSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedOrderIds((prev) =>
+                                        Array.from(new Set([...prev, ...groupOrderIds])),
+                                      );
+                                    } else {
+                                      setSelectedOrderIds((prev) =>
+                                        prev.filter((id) => !groupOrderIds.includes(id)),
+                                      );
                                     }
-
-                                    return (
-                                      <div className="text-xs space-y-0.5">
-                                        {tripCode && (
-                                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] flex items-center gap-1">
-                                            <span>{tripCode}</span>
-                                            {o.trips && o.trips.length > 1 && (
-                                              <Badge
-                                                variant="outline"
-                                                className="text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50"
-                                              >
-                                                +{o.trips.length - 1}
-                                              </Badge>
-                                            )}
-                                          </div>
-                                        )}
-                                        {plate && (
-                                          <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
-                                            <IconTruck className="h-3 w-3 text-slate-400 shrink-0" />
-                                            <span>{plate}</span>
-                                          </div>
-                                        )}
-                                        {driver && (
-                                          <div
-                                            className="text-[10px] text-gray-400 truncate max-w-[120px]"
-                                            title={driver}
-                                          >
-                                            {driver}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                </td>
-                                <td className="py-1.5 px-2 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                                  {o.remainingQuantity ?? o.totalQuantity ?? 0} kiện
-                                </td>
-                                <td className="py-1.5 px-2 text-right font-bold text-slate-900 dark:text-white">
-                                  {o.totalQuantity ?? 1}
-                                </td>
-                                <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300">
-                                  {o.totalWeight ? `${o.totalWeight.toLocaleString('vi-VN')} kg` : '0 kg'}
-                                </td>
-                                <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300">
-                                  {o.totalVolume ? `${o.totalVolume} m³` : '0 m³'}
-                                </td>
-                                <td className="py-1.5 px-2 text-center">
-                                  {renderWarehouseOrderStatusBadge(o.status)}
-                                </td>
-                                <td className="py-1.5 px-2 text-center">
+                                  }}
+                                  className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                                />
+                              </td>
+                              <td className="py-2 px-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExpandVehicle(grp.groupKey)}
+                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer"
+                                    title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem chi tiết các đơn trên xe'}
+                                  >
+                                    {isExpanded ? (
+                                      <IconChevronDown className="h-4 w-4 text-blue-600 font-bold" />
+                                    ) : (
+                                      <IconChevronRight className="h-4 w-4 text-slate-400" />
+                                    )}
+                                  </button>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenTripDetail(grp)}
+                                      className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left"
+                                      title="Nhấp để xem chi tiết chuyến xe (chế độ xem)"
+                                    >
+                                      <span>{grp.tripCode}</span>
+                                      {grp.orders.length > 1 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="ml-1.5 text-[10px] px-1.5 py-0 h-4 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer"
+                                        >
+                                          {grp.orders.length} đơn
+                                        </Badge>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5">
+                                <div className="text-xs space-y-0.5">
+                                  <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1">
+                                    <IconTruck className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                                    <span>{grp.licensePlate}</span>
+                                  </div>
+                                  {grp.driverName && (
+                                    <div
+                                      className="text-[11px] text-gray-500 truncate max-w-[140px]"
+                                      title={grp.driverName}
+                                    >
+                                      {grp.driverName}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                <div>{grp.totalQuantity} kiện</div>
+                                <div className="text-gray-400 text-[10px]">
+                                  {grp.totalWeight.toLocaleString('vi-VN')} kg &bull; {grp.totalVolume} m³
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5 text-center">
+                                {renderWarehouseOrderStatusBadge(grp.status)}
+                              </td>
+                              <td className="py-2 px-2.5 text-center">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    grp.isTransfer
+                                      ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
+                                      : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
+                                  }
+                                >
+                                  {grp.isTransfer ? 'Luân chuyển' : 'Xuất khách'}
+                                </Badge>
+                              </td>
+                              <td className="py-2 px-2.5 text-center">
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                  {canExport && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleExportVehicleTrip(grp)}
+                                      className="h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs"
+                                      title="Xuất chuyến xe này"
+                                    >
+                                      <IconTruck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Xuất chuyến
+                                    </Button>
+                                  )}
                                   <Button
-                                    size="sm"
                                     variant="outline"
-                                    onClick={() => handlePrintOrderReceipt(o)}
-                                    className="h-6 px-2 text-[11px] font-bold text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-slate-800"
-                                    title="In phiếu xuất"
+                                    size="sm"
+                                    onClick={() => handleOpenReceiptForVehicle(grp)}
+                                    className="h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold"
+                                    title="In phiếu xuất xe (chứa tất cả đơn hàng của xe)"
                                   >
                                     <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu xuất
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleExpandVehicle(grp.groupKey)}
+                                    className="h-7 text-[11px] text-slate-600 hover:text-blue-700 px-1.5"
+                                    title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem các đơn'}
+                                  >
+                                    {isExpanded ? 'Thu gọn' : 'Xem đơn'}
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Nested Sub-row with all orders of this vehicle */}
+                            {isExpanded && (
+                              <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
+                                <td colSpan={7} className="p-3 pl-10 pr-4">
+                                  <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 shadow-xs space-y-2">
+                                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                                      <span className="flex items-center gap-1.5">
+                                        <IconTruck className="h-3.5 w-3.5 text-blue-600" />
+                                        <span>Chi tiết các đơn hàng thuộc xe {grp.licensePlate} ({grp.tripCode})</span>
+                                      </span>
+                                      <span>Tổng cộng: {grp.orders.length} đơn &bull; {grp.totalQuantity} kiện</span>
+                                    </div>
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="text-slate-400 text-[11px] border-b border-slate-100 dark:border-slate-700 text-left">
+                                          <th className="py-1 px-2 font-medium w-[140px]">MÃ VẬN ĐƠN</th>
+                                          <th className="py-1 px-2 font-medium min-w-[160px]">HÀNG HÓA</th>
+                                          <th className="py-1 px-2 font-medium text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
+                                          <th className="py-1 px-2 font-medium text-center w-[110px]">TRẠNG THÁI</th>
+                                          <th className="py-1 px-2 font-medium text-center w-[110px]">CHỨNG TỪ</th>
+                                          <th className="py-1 px-2 font-medium min-w-[140px]">GHI CHÚ</th>
+                                          <th className="py-1 px-2 font-medium text-center w-[160px]">THAO TÁC</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                        {grp.orders.map((subOrder) => (
+                                          <tr key={subOrder.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                            <td className="py-1.5 px-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedWaybillForDetail(subOrder);
+                                                  setIsDetailModalOpen(true);
+                                                }}
+                                                className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-xs"
+                                                title="Xem chi tiết mã vận đơn"
+                                              >
+                                                {subOrder.orderCode}
+                                              </button>
+                                            </td>
+                                            <td className="py-1.5 px-2 font-medium text-slate-800 dark:text-slate-200">
+                                              {subOrder.goodsDescription || 'Hàng hóa xuất kho'}
+                                            </td>
+                                            <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                              <div>{subOrder.totalQuantity ?? 1} kiện</div>
+                                              <div className="text-gray-400 text-[10px]">
+                                                {subOrder.totalWeight?.toLocaleString('vi-VN')} kg &bull; {subOrder.totalVolume} m³
+                                              </div>
+                                            </td>
+                                            <td className="py-1.5 px-2 text-center">
+                                              {renderWarehouseOrderStatusBadge(subOrder.status)}
+                                            </td>
+                                            <td className="py-1.5 px-2 text-center">
+                                              {subOrder.accompanyingDocs && subOrder.accompanyingDocs.toUpperCase() !== 'KHÔNG CÓ' ? (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]"
+                                                >
+                                                  {subOrder.accompanyingDocs}
+                                                </Badge>
+                                              ) : (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]"
+                                                >
+                                                  {subOrder.accompanyingDocs || 'Không có'}
+                                                </Badge>
+                                              )}
+                                            </td>
+                                            <td className="py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]" title={subOrder.notes}>
+                                              {subOrder.notes || '—'}
+                                            </td>
+                                            <td className="py-1.5 px-2 text-center">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePrintOrderReceipt(subOrder)}
+                                                className="h-6 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2"
+                                              >
+                                                <IconPrinter className="h-3 w-3 mr-1" /> In phiếu
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
                     )}
-                    </div>
-                  ))
-                )}
+                  </tbody>
+                </table>
               </div>
 
               {/* Pagination Bar with Page Size Selector */}
@@ -914,40 +1178,54 @@ export default function WarehouseOutboundPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
-            {/* Outbound Info Header */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border">
+            {/* Outbound Info Header: 3 Thông tin Xuất kho (Frame UVtv4 parity với Nhập kho) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs">
+              {/* 1. Ngày xuất kho */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Ngày xuất kho
+                <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">
+                  1. Ngày xuất kho <span className="text-red-600 font-black">*</span>
                 </label>
-                <Input
-                  type="date"
-                  value={dispatchDate}
-                  onChange={(e) => setDispatchDate(e.target.value)}
-                  className="h-8 text-xs font-medium"
-                />
+                <div className="relative">
+                  <IconCalendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="date"
+                    value={dispatchDate}
+                    onChange={(e) => setDispatchDate(e.target.value)}
+                    className="h-9 pl-8 text-xs border-red-300 focus:border-red-500 bg-red-50/20 dark:bg-red-950/20 dark:border-red-900 font-medium"
+                  />
+                </div>
               </div>
+
+              {/* 2. Biển số xe */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Họ tên tài xế giao hàng
+                <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">
+                  2. Biển số xe <span className="text-red-600 font-black">*</span>
                 </label>
-                <Input
-                  value={outboundDriverName}
-                  onChange={(e) => setOutboundDriverName(e.target.value)}
-                  placeholder="Họ tên tài xế"
-                  className="h-8 text-xs"
-                />
+                <div className="relative">
+                  <IconTruck className="absolute left-2.5 top-2.5 h-4 w-4 text-red-400" />
+                  <Input
+                    value={outboundLicensePlate}
+                    onChange={(e) => setOutboundLicensePlate(e.target.value)}
+                    placeholder="VD: 29C-123.45"
+                    className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 uppercase bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
+                  />
+                </div>
               </div>
+
+              {/* 3. Họ tên người nhận / tài xế */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Biển số xe
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                  3. Họ tên người nhận / tài xế <span className="text-slate-400 font-normal">(Tùy chọn)</span>
                 </label>
-                <Input
-                  value={outboundLicensePlate}
-                  onChange={(e) => setOutboundLicensePlate(e.target.value)}
-                  placeholder="Ví dụ: 29C-123.45"
-                  className="h-8 text-xs font-mono font-bold"
-                />
+                <div className="relative">
+                  <IconUser className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    value={outboundDriverName}
+                    onChange={(e) => setOutboundDriverName(e.target.value)}
+                    placeholder="VD: Nguyễn Văn A"
+                    className="h-9 pl-8 text-xs font-medium border-slate-300 focus:border-blue-500 bg-white dark:bg-slate-800 dark:border-slate-700"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1009,7 +1287,31 @@ export default function WarehouseOutboundPage() {
         onClose={() => setIsReceiptModalOpen(false)}
         data={selectedReceiptData}
       />
+
+      {/* Waybill Detail Modal (Read-only audit view) */}
+      <WarehouseWaybillDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedWaybillForDetail(null);
+        }}
+        waybill={selectedWaybillForDetail}
+      />
+
+      {/* Vehicle Trip Detail Modal (Read-only view) */}
+      <WarehouseTripDetailModal
+        isOpen={isTripDetailModalOpen}
+        onClose={() => {
+          setIsTripDetailModalOpen(false);
+          setSelectedTripGroup(null);
+        }}
+        tripGroup={selectedTripGroup}
+        readOnly={true}
+        mode="OUTBOUND"
+        onOpenReceipt={handleOpenReceiptForVehicle}
+      />
       </div>
     </PageContainer>
   );
 }
+

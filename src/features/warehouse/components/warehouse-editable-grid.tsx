@@ -27,7 +27,9 @@ import {
   IconX,
   IconTruck,
   IconBuildingWarehouse,
+  IconLoader2,
 } from '@tabler/icons-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { tokenManager } from '@/lib/token-manager';
 import { useAuthStore } from '@/stores/use-auth-store';
@@ -62,6 +64,8 @@ export interface WarehouseRowItem {
   province?: string;
   accompanyingDocs?: string;
   notes: string;
+  status?: string;
+  destinationHub?: any;
 }
 
 declare module '@tanstack/react-table' {
@@ -370,22 +374,220 @@ function OrderCodeCell({
   const [value, setValue] = useState(
     r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '',
   );
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const lastSearchedCodeRef = React.useRef<string>(r.id ? (r.orderCode || '').trim().toUpperCase() : '');
 
   useEffect(() => {
     const fresh =
       r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
     setValue(fresh);
-  }, [r.orderCode]);
+    if (r.id) {
+      lastSearchedCodeRef.current = fresh.trim().toUpperCase();
+    }
+  }, [r.orderCode, r.id]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
+
+  const performSearch = useCallback(
+    async (codeToSearch: string) => {
+      const trimmed = codeToSearch.trim().toUpperCase();
+      if (!trimmed) return;
+      const allRows = meta?.allRows || [];
+      const currentRow = allRows[idx] || r;
+
+      if (lastSearchedCodeRef.current === trimmed && currentRow.id) return;
+
+      setIsSearching(true);
+      const token = tokenManager.getAccessToken();
+
+      try {
+        let foundOrder: any = null;
+
+        // 1. Tìm kiếm trong danh sách đơn kho của Hub hiện tại
+        const q = new URLSearchParams({
+          page: '1',
+          limit: '10',
+          search: trimmed,
+        });
+
+        const resWarehouse = await fetch(`/api/v1/warehouse/orders?${q.toString()}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (resWarehouse.ok) {
+          const resData = await resWarehouse.json().catch(() => null);
+          const items: any[] = resData?.data || [];
+          foundOrder = items.find(
+            (it) => it.orderCode?.trim().toUpperCase() === trimmed,
+          );
+        }
+
+        // 2. Nếu chưa thấy ở danh sách kho, tra cứu trực tiếp theo orderCode
+        if (!foundOrder) {
+          const resDirect = await fetch(`/api/v1/orders/${encodeURIComponent(trimmed)}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+          if (resDirect.ok) {
+            const resDirectData = await resDirect.json().catch(() => null);
+            const directItem = resDirectData?.data || resDirectData;
+            if (directItem && directItem.orderCode?.trim().toUpperCase() === trimmed) {
+              foundOrder = directItem;
+            }
+          }
+        }
+
+        if (foundOrder && foundOrder.orderCode) {
+          lastSearchedCodeRef.current = foundOrder.orderCode.trim().toUpperCase();
+
+          const availStock =
+            foundOrder.remainingQuantity !== undefined && foundOrder.remainingQuantity !== null
+              ? foundOrder.remainingQuantity
+              : foundOrder.totalQuantity || 1;
+
+          // Kiểm tra xem đơn này đã có ở dòng khác trong bảng xuất kho chưa
+          const otherRows = meta?.allRows || [];
+          const isDuplicate = otherRows.some(
+            (other, otherIdx) =>
+              otherIdx !== idx &&
+              other.orderCode?.trim().toUpperCase() === foundOrder.orderCode?.trim().toUpperCase(),
+          );
+          if (isDuplicate) {
+            toast.warning(
+              `Đơn hàng ${foundOrder.orderCode} đã được chọn ở một dòng khác trong phiếu xuất!`,
+            );
+          }
+
+          const updatedRow: WarehouseRowItem = {
+            ...currentRow,
+            id: foundOrder.id,
+            orderCode: foundOrder.orderCode,
+            goodsDescription: foundOrder.goodsDescription || '',
+            totalQuantity: availStock,
+            remainingQuantity: availStock,
+            quantityToExport: availStock,
+            inboundQuantity: foundOrder.inboundQuantity,
+            outboundQuantity: foundOrder.outboundQuantity,
+            totalWeight: Number(foundOrder.totalWeight) || 0,
+            totalVolume: Number(foundOrder.totalVolume) || 0,
+            pickupAddress: foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress,
+            deliveryAddress:
+              foundOrder.destinationHub ||
+              foundOrder.deliveryAddress ||
+              (foundOrder.route?.includes('→') ? foundOrder.route.split('→')[1]?.trim() : '') ||
+              '',
+            province: foundOrder.province || currentRow.province || '',
+            accompanyingDocs: foundOrder.accompanyingDocs || currentRow.accompanyingDocs || '',
+            notes: foundOrder.notes || '',
+            destinationHubId: foundOrder.destinationHubId || null,
+            destinationHub: foundOrder.destinationHubEntity || null,
+            deliveryMode: 'DIRECT_CUSTOMER',
+          };
+
+          meta?.updateRow(idx, updatedRow);
+          setValue(foundOrder.orderCode);
+          toast.success(
+            `Đã tìm thấy đơn hàng ${foundOrder.orderCode} (Tồn khả dụng: ${availStock} kiện)!`,
+          );
+        } else {
+          lastSearchedCodeRef.current = '';
+          meta?.updateRow(idx, {
+            ...currentRow,
+            id: undefined,
+            orderCode: trimmed,
+            goodsDescription: '',
+            totalQuantity: 1,
+            remainingQuantity: 0,
+            quantityToExport: 1,
+            totalWeight: 0,
+            totalVolume: 0,
+          });
+          toast.error(`Không tìm thấy đơn hàng "${trimmed}" trong hệ thống kho!`);
+        }
+      } catch (err) {
+        toast.error(`Lỗi khi tìm kiếm đơn hàng "${trimmed}"`);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [idx, meta, r],
+  );
+
+  const performSearchRef = React.useRef(performSearch);
+  useEffect(() => {
+    performSearchRef.current = performSearch;
+  }, [performSearch]);
+
+  const handleOutboundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value.toUpperCase();
+    setValue(nextVal);
+    meta?.updateData(idx, 'orderCode', nextVal);
+
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    if (nextVal.trim()) {
+      searchTimerRef.current = setTimeout(() => {
+        performSearchRef.current(nextVal);
+      }, 3000);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+      if (value.trim()) {
+        performSearch(value);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    const trimmed = value.trim().toUpperCase();
+    if (trimmed && trimmed !== lastSearchedCodeRef.current) {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+      performSearch(trimmed);
+    }
+  };
 
   if (isOutbound) {
     return (
-      <div className="flex items-center gap-1">
-        <Input
-          value={r.orderCode}
-          readOnly
-          placeholder=""
-          className="h-7 px-1.5 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300 min-w-0"
-        />
+      <div className="flex items-center gap-1 relative">
+        <div className="relative flex-1 min-w-0">
+          <Input
+            value={value}
+            onChange={handleOutboundChange}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            placeholder="Nhập mã đơn..."
+            className={cn(
+              "h-7 px-1.5 text-xs font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500",
+              isSearching && "pr-6",
+            )}
+            title="Nhập mã đơn hàng (hệ thống tự tra cứu sau 3s hoặc nhấn Enter)"
+          />
+          {isSearching && (
+            <IconLoader2 className="absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none" />
+          )}
+        </div>
         <Button
           type="button"
           size="sm"
@@ -430,8 +632,7 @@ function PickupAddressCell({
   column,
   table,
 }: CellContext<WarehouseRowItem, any>) {
-  // const initialValue = getValue() ?? '';
-  const initialValue =  '';
+  const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
   useEffect(() => {

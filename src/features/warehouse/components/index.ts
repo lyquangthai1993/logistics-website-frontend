@@ -11,3 +11,4 @@ export { WarehouseWaybillDetailModal } from './warehouse-waybill-detail-modal';
 export { WarehouseTallyModal } from './warehouse-tally-modal';
 export { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 export { CargoImageLightboxModal } from './cargo-image-lightbox-modal';
+export { WarehouseTripDetailModal, type InboundVehicleGroup } from './warehouse-trip-detail-modal';
