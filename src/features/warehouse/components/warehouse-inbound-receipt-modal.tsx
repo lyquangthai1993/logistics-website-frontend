@@ -87,7 +87,9 @@ export function WarehouseInboundReceiptModal({
 
   if (!data) return null;
 
-  const currentHubName = (data.originHub || user?.hub?.name || 'Hub Polaris').toUpperCase();
+  // "Nhập Tại Kho" is the receiving warehouse: the warehouse manager's own hub first,
+  // or the receiving hub resolved by the caller (never the customer pickup address).
+  const currentHubName = (user?.hub?.name || data.originHub || '—').toUpperCase();
   const formattedDate = data.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');

@@ -339,15 +339,19 @@ export default function WarehouseInboundPage() {
   };
 
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
+    // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
+    // or the destination/current/origin hub entity), NEVER the customer's pickup address!
+    const firstOrder = grp.orders[0];
     const orig =
-      grp.orders[0]?.pickupAddress?.trim() ||
-      grp.orders[0]?.originHubEntity?.name ||
-      grp.orders[0]?.originHub ||
-      user?.hub?.name;
+      user?.hub?.name ||
+      firstOrder?.destinationHubEntity?.name ||
+      firstOrder?.currentHubEntity?.name ||
+      firstOrder?.originHubEntity?.name ||
+      '';
     const dest =
-      grp.orders[0]?.destinationHubEntity?.name ||
-      grp.orders[0]?.destinationHub ||
-      grp.orders[0]?.deliveryAddress?.trim() ||
+      firstOrder?.destinationHubEntity?.name ||
+      firstOrder?.destinationHub ||
+      firstOrder?.deliveryAddress?.trim() ||
       '';
 
     const items: InboundReceiptItem[] = grp.orders.map((o) => ({

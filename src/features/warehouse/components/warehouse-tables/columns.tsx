@@ -120,6 +120,9 @@ export function renderWarehouseOrderStatusBadge(status: string) {
       );
     case 'COMPLETED_INBOUND':
     case 'OUT_FOR_DELIVERY':
+    case 'OUTBOUND':
+    case 'DISPATCHED':
+    case 'EXPORTED':
       return (
         <Badge
           variant='outline'

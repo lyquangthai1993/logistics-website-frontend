@@ -504,6 +504,7 @@ export default function WarehouseOutboundPage() {
         licensePlate: mode === 'TRANSFER' ? transferLicensePlate : outboundLicensePlate,
         deliveryAddress: isTransferReceipt ? undefined : customerAddress,
         destinationHub: transferHubName,
+        originHub: user?.hub?.name || '',
         mode: effectiveMode,
         dispatchDate: dispatchDate,
         notes: validRows
@@ -616,17 +617,73 @@ export default function WarehouseOutboundPage() {
 
       const grp = map.get(key)!;
       grp.orders.push(o);
-      grp.totalQuantity += Number(o.totalQuantity ?? 1);
-      grp.totalWeight = Math.round((grp.totalWeight + Number(o.totalWeight ?? 0)) * 100) / 100;
-      grp.totalVolume = Math.round((grp.totalVolume + Number(o.totalVolume ?? 0)) * 1000) / 1000;
 
-      // If any order is still in stock at this hub, show that status
-      if (['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(hubScopedStatus)) {
+      // Lấy chính xác số lượng, tải trọng thực xuất trong chuyến xe này từ Sổ cái giao dịch
+      const tripTx = o.inventoryTransactions?.find(
+        (tx: any) =>
+          (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
+          (tripCode === '—' || !tripCode || !tx?.tripCode || tx.tripCode === tripCode)
+      );
+      const exportedQty = tripTx
+        ? Number(tripTx.quantity || 0)
+        : Number(o.outboundQuantity || o.totalQuantity || 1);
+      const contractTotal = Math.max(Number(o.totalQuantity || 1), 1);
+      const exportedWeight =
+        tripTx?.weight != null
+          ? Number(tripTx.weight)
+          : (Number(o.totalWeight || 0) * exportedQty) / contractTotal;
+      const exportedVolume =
+        tripTx?.volume != null
+          ? Number(tripTx.volume)
+          : (Number(o.totalVolume || 0) * exportedQty) / contractTotal;
+
+      grp.totalQuantity += exportedQty;
+      grp.totalWeight = Math.round((grp.totalWeight + exportedWeight) * 100) / 100;
+      grp.totalVolume = Math.round((grp.totalVolume + exportedVolume) * 1000) / 1000;
+
+      // Chuyến xe đã có giao dịch xuất kho hoặc đang chạy ➔ trạng thái Đã xử lý / Đã xuất kho
+      // Chỉ khi chưa có giao dịch xuất kho và đơn vẫn đang chờ thì mới tính là chờ xuất
+      if (!tripTx && ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(hubScopedStatus)) {
         grp.status = hubScopedStatus;
       }
     }
 
     map.forEach((grp) => {
+      // Xác định trạng thái của chuyến xe từ góc nhìn vận hành xuất kho:
+      // Chuyến xe đã xuất kho xong (COMPLETED - Đã xử lý) khi:
+      // 1. Tất cả đơn trên xe đều đã có giao dịch xuất kho (OUTBOUND/TRANSFER) tương ứng với chuyến này, HOẶC
+      // 2. Chuyến xe đang chạy (IN_TRANSIT) hoặc đã hoàn thành (COMPLETED)
+      const allDispatched =
+        grp.orders.length > 0 &&
+        grp.orders.every((o) => {
+          const tx = o.inventoryTransactions?.find(
+            (t: any) =>
+              (t?.type === 'OUTBOUND' || t?.type === 'TRANSFER') &&
+              (grp.tripCode === '—' || !t?.tripCode || t.tripCode === grp.tripCode)
+          );
+          return !!tx;
+        });
+
+      const isTripRunning = grp.orders.some((o) =>
+        o.trips?.some(
+          (t: any) =>
+            grp.tripCode !== '—' &&
+            t.tripCode === grp.tripCode &&
+            (t.status === 'IN_TRANSIT' || t.status === 'COMPLETED')
+        )
+      );
+
+      if (allDispatched || isTripRunning) {
+        grp.status = 'COMPLETED';
+      } else {
+        const hasPending = grp.orders.some((o) =>
+          ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(
+            o.hubStatus ?? o.status
+          )
+        );
+        grp.status = hasPending ? 'PENDING' : 'COMPLETED';
+      }
+
       const descs = Array.from(new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)));
       if (descs.length === 1) {
         grp.goodsDescription = descs[0];
@@ -737,36 +794,67 @@ export default function WarehouseOutboundPage() {
 
   // Open Outbound Receipt modal for an entire vehicle trip
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
+    // "Xuất tại kho" = the hub that dispatched this vehicle (hub of creator / dispatch transaction).
+    const firstOrder = grp.orders[0];
+    const dispatchTx = firstOrder?.inventoryTransactions?.find(
+      (tx: any) =>
+        (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
+        (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
+    );
+    const tripRecord = firstOrder?.trips?.find(
+      (t: any) => grp.tripCode !== '—' && t?.tripCode === grp.tripCode
+    );
+    const knownHubs = [
+      dispatchTx?.hub,
+      tripRecord?.originHub,
+      firstOrder?.originHubEntity,
+      firstOrder?.currentHubEntity,
+      firstOrder?.destinationHubEntity,
+      ...level1Hubs
+    ];
     const orig =
-      grp.orders[0]?.pickupAddress?.trim() ||
-      grp.orders[0]?.originHubEntity?.name ||
-      grp.orders[0]?.originHub ||
-      user?.hub?.name;
+      dispatchTx?.hub?.name ||
+      knownHubs.find((h: any) => h?.id && dispatchTx?.hubId && Number(h.id) === Number(dispatchTx.hubId))?.name ||
+      tripRecord?.originHub?.name ||
+      firstOrder?.originHubEntity?.name ||
+      user?.hub?.name ||
+      '';
     const dest =
       grp.orders[0]?.destinationHubEntity?.name ||
       grp.orders[0]?.destinationHub ||
       grp.orders[0]?.deliveryAddress?.trim() ||
       '';
 
-    const items: OutboundReceiptItem[] = grp.orders.map((o) => ({
-      orderCode: o.orderCode,
-      goodsDescription: o.goodsDescription || 'Hàng hóa xuất kho',
-      quantity: Number(o.totalQuantity ?? 1),
-      unit: 'Kiện',
-      deliveryAddress: o.deliveryAddress || o.destinationHub || dest,
-      province: o.province || o.destinationHubEntity?.province || '—',
-      accompanyingDocs: o.accompanyingDocs || '01 BỘ CT',
-      notes: o.notes || ''
-    }));
+    const items: OutboundReceiptItem[] = grp.orders.map((o) => {
+      const tripTx = o.inventoryTransactions?.find(
+        (tx: any) =>
+          (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
+          (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
+      );
+      const exportedQty = tripTx
+        ? Number(tripTx.quantity || 0)
+        : Number(o.outboundQuantity || o.totalQuantity || 1);
+      return {
+        orderCode: o.orderCode,
+        goodsDescription: o.goodsDescription || 'Hàng hóa xuất kho',
+        quantity: exportedQty,
+        unit: 'Kiện',
+        deliveryAddress: o.deliveryAddress || o.destinationHub || dest,
+        province: o.province || o.destinationHubEntity?.province || '—',
+        accompanyingDocs: o.accompanyingDocs || '—',
+        notes: o.notes || ''
+      };
+    });
 
     const receiptData: OutboundReceiptData = {
       tripCode: grp.tripCode !== '—' ? grp.tripCode : undefined,
       orderCode:
-        grp.orders.length > 1
-          ? grp.tripCode !== '—'
-            ? grp.tripCode
-            : `CHUYẾN-${grp.licensePlate}`
-          : grp.orders[0]?.orderCode || 'WH-OUT',
+        dispatchTx?.invoiceCode ||
+        (grp.tripCode !== '—'
+          ? grp.tripCode
+          : grp.orders.length > 1
+            ? `CHUYẾN-${grp.licensePlate}`
+            : grp.orders[0]?.orderCode || 'WH-OUT'),
       goodsDescription: grp.goodsDescription,
       totalQuantity: grp.totalQuantity,
       outboundQuantity: grp.totalQuantity,
@@ -787,23 +875,80 @@ export default function WarehouseOutboundPage() {
   };
 
   // Open Outbound Receipt modal for printing
-  const handlePrintOrderReceipt = (o: any) => {
+  const handlePrintOrderReceipt = (o: any, tripCode?: string) => {
+    const tripTx = o.inventoryTransactions?.find(
+      (tx: any) =>
+        (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
+        (!tripCode || tripCode === '—' || !tx?.tripCode || tx.tripCode === tripCode)
+    ) || o.inventoryTransactions?.find(
+      (tx: any) => tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER'
+    );
+    const exportedQty = tripTx
+      ? Number(tripTx.quantity || 0)
+      : Number(o.outboundQuantity || o.totalQuantity || 1);
+    const contractTotal = Math.max(Number(o.totalQuantity || 1), 1);
+    const exportedWeight =
+      tripTx?.weight != null
+        ? Number(tripTx.weight)
+        : (Number(o.totalWeight || 0) * exportedQty) / contractTotal;
+    const exportedVolume =
+      tripTx?.volume != null
+        ? Number(tripTx.volume)
+        : (Number(o.totalVolume || 0) * exportedQty) / contractTotal;
+
+    const tripRecord = tripCode && tripCode !== '—'
+      ? o.trips?.find((t: any) => t.tripCode === tripCode) || o.trips?.[0]
+      : o.trips?.[0];
+    const knownHubs = [
+      tripTx?.hub,
+      tripRecord?.originHub,
+      o.originHubEntity,
+      o.currentHubEntity,
+      o.destinationHubEntity,
+      ...level1Hubs
+    ];
+    const orig =
+      tripTx?.hub?.name ||
+      knownHubs.find((h: any) => h?.id && tripTx?.hubId && Number(h.id) === Number(tripTx.hubId))?.name ||
+      tripRecord?.originHub?.name ||
+      o.originHubEntity?.name ||
+      user?.hub?.name ||
+      '';
+
     const receiptData: OutboundReceiptData = {
-      orderCode: o.orderCode || `WH-OUT-${o.id}`,
+      tripCode: tripCode && tripCode !== '—' ? tripCode : undefined,
+      orderCode:
+        tripTx?.invoiceCode ||
+        (tripCode && tripCode !== '—' ? tripCode : o.orderCode) ||
+        `WH-OUT-${o.id}`,
       goodsDescription: o.goodsDescription || 'Hàng tổng quan',
-      totalQuantity: o.totalQuantity ?? 1,
-      outboundQuantity: o.outboundQuantity ?? o.totalQuantity ?? 1,
-      totalWeight: o.totalWeight || 0,
-      totalVolume: o.totalVolume || 0,
-      driverName: o.trips?.[0]?.driverName || o.driverName || '',
-      licensePlate: o.trips?.[0]?.licensePlate || o.vehicleLicensePlate || '',
+      totalQuantity: exportedQty,
+      outboundQuantity: exportedQty,
+      totalWeight: Math.round(exportedWeight * 100) / 100,
+      totalVolume: Math.round(exportedVolume * 1000) / 1000,
+      driverName: tripRecord?.driverName || o.trips?.[0]?.driverName || o.driverName || '',
+      licensePlate: tripRecord?.licensePlate || o.trips?.[0]?.licensePlate || o.vehicleLicensePlate || '',
       deliveryAddress: o.deliveryAddress || o.destinationHub || '',
       destinationHub: o.destinationHub || '',
+      originHub: orig,
       mode: o.destinationHub ? 'TRANSFER' : 'CUSTOMER',
       dispatchDate: o.updatedAt
         ? new Date(o.updatedAt).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
-      notes: o.notes || ''
+      notes: o.notes || '',
+      accompanyingDocs: o.accompanyingDocs || '—',
+      items: [
+        {
+          orderCode: o.orderCode,
+          goodsDescription: o.goodsDescription || 'Hàng tổng quan',
+          quantity: exportedQty,
+          unit: 'Kiện',
+          deliveryAddress: o.deliveryAddress || o.destinationHub || '',
+          province: o.province || o.destinationHubEntity?.province || '—',
+          accompanyingDocs: o.accompanyingDocs || '—',
+          notes: o.notes || ''
+        }
+      ]
     };
     setSelectedReceiptData(receiptData);
     setIsReceiptModalOpen(true);
@@ -1064,11 +1209,32 @@ export default function WarehouseOutboundPage() {
                           const isGroupSelected =
                             groupOrderIds.length > 0 &&
                             groupOrderIds.every((id) => selectedOrderIds.includes(id));
-                          const canExport = grp.orders.some((o) =>
-                            ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(
-                              o.hubStatus ?? o.status
-                            )
-                          );
+                          const isDispatched =
+                            grp.status === 'COMPLETED' ||
+                            (grp.orders.length > 0 &&
+                              grp.orders.every((o) => {
+                                const tripTx = o.inventoryTransactions?.find(
+                                  (tx: any) =>
+                                    (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
+                                    (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
+                                );
+                                return !!tripTx;
+                              })) ||
+                            grp.orders.some((o) =>
+                              o.trips?.some(
+                                (t: any) =>
+                                  grp.tripCode !== '—' &&
+                                  t.tripCode === grp.tripCode &&
+                                  (t.status === 'IN_TRANSIT' || t.status === 'COMPLETED')
+                              )
+                            );
+                          const canExport =
+                            !isDispatched &&
+                            grp.orders.some((o) =>
+                              ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(
+                                o.hubStatus ?? o.status
+                              )
+                            );
 
                           return (
                             <React.Fragment key={grp.groupKey}>
@@ -1077,7 +1243,10 @@ export default function WarehouseOutboundPage() {
                                   <input
                                     type='checkbox'
                                     checked={isGroupSelected}
+                                    disabled={!canExport}
+                                    title={!canExport ? 'Chuyến xe đã xuất kho hoàn tất' : 'Chọn chuyến xe để xuất kho'}
                                     onChange={(e) => {
+                                      if (!canExport) return;
                                       if (e.target.checked) {
                                         setSelectedOrderIds((prev) =>
                                           Array.from(new Set([...prev, ...groupOrderIds]))
@@ -1088,7 +1257,9 @@ export default function WarehouseOutboundPage() {
                                         );
                                       }
                                     }}
-                                    className='rounded border-gray-300 text-blue-600 cursor-pointer'
+                                    className={`rounded border-gray-300 text-blue-600 ${
+                                      !canExport ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                                    }`}
                                   />
                                 </td>
                                 <td className='py-1 px-2'>
@@ -1154,7 +1325,7 @@ export default function WarehouseOutboundPage() {
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <TripStopStatusBadge
-                                    status={canExport ? 'PENDING' : 'COMPLETED'}
+                                    status={isDispatched ? 'COMPLETED' : 'PENDING'}
                                   />
                                 </td>
                                 <td className='py-2 px-2.5 text-center'>
@@ -1217,76 +1388,114 @@ export default function WarehouseOutboundPage() {
                                           </tr>
                                         </thead>
                                         <tbody className='divide-y divide-slate-100 dark:divide-slate-700'>
-                                          {grp.orders.map((subOrder) => (
-                                            <tr
-                                              key={subOrder.id}
-                                              className='hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                            >
-                                              <td className='py-1 px-1.5'>
-                                                <button
-                                                  type='button'
-                                                  onClick={() => {
-                                                    setSelectedWaybillForDetail(subOrder);
-                                                    setIsDetailModalOpen(true);
-                                                  }}
-                                                  className='font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]'
-                                                  title='Xem chi tiết mã vận đơn'
-                                                >
-                                                  {subOrder.orderCode}
-                                                </button>
-                                              </td>
-                                              <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]'>
-                                                {subOrder.goodsDescription || 'Hàng hóa xuất kho'}
-                                              </td>
-                                              <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                                                <div>{subOrder.totalQuantity ?? 1} kiện</div>
-                                                <div className='text-gray-400 text-[9px]'>
-                                                  {formatWeight(subOrder.totalWeight)} kg &bull;{' '}
-                                                  {formatVolume(subOrder.totalVolume)} m³
-                                                </div>
-                                              </td>
-                                              <td className='py-1.5 px-2 text-center'>
-                                                {renderWarehouseOrderStatusBadge(
-                                                  subOrder.hubStatus ?? subOrder.status
-                                                )}
-                                              </td>
-                                              <td className='py-1.5 px-2 text-center'>
-                                                {subOrder.accompanyingDocs &&
-                                                subOrder.accompanyingDocs.toUpperCase() !==
-                                                  'KHÔNG CÓ' ? (
-                                                  <Badge
-                                                    variant='outline'
-                                                    className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
-                                                  >
-                                                    {subOrder.accompanyingDocs}
-                                                  </Badge>
-                                                ) : (
-                                                  <Badge
-                                                    variant='outline'
-                                                    className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
-                                                  >
-                                                    {subOrder.accompanyingDocs || 'Không có'}
-                                                  </Badge>
-                                                )}
-                                              </td>
-                                              <td
-                                                className='py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]'
-                                                title={subOrder.notes}
+                                          {grp.orders.map((subOrder) => {
+                                            const tripTx = subOrder.inventoryTransactions?.find(
+                                              (tx: any) =>
+                                                (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
+                                                (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
+                                            );
+                                            const exportedQty = tripTx
+                                              ? Number(tripTx.quantity || 0)
+                                              : Number(subOrder.outboundQuantity || subOrder.totalQuantity || 1);
+                                            const contractTotal = Math.max(Number(subOrder.totalQuantity || 1), 1);
+                                            const exportedWeight =
+                                              tripTx?.weight != null
+                                                ? Number(tripTx.weight)
+                                                : (Number(subOrder.totalWeight || 0) * exportedQty) / contractTotal;
+                                            const exportedVolume =
+                                              tripTx?.volume != null
+                                                ? Number(tripTx.volume)
+                                                : (Number(subOrder.totalVolume || 0) * exportedQty) / contractTotal;
+
+                                            const isSubOrderDispatched =
+                                              !!tripTx ||
+                                              (grp.tripCode !== '—' &&
+                                                subOrder.trips?.some(
+                                                  (t: any) =>
+                                                    t.tripCode === grp.tripCode &&
+                                                    (t.status === 'IN_TRANSIT' || t.status === 'COMPLETED')
+                                                ));
+
+                                            const displayStatus = isSubOrderDispatched
+                                              ? 'COMPLETED_INBOUND'
+                                              : (subOrder.hubStatus ?? subOrder.status);
+
+                                            return (
+                                              <tr
+                                                key={subOrder.id}
+                                                className='hover:bg-slate-50 dark:hover:bg-slate-700/50'
                                               >
-                                                {subOrder.notes || '—'}
-                                              </td>
-                                              <td className='py-1.5 px-2 text-center'>
-                                                <Button
-                                                  variant='outline'
-                                                  size='sm'
-                                                  onClick={() => handlePrintOrderReceipt(subOrder)}
-                                                  className='h-6 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2'
+                                                <td className='py-1 px-1.5'>
+                                                  <button
+                                                    type='button'
+                                                    onClick={() => {
+                                                      setSelectedWaybillForDetail(subOrder);
+                                                      setIsDetailModalOpen(true);
+                                                    }}
+                                                    className='font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]'
+                                                    title='Xem chi tiết mã vận đơn'
+                                                  >
+                                                    {subOrder.orderCode}
+                                                  </button>
+                                                </td>
+                                                <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]'>
+                                                  {subOrder.goodsDescription || 'Hàng hóa xuất kho'}
+                                                </td>
+                                                <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
+                                                  <div>
+                                                    {exportedQty} kiện
+                                                    {exportedQty !== contractTotal && (
+                                                      <span className='text-[9px] font-normal text-slate-400 ml-1'>
+                                                        ({exportedQty}/{contractTotal} kiện)
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <div className='text-gray-400 text-[9px]'>
+                                                    {formatWeight(exportedWeight)} kg &bull;{' '}
+                                                    {formatVolume(exportedVolume)} m³
+                                                  </div>
+                                                </td>
+                                                <td className='py-1.5 px-2 text-center'>
+                                                  {renderWarehouseOrderStatusBadge(displayStatus)}
+                                                </td>
+                                                <td className='py-1.5 px-2 text-center'>
+                                                  {subOrder.accompanyingDocs &&
+                                                  subOrder.accompanyingDocs.toUpperCase() !==
+                                                    'KHÔNG CÓ' ? (
+                                                    <Badge
+                                                      variant='outline'
+                                                      className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
+                                                    >
+                                                      {subOrder.accompanyingDocs}
+                                                    </Badge>
+                                                  ) : (
+                                                    <Badge
+                                                      variant='outline'
+                                                      className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
+                                                    >
+                                                      {subOrder.accompanyingDocs || 'Không có'}
+                                                    </Badge>
+                                                  )}
+                                                </td>
+                                                <td
+                                                  className='py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]'
+                                                  title={subOrder.notes}
                                                 >
-                                                  <IconPrinter className='h-3 w-3 mr-1' /> In phiếu
-                                                </Button>
-                                              </td>
-                                            </tr>
-                                          ))}
+                                                  {subOrder.notes || '—'}
+                                                </td>
+                                                <td className='py-1.5 px-2 text-center'>
+                                                  <Button
+                                                    variant='outline'
+                                                    size='sm'
+                                                    onClick={() => handlePrintOrderReceipt(subOrder, grp.tripCode)}
+                                                    className='h-6 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2'
+                                                  >
+                                                    <IconPrinter className='h-3 w-3 mr-1' /> In phiếu
+                                                  </Button>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
                                         </tbody>
                                       </table>
                                     </div>

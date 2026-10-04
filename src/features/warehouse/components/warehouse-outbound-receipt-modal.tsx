@@ -89,14 +89,16 @@ export function WarehouseOutboundReceiptModal({
 
   if (!data) return null;
 
-  const currentHubName = (data.originHub || user?.hub?.name || 'Hub Polaris').toUpperCase();
+  // "Xuất tại kho" is the dispatching warehouse: the origin hub recorded on receipt data first,
+  // falling back to the viewer's hub if missing.
+  const currentHubName = (data.originHub || user?.hub?.name || '—').toUpperCase();
   const formattedDate = data.dispatchDate
     ? new Date(data.dispatchDate).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
   const qty = data.outboundQuantity ?? data.totalQuantity ?? 1;
   const isTransfer = data.mode === 'TRANSFER';
   const unit = data.unit || 'Kiện';
-  const accompanyingDocs = data.accompanyingDocs || '01 BỘ CT';
+  const accompanyingDocs = data.accompanyingDocs || '—';
   const deliveryAddress =
     data.deliveryAddress || data.destinationHub || (isTransfer ? 'Kho luân chuyển' : '—');
 
@@ -165,7 +167,6 @@ export function WarehouseOutboundReceiptModal({
             .logo-img { height: ${isLandscape ? '44px' : '48px'}; max-width: 220px; object-fit: contain; }
             .doc-title { text-align: center; font-size: ${isLandscape ? '17pt' : '18pt'}; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
             .doc-code { text-align: center; font-size: ${isLandscape ? '12pt' : '13pt'}; font-weight: bold; font-family: 'Times New Roman', Times, serif; }
-            .doc-mode { text-align: center; font-style: italic; font-size: 10pt; color: #444; margin-top: 1px; }
             
             .info-grid-table {
               width: 100%;
@@ -214,8 +215,6 @@ export function WarehouseOutboundReceiptModal({
               </td>
               <td style="width: 50%; text-align: center; vertical-align: middle;">
                 <div class="doc-title">PHIẾU XUẤT KHO</div>
-                <div class="doc-code">${data.orderCode}</div>
-                <div class="doc-mode">(${isTransfer ? 'Xuất luân chuyển nội bộ' : 'Xuất giao cho khách hàng'})</div>
               </td>
               <td style="width: 25%; text-align: right; vertical-align: middle;">
                 ${
@@ -379,7 +378,7 @@ export function WarehouseOutboundReceiptModal({
           <div className='flex items-center justify-between flex-wrap gap-2 w-full'>
             <DialogTitle className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white'>
               <IconTruck className='w-5 h-5 text-emerald-600' />
-              <span>Phiếu Xuất Kho · Mã {data.orderCode}</span>
+              <span>Phiếu Xuất Kho</span>
             </DialogTitle>
 
             {/* Print Orientation Selector */}
@@ -431,10 +430,7 @@ export function WarehouseOutboundReceiptModal({
             </div>
             <div className='text-center flex-1'>
               <div className='font-black text-sm text-slate-900 dark:text-slate-100 uppercase tracking-wide'>
-                PHIẾU XUẤT KHO {isTransfer ? '(LUÂN CHUYỂN)' : '(GIAO KHÁCH)'}
-              </div>
-              <div className='font-mono font-bold text-slate-600 dark:text-slate-300 text-xs mt-0.5'>
-                {data.orderCode}
+                PHIẾU XUẤT KHO
               </div>
             </div>
             <div className='flex justify-end items-center w-1/4'>
