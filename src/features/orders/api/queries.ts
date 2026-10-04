@@ -1,5 +1,11 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { getOrders, getOrderStats, getOrderById, generateOrderCode } from './service';
+import {
+  getOrders,
+  getOrderStats,
+  getOrderById,
+  generateOrderCode,
+  getOrderLedger
+} from './service';
 import type { OrderFilters } from './types';
 
 export const orderKeys = {
@@ -11,6 +17,7 @@ export const orderKeys = {
     [...orderKeys.stats(), { fromDate, toDate }] as const,
   details: () => [...orderKeys.all, 'detail'] as const,
   detail: (id: number) => [...orderKeys.details(), id] as const,
+  ledger: (id: number | string) => [...orderKeys.all, 'ledger', String(id)] as const,
   generateCode: (prefix?: string) => [...orderKeys.all, 'generateCode', prefix] as const
 };
 
@@ -32,6 +39,12 @@ export const orderByIdQueryOptions = (id: number) =>
     queryFn: () => getOrderById(id)
   });
 
+export const orderLedgerQueryOptions = (id: number | string) =>
+  queryOptions({
+    queryKey: orderKeys.ledger(id),
+    queryFn: () => getOrderLedger(id)
+  });
+
 export const generateOrderCodeQueryOptions = (prefix?: string) =>
   queryOptions({
     queryKey: orderKeys.generateCode(prefix),
@@ -48,4 +61,11 @@ export function useOrdersStatsQuery(fromDate?: string, toDate?: string) {
 
 export function useOrderQuery(id: number) {
   return useQuery(orderByIdQueryOptions(id));
+}
+
+export function useOrderLedgerQuery(id: number | string | undefined) {
+  return useQuery({
+    ...orderLedgerQueryOptions(id ?? ''),
+    enabled: id !== undefined && id !== null && String(id) !== ''
+  });
 }

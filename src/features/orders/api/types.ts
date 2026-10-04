@@ -31,9 +31,60 @@ export interface Order {
   province?: string | null;
   accompanyingDocs?: string | null;
   trips?: Trip[];
+  // Operational quantities (ledger-driven, never part of the Master Contract)
+  inboundQuantity?: number | null;
+  outboundQuantity?: number | null;
+  remainingQuantity?: number | null;
+  // Current physical location of the cargo
+  currentHubId?: number | null;
+  currentTripCode?: string | null;
+  currentHubEntity?: { id: number; name: string; code?: string | null } | null;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
+}
+
+/** Ledger invoice types: INBOUND=PNK, TRANSFER=PXK, OUTBOUND=PGH, ADJUSTMENT=DCH */
+export type LedgerEntryType = 'INBOUND' | 'OUTBOUND' | 'TRANSFER' | 'ADJUSTMENT';
+
+export interface OrderLedgerEntry {
+  id: number;
+  type: LedgerEntryType | string;
+  invoiceCode: string | null;
+  hubId: number | null;
+  hubName: string | null;
+  tripCode: string | null;
+  licensePlate: string | null;
+  driverName: string | null;
+  quantity: number;
+  expectedQuantity: number | null;
+  discrepancyQuantity: number;
+  discrepancyReason: string | null;
+  remainingQuantity: number;
+  weight: number;
+  volume: number;
+  destination: string | null;
+  notes: string | null;
+  performedByUserId: number | null;
+  performedByName: string | null;
+  createdAt: string;
+}
+
+export interface AdminOverrideOrderPayload {
+  auditReason: string;
+  totalQuantity?: number;
+  totalWeight?: number;
+  totalVolume?: number;
+  goodsDescription?: string;
+  originHubId?: number;
+  destinationHubId?: number;
+}
+
+/** Order statuses where the Master Contract is still editable */
+export const CONTRACT_EDITABLE_STATUSES = ['DRAFT'] as const;
+
+export function isContractLocked(status?: string | null): boolean {
+  return !!status && !(CONTRACT_EDITABLE_STATUSES as readonly string[]).includes(status);
 }
 
 export interface PaginatedResult<T> {

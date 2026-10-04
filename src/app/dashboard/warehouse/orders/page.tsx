@@ -199,14 +199,14 @@ export default function WarehouseOrdersPage() {
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={11} className='p-8 text-center text-gray-500'>
+                      <td colSpan={11} className='p-2 text-center text-gray-500'>
                         <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                         Đang tải dữ liệu đơn hàng...
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className='p-8 text-center text-gray-400'>
+                      <td colSpan={11} className='p-2 text-center text-gray-400'>
                         Không tìm thấy đơn hàng nào
                       </td>
                     </tr>
@@ -291,7 +291,7 @@ export default function WarehouseOrdersPage() {
                           {row.destinationHub || row.route || 'Giao khách lẻ'}
                         </td>
                         <td className='py-1 px-1.5 text-center'>
-                          {renderWarehouseOrderStatusBadge(row.status)}
+                          {renderWarehouseOrderStatusBadge(row.hubStatus ?? row.status)}
                         </td>
                         <td
                           className='py-1 px-1.5 text-center'
@@ -317,8 +317,8 @@ export default function WarehouseOrdersPage() {
                                 setPrintData({
                                   orderCode: row.orderCode,
                                   goodsDescription: row.goodsDescription || 'Hàng hóa tổng quan',
-                                  totalQuantity: row.totalQuantity || 10,
-                                  packagesOnPallet: row.totalQuantity || 10,
+                                  totalQuantity: row.totalQuantity ?? 0,
+                                  packagesOnPallet: row.totalQuantity ?? 0,
                                   palletIndex: 1,
                                   totalPallets: 1,
                                   destinationHub: row.destinationHub || row.route,

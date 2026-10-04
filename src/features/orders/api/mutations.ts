@@ -6,10 +6,11 @@ import {
   submitOrder,
   markNoVehicle,
   deleteOrder,
-  generateOrderCode
+  generateOrderCode,
+  adminOverrideOrder
 } from './service';
 import { orderKeys } from './queries';
-import type { CreateOrderPayload, UpdateOrderPayload } from './types';
+import type { CreateOrderPayload, UpdateOrderPayload, AdminOverrideOrderPayload } from './types';
 
 export const createOrderMutation = mutationOptions({
   mutationFn: (payload: CreateOrderPayload) => createOrder(payload),
@@ -100,5 +101,17 @@ export function useDeleteOrderMutation() {
 export function useGenerateOrderCodeMutation() {
   return useMutation({
     mutationFn: (prefix?: string) => generateOrderCode(prefix)
+  });
+}
+
+export function useAdminOverrideOrderMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: AdminOverrideOrderPayload }) =>
+      adminOverrideOrder(id, payload),
+    onSuccess: async () => {
+      // orderKeys.all covers list, detail and ledger keys
+      await queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    }
   });
 }

@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
+import { TripStopStatusBadge } from '@/features/warehouse/components/trip-stop-status-badge';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { formatWeight, formatVolume } from '@/lib/format';
 
@@ -460,7 +461,13 @@ export default function WarehouseOutboundPage() {
     const map = new Map<string, InboundVehicleGroup>();
 
     for (const o of orders) {
-      const activeTrip = o.trips?.[0];
+      // Current trip of the cargo: the trip still carrying it, else the most recent allocation
+      const sortedTrips = [...(o.trips ?? [])].sort(
+        (a: any, b: any) => Number(b?.id ?? 0) - Number(a?.id ?? 0)
+      );
+      const activeTrip =
+        (o.currentTripCode && sortedTrips.find((t: any) => t?.tripCode === o.currentTripCode)) ||
+        sortedTrips[0];
       let plate =
         activeTrip?.licensePlate?.trim()?.toUpperCase() ||
         o.vehicleLicensePlate?.trim()?.toUpperCase() ||
@@ -489,6 +496,8 @@ export default function WarehouseOutboundPage() {
           o.destinationHubEntity?.id &&
           o.originHubEntity.id !== o.destinationHubEntity.id);
 
+      const hubScopedStatus = o.hubStatus ?? o.status;
+
       if (!map.has(key)) {
         map.set(key, {
           groupKey: key,
@@ -496,7 +505,7 @@ export default function WarehouseOutboundPage() {
           driverName: driver,
           tripCode: tripCode || '—',
           receiveDate: activeTrip?.pickupDate || o.createdAt?.split('T')[0],
-          status: o.status,
+          status: hubScopedStatus,
           isTransfer,
           orders: [],
           totalQuantity: 0,
@@ -513,9 +522,9 @@ export default function WarehouseOutboundPage() {
       grp.totalWeight = Math.round((grp.totalWeight + Number(o.totalWeight ?? 0)) * 100) / 100;
       grp.totalVolume = Math.round((grp.totalVolume + Number(o.totalVolume ?? 0)) * 1000) / 1000;
 
-      // If any order is waiting/draft/inbound, show that status
-      if (['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.status)) {
-        grp.status = o.status;
+      // If any order is still in stock at this hub, show that status
+      if (['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(hubScopedStatus)) {
+        grp.status = hubScopedStatus;
       }
     }
 
@@ -592,7 +601,7 @@ export default function WarehouseOutboundPage() {
   // Quick export for an entire vehicle trip
   const handleExportVehicleTrip = async (grp: InboundVehicleGroup) => {
     const exportableOrders = grp.orders.filter((o) =>
-      ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.status)
+      ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(o.hubStatus ?? o.status)
     );
     if (exportableOrders.length === 0) {
       toast.error('Không có đơn hàng nào chờ xuất kho trong chuyến xe này');
@@ -918,14 +927,14 @@ export default function WarehouseOutboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoading ? (
                         <tr>
-                          <td colSpan={7} className='p-8 text-center text-gray-500'>
+                          <td colSpan={7} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn xuất kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className='p-8 text-center text-gray-400'>
+                          <td colSpan={7} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe xuất kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -938,7 +947,7 @@ export default function WarehouseOutboundPage() {
                             groupOrderIds.every((id) => selectedOrderIds.includes(id));
                           const canExport = grp.orders.some((o) =>
                             ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(
-                              o.status
+                              o.hubStatus ?? o.status
                             )
                           );
 
@@ -1025,7 +1034,7 @@ export default function WarehouseOutboundPage() {
                                   </div>
                                 </td>
                                 <td className='py-1 px-2 text-center'>
-                                  {renderWarehouseOrderStatusBadge(grp.status)}
+                                  <TripStopStatusBadge status={canExport ? 'PENDING' : 'COMPLETED'} />
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <Badge
@@ -1148,7 +1157,9 @@ export default function WarehouseOutboundPage() {
                                                 </div>
                                               </td>
                                               <td className='py-1.5 px-2 text-center'>
-                                                {renderWarehouseOrderStatusBadge(subOrder.status)}
+                                                {renderWarehouseOrderStatusBadge(
+                                                  subOrder.hubStatus ?? subOrder.status
+                                                )}
                                               </td>
                                               <td className='py-1.5 px-2 text-center'>
                                                 {subOrder.accompanyingDocs &&
@@ -1308,7 +1319,7 @@ export default function WarehouseOutboundPage() {
                   <Button
                     onClick={() => handleSubmitOutbound('CUSTOMER')}
                     disabled={isSubmitting}
-                    className='bg-[#0F3D62] text-white hover:bg-[#0c314f] px-6 font-bold h-9 text-xs shadow-xs'
+                    className='bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 font-bold h-9 text-xs shadow-xs'
                   >
                     {isSubmitting ? (
                       <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />

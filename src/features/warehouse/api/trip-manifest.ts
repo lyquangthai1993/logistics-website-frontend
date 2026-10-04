@@ -1,0 +1,96 @@
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import type { ApiResponse } from '@/lib/api-error';
+
+/** Per-hub trip stop status: PENDING = Chờ xử lý, COMPLETED = Đã xử lý */
+export type TripStopStatus = 'PENDING' | 'COMPLETED';
+export type TripStopType = 'ORIGIN' | 'TRANSIT' | 'DESTINATION';
+
+export interface TripStop {
+  hubId: number;
+  hubName: string;
+  stopSequence: number;
+  stopType: TripStopType;
+  status: TripStopStatus;
+  processedAt: string | null;
+}
+
+export interface TripManifestLine {
+  id: number;
+  orderCode: string;
+  status: string;
+  goodsDescription?: string | null;
+  totalQuantity?: number | null;
+  totalWeight: number;
+  totalVolume: number;
+  inboundQuantity?: number | null;
+  outboundQuantity?: number | null;
+  remainingQuantity?: number | null;
+  originHub?: string | null;
+  originHubId?: number | null;
+  destinationHub?: string | null;
+  destinationHubId?: number | null;
+  destinationHubEntity?: { id: number; name: string; code?: string | null } | null;
+  province?: string | null;
+  accompanyingDocs?: string | null;
+  notes?: string | null;
+  pickupAddress: string;
+  deliveryAddress: string;
+  tripId: number;
+  weightAllocated: number;
+  volumeAllocated: number;
+  /** Quantity loaded on this trip (or contract quantity for legacy trips) */
+  expectedQuantity: number;
+  /** Quantity still on the truck for this order */
+  inTransitQuantity: number;
+  /** Quantity already received at the viewer hub from this trip */
+  receivedQuantity: number;
+  isForCurrentHub: boolean;
+  isReceivedHere: boolean;
+  isContractLocked: boolean;
+  hubStatus: string;
+  hubStock: number | null;
+}
+
+export interface TripManifest {
+  tripCode: string;
+  licensePlate: string;
+  driverName: string;
+  pickupDate: string | null;
+  isTransfer: boolean;
+  stops: TripStop[];
+  currentHubId: number | null;
+  currentHubStatus: TripStopStatus | null;
+  lines: TripManifestLine[];
+}
+
+export const TRIP_STOP_STATUS_LABEL: Record<TripStopStatus, string> = {
+  PENDING: 'Chờ xử lý',
+  COMPLETED: 'Đã xử lý'
+};
+
+/** Codes rendered by the boards for groups without a persisted trip code */
+export function isManifestTripCode(code?: string | null): code is string {
+  return !!code && code !== '—' && code.trim().length > 0;
+}
+
+export async function getTripManifest(tripCode: string): Promise<TripManifest> {
+  const res = await apiClient.get<ApiResponse<TripManifest>>(
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/manifest`
+  );
+  return res.data.data;
+}
+
+export const tripManifestKeys = {
+  all: ['warehouse', 'trip-manifest'] as const,
+  detail: (tripCode: string) => [...tripManifestKeys.all, tripCode] as const
+};
+
+export function useTripManifestQuery(tripCode: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: tripManifestKeys.detail(tripCode ?? ''),
+    queryFn: () => getTripManifest(tripCode as string),
+    enabled: enabled && isManifestTripCode(tripCode),
+    staleTime: 0
+  });
+}

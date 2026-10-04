@@ -15,15 +15,29 @@ import {
   IconCircleCheck,
   IconLoader2,
   IconX,
-  IconDeviceFloppy
+  IconDeviceFloppy,
+  IconChevronRight
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { tokenManager } from '@/lib/token-manager';
-import { showApiErrorToast } from '@/lib/api-error';
+import { formatApiError, showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
 import { renderWarehouseOrderStatusBadge } from './warehouse-tables/columns';
 import { formatWeight, formatVolume } from '@/lib/format';
+import {
+  useTripManifestQuery,
+  tripManifestKeys,
+  isManifestTripCode
+} from '../api/trip-manifest';
+import {
+  WarehouseTripTallyTable,
+  buildInitialTallyState,
+  expectedForLine,
+  type TallyState
+} from './warehouse-trip-tally-table';
+import { TripStopStatusBadge } from './trip-stop-status-badge';
 
 export interface InboundVehicleGroup {
   groupKey: string;
@@ -61,11 +75,54 @@ export function WarehouseTripDetailModal({
   mode = 'INBOUND'
 }: WarehouseTripDetailModalProps) {
   const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
+
+  // Full trip manifest as seen by the current hub (per-hub stop status, lines for this hub)
+  const manifestTripCode = isManifestTripCode(tripGroup?.tripCode) ? tripGroup?.tripCode : null;
+  const {
+    data: manifest,
+    isLoading: isManifestLoading,
+    isError: isManifestError,
+    error: manifestError
+  } = useTripManifestQuery(manifestTripCode, isOpen);
+
+  /**
+   * Tally mode: the trip carries at least one locked Master Contract (cargo coming from another hub
+   * or already submitted). Contract columns become read-only and the operator records actual quantities.
+   */
+  const isTallyMode = mode === 'INBOUND' && !!manifest && manifest.lines.some((l) => l.isContractLocked);
+  /** Block every action until we know whether the trip must be tallied (prevents contract overwrite) */
+  const manifestPending = mode === 'INBOUND' && !!manifestTripCode && isManifestLoading;
+
+  const [tally, setTally] = useState<TallyState>({});
+  const [hideOtherHubs, setHideOtherHubs] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && manifest) {
+      setTally(buildInitialTallyState(manifest.lines));
+    }
+  }, [isOpen, manifest]);
+
+  const currentStopHubName = useMemo(() => {
+    if (!manifest?.currentHubId) return user?.hub?.name ?? null;
+    return (
+      manifest.stops.find((s) => s.hubId === manifest.currentHubId)?.hubName ??
+      user?.hub?.name ??
+      null
+    );
+  }, [manifest, user?.hub?.name]);
 
   // Auto-resolve read-only mode based on business status (LƯU KHO, Đã xuất kho, etc. cannot be modified)
   const effectiveReadOnly = useMemo(() => {
     if (readOnly || mode === 'OUTBOUND') return true;
     if (!tripGroup) return true;
+
+    if (isTallyMode && manifest) {
+      // Hub-scoped: read-only once this hub processed the trip, or nothing is left to unload here
+      if (!manifest.currentHubId) return true;
+      if (manifest.currentHubStatus === 'COMPLETED') return true;
+      return !manifest.lines.some((l) => !l.isReceivedHere);
+    }
 
     // Check if the group has any pending/waiting orders
     const hasWaiting = tripGroup.orders?.some((o) =>
@@ -88,7 +145,7 @@ export function WarehouseTripDetailModal({
     ].includes(tripGroup.status?.toUpperCase());
 
     return !hasWaiting || isStoredOrFinalized;
-  }, [readOnly, mode, tripGroup]);
+  }, [readOnly, mode, tripGroup, isTallyMode, manifest]);
 
   const [receiveDate, setReceiveDate] = useState<string>(
     () => new Date().toISOString().split('T')[0]
@@ -98,6 +155,29 @@ export function WarehouseTripDetailModal({
   const [rows, setRows] = useState<WarehouseRowItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+
+  // Fill vehicle info from the manifest when the board group did not carry it
+  useEffect(() => {
+    if (!isOpen || !manifest) return;
+    setLicensePlate((prev) => prev || manifest.licensePlate || '');
+    setDriverName((prev) => prev || manifest.driverName || '');
+  }, [isOpen, manifest]);
+
+  const tallySummary = useMemo(() => {
+    if (!manifest) return { selected: 0, actual: 0, discrepancyLines: 0 };
+    let selected = 0;
+    let actual = 0;
+    let discrepancyLines = 0;
+    for (const l of manifest.lines) {
+      const s = tally[l.id];
+      if (!s?.checked || l.isReceivedHere) continue;
+      selected++;
+      const qty = s.actualQuantity === '' ? 0 : Number(s.actualQuantity);
+      actual += qty;
+      if (qty !== expectedForLine(l)) discrepancyLines++;
+    }
+    return { selected, actual, discrepancyLines };
+  }, [manifest, tally]);
 
   // Sync state when tripGroup opens
   useEffect(() => {
@@ -316,6 +396,87 @@ export function WarehouseTripDetailModal({
     }
   };
 
+  // 3. Kiểm đếm chọn lọc theo kho (chuyến nhiều điểm dỡ / hợp đồng đã khóa)
+  const handleConfirmTally = async () => {
+    if (!manifest) return;
+    const selectedLines = manifest.lines.filter((l) => tally[l.id]?.checked && !l.isReceivedHere);
+
+    if (selectedLines.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 dòng hàng dỡ xuống tại kho này!');
+      return;
+    }
+    if (!licensePlate.trim()) {
+      toast.error('Vui lòng nhập biển số xe tiếp nhận hàng!');
+      return;
+    }
+    for (const l of selectedLines) {
+      const s = tally[l.id];
+      const qty = s.actualQuantity === '' ? 0 : Number(s.actualQuantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        toast.error(`Đơn ${l.orderCode}: Số kiện thực nhận phải lớn hơn 0!`);
+        return;
+      }
+      if (qty !== expectedForLine(l) && !s.discrepancyReason.trim()) {
+        toast.error(`Đơn ${l.orderCode}: Vui lòng nhập lý do chênh lệch số kiện.`);
+        return;
+      }
+    }
+
+    setIsConfirming(true);
+    const token = tokenManager.getAccessToken();
+    try {
+      const payload = {
+        tripCode: manifest.tripCode,
+        licensePlate: licensePlate.trim().toUpperCase(),
+        driverName: driverName.trim() || undefined,
+        receiveDate,
+        targetStatus: 'INBOUND',
+        orders: selectedLines.map((l) => {
+          const s = tally[l.id];
+          const qty = Number(s.actualQuantity);
+          return {
+            id: l.id,
+            orderCode: l.orderCode,
+            actualQuantity: qty,
+            expectedQuantity: expectedForLine(l),
+            discrepancyReason: s.discrepancyReason.trim() || undefined,
+            // Draft lines of this hub: actual count becomes the contract quantity
+            ...(l.isContractLocked ? {} : { totalQuantity: qty })
+          };
+        })
+      };
+
+      const res = await fetch('/api/v1/warehouse/inbound/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
+      }
+
+      const body = await res.json().catch(() => null);
+      const invoiceCode: string | undefined = body?.data?.invoiceCode ?? body?.invoiceCode;
+      toast.success(
+        `Đã nhập kho ${selectedLines.length} dòng hàng từ chuyến ${manifest.tripCode}${
+          invoiceCode ? ` (phiếu ${invoiceCode})` : ''
+        }.`
+      );
+      await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Lỗi khi xác nhận kiểm đếm nhập kho');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -323,25 +484,29 @@ export function WarehouseTripDetailModal({
         className='max-w-[96vw] xl:max-w-7xl w-full p-0 overflow-hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-h-[92vh] flex flex-col'
       >
         {/* Header Bar */}
-        <div className='bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0'>
+        <div className='bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 shrink-0'>
           <div>
             <div className='flex items-center gap-2'>
               <span className='text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800'>
-                CHUYẾN XE {tripGroup.tripCode}
+                CHUYẾN XE {manifest?.tripCode ?? tripGroup.tripCode}
               </span>
               <Badge
                 variant='outline'
                 className={
-                  tripGroup.isTransfer
+                  (manifest?.isTransfer ?? tripGroup.isTransfer)
                     ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
                     : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
                 }
               >
-                {tripGroup.isTransfer ? 'Luân chuyển nội bộ' : 'Khách gửi trực tiếp'}
+                {(manifest?.isTransfer ?? tripGroup.isTransfer) ? 'Luân chuyển nội bộ' : 'Khách gửi trực tiếp'}
               </Badge>
-              {renderWarehouseOrderStatusBadge(tripGroup.status)}
+              {manifest?.currentHubStatus ? (
+                <TripStopStatusBadge status={manifest.currentHubStatus} />
+              ) : (
+                renderWarehouseOrderStatusBadge(tripGroup.status)
+              )}
             </div>
-            <h2 className='text-base font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
+            <h2 className='text-sm font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
               <IconBuildingWarehouse className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
               <span>
                 {effectiveReadOnly
@@ -380,15 +545,50 @@ export function WarehouseTripDetailModal({
           {effectiveReadOnly && (
             <div className='bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] px-2.5 py-1 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700'>
               <IconCircleCheck className='h-3.5 w-3.5 text-emerald-500 shrink-0' />
-              <span>
-                Chuyến xe đã ở trạng thái{' '}
-                <strong>
-                  {tripGroup.status === 'INBOUND' || tripGroup.status === 'STORED'
-                    ? 'LƯU KHO'
-                    : tripGroup.status || 'Chỉ xem'}
-                </strong>
-                . Dữ liệu đã chốt sổ cái tồn kho, chỉ hỗ trợ xem thông tin và in phiếu.
-              </span>
+              {isTallyMode ? (
+                <span>
+                  Chuyến xe <strong>Đã xử lý</strong> tại {currentStopHubName ?? 'kho này'}. Chỉ hỗ
+                  trợ xem thông tin và in phiếu.
+                </span>
+              ) : (
+                <span>
+                  Chuyến xe đã ở trạng thái{' '}
+                  <strong>
+                    {tripGroup.status === 'INBOUND' || tripGroup.status === 'STORED'
+                      ? 'LƯU KHO'
+                      : tripGroup.status || 'Chỉ xem'}
+                  </strong>
+                  . Dữ liệu đã chốt sổ cái tồn kho, chỉ hỗ trợ xem thông tin và in phiếu.
+                </span>
+              )}
+            </div>
+          )}
+
+          {isManifestError && (
+            <div className='text-[10px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded px-2 py-1'>
+              {formatApiError(manifestError, 'Không thể tải bảng kê chuyến xe.')}
+            </div>
+          )}
+
+          {/* Route stops: per-hub processing status */}
+          {manifest && manifest.stops.length > 0 && (
+            <div className='flex flex-wrap items-center gap-1 text-[10px]'>
+              <span className='font-semibold text-slate-600 dark:text-slate-300'>Lộ trình:</span>
+              {manifest.stops.map((s, idx) => (
+                <React.Fragment key={s.hubId}>
+                  {idx > 0 && <IconChevronRight className='h-3 w-3 text-slate-400' />}
+                  <span
+                    className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 ${
+                      s.hubId === manifest.currentHubId
+                        ? 'border-blue-300 bg-blue-50 dark:bg-blue-950/40 font-bold'
+                        : 'border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700'
+                    }`}
+                  >
+                    {s.hubName}
+                    <TripStopStatusBadge status={s.status} className='h-4 px-1' />
+                  </span>
+                </React.Fragment>
+              ))}
             </div>
           )}
 
@@ -487,12 +687,32 @@ export function WarehouseTripDetailModal({
               <div className='flex items-center justify-between pb-1'>
                 <span className='text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5'>
                   <IconBuildingWarehouse className='h-3.5 w-3.5 text-blue-600' />
-                  <span>Bảng kê chi tiết các dòng hàng trên chuyến xe</span>
+                  <span>
+                    {isTallyMode
+                      ? `Kiểm đếm dỡ hàng tại ${currentStopHubName ?? 'kho này'}`
+                      : 'Bảng kê chi tiết các dòng hàng trên chuyến xe'}
+                  </span>
                 </span>
-                <span className='text-[11px] text-gray-500'>{rows.length} đơn hàng trên xe</span>
+                <span className='text-[11px] text-gray-500'>
+                  {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} đơn hàng trên xe
+                </span>
               </div>
 
-              {effectiveReadOnly ? (
+              {manifestPending ? (
+                <div className='py-1.5 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1.5'>
+                  <IconLoader2 className='h-3.5 w-3.5 animate-spin' /> Đang tải bảng kê chuyến xe...
+                </div>
+              ) : isTallyMode && manifest ? (
+                <WarehouseTripTallyTable
+                  lines={manifest.lines}
+                  state={tally}
+                  onChange={setTally}
+                  hideOtherHubs={hideOtherHubs}
+                  onHideOtherHubsChange={setHideOtherHubs}
+                  readOnly={effectiveReadOnly}
+                  currentHubName={currentStopHubName}
+                />
+              ) : effectiveReadOnly ? (
                 <div className='border border-slate-200 dark:border-slate-700 rounded-lg overflow-x-auto'>
                   <table className='w-full text-[10px] text-left'>
                     <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 text-[10px]'>
@@ -513,7 +733,7 @@ export function WarehouseTripDetailModal({
                     <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
                       {rows.length === 0 ? (
                         <tr>
-                          <td colSpan={11} className='py-6 text-center text-slate-400'>
+                          <td colSpan={11} className='py-1.5 text-center text-slate-400'>
                             Không có đơn hàng nào trong chuyến xe
                           </td>
                         </tr>
@@ -572,28 +792,51 @@ export function WarehouseTripDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div className='bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-2 shrink-0'>
-          <div className='flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300'>
-            <span>
-              Tổng số đơn: <strong className='text-slate-900 dark:text-white'>{rows.length}</strong>
-            </span>
-            <span>&bull;</span>
-            <span>
-              Tổng kiện: <strong className='text-blue-600 font-bold'>{totals.totalQty}</strong> kiện
-            </span>
-            <span>&bull;</span>
-            <span>
-              Tổng tải:{' '}
-              <strong className='text-slate-800 dark:text-slate-200'>
-                {formatWeight(totals.totalWeight)}
-              </strong>{' '}
-              kg &bull;{' '}
-              <strong className='text-slate-800 dark:text-slate-200'>
-                {formatVolume(totals.totalVolume)}
-              </strong>{' '}
-              m³
-            </span>
-          </div>
+        <div className='sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-1.5 flex flex-wrap items-center justify-between gap-2 shrink-0'>
+          {isTallyMode ? (
+            <div className='flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300'>
+              <span>
+                Dỡ tại kho:{' '}
+                <strong className='text-slate-900 dark:text-white'>{tallySummary.selected}</strong> /{' '}
+                {manifest?.lines.length ?? 0} dòng
+              </span>
+              <span>&bull;</span>
+              <span>
+                Thực nhận: <strong className='text-blue-600 font-bold'>{tallySummary.actual}</strong>{' '}
+                kiện
+              </span>
+              {tallySummary.discrepancyLines > 0 && (
+                <>
+                  <span>&bull;</span>
+                  <span className='text-rose-600'>
+                    {tallySummary.discrepancyLines} dòng chênh lệch
+                  </span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className='flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300'>
+              <span>
+                Tổng số đơn: <strong className='text-slate-900 dark:text-white'>{rows.length}</strong>
+              </span>
+              <span>&bull;</span>
+              <span>
+                Tổng kiện: <strong className='text-blue-600 font-bold'>{totals.totalQty}</strong> kiện
+              </span>
+              <span>&bull;</span>
+              <span>
+                Tổng tải:{' '}
+                <strong className='text-slate-800 dark:text-slate-200'>
+                  {formatWeight(totals.totalWeight)}
+                </strong>{' '}
+                kg &bull;{' '}
+                <strong className='text-slate-800 dark:text-slate-200'>
+                  {formatVolume(totals.totalVolume)}
+                </strong>{' '}
+                m³
+              </span>
+            </div>
+          )}
 
           <div className='flex items-center gap-2'>
             <Button
@@ -607,7 +850,28 @@ export function WarehouseTripDetailModal({
               Đóng
             </Button>
 
-            {!effectiveReadOnly && (
+            {!effectiveReadOnly && !manifestPending && isTallyMode && (
+              <Button
+                type='button'
+                onClick={handleConfirmTally}
+                disabled={isConfirming || tallySummary.selected === 0}
+                className='h-8 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
+                title='Xác nhận nhập kho các dòng hàng đã chọn dỡ tại kho này'
+              >
+                {isConfirming ? (
+                  <>
+                    <IconLoader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' /> Đang nhập kho...
+                  </>
+                ) : (
+                  <>
+                    <IconCircleCheck className='mr-1.5 h-3.5 w-3.5 text-emerald-400' /> Xác nhận
+                    nhập kho ({tallySummary.selected} dòng)
+                  </>
+                )}
+              </Button>
+            )}
+
+            {!effectiveReadOnly && !manifestPending && !isTallyMode && (
               <>
                 <Button
                   type='button'
@@ -632,7 +896,7 @@ export function WarehouseTripDetailModal({
                   type='button'
                   onClick={handleConfirmInbound}
                   disabled={isSaving || isConfirming || rows.length === 0}
-                  className='h-8 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-4 font-bold shadow-xs text-xs'
+                  className='h-8 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
                   title='Kiểm đếm và xác nhận toàn bộ đơn hàng của xe này vào kho'
                 >
                   {isConfirming ? (

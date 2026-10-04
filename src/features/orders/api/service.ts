@@ -7,7 +7,9 @@ import type {
   CreateOrderPayload,
   UpdateOrderPayload,
   OrderStats,
-  GenerateCodeResponse
+  GenerateCodeResponse,
+  OrderLedgerEntry,
+  AdminOverrideOrderPayload
 } from './types';
 
 export async function getOrders(filters: OrderFilters = {}): Promise<PaginatedOrdersResponse> {
@@ -71,6 +73,23 @@ export async function generateOrderCode(prefix?: string): Promise<GenerateCodeRe
   return res.data.data;
 }
 
+export async function getOrderLedger(id: number | string): Promise<OrderLedgerEntry[]> {
+  const res = await apiClient.get<ApiResponse<OrderLedgerEntry[]>>(`/api/v1/orders/${id}/ledger`);
+  return res.data.data ?? [];
+}
+
+/** SUPER_ADMIN only — adjusts Master Contract fields with a mandatory audit reason. */
+export async function adminOverrideOrder(
+  id: number,
+  payload: AdminOverrideOrderPayload
+): Promise<Order> {
+  const res = await apiClient.patch<ApiResponse<Order>>(
+    `/api/v1/orders/${id}/admin-override`,
+    payload
+  );
+  return res.data.data;
+}
+
 /**
  * Backward compatibility object matching the legacy ordersApi interface
  */
@@ -84,5 +103,7 @@ export const ordersApi = {
   submitOrder,
   markNoVehicle,
   deleteOrder,
-  generateOrderCode
+  generateOrderCode,
+  getOrderLedger,
+  adminOverrideOrder
 };

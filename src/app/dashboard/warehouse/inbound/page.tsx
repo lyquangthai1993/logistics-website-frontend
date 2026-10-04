@@ -54,6 +54,7 @@ import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
+import { TripStopStatusBadge } from '@/features/warehouse/components/trip-stop-status-badge';
 import { formatWeight, formatVolume } from '@/lib/format';
 
 export default function WarehouseInboundPage() {
@@ -216,7 +217,13 @@ export default function WarehouseInboundPage() {
     const map = new Map<string, InboundVehicleGroup>();
 
     for (const o of orders) {
-      const activeTrip = o.trips?.[0];
+      // Current trip of the cargo: the trip still carrying it, else the most recent allocation
+      const sortedTrips = [...(o.trips ?? [])].sort(
+        (a: any, b: any) => Number(b?.id ?? 0) - Number(a?.id ?? 0)
+      );
+      const activeTrip =
+        (o.currentTripCode && sortedTrips.find((t: any) => t?.tripCode === o.currentTripCode)) ||
+        sortedTrips[0];
       let plate =
         activeTrip?.licensePlate?.trim()?.toUpperCase() ||
         o.vehicleLicensePlate?.trim()?.toUpperCase() ||
@@ -252,7 +259,7 @@ export default function WarehouseInboundPage() {
           driverName: driver,
           tripCode: tripCode || '—',
           receiveDate: activeTrip?.pickupDate || o.createdAt?.split('T')[0],
-          status: o.status,
+          status: o.hubStatus ?? o.status,
           isTransfer,
           orders: [],
           totalQuantity: 0,
@@ -269,9 +276,10 @@ export default function WarehouseInboundPage() {
       grp.totalWeight = Math.round((grp.totalWeight + Number(o.totalWeight ?? 0)) * 100) / 100;
       grp.totalVolume = Math.round((grp.totalVolume + Number(o.totalVolume ?? 0)) * 1000) / 1000;
 
-      // If any order is waiting/draft, show waiting status
-      if (['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status)) {
-        grp.status = o.status;
+      // If any order is waiting/draft at this hub, show waiting status
+      const hubScopedStatus = o.hubStatus ?? o.status;
+      if (['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(hubScopedStatus)) {
+        grp.status = hubScopedStatus;
       }
     }
 
@@ -833,14 +841,14 @@ export default function WarehouseInboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={7} className='p-8 text-center text-gray-500'>
+                          <td colSpan={7} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className='p-8 text-center text-gray-400'>
+                          <td colSpan={7} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -852,7 +860,9 @@ export default function WarehouseInboundPage() {
                             groupOrderIds.length > 0 &&
                             groupOrderIds.every((id) => selectedOrderIds.includes(id));
                           const hasWaiting = grp.orders.some((o) =>
-                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status)
+                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(
+                              o.hubStatus ?? o.status
+                            )
                           );
 
                           return (
@@ -938,7 +948,7 @@ export default function WarehouseInboundPage() {
                                   </div>
                                 </td>
                                 <td className='py-1 px-2 text-center'>
-                                  {renderWarehouseOrderStatusBadge(grp.status)}
+                                  <TripStopStatusBadge status={hasWaiting ? 'PENDING' : 'COMPLETED'} />
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <Badge
@@ -1056,7 +1066,9 @@ export default function WarehouseInboundPage() {
                                                 </div>
                                               </td>
                                               <td className='py-1.5 px-2 text-center'>
-                                                {renderWarehouseOrderStatusBadge(subOrder.status)}
+                                                {renderWarehouseOrderStatusBadge(
+                                                  subOrder.hubStatus ?? subOrder.status
+                                                )}
                                               </td>
                                               <td className='py-1.5 px-2 text-center'>
                                                 {subOrder.accompanyingDocs &&

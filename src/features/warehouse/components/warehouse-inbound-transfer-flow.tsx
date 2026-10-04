@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,26 +22,35 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
-import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
-import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { toast } from 'sonner';
-import { showApiErrorToast } from '@/lib/api-error';
+import { formatApiError, showApiErrorToast } from '@/lib/api-error';
+import { formatWeight } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { tripManifestKeys, useTripManifestQuery } from '../api/trip-manifest';
+import {
+  WarehouseTripTallyTable,
+  buildInitialTallyState,
+  expectedForLine,
+  type TallyState
+} from './warehouse-trip-tally-table';
+import { TripStopStatusBadge } from './trip-stop-status-badge';
 
 export interface InboundTripItem {
   id: number;
   tripCode: string;
   vehicleLicensePlate: string;
-  vehicleType: string;
-  driverName: string;
-  driverPhone: string;
-  status: string;
-  originHub: string;
-  destinationHub: string;
-  remainingOrdersCount: number;
-  totalWeight: number;
-  totalVolume: number;
-  order?: any;
+  vehicleType?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  status?: string | null;
+  /** Trip status as seen by the current hub (PENDING / COMPLETED) */
+  hubStatus?: string | null;
+  originHub?: string | null;
+  destinationHub?: string | null;
+  ordersCount?: number | null;
+  remainingOrdersCount?: number | null;
+  totalWeight?: number | null;
+  totalVolume?: number | null;
 }
 
 interface WarehouseInboundTransferFlowProps {
@@ -49,38 +59,45 @@ interface WarehouseInboundTransferFlowProps {
   onSuccess: () => void;
 }
 
+/**
+ * Nhập kho hàng luân chuyển liên Hub:
+ * 1. Chọn chuyến xe đang đến kho hiện tại.
+ * 2. Kiểm đếm chọn lọc theo bảng kê chuyến — chỉ dỡ các dòng thuộc kho này,
+ *    số liệu hợp đồng gốc chỉ xem, nhân viên kho nhập số kiện thực nhận.
+ */
 export function WarehouseInboundTransferFlow({
   onBackToBoard,
   onSwitchToCustomerMode,
   onSuccess
 }: WarehouseInboundTransferFlowProps) {
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
-  const currentHubName = user?.hub?.name || 'Polaris Hub - Hưng Yên';
 
-  // Modal State: isModalOpen controls the overlay dialogs (WH_CASE_02B_TRIP_MODAL & WH_CASE_03_MODAL)
-  const [isModalOpen, setIsModalOpen] = useState(true);
-  const [modalStep, setModalStep] = useState<1 | 2>(1);
+  const [isTripModalOpen, setIsTripModalOpen] = useState(true);
 
-  // Step 1 (WH_CASE_02B_TRIP_MODAL): Inbound Trips List
+  // Bước 1: danh sách chuyến đang đến kho
   const [tripsList, setTripsList] = useState<InboundTripItem[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);
   const [tripSearch, setTripSearch] = useState('');
   const [selectedTrip, setSelectedTrip] = useState<InboundTripItem | null>(null);
 
-  // Step 2 (WH_CASE_03_MODAL): Trip Orders Selection
-  const [tripOrders, setTripOrders] = useState<any[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [orderSearch, setOrderSearch] = useState('');
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number | string>>(new Set());
-
-  // Step 3 (dd8X5): Loaded Grid Rows State (10 columns)
-  const [gridRows, setGridRows] = useState<WarehouseRowItem[]>([]);
+  // Bước 2: kiểm đếm theo bảng kê chuyến
+  const [tally, setTally] = useState<TallyState>({});
+  const [hideOtherHubs, setHideOtherHubs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pallet Label A4 Modal
-  const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
+  const {
+    data: manifest,
+    isLoading: isLoadingManifest,
+    error: manifestError
+  } = useTripManifestQuery(selectedTrip?.tripCode, !!selectedTrip);
 
-  // ── 1. Fetch Inbound Trips Approaching Current Hub (Real DB API) ─────────────
+  const currentHubName =
+    user?.hub?.name ??
+    manifest?.stops.find((s) => s.hubId === manifest.currentHubId)?.hubName ??
+    'kho hiện tại';
+
+  // ── 1. Chuyến xe đang đến kho hiện tại ──────────────────────────────────────
   const fetchTrips = useCallback(() => {
     setIsLoadingTrips(true);
     const token = tokenManager.getAccessToken();
@@ -95,14 +112,17 @@ export function WarehouseInboundTransferFlow({
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((resData) => {
-        const raw = resData?.data || [];
-        setTripsList(raw);
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
+        }
+        return res.json();
       })
+      .then((resData) => setTripsList(resData?.data ?? []))
       .catch((err) => {
-        console.error('Failed to fetch inbound trips from DB:', err);
         setTripsList([]);
+        showApiErrorToast(err, 'Không tải được danh sách chuyến xe đang đến');
       })
       .finally(() => setIsLoadingTrips(false));
   }, [tripSearch]);
@@ -111,160 +131,91 @@ export function WarehouseInboundTransferFlow({
     fetchTrips();
   }, [fetchTrips]);
 
-  // ── 2. Fetch Orders for Selected Trip (Real DB API) ─────────────────────────
-  const fetchTripOrders = useCallback(
-    (_trip: InboundTripItem) => {
-      setIsLoadingOrders(true);
-      const token = tokenManager.getAccessToken();
-      const query = new URLSearchParams({
-        limit: '50',
-        ...(orderSearch.trim() ? { search: orderSearch.trim() } : {})
-      });
+  // Khởi tạo trạng thái kiểm đếm khi bảng kê chuyến tải xong
+  useEffect(() => {
+    if (manifest) setTally(buildInitialTallyState(manifest.lines));
+  }, [manifest]);
 
-      fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-        .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-        .then((resData) => {
-          const raw = resData?.data || [];
-          setTripOrders(raw);
-          if (raw.length > 0) {
-            setSelectedOrderIds(new Set(raw.map((o: any) => o.id)));
-          } else {
-            setSelectedOrderIds(new Set());
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to fetch orders for trip from DB:', err);
-          setTripOrders([]);
-          setSelectedOrderIds(new Set());
-        })
-        .finally(() => setIsLoadingOrders(false));
-    },
-    [orderSearch]
-  );
-
-  // ── 3. Handle Select Trip: Move to Modal Step 2 ──────────────────────────────
   const handleSelectTrip = (trip: InboundTripItem) => {
     setSelectedTrip(trip);
-    setModalStep(2);
-    fetchTripOrders(trip);
+    setTally({});
+    setHideOtherHubs(false);
+    setIsTripModalOpen(false);
   };
 
-  // ── 4. Toggle Order Selection in Modal Step 2 ────────────────────────────────
-  const handleToggleSelectOrder = (id: number | string) => {
-    setSelectedOrderIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  // ── 2. Tổng hợp kiểm đếm ────────────────────────────────────────────────────
+  const pendingLines = useMemo(
+    () => (manifest?.lines ?? []).filter((l) => !l.isReceivedHere),
+    [manifest]
+  );
 
-  const handleToggleSelectAllOrders = () => {
-    if (selectedOrderIds.size >= tripOrders.length && tripOrders.length > 0) {
-      setSelectedOrderIds(new Set());
-    } else {
-      setSelectedOrderIds(new Set(tripOrders.map((o) => o.id)));
-    }
-  };
+  const isReadOnly =
+    !manifest ||
+    !manifest.currentHubId ||
+    manifest.currentHubStatus === 'COMPLETED' ||
+    pendingLines.length === 0;
 
-  // ── 5. Modal Step 2 -> Close Modal & Load into dd8X5 Grid ───────────────────
-  const handleConfirmOrdersToGrid = () => {
-    const selected = tripOrders.filter((o) => selectedOrderIds.has(o.id));
-    if (selected.length === 0) {
-      toast.error('Vui lòng chọn ít nhất 1 đơn hàng để tiếp nhận');
-      return;
-    }
-
-    const rows: WarehouseRowItem[] = selected.map((o) => ({
-      orderCode: o.orderCode || `ORD-${o.id}`,
-      pickupAddress: o.originHubEntity?.name
-        ? `${o.originHubEntity.name}`
-        : o.senderAddress || selectedTrip?.originHub || 'Hub xuất phát',
-      goodsDescription: o.goodsType || o.cargoName || 'Hàng hóa luân chuyển',
-      totalQuantity: o.quantity || o.totalQuantity || 1,
-      totalWeight: o.weight || o.totalWeight || 10,
-      totalVolume: o.volume || o.totalVolume || 0.1,
-      deliveryMode: (o.deliveryMode as any) || 'HUB_L1',
-      deliveryAddress: o.destinationHubEntity?.name
-        ? `${o.destinationHubEntity.name} · nhận trung chuyển`
-        : o.receiverAddress || 'Kho trung chuyển',
-      notes: o.notes || `Chuyến ${selectedTrip?.tripCode} · Xe ${selectedTrip?.vehicleLicensePlate}`
-    }));
-
-    setGridRows(rows);
-    setIsModalOpen(false);
-    toast.success(
-      `Đã nạp ${rows.length} đơn hàng từ chuyến ${selectedTrip?.tripCode} vào lưới tiếp nhận!`
-    );
-  };
-
-  // ── 6. Metrics Calculations ─────────────────────────────────────────────────
-  const selectedMetrics = useMemo(() => {
-    const selected = tripOrders.filter((o) => selectedOrderIds.has(o.id));
+  const tallySummary = useMemo(() => {
+    const checked = pendingLines.filter((l) => tally[l.id]?.checked);
     return {
-      count: selected.length,
-      packages: selected.reduce(
-        (acc, curr) => acc + (Number(curr.quantity || curr.totalQuantity) || 1),
-        0
-      ),
-      weight: selected.reduce(
-        (acc, curr) => acc + (Number(curr.weight || curr.totalWeight) || 0),
-        0
-      ),
-      volume: Number(
-        selected
-          .reduce((acc, curr) => acc + (Number(curr.volume || curr.totalVolume) || 0), 0)
-          .toFixed(2)
-      )
+      count: checked.length,
+      expected: checked.reduce((acc, l) => acc + expectedForLine(l), 0),
+      actual: checked.reduce((acc, l) => {
+        const v = tally[l.id]?.actualQuantity;
+        return acc + (v === '' || v == null ? 0 : Number(v));
+      }, 0),
+      weight: checked.reduce((acc, l) => acc + (Number(l.totalWeight) || 0), 0)
     };
-  }, [tripOrders, selectedOrderIds]);
+  }, [pendingLines, tally]);
 
-  const gridMetrics = useMemo(() => {
-    return {
-      count: gridRows.length,
-      packages: gridRows.reduce((acc, curr) => acc + (Number(curr.totalQuantity) || 0), 0),
-      weight: gridRows.reduce((acc, curr) => acc + (Number(curr.totalWeight) || 0), 0),
-      volume: Number(
-        gridRows.reduce((acc, curr) => acc + (Number(curr.totalVolume) || 0), 0).toFixed(2)
-      )
-    };
-  }, [gridRows]);
-
-  // ── 7. Submit Confirmed Inbound to Backend ────────────────────────────────────
+  // ── 3. Xác nhận nhập kho các dòng đã chọn ───────────────────────────────────
   const handleSubmitInbound = async () => {
-    if (gridRows.length === 0) {
-      toast.error('Chưa có dòng hàng hóa nào trong lưới kiểm đếm');
+    if (!manifest || !selectedTrip) return;
+    const selectedLines = pendingLines.filter((l) => tally[l.id]?.checked);
+
+    if (selectedLines.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 dòng hàng dỡ xuống tại kho này!');
       return;
+    }
+    const licensePlate = (manifest.licensePlate || selectedTrip.vehicleLicensePlate || '').trim();
+    if (!licensePlate) {
+      toast.error('Chuyến xe chưa có biển số, vui lòng liên hệ điều phối để cập nhật!');
+      return;
+    }
+    for (const l of selectedLines) {
+      const s = tally[l.id];
+      const qty = s.actualQuantity === '' ? 0 : Number(s.actualQuantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        toast.error(`Đơn ${l.orderCode}: Số kiện thực nhận phải lớn hơn 0!`);
+        return;
+      }
+      if (qty !== expectedForLine(l) && !s.discrepancyReason.trim()) {
+        toast.error(`Đơn ${l.orderCode}: Vui lòng nhập lý do chênh lệch số kiện.`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
-
     try {
       const payload = {
-        inboundType: 'TRANSFER',
-        tripId: selectedTrip?.id,
-        vehicleLicensePlate: selectedTrip?.vehicleLicensePlate,
-        driverName: selectedTrip?.driverName,
-        orders: gridRows.map((r) => ({
-          orderCode: r.orderCode,
-          pickupAddress: r.pickupAddress,
-          goodsDescription: r.goodsDescription,
-          totalQuantity: Number(r.totalQuantity) || 1,
-          totalWeight: Number(r.totalWeight) || 1,
-          totalVolume: Number(r.totalVolume) || 0.01,
-          deliveryMode: r.deliveryMode || 'HUB_L1',
-          deliveryAddress: r.deliveryAddress,
-          notes: r.notes
-        }))
+        tripCode: manifest.tripCode,
+        licensePlate: licensePlate.toUpperCase(),
+        driverName: (manifest.driverName || selectedTrip.driverName || '').trim() || undefined,
+        targetStatus: 'INBOUND',
+        orders: selectedLines.map((l) => {
+          const s = tally[l.id];
+          const qty = Number(s.actualQuantity);
+          return {
+            id: l.id,
+            orderCode: l.orderCode,
+            actualQuantity: qty,
+            expectedQuantity: expectedForLine(l),
+            discrepancyReason: s.discrepancyReason.trim() || undefined,
+            // Dòng nháp của kho này: số kiện thực nhận trở thành số kiện hợp đồng
+            ...(l.isContractLocked ? {} : { totalQuantity: qty })
+          };
+        })
       };
 
       const res = await fetch('/api/v1/warehouse/inbound/confirm', {
@@ -281,9 +232,14 @@ export function WarehouseInboundTransferFlow({
         throw { response: { data: errData, status: res.status } };
       }
 
+      const body = await res.json().catch(() => null);
+      const invoiceCode: string | undefined = body?.data?.invoiceCode ?? body?.invoiceCode;
       toast.success(
-        `Đã xác nhận nhập kho thành công ${gridRows.length} đơn hàng từ chuyến ${selectedTrip?.tripCode}!`
+        `Đã nhập kho ${selectedLines.length} dòng hàng từ chuyến ${manifest.tripCode}${
+          invoiceCode ? ` (phiếu ${invoiceCode})` : ''
+        }.`
       );
+      await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
       onSuccess();
     } catch (err: any) {
       showApiErrorToast(err, 'Tiếp nhận kho không thành công');
@@ -292,59 +248,53 @@ export function WarehouseInboundTransferFlow({
     }
   };
 
+  const stepOneDone = !!selectedTrip;
+  const stepTwoActive = !!selectedTrip && !isTripModalOpen;
+
   return (
-    <div className='space-y-4'>
-      {/* ── Mode Switch Tabs ── */}
+    <div className='space-y-2'>
+      {/* ── Chế độ nhập kho ── */}
       <div className='w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner'>
         <button
           type='button'
           onClick={onSwitchToCustomerMode}
-          className='flex-1 py-2.5 px-4 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white'
+          className='flex-1 py-1.5 px-2 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white'
         >
           Mới hoàn toàn
         </button>
         <button
           type='button'
-          className='flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm flex items-center justify-center gap-1.5'
+          className='flex-1 py-1.5 px-2 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm flex items-center justify-center gap-1.5'
         >
           <IconTruck className='h-4 w-4' />
           <span>Luân chuyển nội bộ</span>
         </button>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── MAIN WORKSPACE PAGE: Node [PAGE] dd8X5 (Nhập kho luân chuyển) ──── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
       <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm py-0'>
-        <CardHeader className='py-1 px-1 border-b flex flex-wrap items-center justify-between gap-3'>
-          {/* Stepper Progression Bar */}
-          <div className='flex items-center gap-3'>
-            {/* Step 1 Chip */}
+        <CardHeader className='py-1 px-1 border-b flex flex-wrap items-center justify-between gap-2'>
+          {/* Thanh tiến trình 2 bước */}
+          <div className='flex items-center gap-2'>
             <button
               type='button'
-              onClick={() => {
-                setModalStep(1);
-                setIsModalOpen(true);
-              }}
-              className='flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity text-left bg-transparent border-0 p-0'
+              onClick={() => setIsTripModalOpen(true)}
+              className='flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity text-left bg-transparent border-0 p-0'
             >
               <div
                 className={cn(
-                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                  selectedTrip
+                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                  stepOneDone
                     ? 'bg-emerald-600 text-white'
-                    : isModalOpen && modalStep === 1
-                      ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
-                      : 'bg-slate-200 text-slate-500'
+                    : 'bg-[#0F3D62] text-white ring-2 ring-blue-100 dark:ring-blue-950'
                 )}
               >
-                {selectedTrip ? <IconCheck className='h-4 w-4' /> : '1'}
+                {stepOneDone ? <IconCheck className='h-3.5 w-3.5' /> : '1'}
               </div>
               <div>
                 <div
                   className={cn(
                     'text-xs font-bold',
-                    selectedTrip
+                    stepOneDone
                       ? 'text-emerald-700 dark:text-emerald-400'
                       : 'text-[#0F3D62] dark:text-blue-400'
                   )}
@@ -352,96 +302,40 @@ export function WarehouseInboundTransferFlow({
                   Chọn chuyến xe đến
                 </div>
                 <div className='text-[10px] text-slate-400'>
-                  {selectedTrip ? selectedTrip.tripCode : 'WH_CASE_02B_TRIP_MODAL'}
+                  {selectedTrip ? selectedTrip.tripCode : 'Chưa chọn chuyến'}
                 </div>
               </div>
             </button>
 
-            <span
-              className={cn(
-                'text-sm font-bold',
-                selectedTrip ? 'text-emerald-600' : 'text-slate-300'
-              )}
-            >
-              ➔
-            </span>
+            <IconArrowRight
+              className={cn('h-3.5 w-3.5', stepOneDone ? 'text-emerald-600' : 'text-slate-300')}
+            />
 
-            {/* Step 2 Chip */}
-            <button
-              type='button'
-              onClick={() => {
-                if (selectedTrip) {
-                  setModalStep(2);
-                  setIsModalOpen(true);
-                }
-              }}
-              className={cn(
-                'flex items-center gap-2 transition-opacity text-left bg-transparent border-0 p-0',
-                selectedTrip ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60'
-              )}
-            >
+            <div className='flex items-center gap-1.5'>
               <div
                 className={cn(
-                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                  gridRows.length > 0
-                    ? 'bg-emerald-600 text-white'
-                    : isModalOpen && modalStep === 2
-                      ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
-                      : 'bg-slate-200 text-slate-500'
-                )}
-              >
-                {gridRows.length > 0 ? <IconCheck className='h-4 w-4' /> : '2'}
-              </div>
-              <div>
-                <div
-                  className={cn(
-                    'text-xs font-bold',
-                    gridRows.length > 0
-                      ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-[#0F3D62] dark:text-blue-400'
-                  )}
-                >
-                  Chọn đơn hàng cần dỡ
-                </div>
-                <div className='text-[10px] text-slate-400'>
-                  {gridRows.length > 0 ? `Đã chọn ${gridRows.length} đơn` : 'WH_CASE_03_MODAL'}
-                </div>
-              </div>
-            </button>
-
-            <span
-              className={cn(
-                'text-sm font-bold',
-                gridRows.length > 0 ? 'text-emerald-600' : 'text-slate-300'
-              )}
-            >
-              ➔
-            </span>
-
-            {/* Step 3 Chip */}
-            <div className='flex items-center gap-2'>
-              <div
-                className={cn(
-                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                  gridRows.length > 0 && !isModalOpen
-                    ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
+                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                  stepTwoActive
+                    ? 'bg-[#0F3D62] text-white ring-2 ring-blue-100 dark:ring-blue-950'
                     : 'bg-slate-200 text-slate-500'
                 )}
               >
-                3
+                2
               </div>
               <div>
                 <div
                   className={cn(
                     'text-xs font-bold',
-                    gridRows.length > 0 && !isModalOpen
-                      ? 'text-[#0F3D62] dark:text-blue-400'
-                      : 'text-slate-500'
+                    stepTwoActive ? 'text-[#0F3D62] dark:text-blue-400' : 'text-slate-500'
                   )}
                 >
-                  Kiểm đếm & Lưu kho
+                  Kiểm đếm &amp; Nhập kho
                 </div>
-                <div className='text-[10px] text-slate-400'>dd8X5 Loaded Grid</div>
+                <div className='text-[10px] text-slate-400'>
+                  {stepTwoActive
+                    ? `Đã chọn ${tallySummary.count} dòng dỡ tại kho`
+                    : 'Dỡ hàng theo bảng kê chuyến'}
+                </div>
               </div>
             </div>
           </div>
@@ -450,7 +344,7 @@ export function WarehouseInboundTransferFlow({
             variant='outline'
             size='sm'
             onClick={onBackToBoard}
-            className='text-xs font-semibold'
+            className='text-xs font-semibold h-8'
           >
             <IconArrowLeft className='mr-1 h-3.5 w-3.5' />
             <span>Quay lại Bảng nhập kho</span>
@@ -458,140 +352,170 @@ export function WarehouseInboundTransferFlow({
         </CardHeader>
 
         <CardContent className='p-1'>
-          {gridRows.length === 0 ? (
-            /* Empty dd8X5 State: Prompts user to open WH_CASE_02B_TRIP_MODAL */
-            <div className='text-center py-8 space-y-2 max-w-md mx-auto'>
-              <div className='w-12 h-12 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center mx-auto text-blue-600 shadow-xs border border-blue-100 dark:border-slate-700'>
-                <IconTruck className='h-6 w-6 animate-bounce' />
+          {!selectedTrip ? (
+            <div className='text-center py-2 space-y-2 max-w-md mx-auto'>
+              <div className='w-10 h-10 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center mx-auto text-blue-600 border border-blue-100 dark:border-slate-700'>
+                <IconTruck className='h-5 w-5' />
               </div>
               <div>
                 <h3 className='text-sm font-bold text-slate-800 dark:text-slate-100'>
-                  Chưa nạp đơn hàng từ chuyến xe luân chuyển
+                  Chưa chọn chuyến xe luân chuyển
                 </h3>
                 <p className='text-xs text-slate-500 mt-1 leading-relaxed'>
-                  Mở danh sách các chuyến xe liên Hub đang trên đường đến {currentHubName} để chọn
-                  chuyến và nạp danh sách đơn hàng lên lưới kiểm đếm 10 cột.
+                  Chọn chuyến xe liên Hub đang đến {currentHubName} để mở bảng kê và kiểm đếm
+                  các dòng hàng dỡ xuống tại kho.
                 </p>
               </div>
               <Button
-                onClick={() => {
-                  setModalStep(1);
-                  setIsModalOpen(true);
-                }}
-                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-4 py-2 shadow-xs flex items-center gap-1.5 mx-auto'
+                onClick={() => setIsTripModalOpen(true)}
+                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-3 flex items-center gap-1.5 mx-auto'
               >
                 <IconTruck className='h-4 w-4' />
-                <span>Mở danh sách chuyến xe đang đến ➔</span>
+                <span>Mở danh sách chuyến xe đang đến</span>
               </Button>
             </div>
           ) : (
-            /* Loaded dd8X5 State: Displays Locked Vehicle Card + 10-column Editable Grid */
             <div className='space-y-1.5 animate-in fade-in-50 duration-200'>
-              {/* Locked Trip Header Card */}
-              <div className='p-1.5 bg-[#F8FAFC] dark:bg-slate-800/80 border border-blue-200 dark:border-blue-900 rounded-lg flex flex-wrap items-center justify-between gap-2 shadow-xs'>
+              {/* Thông tin chuyến đã chọn */}
+              <div className='p-1.5 bg-[#F8FAFC] dark:bg-slate-800/80 border border-blue-200 dark:border-blue-900 rounded-lg flex flex-wrap items-center justify-between gap-2'>
                 <div className='flex items-center gap-2'>
-                  <Badge className='bg-[#0F3D62] text-white font-mono font-bold text-xs px-2 py-0.5'>
-                    {selectedTrip?.tripCode}
+                  <Badge className='bg-[#0F3D62] text-white font-mono font-bold text-[11px] px-2 py-0.5'>
+                    {selectedTrip.tripCode}
                   </Badge>
+                  <TripStopStatusBadge
+                    status={
+                      manifest?.currentHubStatus ?? selectedTrip.hubStatus ?? selectedTrip.status
+                    }
+                  />
                   <div>
-                    <div className='text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
+                    <div className='text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5'>
                       <IconLock className='h-3.5 w-3.5 text-amber-600' />
                       <span>
-                        Xe: {selectedTrip?.vehicleLicensePlate} ({selectedTrip?.vehicleType}) &bull;
-                        Tài xế: {selectedTrip?.driverName}
+                        Xe: {manifest?.licensePlate || selectedTrip.vehicleLicensePlate || '—'}
+                        {selectedTrip.vehicleType ? ` (${selectedTrip.vehicleType})` : ''} &bull;
+                        Tài xế: {manifest?.driverName || selectedTrip.driverName || '—'}
                       </span>
                     </div>
-                    <div className='text-[11px] text-slate-500 mt-0.5'>
-                      Xuất phát: {selectedTrip?.originHub} ➔ Tiếp nhận tại: {currentHubName}
+                    <div className='text-[10px] text-slate-500 mt-0.5'>
+                      Xuất phát: {selectedTrip.originHub ?? '—'} &rarr; Tiếp nhận tại:{' '}
+                      {currentHubName}
                     </div>
                   </div>
                 </div>
 
-                <div className='flex items-center gap-2'>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => {
-                      setModalStep(2);
-                      setIsModalOpen(true);
-                    }}
-                    className='text-xs font-semibold h-8'
-                  >
-                    <IconArrowLeft className='mr-1 h-3.5 w-3.5' />
-                    <span>Chọn lại đơn</span>
-                  </Button>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => {
-                      setModalStep(1);
-                      setIsModalOpen(true);
-                    }}
-                    className='text-xs font-semibold h-8'
-                  >
-                    <span>Đổi chuyến khác</span>
-                  </Button>
-                  <Badge className='bg-emerald-50 text-emerald-700 border-emerald-200 text-xs px-2.5 py-1 font-bold'>
-                    {gridRows.length} đơn hàng đã lên lưới
-                  </Badge>
-                </div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setIsTripModalOpen(true)}
+                  className='text-xs font-semibold h-8'
+                >
+                  Đổi chuyến khác
+                </Button>
               </div>
 
-              {/* 10-Column Editable Grid */}
-              <WarehouseEditableGrid
-                rows={gridRows}
-                onChange={setGridRows}
-                isOutboundMode={false}
-              />
+              {/* Lộ trình các điểm dừng */}
+              {manifest && manifest.stops.length > 0 && (
+                <div className='flex flex-wrap items-center gap-1 text-[10px]'>
+                  <span className='font-bold text-slate-500'>Lộ trình:</span>
+                  {manifest.stops.map((s, idx) => (
+                    <React.Fragment key={`${s.hubId}-${s.stopSequence}`}>
+                      {idx > 0 && <IconArrowRight className='h-3 w-3 text-slate-300' />}
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded border font-semibold',
+                          s.hubId === manifest.currentHubId
+                            ? 'border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                            : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'
+                        )}
+                      >
+                        {s.hubName}
+                      </span>
+                      <TripStopStatusBadge status={s.status} />
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
 
-              {/* Action Bar */}
-              <div className='flex flex-wrap items-center justify-between gap-2 pt-2 border-t'>
-                <div className='text-xs text-slate-500'>
-                  Tổng cộng:{' '}
-                  <strong className='text-slate-900 dark:text-white font-mono'>
-                    {gridMetrics.count}
+              {isLoadingManifest ? (
+                <div className='py-2 text-center text-xs text-slate-500'>
+                  <IconLoader2 className='h-5 w-5 animate-spin mx-auto mb-1 text-blue-600' />
+                  Đang tải bảng kê chuyến xe...
+                </div>
+              ) : manifestError ? (
+                <div className='py-2 text-center text-xs text-rose-600 border border-dashed border-rose-200 rounded-lg'>
+                  {formatApiError(manifestError, 'Không tải được bảng kê chuyến xe')}
+                </div>
+              ) : manifest ? (
+                <>
+                  {!manifest.currentHubId && (
+                    <div className='p-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded'>
+                      Tài khoản chưa được gán kho làm việc nên chỉ xem được bảng kê, không thể nhập kho.
+                    </div>
+                  )}
+                  {manifest.currentHubId && isReadOnly && (
+                    <div className='p-1.5 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded'>
+                      Chuyến xe đã được xử lý tại {currentHubName}, không còn dòng hàng chờ dỡ.
+                    </div>
+                  )}
+                  <WarehouseTripTallyTable
+                    lines={manifest.lines}
+                    state={tally}
+                    onChange={setTally}
+                    hideOtherHubs={hideOtherHubs}
+                    onHideOtherHubsChange={setHideOtherHubs}
+                    readOnly={isReadOnly}
+                    currentHubName={currentHubName}
+                  />
+                </>
+              ) : null}
+
+              {/* Thanh thao tác cố định */}
+              <div className='sticky bottom-0 bg-white dark:bg-slate-900 border-t p-1.5 flex flex-wrap items-center justify-between gap-2'>
+                <div className='text-[10px] text-slate-600 dark:text-slate-300'>
+                  Đã chọn{' '}
+                  <strong className='font-mono text-slate-900 dark:text-white'>
+                    {tallySummary.count}
                   </strong>{' '}
-                  dòng hàng tiếp nhận
+                  dòng &bull; Dự kiến dỡ{' '}
+                  <strong className='font-mono'>{tallySummary.expected}</strong> kiện &bull; Thực
+                  nhận{' '}
+                  <strong
+                    className={cn(
+                      'font-mono',
+                      tallySummary.actual !== tallySummary.expected && 'text-rose-600'
+                    )}
+                  >
+                    {tallySummary.actual}
+                  </strong>{' '}
+                  kiện &bull; {formatWeight(tallySummary.weight)}
                 </div>
 
-                <div className='flex items-center gap-2'>
-                  <Button
-                    variant='outline'
-                    onClick={() => toast.info('Đã lưu dữ liệu nháp kiểm đếm vào bộ nhớ đệm.')}
-                    className='text-xs font-semibold h-8'
-                  >
-                    Lưu nháp
-                  </Button>
-                  <Button
-                    onClick={handleSubmitInbound}
-                    disabled={isSubmitting}
-                    className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-4 shadow-xs flex items-center gap-1.5'
-                  >
-                    {isSubmitting ? (
-                      <IconLoader2 className='h-3.5 w-3.5 animate-spin' />
-                    ) : (
-                      <IconCircleCheck className='h-3.5 w-3.5 text-emerald-400' />
-                    )}
-                    <span>Xác nhận tiếp nhận & Lưu kho</span>
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleSubmitInbound}
+                  disabled={isSubmitting || isReadOnly || tallySummary.count === 0}
+                  className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-3 flex items-center gap-1.5'
+                >
+                  {isSubmitting ? (
+                    <IconLoader2 className='h-3.5 w-3.5 animate-spin' />
+                  ) : (
+                    <IconCircleCheck className='h-3.5 w-3.5 text-emerald-400' />
+                  )}
+                  <span>Xác nhận nhập kho ({tallySummary.count} dòng)</span>
+                </Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── MODAL STEP 1: Node [MODAL_STEP_1] WH_CASE_02B_TRIP_MODAL ────────── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {isModalOpen && modalStep === 1 && (
+      {/* ── Hộp thoại chọn chuyến xe đang đến ── */}
+      {isTripModalOpen && (
         <div className='fixed inset-0 z-50 bg-[#0B1E2D]/70 backdrop-blur-xs flex items-center justify-center p-2 animate-in fade-in duration-200'>
           <div className='max-w-5xl w-full bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]'>
-            {/* Modal Header */}
-            <div className='py-2 px-3 bg-[#F8FAFC] dark:bg-slate-800/90 border-b flex items-center justify-between'>
+            <div className='py-1.5 px-2 bg-[#F8FAFC] dark:bg-slate-800/90 border-b flex items-center justify-between'>
               <div>
                 <div className='text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider'>
-                  LUÂN CHUYỂN NỘI BỘ &bull; BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB
+                  Luân chuyển nội bộ &bull; Bước 1 / 2: Chọn chuyến đang đến kho
                 </div>
                 <h2 className='text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mt-0.5'>
                   <IconTruck className='h-4 w-4 text-blue-600' />
@@ -601,23 +525,22 @@ export function WarehouseInboundTransferFlow({
 
               <button
                 type='button'
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsTripModalOpen(false)}
+                aria-label='Đóng'
                 className='w-7 h-7 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors'
               >
                 <IconX className='h-3.5 w-3.5' />
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
-              {/* Search Toolbar */}
               <div className='flex flex-wrap items-center justify-between gap-2'>
                 <div className='relative min-w-[280px] max-w-md flex-1'>
                   <IconSearch className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400' />
                   <Input
                     value={tripSearch}
                     onChange={(e) => setTripSearch(e.target.value)}
-                    placeholder='Tìm kiếm mã chuyến (TRIP-...), biển số xe, tài xế...'
+                    placeholder='Tìm mã chuyến (SD...), biển số xe, tài xế...'
                     className='pl-8 text-xs h-8'
                   />
                 </div>
@@ -636,27 +559,21 @@ export function WarehouseInboundTransferFlow({
                 </Button>
               </div>
 
-              {/* Available Trip Cards (Matches Pen Node ID: trip_modal_dialog_card / Z2NDR) */}
-              <div className='space-y-2.5'>
+              <div className='space-y-1.5'>
                 {isLoadingTrips ? (
-                  <div className='py-12 text-center text-slate-500'>
-                    <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
-                    Đang tải danh sách chuyến xe từ cơ sở dữ liệu...
+                  <div className='py-2 text-center text-xs text-slate-500'>
+                    <IconLoader2 className='h-5 w-5 animate-spin mx-auto mb-1 text-blue-600' />
+                    Đang tải danh sách chuyến xe...
                   </div>
                 ) : tripsList.length === 0 ? (
-                  <div className='py-12 text-center text-slate-400 border border-dashed rounded-xl'>
+                  <div className='py-2 text-center text-xs text-slate-400 border border-dashed rounded-lg'>
                     Không có chuyến xe luân chuyển nào đang chờ tiếp nhận tại {currentHubName}
                   </div>
                 ) : (
                   tripsList.map((trip) => {
                     const isSelected = selectedTrip?.id === trip.id;
-                    const orderCount = trip.remainingOrdersCount || (trip.order ? 1 : 1);
-                    const pkgCount = (trip as any).totalPackages || 140;
-                    const weightText = trip.totalWeight
-                      ? trip.totalWeight >= 1000
-                        ? `${(trip.totalWeight / 1000).toFixed(1)}T`
-                        : `${trip.totalWeight} kg`
-                      : '3.8T';
+                    const remaining = trip.remainingOrdersCount ?? 0;
+                    const total = trip.ordersCount ?? remaining;
 
                     return (
                       <div
@@ -664,31 +581,21 @@ export function WarehouseInboundTransferFlow({
                         className={cn(
                           'rounded-lg overflow-hidden flex transition-all duration-150',
                           isSelected
-                            ? 'bg-[#F8FBFF] dark:bg-blue-950/30 border-2 border-blue-500 shadow-sm'
+                            ? 'bg-[#F8FBFF] dark:bg-blue-950/30 border border-blue-500 border-l-4 border-l-blue-600 shadow-sm'
                             : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                         )}
                       >
-                        {/* Selection Accent Bar */}
-                        <div
-                          className={cn(
-                            'w-1 self-stretch flex-shrink-0',
-                            isSelected ? 'bg-[#2563EB]' : 'bg-slate-200 dark:bg-slate-700'
-                          )}
-                        />
-
-                        {/* Trip Card Content */}
-                        <div className='flex-1 p-2 flex flex-col gap-1.5'>
-                          {/* Card Header Row */}
+                        <div className='flex-1 p-1.5 flex flex-col gap-1.5'>
                           <div className='flex flex-wrap items-center justify-between gap-2'>
-                            {/* Left: Trip Identity */}
-                            <div className='space-y-1'>
-                              <div className='text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-400 font-mono'>
+                            <div className='space-y-0.5'>
+                              <div className='text-[11px] font-bold text-blue-700 dark:text-blue-400 font-mono'>
                                 {trip.tripCode}
                               </div>
                               <div className='flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300'>
                                 <IconTruck className='h-3.5 w-3.5 text-slate-500' />
                                 <span>
-                                  {trip.vehicleLicensePlate} · {trip.vehicleType}
+                                  {trip.vehicleLicensePlate || '—'}
+                                  {trip.vehicleType ? ` · ${trip.vehicleType}` : ''}
                                 </span>
                                 {trip.originHub && (
                                   <span className='text-slate-400 font-normal'>
@@ -698,25 +605,12 @@ export function WarehouseInboundTransferFlow({
                               </div>
                             </div>
 
-                            {/* Right: Actions (Status Badge + Select Button) */}
-                            <div className='flex items-center gap-2.5'>
-                              {/* Loading Availability Badge */}
-                              <div className='bg-[#DCFCE7] dark:bg-emerald-950/60 text-[#15803D] dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5'>
-                                <span className='w-1.5 h-1.5 rounded-full bg-[#16A34A]' />
-                                <span>
-                                  {trip.status === 'CONFIRMED' ||
-                                  trip.status === 'IN_TRANSIT' ||
-                                  !trip.status
-                                    ? 'CHỜ TIẾP NHẬN'
-                                    : trip.status}
-                                </span>
-                              </div>
-
-                              {/* Select Trip Button */}
+                            <div className='flex items-center gap-2'>
+                              <TripStopStatusBadge status={trip.hubStatus ?? trip.status} />
                               <Button
                                 size='sm'
                                 onClick={() => handleSelectTrip(trip)}
-                                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-9 px-3.5 rounded-md shadow-sm flex items-center gap-1.5 cursor-pointer'
+                                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs h-8 px-3 flex items-center gap-1.5'
                               >
                                 <span>Chọn chuyến</span>
                                 <IconArrowRight className='h-3.5 w-3.5 text-white' />
@@ -724,14 +618,12 @@ export function WarehouseInboundTransferFlow({
                             </div>
                           </div>
 
-                          {/* Card Operational Details Row */}
-                          <div className='flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/80'>
-                            {/* Driver Info Block */}
-                            <div className='flex items-center gap-2 flex-1 min-w-[200px]'>
-                              <IconUser className='h-4 w-4 text-slate-400 flex-shrink-0' />
+                          <div className='flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80'>
+                            <div className='flex items-center gap-1.5 flex-1 min-w-[200px]'>
+                              <IconUser className='h-3.5 w-3.5 text-slate-400 flex-shrink-0' />
                               <div className='flex flex-col'>
-                                <span className='text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider'>
-                                  TÀI XẾ & SĐT
+                                <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wider'>
+                                  Tài xế &amp; SĐT
                                 </span>
                                 <span className='text-xs font-semibold text-slate-700 dark:text-slate-200'>
                                   {trip.driverName || 'Chưa gán tài xế'}
@@ -740,15 +632,14 @@ export function WarehouseInboundTransferFlow({
                               </div>
                             </div>
 
-                            {/* Cargo Info Block */}
-                            <div className='flex items-center gap-2'>
-                              <IconPackage className='h-4 w-4 text-slate-400 flex-shrink-0' />
+                            <div className='flex items-center gap-1.5'>
+                              <IconPackage className='h-3.5 w-3.5 text-slate-400 flex-shrink-0' />
                               <div className='flex flex-col'>
-                                <span className='text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider'>
-                                  ĐƠN CÒN TRÊN XE
+                                <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wider'>
+                                  Đơn chờ dỡ tại kho
                                 </span>
                                 <span className='text-xs font-semibold text-slate-700 dark:text-slate-200'>
-                                  {orderCount} đơn · {pkgCount} kiện · {weightText}
+                                  {remaining} / {total} đơn &bull; {formatWeight(trip.totalWeight ?? 0)}
                                 </span>
                               </div>
                             </div>
@@ -761,15 +652,14 @@ export function WarehouseInboundTransferFlow({
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className='py-1.5 px-3 bg-slate-50 dark:bg-slate-800/80 border-t flex items-center justify-between'>
-              <span className='text-[11px] text-slate-500'>
-                Hiển thị <strong>{tripsList.length}</strong> chuyến xe đang tiếp cận kho
+            <div className='py-1.5 px-2 bg-slate-50 dark:bg-slate-800/80 border-t flex items-center justify-between'>
+              <span className='text-[10px] text-slate-500'>
+                Hiển thị <strong>{tripsList.length}</strong> chuyến xe đang đến kho
               </span>
               <Button
                 variant='outline'
                 size='sm'
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsTripModalOpen(false)}
                 className='text-xs font-semibold h-7'
               >
                 Đóng
@@ -778,253 +668,6 @@ export function WarehouseInboundTransferFlow({
           </div>
         </div>
       )}
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── MODAL STEP 2: Node [MODAL_STEP_2] WH_CASE_03_MODAL ──────────────── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {isModalOpen && modalStep === 2 && selectedTrip && (
-        <div className='fixed inset-0 z-50 bg-[#0B1E2D]/70 backdrop-blur-xs flex items-center justify-center p-2 animate-in fade-in duration-200'>
-          <div className='max-w-5xl w-full bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]'>
-            {/* Modal Header */}
-            <div className='py-2 px-3 bg-[#F8FAFC] dark:bg-slate-800/90 border-b flex items-center justify-between'>
-              <div>
-                <div className='text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider'>
-                  LUÂN CHUYỂN NỘI BỘ &bull; BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN
-                </div>
-                <h2 className='text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mt-0.5'>
-                  <IconPackage className='h-4 w-4 text-blue-600' />
-                  <span>Chọn đơn hàng cần tiếp nhận từ {selectedTrip.tripCode}</span>
-                </h2>
-              </div>
-
-              <div className='flex items-center gap-2'>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => setModalStep(1)}
-                  className='text-xs font-semibold h-7'
-                >
-                  <IconArrowLeft className='mr-1 h-3.5 w-3.5' />
-                  <span>Đổi chuyến xe khác</span>
-                </Button>
-                <button
-                  type='button'
-                  onClick={() => setIsModalOpen(false)}
-                  className='w-7 h-7 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors'
-                >
-                  <IconX className='h-3.5 w-3.5' />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
-              {/* Selected Trip Details Card (Blue Highlight) */}
-              <div className='p-1.5 bg-[#F0F7FF] dark:bg-slate-800/80 border border-[#B2CCFF] dark:border-blue-900 rounded-lg flex flex-wrap items-center justify-between gap-2'>
-                <div className='flex items-center gap-3'>
-                  <div className='w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm'>
-                    <IconTruck className='h-5 w-5' />
-                  </div>
-                  <div>
-                    <div className='flex items-center gap-2'>
-                      <span className='font-mono font-black text-sm text-blue-800 dark:text-blue-300'>
-                        {selectedTrip.tripCode}
-                      </span>
-                      <Badge className='bg-amber-100 text-amber-800 border-none font-bold text-[10px]'>
-                        {selectedTrip.status || 'IN_TRANSIT'}
-                      </Badge>
-                    </div>
-                    <div className='text-xs text-slate-600 dark:text-slate-400 mt-0.5'>
-                      Xe:{' '}
-                      <span className='font-bold text-slate-800 dark:text-slate-200'>
-                        {selectedTrip.vehicleLicensePlate}
-                      </span>{' '}
-                      &bull; Tài xế:{' '}
-                      <span className='font-bold text-slate-800 dark:text-slate-200'>
-                        {selectedTrip.driverName}
-                      </span>{' '}
-                      ({selectedTrip.driverPhone})
-                    </div>
-                  </div>
-                </div>
-
-                <div className='text-right text-xs'>
-                  <span className='text-[10px] text-slate-400 font-bold uppercase tracking-wider block'>
-                    HUB XUẤT PHÁT
-                  </span>
-                  <span className='font-bold text-slate-800 dark:text-slate-200'>
-                    {selectedTrip.originHub}
-                  </span>
-                </div>
-              </div>
-
-              {/* Selection Counter & Search Toolbar */}
-              <div className='flex flex-wrap items-center justify-between gap-2'>
-                <div className='relative min-w-[280px] max-w-md flex-1'>
-                  <IconSearch className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400' />
-                  <Input
-                    value={orderSearch}
-                    onChange={(e) => setOrderSearch(e.target.value)}
-                    placeholder='Tìm mã vận đơn, tên hàng...'
-                    className='pl-8 text-xs h-8'
-                  />
-                </div>
-
-                <div className='flex items-center gap-2'>
-                  <Badge className='bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] px-2 py-0.5 font-bold'>
-                    Đã chọn {selectedOrderIds.size} / {tripOrders.length} đơn
-                  </Badge>
-
-                  <label className='flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none'>
-                    <input
-                      type='checkbox'
-                      checked={selectedOrderIds.size === tripOrders.length && tripOrders.length > 0}
-                      onChange={handleToggleSelectAllOrders}
-                      className='rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5'
-                    />
-                    <span>Chọn tất cả</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Orders Table */}
-              <div className='border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-xs'>
-                <table className='w-full text-[10px] text-left'>
-                  <thead className='bg-[#F8FAFC] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
-                    <tr>
-                      <th className='py-1 px-1.5 w-[36px] text-center'>
-                        <input
-                          type='checkbox'
-                          checked={
-                            selectedOrderIds.size === tripOrders.length && tripOrders.length > 0
-                          }
-                          onChange={handleToggleSelectAllOrders}
-                          className='rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5'
-                        />
-                      </th>
-                      <th className='py-1 px-1.5 w-[140px]'>MÃ ĐƠN HÀNG</th>
-                      <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
-                      <th className='py-1 px-1.5 text-center w-[75px]'>SỐ KIỆN</th>
-                      <th className='py-1 px-1.5 text-right w-[95px]'>KG / M³</th>
-                      <th className='py-1 px-1.5 min-w-[140px]'>HUB ĐÍCH / ĐIỂM GIAO</th>
-                      <th className='py-1 px-1.5 text-center w-[90px]'>TRẠNG THÁI</th>
-                    </tr>
-                  </thead>
-                  <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
-                    {isLoadingOrders ? (
-                      <tr>
-                        <td colSpan={7} className='p-10 text-center text-slate-500'>
-                          <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
-                          Đang tải danh sách đơn hàng từ cơ sở dữ liệu...
-                        </td>
-                      </tr>
-                    ) : tripOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className='p-10 text-center text-slate-400'>
-                          Không tìm thấy đơn hàng nào trên chuyến {selectedTrip.tripCode}
-                        </td>
-                      </tr>
-                    ) : (
-                      tripOrders.map((order) => {
-                        const isChecked = selectedOrderIds.has(order.id);
-                        return (
-                          <tr
-                            key={order.id}
-                            onClick={() => handleToggleSelectOrder(order.id)}
-                            className={cn(
-                              'cursor-pointer transition-colors hover:bg-blue-50/50 dark:hover:bg-slate-800/50',
-                              isChecked && 'bg-[#EFF6FF] dark:bg-blue-950/40'
-                            )}
-                          >
-                            <td
-                              className='py-1 px-1.5 text-center'
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                type='checkbox'
-                                checked={isChecked}
-                                onChange={() => handleToggleSelectOrder(order.id)}
-                                className='rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5'
-                              />
-                            </td>
-                            <td className='py-1 px-1.5 font-mono font-bold text-blue-600 dark:text-blue-400'>
-                              {order.orderCode || `ORD-${order.id}`}
-                            </td>
-                            <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200'>
-                              {order.goodsType || order.cargoName || 'Hàng hóa tổng quan'}
-                            </td>
-                            <td className='py-1 px-1.5 text-center font-bold text-slate-700 dark:text-slate-300'>
-                              {order.quantity || order.totalQuantity || 1} kiện
-                            </td>
-                            <td className='py-1 px-1.5 text-right font-bold text-slate-700 dark:text-slate-300'>
-                              <div>{order.weight || order.totalWeight || 0} kg</div>
-                              <div className='text-[9px] text-slate-400 font-normal'>
-                                {order.volume || order.totalVolume || 0} m³
-                              </div>
-                            </td>
-                            <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400 text-[10px]'>
-                              {order.destinationHubEntity?.name ||
-                                order.receiverAddress ||
-                                'Chưa định tuyến'}
-                            </td>
-                            <td className='py-1 px-1.5 text-center'>
-                              <Badge
-                                variant='outline'
-                                className='bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1 py-0 h-4 font-bold'
-                              >
-                                {order.status || 'Chờ dỡ'}
-                              </Badge>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className='py-1.5 px-3 bg-slate-50 dark:bg-slate-800/80 border-t flex flex-wrap items-center justify-between gap-2'>
-              <div className='text-xs font-bold text-[#059669] dark:text-emerald-400 flex items-center gap-1.5'>
-                <IconCircleCheck className='h-4 w-4 text-emerald-600' />
-                <span>
-                  Đã chọn: {selectedMetrics.count} đơn &bull; {selectedMetrics.packages} kiện &bull;{' '}
-                  {selectedMetrics.weight.toLocaleString('vi-VN')} kg &bull;{' '}
-                  {selectedMetrics.volume} m³
-                </span>
-              </div>
-
-              <div className='flex items-center gap-2'>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => setModalStep(1)}
-                  className='text-xs font-semibold h-7'
-                >
-                  <IconArrowLeft className='mr-1 h-3.5 w-3.5' />
-                  <span>Quay lại</span>
-                </Button>
-                <Button
-                  onClick={handleConfirmOrdersToGrid}
-                  disabled={selectedOrderIds.size === 0}
-                  className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-5 shadow-md flex items-center gap-1.5'
-                >
-                  <span>Xác nhận dỡ hàng → Đưa vào kiểm đếm</span>
-                  <IconArrowRight className='h-4 w-4' />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal In Tem A4 (Pallet Label A4 Modal) ── */}
-      <PalletLabelA4Modal
-        isOpen={!!printLabelData}
-        onClose={() => setPrintLabelData(null)}
-        data={printLabelData}
-      />
     </div>
   );
 }

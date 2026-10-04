@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ordersApi, Order, OrderStatus } from '@/features/orders/api';
+import { ordersApi, Order, OrderStatus, isContractLocked } from '@/features/orders/api';
+import { OrderTimelineLedger } from '@/features/orders/components/order-timeline-ledger';
+import { OrderAdminOverrideDialog } from '@/features/orders/components/order-admin-override-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,7 +33,10 @@ import {
   IconEdit,
   IconCheck,
   IconTruckOff,
-  IconInfoCircle
+  IconInfoCircle,
+  IconLock,
+  IconShieldLock,
+  IconBuildingWarehouse
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { showApiErrorToast, showApiSuccessToast } from '@/lib/api-error';
@@ -107,12 +112,15 @@ function renderStatusBadge(status: OrderStatus) {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isDispatcher, isFleetManager, isWarehouseManager } = useRBAC();
+  const { isDispatcher, isFleetManager, isWarehouseManager, isSuperAdmin } = useRBAC();
   const rawId = params?.id ? String(params.id) : '';
   const orderId = !isNaN(Number(rawId)) && Number.isInteger(Number(rawId)) ? Number(rawId) : rawId;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Master Contract override (SUPER_ADMIN only)
+  const [isOverrideOpen, setIsOverrideOpen] = useState(false);
 
   // Modal External Vehicle state
   const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
@@ -273,10 +281,10 @@ export default function OrderDetailPage() {
   }
 
   return (
-    <div className='flex-1 space-y-6 p-4 md:p-8 pt-6'>
+    <div className='flex-1 space-y-2 p-2'>
       {/* Back button & Action header */}
-      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-        <div className='flex items-center gap-3'>
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2'>
+        <div className='flex items-center gap-2'>
           <Button
             variant='ghost'
             size='sm'
@@ -304,6 +312,16 @@ export default function OrderDetailPage() {
                 {order.orderCode}
               </h2>
               {renderStatusBadge(order.status)}
+              {isContractLocked(order.status) && (
+                <Badge
+                  variant='outline'
+                  className='bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 text-[10px] font-bold gap-1'
+                  title='Thông tin số kiện, khối lượng, thể tích, mô tả hàng, nơi gửi và nơi nhận đã được khóa'
+                >
+                  <IconLock className='h-3 w-3' />
+                  HỢP ĐỒNG GỐC - BẤT BIẾN
+                </Badge>
+              )}
               {order.isExternalVehicleNeeded && (
                 <Badge
                   variant='outline'
@@ -320,10 +338,24 @@ export default function OrderDetailPage() {
         </div>
 
         <div className='flex items-center flex-wrap gap-2'>
+          {/* Master Contract override: SUPER_ADMIN only, once the contract is locked */}
+          {isSuperAdmin && isContractLocked(order.status) && (
+            <Button
+              onClick={() => setIsOverrideOpen(true)}
+              variant='outline'
+              size='sm'
+              className='h-8 text-rose-700 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30'
+            >
+              <IconShieldLock className='mr-1 h-4 w-4' />
+              Điều chỉnh hợp đồng gốc
+            </Button>
+          )}
+
           {/* Dispatcher Actions: Only visible for DISPATCHER & SUPER_ADMIN */}
           {isDispatcher ? (
             <>
-              {(order.status === 'DRAFT' || order.status === 'NO_VEHICLE') && (
+              {/* Master Contract is editable only while DRAFT */}
+              {order.status === 'DRAFT' && (
                 <Button
                   onClick={handleOpenEditModal}
                   variant='outline'
@@ -438,9 +470,9 @@ export default function OrderDetailPage() {
       )}
 
       {/* 2 Column Details */}
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-2'>
         {/* Left Column: Order Overview */}
-        <div className='lg:col-span-2 space-y-6'>
+        <div className='lg:col-span-2 space-y-2'>
           <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 py-0'>
             <CardHeader className='py-1 px-1 border-b border-slate-100 dark:border-slate-800'>
               <CardTitle className='text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2'>
@@ -618,7 +650,53 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Right Column: Workflow Timeline / Guidance */}
-        <div className='space-y-6'>
+        <div className='space-y-2'>
+          {/* Operational stock — ledger-driven, independent from the Master Contract */}
+          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 py-0 gap-0'>
+            <CardHeader className='py-1.5 px-2 border-b border-slate-100 dark:border-slate-800'>
+              <CardTitle className='text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5'>
+                <IconBuildingWarehouse className='h-3.5 w-3.5 text-emerald-500' />
+                Tiến trình vận chuyển & Tồn kho
+              </CardTitle>
+            </CardHeader>
+            <CardContent className='p-2 space-y-1.5'>
+              <div className='grid grid-cols-3 gap-1.5 text-center'>
+                <div className='rounded-md bg-slate-50 dark:bg-slate-900 p-1'>
+                  <div className='text-[10px] text-slate-500'>Tổng nhập</div>
+                  <div className='text-xs font-bold font-mono text-slate-900 dark:text-slate-100'>
+                    {order.inboundQuantity ?? 0}
+                  </div>
+                </div>
+                <div className='rounded-md bg-slate-50 dark:bg-slate-900 p-1'>
+                  <div className='text-[10px] text-slate-500'>Đã xuất</div>
+                  <div className='text-xs font-bold font-mono text-slate-900 dark:text-slate-100'>
+                    {order.outboundQuantity ?? 0}
+                  </div>
+                </div>
+                <div className='rounded-md bg-emerald-50 dark:bg-emerald-950/40 p-1'>
+                  <div className='text-[10px] text-emerald-700 dark:text-emerald-300'>Tồn khả dụng</div>
+                  <div className='text-xs font-bold font-mono text-emerald-800 dark:text-emerald-200'>
+                    {order.remainingQuantity ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className='flex flex-wrap items-center gap-1 text-[10px] text-slate-600 dark:text-slate-400'>
+                <IconMapPin className='h-3 w-3 text-blue-500' />
+                <span>Vị trí hiện tại:</span>
+                <strong className='text-slate-900 dark:text-slate-100'>
+                  {order.currentHubEntity?.name ?? (order.currentTripCode ? 'Đang trên xe' : 'Chưa nhập kho')}
+                </strong>
+                {order.currentTripCode && (
+                  <span className='text-[11px] font-mono font-bold text-blue-700 dark:text-blue-300'>
+                    {order.currentTripCode}
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <OrderTimelineLedger order={order} />
+
           <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 py-0'>
             <CardHeader className='py-1 px-1 border-b border-slate-100 dark:border-slate-800'>
               <CardTitle className='text-base font-semibold text-slate-800 dark:text-slate-200'>
@@ -931,6 +1009,15 @@ export default function OrderDetailPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {isSuperAdmin && (
+        <OrderAdminOverrideDialog
+          order={order}
+          open={isOverrideOpen}
+          onOpenChange={setIsOverrideOpen}
+          onSuccess={() => loadOrder()}
+        />
+      )}
     </div>
   );
 }

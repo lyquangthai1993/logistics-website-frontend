@@ -29,6 +29,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { toast } from 'sonner';
+import { showApiErrorToast } from '@/lib/api-error';
 import { cn } from '@/lib/utils';
 import { formatWeight, formatVolume } from '@/lib/format';
 
@@ -71,14 +72,10 @@ export function WarehouseOutboundTransferFlow({
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Hubs List
-  const [hubs, setHubs] = useState<HubOption[]>([
-    { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
-    { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
-    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 }
-  ]);
+  const [hubs, setHubs] = useState<HubOption[]>([]);
 
   // Step 1 Form State (Trip Info)
-  const [destinationHubId, setDestinationHubId] = useState<number>(2);
+  const [destinationHubId, setDestinationHubId] = useState<number>(0);
   const [dispatchDate, setDispatchDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [licensePlate, setLicensePlate] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -100,7 +97,8 @@ export function WarehouseOutboundTransferFlow({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch Active Level 1 Hubs
+  // Fetch Active Level 1 Hubs (excluding the operator's own hub)
+  const ownHubId = user?.hub?.id;
   useEffect(() => {
     const token = tokenManager.getAccessToken();
     fetch('/api/v1/hubs/active?level=1', {
@@ -112,16 +110,18 @@ export function WarehouseOutboundTransferFlow({
       .then((res) => (res.ok ? res.json() : null))
       .then((res) => {
         const data = Array.isArray(res) ? res : res?.data;
-        if (Array.isArray(data) && data.length > 0) {
-          const l1 = data.filter((h: any) => h.level === 1 || !h.code?.startsWith('HUB-BO-'));
-          setHubs(l1);
-          if (l1[0] && !l1.some((h: any) => h.id === destinationHubId)) {
-            setDestinationHubId(l1[0].id);
-          }
-        }
+        if (!Array.isArray(data)) return;
+        const l1: HubOption[] = data.filter(
+          (h: any) =>
+            (h.level === 1 || !h.code?.startsWith('HUB-BO-')) && (!ownHubId || h.id !== ownHubId)
+        );
+        setHubs(l1);
+        setDestinationHubId((prev) =>
+          l1.some((h) => h.id === prev) ? prev : (l1[0]?.id ?? 0)
+        );
       })
-      .catch(() => {});
-  }, [destinationHubId]);
+      .catch((err) => showApiErrorToast(err, 'Không tải được danh sách kho đích'));
+  }, [ownHubId]);
 
   // Fetch Warehouse Stored Orders for Step 2 Selection (Pure Real DB Integration)
   const fetchWarehouseOrders = useCallback(() => {
@@ -145,16 +145,17 @@ export function WarehouseOutboundTransferFlow({
         const rawOrders = resData?.data || [];
         const formatted: StoredOrderItem[] = rawOrders.map((o: any) => ({
           id: o.id,
-          orderCode: o.orderCode || `LTV-${o.id}`,
-          goodsDescription: o.goodsDescription || 'Hàng hóa tổng quan',
-          totalQuantity: o.totalQuantity || 1,
-          totalWeight: Number(o.totalWeight) || 0,
-          totalVolume: Number(o.totalVolume) || 0,
-          status: o.status || 'INBOUND',
-          createdAt: o.createdAt || new Date().toISOString(),
+          orderCode: o.orderCode ?? `#${o.id}`,
+          goodsDescription: o.goodsDescription || '—',
+          // Per-hub available stock from the ledger; contract quantity only as last resort
+          totalQuantity: Number(o.hubStock ?? o.remainingQuantity ?? o.totalQuantity ?? 0),
+          totalWeight: Number(o.totalWeight ?? 0),
+          totalVolume: Number(o.totalVolume ?? 0),
+          status: o.hubStatus ?? o.status ?? 'INBOUND',
+          createdAt: o.createdAt ?? '',
           destinationHub: o.destinationHub || o.route || '',
           deliveryAddress: o.deliveryAddress || '',
-          originHub: o.originHub || user?.hub?.name || 'Kho tiếp nhận'
+          originHub: o.originHub || user?.hub?.name || ''
         }));
         setWarehouseOrders(formatted);
 
@@ -167,8 +168,8 @@ export function WarehouseOutboundTransferFlow({
         }
       })
       .catch((err) => {
-        console.error('Failed to fetch warehouse orders from DB:', err);
         setWarehouseOrders([]);
+        showApiErrorToast(err, 'Không tải được danh sách hàng tồn kho');
       })
       .finally(() => setIsLoadingOrders(false));
   }, [page, limit, search, statusFilter, user?.hub?.name]);
@@ -178,20 +179,20 @@ export function WarehouseOutboundTransferFlow({
   }, [fetchWarehouseOrders]);
 
   // Selected Hub Name
-  const selectedDestHub = useMemo(() => {
+  const selectedDestHub = useMemo<HubOption>(() => {
     return (
-      hubs.find((h) => h.id === destinationHubId) || {
-        id: 2,
-        code: 'HUB-DAD-01',
-        name: 'Magellan Hub - Đà Nẵng',
-        city: 'Đà Nẵng',
+      hubs.find((h) => h.id === destinationHubId) ?? {
+        id: 0,
+        code: '',
+        name: 'Chưa chọn kho đích',
+        city: '',
         level: 1
       }
     );
   }, [hubs, destinationHubId]);
 
-  const currentHubName = user?.hub?.name || 'Andromeda Hub - HCM';
-  const currentHubCode = user?.hub?.code || 'HUB-HCM-01';
+  const currentHubName = user?.hub?.name ?? 'Kho hiện tại';
+  const currentHubCode = user?.hub?.code ?? '';
 
   // Selected orders array & metrics (Pure Real DB items)
   const selectedOrders = useMemo(() => {
@@ -269,6 +270,10 @@ export function WarehouseOutboundTransferFlow({
       toast.error('Vui lòng chọn ít nhất một đơn hàng để xuất kho!');
       return;
     }
+    if (!destinationHubId) {
+      toast.error('Vui lòng chọn kho đích cho chuyến luân chuyển!');
+      return;
+    }
 
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
@@ -291,7 +296,8 @@ export function WarehouseOutboundTransferFlow({
       });
 
       if (!res.ok) {
-        throw new Error('Xác nhận xuất kho không thành công');
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
       }
 
       toast.success(
@@ -299,14 +305,14 @@ export function WarehouseOutboundTransferFlow({
       );
       onSuccess();
     } catch (err: any) {
-      toast.error('Lỗi khi xuất kho: ' + (err?.message || 'Vui lòng thử lại'));
+      showApiErrorToast(err, 'Xác nhận xuất kho không thành công');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-2'>
       {/* ── Top Bar Navigation ── */}
       <div className='flex items-center justify-between border-b pb-3'>
         <button
@@ -338,7 +344,7 @@ export function WarehouseOutboundTransferFlow({
       </div>
 
       {/* ── Page Header ── */}
-      <div className='flex flex-wrap items-center justify-between gap-3'>
+      <div className='flex flex-wrap items-center justify-between gap-2'>
         <div>
           <h1 className='text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2'>
             <span>
@@ -353,7 +359,7 @@ export function WarehouseOutboundTransferFlow({
             {step === 1
               ? `Luân chuyển hàng từ ${currentHubName} đến một Hub nội bộ khác.`
               : step === 2
-                ? 'Chọn một hoặc nhiều đơn đang LƯU KHO hoặc DRAFT để đưa lên xe và xuất sang Hub đích.'
+                ? 'Chọn một hoặc nhiều đơn đang lưu kho hoặc nháp để đưa lên xe và xuất sang kho đích.'
                 : 'Kiểm tra lại thông tin chuyến và danh sách hàng hóa trước khi xuất bến.'}
           </p>
         </div>
@@ -404,7 +410,7 @@ export function WarehouseOutboundTransferFlow({
       {/* ── Journey Stepper (3 Steps - Frames oct_stepper, sm_trip_bar, ol_stepper) ── */}
       <div className='flex items-center justify-between px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
         {/* Step 1 */}
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2'>
           <div
             className={cn(
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
@@ -448,7 +454,7 @@ export function WarehouseOutboundTransferFlow({
         </span>
 
         {/* Step 2 */}
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2'>
           <div
             className={cn(
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
@@ -492,7 +498,7 @@ export function WarehouseOutboundTransferFlow({
         </span>
 
         {/* Step 3 */}
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2'>
           <div
             className={cn(
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
@@ -528,7 +534,7 @@ export function WarehouseOutboundTransferFlow({
       {/* ── STEP 1: WH_OUTBOUND_CREATE_TRIP (Chọn Hub & Thông Tin Xe) ─────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {step === 1 && (
-        <div className='space-y-4 animate-in fade-in-50 duration-200'>
+        <div className='space-y-2 animate-in fade-in-50 duration-200'>
           {/* Step 1 Alert Bar (Frame oct_step1_bar) */}
           <div className='flex items-center justify-between p-3.5 bg-[#EFF6FF] dark:bg-blue-950/40 border border-[#BFDBFE] dark:border-blue-900 rounded-lg'>
             <div className='flex items-center gap-2 text-xs font-bold text-[#1D4ED8] dark:text-blue-300'>
@@ -542,12 +548,12 @@ export function WarehouseOutboundTransferFlow({
 
           {/* Trip Info Form (Frame oct_form) */}
           <Card className='bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0'>
-            <CardContent className='p-1 space-y-4'>
+            <CardContent className='p-1 space-y-2'>
               <h2 className='text-sm font-bold text-slate-900 dark:text-slate-100'>
                 Thông tin chuyến xuất
               </h2>
 
-              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2'>
                 {/* Field 1: Destination Hub */}
                 <div>
                   <label className='text-xs font-bold text-[#EF4444] block mb-1.5'>
@@ -651,11 +657,11 @@ export function WarehouseOutboundTransferFlow({
           </Card>
 
           {/* Sticky Footer for Step 1 (Frame oct_sticky_footer) */}
-          <div className='flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
+          <div className='flex items-center justify-between p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
             <Button variant='outline' onClick={onBackToBoard} className='text-xs font-semibold'>
               Hủy
             </Button>
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center gap-2'>
               <Button
                 variant='outline'
                 onClick={() => toast.success('Đã lưu nháp thông tin chuyến xe')}
@@ -678,9 +684,9 @@ export function WarehouseOutboundTransferFlow({
       {/* ── STEP 2: WH_OUTBOUND_SELECT_MODAL (Chọn Hàng Từ Kho) ──────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {step === 2 && (
-        <div className='space-y-4 animate-in fade-in-50 duration-200'>
+        <div className='space-y-2 animate-in fade-in-50 duration-200'>
           {/* Trip Summary Chip Bar (Frame sm_trip_bar) */}
-          <div className='flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#F0F9FF] dark:bg-sky-950/40 border border-[#BAE6FD] dark:border-sky-900 rounded-xl text-xs font-semibold text-[#0284C7] dark:text-sky-300'>
+          <div className='flex flex-wrap items-center justify-between gap-2 px-2 py-3 bg-[#F0F9FF] dark:bg-sky-950/40 border border-[#BAE6FD] dark:border-sky-900 rounded-xl text-xs font-semibold text-[#0284C7] dark:text-sky-300'>
             <div className='flex items-center gap-2'>
               <IconBuildingWarehouse className='h-4 w-4 text-sky-600' />
               <span>Kho xuất: {currentHubName}</span>
@@ -701,8 +707,8 @@ export function WarehouseOutboundTransferFlow({
 
           {/* Search & Filter Toolbar (Frame sm_toolbar) */}
           <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm py-0'>
-            <CardContent className='p-1 space-y-3'>
-              <div className='flex flex-wrap items-center justify-between gap-3'>
+            <CardContent className='p-1 space-y-2'>
+              <div className='flex flex-wrap items-center justify-between gap-2'>
                 {/* Search Bar */}
                 <div className='relative flex-1 min-w-[260px]'>
                   <IconSearch className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
@@ -755,7 +761,7 @@ export function WarehouseOutboundTransferFlow({
                 </div>
 
                 {/* Selection Counter Badge & Check All */}
-                <div className='flex items-center gap-3'>
+                <div className='flex items-center gap-2'>
                   <Badge className='bg-[#DCFCE7] text-[#059669] dark:bg-emerald-950/60 dark:text-emerald-300 border-none text-xs px-3 py-1 font-bold rounded-full'>
                     Đã chọn {selectedOrderIds.size} / {counts.total} đơn
                   </Badge>
@@ -804,14 +810,14 @@ export function WarehouseOutboundTransferFlow({
                   <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                     {isLoadingOrders ? (
                       <tr>
-                        <td colSpan={9} className='p-8 text-center text-slate-500'>
+                        <td colSpan={9} className='p-2 text-center text-slate-500'>
                           <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                           Đang tải danh sách hàng trong kho...
                         </td>
                       </tr>
                     ) : warehouseOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className='p-8 text-center text-slate-400'>
+                        <td colSpan={9} className='p-2 text-center text-slate-400'>
                           Không tìm thấy đơn hàng nào phù hợp với bộ lọc
                         </td>
                       </tr>
@@ -851,7 +857,9 @@ export function WarehouseOutboundTransferFlow({
                               {order.totalVolume ? `${formatVolume(order.totalVolume)} m³` : '0 m³'}
                             </td>
                             <td className='p-3 text-center text-slate-500 font-medium'>
-                              {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                              {order.createdAt
+                                ? new Date(order.createdAt).toLocaleDateString('vi-VN')
+                                : '—'}
                             </td>
                             <td className='p-3 text-center'>
                               <Badge
@@ -863,7 +871,15 @@ export function WarehouseOutboundTransferFlow({
                                     : 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]'
                                 )}
                               >
-                                {order.status === 'INBOUND' ? 'LƯU KHO' : order.status}
+                                {order.status === 'INBOUND'
+                                  ? 'Lưu kho'
+                                  : order.status === 'DRAFT'
+                                    ? 'Nháp'
+                                    : order.status === 'PENDING_INBOUND'
+                                      ? 'Chờ nhập kho'
+                                      : order.status === 'COMPLETED_INBOUND'
+                                        ? 'Đã xuất kho'
+                                        : 'Đang xử lý'}
                               </Badge>
                             </td>
                             <td className='p-3 text-center' onClick={(e) => e.stopPropagation()}>
@@ -896,7 +912,7 @@ export function WarehouseOutboundTransferFlow({
               </div>
 
               {/* Pagination Bar (Frame sm_pag) */}
-              <div className='flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-2'>
+              <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-2'>
                 <span>
                   Hiển thị {warehouseOrders.length} / {counts.total} đơn đang lưu tại{' '}
                   {currentHubName}
@@ -933,7 +949,7 @@ export function WarehouseOutboundTransferFlow({
           </Card>
 
           {/* Sticky Bottom Action Bar (Frame sm_bottom_bar) */}
-          <div className='flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
+          <div className='flex flex-wrap items-center justify-between gap-2 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
             {/* Live Selected Summary */}
             <div className='flex items-center gap-2 text-xs font-bold text-[#059669] dark:text-emerald-400'>
               <IconCircleCheck className='h-5 w-5 text-emerald-600' />
@@ -944,7 +960,7 @@ export function WarehouseOutboundTransferFlow({
               </span>
             </div>
 
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center gap-2'>
               <Button
                 variant='outline'
                 onClick={() => setStep(1)}
@@ -975,10 +991,10 @@ export function WarehouseOutboundTransferFlow({
       {/* ── STEP 3: WH_OUTBOUND_LOADED (Xác Nhận & In Phiếu Xuất) ─────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {step === 3 && (
-        <div className='space-y-4 animate-in fade-in-50 duration-200'>
+        <div className='space-y-2 animate-in fade-in-50 duration-200'>
           {/* Readonly Trip Info Card (Frame ol_trip_card) */}
           <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl py-0'>
-            <CardContent className='p-1 space-y-3'>
+            <CardContent className='p-1 space-y-2'>
               <div className='flex items-center justify-between border-b pb-2.5'>
                 <div className='flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-100'>
                   <IconTruck className='h-4 w-4 text-[#0F3D62]' />
@@ -990,7 +1006,7 @@ export function WarehouseOutboundTransferFlow({
                 </Badge>
               </div>
 
-              <div className='grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs'>
+              <div className='grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs'>
                 <div>
                   <span className='text-slate-500 block text-[10px]'>Hub nhận nội bộ</span>
                   <div className='font-bold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1.5'>
@@ -1024,7 +1040,7 @@ export function WarehouseOutboundTransferFlow({
           </Card>
 
           {/* Table Toolbar (Frame ol_tbl_toolbar) */}
-          <div className='flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
+          <div className='flex items-center justify-between px-2 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
             <h2 className='text-xs font-bold text-slate-900 dark:text-slate-100'>
               Danh sách hàng xuất kho ({selectedOrders.length} đơn)
             </h2>
@@ -1141,7 +1157,7 @@ export function WarehouseOutboundTransferFlow({
           </div>
 
           {/* Sticky Footer for Step 3 (Frame ol_sticky_footer) */}
-          <div className='flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
+          <div className='flex flex-wrap items-center justify-between gap-2 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
             <Button
               variant='outline'
               onClick={() => setStep(2)}
@@ -1151,7 +1167,7 @@ export function WarehouseOutboundTransferFlow({
               Quay lại Bước 2
             </Button>
 
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center gap-2'>
               <Button
                 variant='outline'
                 onClick={() => toast.success('Đã lưu nháp phiếu xuất kho luân chuyển')}
@@ -1170,7 +1186,7 @@ export function WarehouseOutboundTransferFlow({
               <Button
                 onClick={handleConfirmOutboundTransfer}
                 disabled={isSubmitting}
-                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-6 shadow-sm flex items-center gap-2'
+                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-2 shadow-sm flex items-center gap-2'
               >
                 {isSubmitting ? (
                   <IconLoader2 className='h-4 w-4 animate-spin' />
