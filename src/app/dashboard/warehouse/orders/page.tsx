@@ -13,6 +13,7 @@ import {
   IconChevronsLeft,
   IconChevronLeft,
   IconChevronRight,
+  IconChevronDown,
   IconChevronsRight,
   IconRefresh,
   IconTrash,
@@ -77,6 +78,8 @@ export default function WarehouseOrdersPage() {
     const query = new URLSearchParams({
       page: page.toString(),
       limit: pageSize.toString(),
+      // One row per order code; lines sharing a code are returned in `items`
+      groupBy: 'orderCode',
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
     });
@@ -89,14 +92,15 @@ export default function WarehouseOrdersPage() {
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
-        setData(resData?.data || []);
+        setData(resData?.data ?? []);
         setMeta({
-          total: resData?.meta?.total || 0,
+          total: resData?.meta?.total ?? 0,
           totalPages: resData?.meta?.totalPages || 1
         });
       })
       .catch(() => {
         setData([]);
+        toast.error('Không tải được danh sách đơn hàng kho. Vui lòng thử lại.');
       })
       .finally(() => setIsLoading(false));
   }, [page, pageSize, search, statusFilter]);
@@ -105,7 +109,115 @@ export default function WarehouseOrdersPage() {
     fetchOrders();
   }, [fetchOrders]);
 
+  // Order codes whose member lines are expanded
+  const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
+  const toggleExpanded = (code: string) =>
+    setExpandedCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+
+  const COLUMN_COUNT = 10;
   const currentHubName = user?.hub?.name;
+
+  /** Stock held at the viewer's hub (ledger) — falls back to remainingQuantity without hub scope. */
+  const renderStock = (r: any) => {
+    const stock = r.hubStock ?? r.remainingQuantity ?? 0;
+    return (
+      <>
+        <span className='font-bold text-emerald-600 dark:text-emerald-400'>{Number(stock) || 0}</span>
+        <span className='text-slate-400'> / {Number(r.totalQuantity) || 0} kiện</span>
+      </>
+    );
+  };
+
+  const renderTripCell = (r: any) => {
+    const activeTrip = r.trips?.[0];
+    const tripCode = activeTrip?.tripCode || (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
+    const plate = activeTrip?.licensePlate || r.vehicleLicensePlate;
+    const driver = activeTrip?.driverName || r.driverName;
+
+    if (!tripCode && !plate) {
+      return <span className='text-gray-400 italic text-[10px]'>—</span>;
+    }
+
+    return (
+      <div className='text-[10px] space-y-0.5'>
+        {tripCode && (
+          <div className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[10px] flex items-center gap-1'>
+            <span>{tripCode}</span>
+            {r.trips && r.trips.length > 1 && (
+              <Badge
+                variant='outline'
+                className='text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50'
+              >
+                +{r.trips.length - 1}
+              </Badge>
+            )}
+          </div>
+        )}
+        {plate && (
+          <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[10px] flex items-center gap-1'>
+            <IconTruck className='h-3 w-3 text-slate-400 shrink-0' />
+            <span>{plate}</span>
+          </div>
+        )}
+        {driver && (
+          <div className='text-[9px] text-gray-400 truncate max-w-[120px]' title={driver}>
+            {driver}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /** Actions for one physical cargo line (detail, label, delete draft). */
+  const renderActions = (m: any, openDetail: (target: any) => void) => (
+    <div className='flex items-center justify-center gap-1'>
+      <Button
+        size='sm'
+        variant='ghost'
+        onClick={() => openDetail(m)}
+        className='h-7 w-7 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+        title='Xem chi tiết vận đơn'
+      >
+        <IconEye className='h-4 w-4' />
+      </Button>
+      <Button
+        size='sm'
+        variant='ghost'
+        onClick={() =>
+          setPrintData({
+            orderCode: m.orderCode,
+            goodsDescription: m.goodsDescription || '',
+            totalQuantity: m.totalQuantity ?? 0,
+            packagesOnPallet: m.totalQuantity ?? 0,
+            palletIndex: 1,
+            totalPallets: 1,
+            destinationHub: m.destinationHub || m.route,
+            createdAt: m.createdAt
+          })
+        }
+        className='h-7 w-7 p-0 text-blue-600 hover:bg-blue-50'
+        title='In tem nhận diện A4'
+      >
+        <IconPrinter className='h-4 w-4' />
+      </Button>
+      {m.status === 'DRAFT' && (
+        <Button
+          size='sm'
+          variant='ghost'
+          onClick={() => handleDeleteDraft(m.id, m.orderCode)}
+          className='h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+          title='Xóa đơn nháp'
+        >
+          <IconTrash className='h-4 w-4' />
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <PageContainer>
@@ -160,7 +272,7 @@ export default function WarehouseOrdersPage() {
                       setStatusFilter(tab);
                       setPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-md transition-all ${
+                    className={`px-2 py-1 rounded-md transition-all ${
                       statusFilter === tab
                         ? 'bg-white text-slate-900 shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                         : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
@@ -171,7 +283,7 @@ export default function WarehouseOrdersPage() {
                       : tab === 'INBOUND'
                         ? 'LƯU KHO'
                         : tab === 'DRAFT'
-                          ? 'DRAFT'
+                          ? 'ĐƠN NHÁP'
                           : 'ĐÃ XUẤT KHO'}
                   </button>
                 ))}
@@ -180,15 +292,19 @@ export default function WarehouseOrdersPage() {
 
             {/* Table */}
             <div className='border rounded-lg overflow-x-auto'>
-              <table className='w-full text-[11px] text-left min-w-[950px]'>
-                <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
+              <table className='w-full text-[11px] text-left min-w-[900px]'>
+                <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px] sticky top-0 z-10'>
                   <tr>
                     <th className='py-1 px-1.5 w-[40px] text-center'>STT</th>
-                    <th className='py-1 px-1.5 w-[150px]'>MÃ ĐƠN HÀNG</th>
+                    <th className='py-1 px-1.5 w-[170px]'>MÃ ĐƠN HÀNG</th>
                     <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
                     <th className='py-1 px-1.5 w-[130px]'>CHUYẾN XE / TRIP</th>
-                    <th className='py-1 px-1.5 w-[80px] text-right'>TỒN KHO</th>
-                    <th className='py-1 px-1.5 w-[70px] text-right'>SỐ KIỆN</th>
+                    <th
+                      className='py-1 px-1.5 w-[90px] text-right'
+                      title='Số kiện đang nằm tại kho / tổng số kiện của đơn'
+                    >
+                      TỒN KHO
+                    </th>
                     <th className='py-1 px-1.5 w-[80px] text-right'>SỐ KG</th>
                     <th className='py-1 px-1.5 w-[70px] text-right'>SỐ M³</th>
                     <th className='py-1 px-1.5 min-w-[150px]'>ĐÍCH ĐẾN</th>
@@ -199,152 +315,135 @@ export default function WarehouseOrdersPage() {
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={11} className='p-2 text-center text-gray-500'>
+                      <td colSpan={COLUMN_COUNT} className='p-2 text-center text-gray-500'>
                         <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                         Đang tải dữ liệu đơn hàng...
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className='p-2 text-center text-gray-400'>
+                      <td colSpan={COLUMN_COUNT} className='p-2 text-center text-gray-400'>
                         Không tìm thấy đơn hàng nào
                       </td>
                     </tr>
                   ) : (
-                    data.map((row, idx) => (
-                      <tr
-                        key={row.id}
-                        onClick={() => {
-                          setSelectedWaybill(row);
-                          setIsDetailModalOpen(true);
-                        }}
-                        className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors'
-                      >
-                        <td className='py-1 px-1.5 text-center font-mono text-gray-400 text-[10px]'>
-                          {((page - 1) * 15 + idx + 1).toString().padStart(2, '0')}
-                        </td>
-                        <td className='py-1 px-1.5 font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
-                          {row.orderCode}
-                        </td>
-                        <td className='py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200 text-[11px]'>
-                          {row.goodsDescription || 'Hàng hóa tổng quan'}
-                        </td>
-                        <td className='py-1 px-1.5'>
-                          {(() => {
-                            const activeTrip = row.trips?.[0];
-                            const tripCode =
-                              activeTrip?.tripCode ||
-                              (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
-                            const plate = activeTrip?.licensePlate || row.vehicleLicensePlate;
-                            const driver = activeTrip?.driverName || row.driverName;
+                    data.map((row, idx) => {
+                      const members: any[] = Array.isArray(row.items) && row.items.length > 0 ? row.items : [row];
+                      const isMulti = members.length > 1;
+                      const isExpanded = isMulti && expandedCodes.has(row.orderCode);
+                      const openDetail = (target: any) => {
+                        setSelectedWaybill(target);
+                        setIsDetailModalOpen(true);
+                      };
 
-                            if (!tripCode && !plate) {
-                              return <span className='text-gray-400 italic text-[10px]'>—</span>;
-                            }
-
-                            return (
-                              <div className='text-[10px] space-y-0.5'>
-                                {tripCode && (
-                                  <div className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[10px] flex items-center gap-1'>
-                                    <span>{tripCode}</span>
-                                    {row.trips && row.trips.length > 1 && (
-                                      <Badge
-                                        variant='outline'
-                                        className='text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50'
-                                      >
-                                        +{row.trips.length - 1}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                )}
-                                {plate && (
-                                  <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[10px] flex items-center gap-1'>
-                                    <IconTruck className='h-3 w-3 text-slate-400 shrink-0' />
-                                    <span>{plate}</span>
-                                  </div>
-                                )}
-                                {driver && (
-                                  <div
-                                    className='text-[9px] text-gray-400 truncate max-w-[120px]'
-                                    title={driver}
-                                  >
-                                    {driver}
-                                  </div>
-                                )}
+                      return (
+                        <React.Fragment key={`${row.orderCode}-${row.id}`}>
+                          <tr
+                            onClick={() => (isMulti ? toggleExpanded(row.orderCode) : openDetail(members[0]))}
+                            className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${
+                              isExpanded ? 'bg-blue-50/30 dark:bg-slate-800/30' : ''
+                            }`}
+                          >
+                            <td className='py-1 px-1.5 text-center font-mono text-gray-400 text-[10px]'>
+                              {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
+                            </td>
+                            <td className='py-1 px-1.5'>
+                              <div className='flex items-center gap-1'>
+                                {isMulti &&
+                                  (isExpanded ? (
+                                    <IconChevronDown className='h-3 w-3 text-slate-500 shrink-0' />
+                                  ) : (
+                                    <IconChevronRight className='h-3 w-3 text-slate-500 shrink-0' />
+                                  ))}
+                                <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
+                                  {row.orderCode}
+                                </span>
                               </div>
-                            );
-                          })()}
-                        </td>
-                        <td className='py-1 px-1.5 text-right font-bold text-emerald-600 dark:text-emerald-400 text-[10px]'>
-                          {row.remainingQuantity ?? row.totalQuantity ?? 0} kiện
-                        </td>
-                        <td className='py-1 px-1.5 text-right font-bold text-slate-900 dark:text-white text-[10px]'>
-                          {row.totalQuantity ?? 1}
-                        </td>
-                        <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                          {row.totalWeight?.toLocaleString('vi-VN')} kg
-                        </td>
-                        <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                          {row.totalVolume?.toLocaleString('vi-VN')} m³
-                        </td>
-                        <td className='py-1 px-1.5 text-slate-600 dark:text-slate-300 text-[10px]'>
-                          {row.destinationHub || row.route || 'Giao khách lẻ'}
-                        </td>
-                        <td className='py-1 px-1.5 text-center'>
-                          {renderWarehouseOrderStatusBadge(row.hubStatus ?? row.status)}
-                        </td>
-                        <td
-                          className='py-1 px-1.5 text-center'
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className='flex items-center justify-center gap-1'>
-                            <Button
-                              size='sm'
-                              variant='ghost'
-                              onClick={() => {
-                                setSelectedWaybill(row);
-                                setIsDetailModalOpen(true);
-                              }}
-                              className='h-7 w-7 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50'
-                              title='Xem chi tiết vận đơn & Timeline 3 chặng xe'
-                            >
-                              <IconEye className='h-4 w-4' />
-                            </Button>
-                            <Button
-                              size='sm'
-                              variant='ghost'
-                              onClick={() =>
-                                setPrintData({
-                                  orderCode: row.orderCode,
-                                  goodsDescription: row.goodsDescription || 'Hàng hóa tổng quan',
-                                  totalQuantity: row.totalQuantity ?? 0,
-                                  packagesOnPallet: row.totalQuantity ?? 0,
-                                  palletIndex: 1,
-                                  totalPallets: 1,
-                                  destinationHub: row.destinationHub || row.route,
-                                  createdAt: row.createdAt
-                                })
-                              }
-                              className='h-7 w-7 p-0 text-blue-600 hover:bg-blue-50'
-                              title='In tem nhận diện A4'
-                            >
-                              <IconPrinter className='h-4 w-4' />
-                            </Button>
-                            {row.status === 'DRAFT' && (
-                              <Button
-                                size='sm'
-                                variant='ghost'
-                                onClick={() => handleDeleteDraft(row.id, row.orderCode)}
-                                className='h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                                title='Xóa đơn nháp'
+                              {isMulti && (
+                                <Badge
+                                  variant='outline'
+                                  className='mt-0.5 text-[9px] px-1 py-0 h-3.5 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                >
+                                  {members.length} dòng hàng
+                                </Badge>
+                              )}
+                            </td>
+                            <td className='py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200 text-[10px]'>
+                              {row.goodsDescription || '—'}
+                            </td>
+                            <td className='py-1 px-1.5'>{renderTripCell(row)}</td>
+                            <td className='py-1 px-1.5 text-right text-[10px] whitespace-nowrap'>
+                              {renderStock(row)}
+                            </td>
+                            <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
+                              {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg
+                            </td>
+                            <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
+                              {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³
+                            </td>
+                            <td className='py-1 px-1.5 text-slate-600 dark:text-slate-300 text-[10px]'>
+                              {row.destinationHub || row.route || 'Giao khách lẻ'}
+                            </td>
+                            <td className='py-1 px-1.5 text-center'>
+                              {renderWarehouseOrderStatusBadge(row.hubStatus ?? row.status)}
+                            </td>
+                            <td className='py-1 px-1.5 text-center' onClick={(e) => e.stopPropagation()}>
+                              {isMulti ? (
+                                <Button
+                                  size='sm'
+                                  variant='ghost'
+                                  onClick={() => toggleExpanded(row.orderCode)}
+                                  className='h-7 px-1.5 text-[10px] text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                                  title='Xem từng dòng hàng của đơn'
+                                >
+                                  {isExpanded ? 'Thu gọn' : 'Xem dòng'}
+                                </Button>
+                              ) : (
+                                renderActions(members[0], openDetail)
+                              )}
+                            </td>
+                          </tr>
+
+                          {isExpanded &&
+                            members.map((m, mIdx) => (
+                              <tr
+                                key={`member-${m.id}`}
+                                onClick={() => openDetail(m)}
+                                className='bg-slate-50/60 dark:bg-slate-900/60 hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors'
                               >
-                                <IconTrash className='h-4 w-4' />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                                <td className='py-1 px-1.5 text-center font-mono text-gray-300 text-[10px]'>
+                                  {mIdx + 1}
+                                </td>
+                                <td className='py-1 px-1.5 pl-5 font-mono text-slate-500 text-[10px]'>
+                                  Dòng {mIdx + 1}
+                                </td>
+                                <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 text-[10px]'>
+                                  {m.goodsDescription || '—'}
+                                </td>
+                                <td className='py-1 px-1.5'>{renderTripCell(m)}</td>
+                                <td className='py-1 px-1.5 text-right text-[10px] whitespace-nowrap'>
+                                  {renderStock(m)}
+                                </td>
+                                <td className='py-1 px-1.5 text-right text-slate-600 dark:text-slate-300 text-[10px]'>
+                                  {(Number(m.totalWeight) || 0).toLocaleString('vi-VN')} kg
+                                </td>
+                                <td className='py-1 px-1.5 text-right text-slate-600 dark:text-slate-300 text-[10px]'>
+                                  {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³
+                                </td>
+                                <td className='py-1 px-1.5 text-slate-500 dark:text-slate-400 text-[10px]'>
+                                  {m.destinationHub || m.destinationHubEntity?.name || m.route || 'Giao khách lẻ'}
+                                </td>
+                                <td className='py-1 px-1.5 text-center'>
+                                  {renderWarehouseOrderStatusBadge(m.hubStatus ?? m.status)}
+                                </td>
+                                <td className='py-1 px-1.5 text-center' onClick={(e) => e.stopPropagation()}>
+                                  {renderActions(m, openDetail)}
+                                </td>
+                              </tr>
+                            ))}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -384,9 +483,9 @@ export default function WarehouseOrdersPage() {
             setIsDetailModalOpen(false);
             setPrintData({
               orderCode: w.orderCode,
-              goodsDescription: w.goodsDescription || 'Hàng hóa tổng quan',
-              totalQuantity: w.totalQuantity || 10,
-              packagesOnPallet: w.totalQuantity || 10,
+              goodsDescription: w.goodsDescription || '',
+              totalQuantity: w.totalQuantity ?? 0,
+              packagesOnPallet: w.totalQuantity ?? 0,
               palletIndex: 1,
               totalPallets: 1,
               destinationHub: w.destinationHub || w.route,

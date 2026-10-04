@@ -50,6 +50,10 @@ import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components
 import { TripStopStatusBadge } from '@/features/warehouse/components/trip-stop-status-badge';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { formatWeight, formatVolume } from '@/lib/format';
+import {
+  availableOutboundStock,
+  proportionalMetric
+} from '@/features/warehouse/lib/outbound-stock';
 
 export default function WarehouseOutboundPage() {
   const user = useAuthStore((state) => state.user);
@@ -284,51 +288,77 @@ export default function WarehouseOutboundPage() {
     }
   }, [activeView, fetchOrders]);
 
-  // Refresh Metrics Button Action
+  // Refresh Metrics Button Action — re-reads hub stock of the rows on the note
   const handleRefreshMetrics = async () => {
     setIsRefreshing(true);
     const token = tokenManager.getAccessToken();
 
     try {
+      const isNoteView = activeView === 'MODE1_CUSTOMER' || activeView === 'MODE2_TRANSFER';
       const activeRows = activeView === 'MODE1_CUSTOMER' ? mode1Rows : mode2Rows;
       const orderIds = activeRows.map((r) => Number(r.id)).filter((id) => !isNaN(id) && id > 0);
 
-      if (orderIds.length > 0) {
-        const res = await fetch('/api/v1/orders/refresh-metrics', {
-          method: 'POST',
+      if (isNoteView && orderIds.length > 0) {
+        const query = new URLSearchParams({
+          ids: Array.from(new Set(orderIds)).join(','),
+          limit: '100'
+        });
+        const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ orderIds })
-        });
-
-        if (res.ok) {
-          const freshData: any[] = await res.json();
-          if (activeView === 'MODE1_CUSTOMER') {
-            setMode1Rows((prev) =>
-              prev.map((r) => {
-                const fresh = freshData.find((f) => f.id === r.id);
-                return fresh
-                  ? {
-                      ...r,
-                      totalQuantity: fresh.totalQuantity || r.totalQuantity,
-                      totalWeight: fresh.totalWeight || r.totalWeight,
-                      totalVolume: fresh.totalVolume || r.totalVolume
-                    }
-                  : r;
-              })
-            );
           }
-          toast.success('Đã tải lại thông số tải trọng và khối lượng tươi mới nhất!');
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
         }
+
+        // NestJS ResponseTransformInterceptor wraps payloads: { statusCode, message, data, ... }
+        const json = await res.json();
+        const freshData: any[] = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.data)
+            ? json.data
+            : [];
+        const freshById = new Map(freshData.map((f) => [Number(f.id), f]));
+
+        const applyFresh = (rows: WarehouseRowItem[]) =>
+          rows.map((r) => {
+            const fresh = freshById.get(Number(r.id));
+            if (!fresh) return r;
+            const stock = availableOutboundStock(fresh);
+            const currentQty = Number(r.totalQuantity) || 0;
+            const exceeds = currentQty > stock;
+            const qty = exceeds ? stock : currentQty;
+            return {
+              ...r,
+              goodsDescription: fresh.goodsDescription ?? r.goodsDescription,
+              remainingQuantity: stock,
+              ...(exceeds
+                ? {
+                    totalQuantity: qty,
+                    quantityToExport: qty,
+                    totalWeight: proportionalMetric(fresh.totalWeight, qty, fresh.totalQuantity),
+                    totalVolume: proportionalMetric(fresh.totalVolume, qty, fresh.totalQuantity)
+                  }
+                : {})
+            };
+          });
+
+        if (activeView === 'MODE1_CUSTOMER') {
+          setMode1Rows((prev) => applyFresh(prev));
+        } else {
+          setMode2Rows((prev) => applyFresh(prev));
+        }
+        toast.success('Đã cập nhật lại tồn kho khả dụng của các dòng hàng!');
       } else {
         fetchKpi();
         fetchOrders();
         toast.success('Đã cập nhật lại thông số danh sách xuất kho!');
       }
-    } catch {
-      toast.error('Không thể cập nhật thông số lúc này');
+    } catch (err: any) {
+      showApiErrorToast(err, 'Không thể cập nhật thông số lúc này');
     } finally {
       setIsRefreshing(false);
     }
@@ -371,6 +401,20 @@ export default function WarehouseOutboundPage() {
           return;
         }
       }
+    }
+
+    const seenIds = new Map<string, number>();
+    for (let i = 0; i < validRows.length; i++) {
+      const rid = validRows[i].id;
+      if (rid === undefined || rid === null || rid === '') continue;
+      const key = String(rid);
+      if (seenIds.has(key)) {
+        toast.error(
+          `Dòng hàng ${validRows[i].orderCode} đang bị chọn 2 lần trên phiếu. Vui lòng gộp số lượng vào một dòng.`
+        );
+        return;
+      }
+      seenIds.set(key, i);
     }
 
     const orderIds = validRows.map((r) => Number(r.id)).filter((id) => !isNaN(id) && id > 0);
@@ -426,34 +470,59 @@ export default function WarehouseOutboundPage() {
         throw { response: { data: errData, status: res.status } };
       }
 
+      // Backend wraps the payload: { data: { invoiceCode, tripCode, orders, ... } }
+      const json = await res.json().catch(() => ({}));
+      const payload = json?.data ?? json;
+
       toast.success(
-        mode === 'CUSTOMER'
+        effectiveMode === 'CUSTOMER'
           ? 'Đã xác nhận xuất kho thành công!'
           : 'Đã lập phiếu xuất luân chuyển và sẵn sàng in Loading Plan!'
       );
 
-      // Open Outbound Receipt Modal for printing
+      const isTransferReceipt = effectiveMode === 'TRANSFER';
+      const transferHubName = isTransferReceipt
+        ? level1Hubs.find((h: any) => String(h.id) === String(primaryDestHubId))?.name
+        : undefined;
+      const totalExportQty = validRows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 0), 0);
+
+      // Open Outbound Receipt Modal for printing — one receipt line per grid row
+      // (rows sharing the same order code are distinct cargo lines and must stay separate).
       setSelectedReceiptData({
-        orderCode: validRows[0]?.orderCode || 'WH-OUT',
-        goodsDescription:
-          validRows
-            .map((r) => r.goodsDescription)
-            .filter(Boolean)
-            .join(', ') || 'Hàng xuất kho',
-        totalQuantity: validRows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 1), 0),
-        outboundQuantity: validRows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 1), 0),
+        orderCode: payload?.invoiceCode || validRows[0]?.orderCode || '',
+        tripCode: payload?.tripCode || undefined,
+        goodsDescription: validRows
+          .map((r) => r.goodsDescription)
+          .filter(Boolean)
+          .join(', '),
+        totalQuantity: totalExportQty,
+        outboundQuantity: totalExportQty,
         totalWeight: validRows.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0),
         totalVolume: validRows.reduce((sum, r) => sum + (Number(r.totalVolume) || 0), 0),
-        driverName: outboundDriverName,
-        licensePlate: outboundLicensePlate,
-        deliveryAddress: customerAddress,
-        mode: 'CUSTOMER',
+        // Same plate/driver source as the confirm request above
+        driverName: mode === 'TRANSFER' ? transferDriverName : outboundDriverName,
+        licensePlate: mode === 'TRANSFER' ? transferLicensePlate : outboundLicensePlate,
+        deliveryAddress: isTransferReceipt ? undefined : customerAddress,
+        destinationHub: transferHubName,
+        mode: effectiveMode,
         dispatchDate: dispatchDate,
-        notes:
-          validRows
-            .map((r) => r.notes)
-            .filter(Boolean)
-            .join('; ') || ''
+        notes: validRows
+          .map((r) => r.notes)
+          .filter(Boolean)
+          .join('; '),
+        items: validRows.map((r) => ({
+          orderCode: r.orderCode,
+          goodsDescription: r.goodsDescription || '',
+          quantity: Number(r.totalQuantity) || 0,
+          unit: 'Kiện',
+          deliveryAddress:
+            effectiveMode === 'CUSTOMER'
+              ? r.deliveryAddress || customerAddress || ''
+              : r.deliveryAddress || '',
+          province: r.province || '',
+          accompanyingDocs: r.accompanyingDocs || '',
+          notes: r.notes || ''
+        }))
       });
       setIsReceiptModalOpen(true);
 

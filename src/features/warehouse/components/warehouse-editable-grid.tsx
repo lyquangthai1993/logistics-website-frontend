@@ -36,6 +36,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
+import { availableOutboundStock, proportionalMetric } from '@/features/warehouse/lib/outbound-stock';
 import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 import { WarehouseDestinationModal } from './warehouse-destination-modal';
 
@@ -522,12 +523,18 @@ function OrderCodeCell({
 
       try {
         let foundOrder: any = null;
+        let foundInHubStock = false;
+        const otherRows = (meta?.allRows || []).filter((_, otherIdx) => otherIdx !== idx);
+        const usedIds = new Set(
+          otherRows.map((o) => o.id).filter((v) => v !== undefined && v !== null).map(String),
+        );
 
-        // 1. Tìm kiếm trong danh sách đơn kho của Hub hiện tại
+        // 1. Tìm trong hàng đang lưu kho tại Hub hiện tại (cùng phạm vi với modal tra cứu)
         const q = new URLSearchParams({
           page: '1',
-          limit: '10',
+          limit: '20',
           search: trimmed,
+          flow: 'OUTBOUND_LOOKUP',
         });
 
         const resWarehouse = await fetch(`/api/v1/warehouse/orders?${q.toString()}`, {
@@ -540,12 +547,18 @@ function OrderCodeCell({
         if (resWarehouse.ok) {
           const resData = await resWarehouse.json().catch(() => null);
           const items: any[] = resData?.data || [];
-          foundOrder = items.find(
-            (it) => it.orderCode?.trim().toUpperCase() === trimmed,
-          );
+          const matches = items.filter((it) => it.orderCode?.trim().toUpperCase() === trimmed);
+          // One order code may hold several cargo lines: prefer a line not yet on the note
+          // that still has stock here, then any unused line, then the first match.
+          foundOrder =
+            matches.find((it) => !usedIds.has(String(it.id)) && availableOutboundStock(it) > 0) ??
+            matches.find((it) => !usedIds.has(String(it.id))) ??
+            matches[0] ??
+            null;
+          foundInHubStock = !!foundOrder;
         }
 
-        // 2. Nếu chưa thấy ở danh sách kho, tra cứu trực tiếp theo orderCode
+        // 2. Nếu không có trong kho, tra cứu trực tiếp theo orderCode để báo rõ cho người dùng
         if (!foundOrder) {
           const resDirect = await fetch(`/api/v1/orders/${encodeURIComponent(trimmed)}`, {
             headers: {
@@ -565,21 +578,14 @@ function OrderCodeCell({
         if (foundOrder && foundOrder.orderCode) {
           lastSearchedCodeRef.current = foundOrder.orderCode.trim().toUpperCase();
 
-          const availStock =
-            foundOrder.remainingQuantity !== undefined && foundOrder.remainingQuantity !== null
-              ? foundOrder.remainingQuantity
-              : foundOrder.totalQuantity || 1;
+          // Orders outside this hub's stock (on the way, dispatched...) cannot be exported here.
+          const availStock = foundInHubStock ? availableOutboundStock(foundOrder) : 0;
 
-          // Kiểm tra xem đơn này đã có ở dòng khác trong bảng xuất kho chưa
-          const otherRows = meta?.allRows || [];
-          const isDuplicate = otherRows.some(
-            (other, otherIdx) =>
-              otherIdx !== idx &&
-              other.orderCode?.trim().toUpperCase() === foundOrder.orderCode?.trim().toUpperCase(),
-          );
+          // Trùng thực sự = cùng một dòng hàng (cùng id), không phải chỉ trùng mã đơn
+          const isDuplicate = usedIds.has(String(foundOrder.id));
           if (isDuplicate) {
             toast.warning(
-              `Đơn hàng ${foundOrder.orderCode} đã được chọn ở một dòng khác trong phiếu xuất!`,
+              `Dòng hàng ${foundOrder.orderCode} này đã được chọn ở một dòng khác trong phiếu xuất!`,
             );
           }
 
@@ -593,8 +599,8 @@ function OrderCodeCell({
             quantityToExport: availStock,
             inboundQuantity: foundOrder.inboundQuantity,
             outboundQuantity: foundOrder.outboundQuantity,
-            totalWeight: Number(foundOrder.totalWeight) || 0,
-            totalVolume: Number(foundOrder.totalVolume) || 0,
+            totalWeight: proportionalMetric(foundOrder.totalWeight, availStock, foundOrder.totalQuantity),
+            totalVolume: proportionalMetric(foundOrder.totalVolume, availStock, foundOrder.totalQuantity),
             pickupAddress: foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress,
             deliveryAddress:
               foundOrder.destinationHub ||
@@ -616,9 +622,15 @@ function OrderCodeCell({
 
           meta?.updateRow(idx, updatedRow);
           setValue(foundOrder.orderCode);
-          toast.success(
-            `Đã tìm thấy đơn hàng ${foundOrder.orderCode} (Tồn khả dụng: ${availStock} kiện)!`,
-          );
+          if (availStock > 0) {
+            toast.success(
+              `Đã tìm thấy đơn hàng ${foundOrder.orderCode} (Tồn khả dụng: ${availStock} kiện)!`,
+            );
+          } else {
+            toast.warning(
+              `Đơn hàng ${foundOrder.orderCode} hiện không còn tồn khả dụng tại kho này, không thể xuất.`,
+            );
+          }
         } else {
           lastSearchedCodeRef.current = '';
           meta?.updateRow(idx, {
@@ -1363,6 +1375,7 @@ export function WarehouseEditableGrid({
       const target = rows[index];
       const duplicated: WarehouseRowItem = {
         ...target,
+        id: undefined,
         orderCode: '',
         province: target.province || '',
         accompanyingDocs: target.accompanyingDocs || '',
@@ -1454,10 +1467,7 @@ export function WarehouseEditableGrid({
   const handleSelectFromLookup = (order: WarehouseLookupItem) => {
     if (lookupRowIndex === null) return;
     const updated = [...rows];
-    const availStock =
-      order.remainingQuantity !== undefined && order.remainingQuantity !== null
-        ? order.remainingQuantity
-        : order.totalQuantity || 1;
+    const availStock = availableOutboundStock(order);
     updated[lookupRowIndex] = {
       ...updated[lookupRowIndex],
       id: order.id,
@@ -1468,8 +1478,8 @@ export function WarehouseEditableGrid({
       outboundQuantity: order.outboundQuantity,
       remainingQuantity: availStock,
       quantityToExport: availStock,
-      totalWeight: order.totalWeight || 0,
-      totalVolume: order.totalVolume || 0,
+      totalWeight: proportionalMetric(order.totalWeight, availStock, order.totalQuantity),
+      totalVolume: proportionalMetric(order.totalVolume, availStock, order.totalQuantity),
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
       originalDeliveryAddress: order.destinationHub || order.deliveryAddress || '',
@@ -1841,8 +1851,9 @@ export function WarehouseEditableGrid({
         isOpen={lookupRowIndex !== null}
         onClose={() => setLookupRowIndex(null)}
         onSelectOrder={handleSelectFromLookup}
-        selectedOrderCodes={rows.map((r) => r.orderCode).filter(Boolean)}
+        selectedItemIds={rows.map((r) => r.id ?? null)}
         targetRowIndex={lookupRowIndex}
+        isOutboundMode={isOutboundMode}
       />
 
       {/* ── Modal Import Excel (Nhập hàng loạt) ── */}

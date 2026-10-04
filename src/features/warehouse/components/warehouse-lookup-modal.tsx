@@ -1,10 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,10 +16,11 @@ import {
   IconX,
   IconLoader2,
   IconPackage,
-  IconBuildingWarehouse,
+  IconBuildingWarehouse
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
+import { availableOutboundStock } from '@/features/warehouse/lib/outbound-stock';
 
 export interface WarehouseLookupItem {
   id: number;
@@ -30,6 +28,8 @@ export interface WarehouseLookupItem {
   goodsDescription?: string | null;
   totalQuantity: number;
   remainingQuantity?: number;
+  /** Ledger stock at the viewer's hub (null when the viewer is not hub-scoped). */
+  hubStock?: number | null;
   inboundQuantity?: number;
   outboundQuantity?: number;
   totalWeight: number;
@@ -50,26 +50,32 @@ interface WarehouseLookupModalProps {
   onClose: () => void;
   onSelectOrder?: (order: WarehouseLookupItem) => void;
   onSelect?: (item: WarehouseLookupItem) => void;
-  selectedOrderCodes?: string[];
+  /**
+   * Order id held by each grid row, by row position (null/undefined for empty rows).
+   * Matching is by id: rows sharing an order code are distinct cargo lines.
+   */
+  selectedItemIds?: Array<number | string | null | undefined>;
   targetRowIndex?: number | null;
   isOutboundMode?: boolean;
 }
+
+const STORED_STATUSES = ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'];
 
 export function WarehouseLookupModal({
   isOpen,
   onClose,
   onSelectOrder,
   onSelect,
-  selectedOrderCodes = [],
+  selectedItemIds = [],
   targetRowIndex,
-  isOutboundMode = false,
+  isOutboundMode = false
 }: WarehouseLookupModalProps) {
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(8);
+  const [limit] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<WarehouseLookupItem[]>([]);
   const [meta, setMeta] = useState({
@@ -77,7 +83,7 @@ export function WarehouseLookupModal({
     totalPages: 1,
     allCount: 0,
     storedCount: 0,
-    draftCount: 0,
+    draftCount: 0
   });
 
   useEffect(() => {
@@ -90,44 +96,35 @@ export function WarehouseLookupModal({
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
+      // Outbound notes may only pick goods stored at this hub (or local drafts) —
+      // never goods still on the way in or already dispatched.
+      ...(isOutboundMode ? { flow: 'OUTBOUND_LOOKUP' } : {}),
       ...(search.trim() ? { search: search.trim() } : {}),
-      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
     });
 
     fetch(`/api/v1/warehouse/orders?${queryParams.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         if (!isMounted) return;
-        const items = resData?.data || [];
-        const total = resData?.meta?.total || items.length;
+        const items: WarehouseLookupItem[] = resData?.data ?? [];
+        const total = resData?.meta?.total ?? items.length;
         const totalPages = resData?.meta?.totalPages || Math.ceil(total / limit) || 1;
         const allCount = resData?.meta?.allCount ?? total;
         const storedCount =
           resData?.meta?.storedCount ??
-          items.filter((i: any) => {
-            const s = i.hubStatus ?? i.status;
-            return s === 'INBOUND' || s === 'STORED' || s === 'LUU_KHO';
-          }).length;
+          items.filter((i) => STORED_STATUSES.includes(String(i.hubStatus ?? i.status))).length;
         const draftCount =
           resData?.meta?.draftCount ??
-          items.filter((i: any) => {
-            const s = i.hubStatus ?? i.status;
-            return s === 'DRAFT' || s === 'PENDING' || s === 'WAITING' || s === 'PENDING_INBOUND';
-          }).length;
+          items.filter((i) => (i.hubStatus ?? i.status) === 'DRAFT').length;
 
         setData(items);
-        setMeta({
-          total,
-          totalPages,
-          allCount,
-          storedCount,
-          draftCount,
-        });
+        setMeta({ total, totalPages, allCount, storedCount, draftCount });
       })
       .catch((err) => {
         console.error('Failed to fetch warehouse lookup orders:', err);
@@ -141,7 +138,7 @@ export function WarehouseLookupModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, search, statusFilter, page, limit]);
+  }, [isOpen, search, statusFilter, page, limit, isOutboundMode]);
 
   const handleRowSelect = (order: WarehouseLookupItem) => {
     if (onSelectOrder) onSelectOrder(order);
@@ -152,198 +149,179 @@ export function WarehouseLookupModal({
   const startRecord = meta.total === 0 ? 0 : (page - 1) * limit + 1;
   const endRecord = Math.min(page * limit, meta.total);
 
+  // Order ids already on the note (also drives the soft "same code" hint)
+  const selectedIdSet = new Set(
+    selectedItemIds.filter((v) => v !== null && v !== undefined && v !== '').map(String)
+  );
+
+  const filterPill = (key: string, label: string, activeCls: string, idleCls: string, dotCls?: string) => (
+    <button
+      type="button"
+      onClick={() => {
+        setStatusFilter(key);
+        setPage(1);
+      }}
+      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-all ${
+        statusFilter === key ? activeCls : idleCls
+      }`}
+    >
+      {dotCls && <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotCls}`} />}
+      {label}
+    </button>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="!max-w-[1140px] sm:!max-w-[1140px] sm:w-[1140px] w-[95vw] p-0 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 gap-0"
+        className="w-[95vw] gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl !max-w-[1080px] sm:w-[1080px] sm:!max-w-[1080px] dark:border-slate-800 dark:bg-slate-900"
       >
-        {/* ── Navy Header (Frame lm_hdr in WH_OUTBOUND_LOOKUP_MODAL) ── */}
-        <div className="bg-[#0F3D62] text-white px-6 py-4 flex items-center justify-between border-b border-[#0c314f]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white border border-white/15 shadow-inner">
-              <IconBuildingWarehouse className="w-5 h-5 text-blue-200" />
+        {/* ── Navy Header ── */}
+        <div className="flex items-center justify-between border-b border-[#0c314f] bg-[#0F3D62] px-2 py-1.5 text-white">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-white/10">
+              <IconBuildingWarehouse className="h-4 w-4 text-blue-200" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
-                  Tra Cứu & Chọn Đơn Hàng Từ Kho
-                </h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-bold tracking-tight text-white">Tra cứu &amp; chọn hàng trong kho</h2>
                 {targetRowIndex !== null && targetRowIndex !== undefined && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-200 border border-blue-400/30">
-                    Gán vào Dòng #{targetRowIndex + 1}
+                  <span className="rounded-full border border-blue-400/30 bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-blue-200">
+                    Gán vào dòng #{targetRowIndex + 1}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-blue-200/90 font-medium mt-0.5">
+              <p className="text-[10px] font-medium text-blue-200/90">
                 Kho xuất: <span className="font-semibold text-white">{currentHubName || 'Tất cả trung tâm'}</span> ·{' '}
-                <span className="text-blue-100 font-semibold">{meta.storedCount > 0 ? meta.storedCount : meta.total}</span> đơn hàng đang lưu kho sẵn sàng xuất
+                <span className="font-semibold text-blue-100">{meta.storedCount ?? 0}</span> đơn hàng đang lưu kho
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
-            title="Đóng modal"
+            className="rounded-md p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            title="Đóng"
           >
-            <IconX className="w-5 h-5" />
+            <IconX className="h-4 w-4" />
           </button>
         </div>
 
-        {/* ── Search & Filter Toolbar (Frame lm_toolbar in Pen) ── */}
-        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 space-y-3">
-          {/* Search Row */}
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex-1">
-              <IconSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600" />
-              <Input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
+        {/* ── Search & Filter Toolbar ── */}
+        <div className="space-y-1.5 border-b border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="relative">
+            <IconSearch className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-blue-600" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Tìm theo mã đơn, tên hàng hóa, biển số..."
+              className="h-8 rounded-md border-slate-300 bg-white pr-8 pl-8 text-xs shadow-sm focus-visible:ring-2 focus-visible:ring-[#0F3D62] dark:border-slate-700 dark:bg-slate-800"
+              autoFocus
+            />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('');
                   setPage(1);
                 }}
-                placeholder="Tìm theo mã đơn (VD: HCM-LTV-2609-001...), tên hàng hóa, quy cách..."
-                className="pl-10 pr-9 h-10 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm rounded-lg focus-visible:ring-2 focus-visible:ring-[#0F3D62]"
-                autoFocus
-              />
-              {search && (
-                <button
-                  onClick={() => {
-                    setSearch('');
-                    setPage(1);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
-                >
-                  <IconX className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <Button
-              type="button"
-              onClick={() => setPage(1)}
-              className="h-10 px-5 bg-[#0F3D62] text-white hover:bg-[#0c314f] font-semibold text-sm rounded-lg shadow-sm flex items-center gap-1.5 shrink-0"
-            >
-              <IconSearch className="w-4 h-4" />
-              <span>Tìm kiếm</span>
-            </Button>
+                className="absolute top-1/2 right-2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
+                title="Xóa từ khóa"
+              >
+                <IconX className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Status Filter Pills Row */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                 Trạng thái:
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter('ALL');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all font-semibold ${
-                    statusFilter === 'ALL'
-                      ? 'bg-[#0F3D62] text-white shadow-sm font-bold'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Tất cả ({meta.allCount > 0 ? meta.allCount : meta.total})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter('INBOUND');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all font-semibold flex items-center gap-1.5 ${
-                    statusFilter === 'INBOUND'
-                      ? 'bg-amber-600 text-white shadow-sm font-bold'
-                      : 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                  LƯU KHO ({meta.storedCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter('DRAFT');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all font-semibold flex items-center gap-1.5 ${
-                    statusFilter === 'DRAFT'
-                      ? 'bg-slate-700 text-white shadow-sm font-bold'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
-                  Đơn nháp ({meta.draftCount})
-                </button>
-              </div>
+              {filterPill(
+                'ALL',
+                `Tất cả (${meta.allCount ?? 0})`,
+                'bg-[#0F3D62] text-white shadow-sm',
+                'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              )}
+              {filterPill(
+                'INBOUND',
+                `Lưu kho (${meta.storedCount ?? 0})`,
+                'bg-amber-600 text-white shadow-sm',
+                'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300',
+                'bg-amber-500'
+              )}
+              {filterPill(
+                'DRAFT',
+                `Đơn nháp (${meta.draftCount ?? 0})`,
+                'bg-slate-700 text-white shadow-sm',
+                'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                'bg-slate-400'
+              )}
             </div>
-
-            <div className="text-xs text-slate-500 font-medium">
+            <div className="text-[10px] font-medium text-slate-500">
               Tìm thấy <strong className="text-slate-800 dark:text-slate-200">{meta.total}</strong> đơn hàng phù hợp
             </div>
           </div>
         </div>
 
-        {/* ── 7-Column Canonical Table (Frame lm_table_wrap & thead in Pen) ── */}
-        <div className="overflow-x-auto max-h-[440px] overflow-y-auto">
-          <table className="w-full text-xs text-left border-collapse">
-            <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
+        {/* ── Table ── */}
+        <div className="max-h-[60vh] overflow-x-auto overflow-y-auto">
+          <table className="w-full border-collapse text-left text-[10px]">
+            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 font-bold text-slate-700 uppercase dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
               <tr>
-                <th className="px-4 py-3 w-[180px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  MÃ ĐƠN HÀNG
+                <th className="w-[150px] px-1.5 py-1">Mã đơn hàng</th>
+                <th className="min-w-[220px] px-1.5 py-1">Tên hàng hóa</th>
+                <th className="w-[100px] px-1.5 py-1 text-right" title="Số kiện đang nằm tại kho này, có thể xuất">
+                  Tồn khả dụng
                 </th>
-                <th className="px-4 py-3 min-w-[240px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  TÊN HÀNG HÓA
-                </th>
-                <th className="px-4 py-3 w-[100px] text-right font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  SỐ KIỆN
-                </th>
-                <th className="px-4 py-3 w-[110px] text-right font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  SỐ KG
-                </th>
-                <th className="px-4 py-3 w-[100px] text-right font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  SỐ M³
-                </th>
-                <th className="px-4 py-3 w-[130px] text-center font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  TRẠNG THÁI
-                </th>
-                <th className="px-4 py-3 w-[160px] text-center font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  THAO TÁC
-                </th>
+                <th className="w-[90px] px-1.5 py-1 text-right">Số kg</th>
+                <th className="w-[80px] px-1.5 py-1 text-right">Số m³</th>
+                <th className="w-[100px] px-1.5 py-1 text-center">Trạng thái</th>
+                <th className="w-[140px] px-1.5 py-1 text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-14 text-center text-slate-500">
-                    <IconLoader2 className="h-7 w-7 animate-spin mx-auto mb-2.5 text-[#0F3D62]" />
-                    <span className="text-sm font-medium">Đang tải danh sách hàng hóa trong kho...</span>
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                    <IconLoader2 className="mx-auto mb-1.5 h-5 w-5 animate-spin text-[#0F3D62]" />
+                    <span className="text-xs font-medium">Đang tải danh sách hàng hóa trong kho...</span>
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-14 text-center text-slate-400">
-                    <IconPackage className="h-10 w-10 mx-auto mb-2 text-slate-300 dark:text-slate-600 stroke-[1.5]" />
-                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <IconPackage className="mx-auto mb-1 h-7 w-7 stroke-[1.5] text-slate-300 dark:text-slate-600" />
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                       Không tìm thấy lô hàng nào phù hợp
                     </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {search ? `Không có kết quả cho từ khóa "${search}"` : 'Kho hiện chưa có hàng hóa ở trạng thái này'}
+                    <p className="text-[10px] text-slate-400">
+                      {search
+                        ? `Không có kết quả cho từ khóa "${search}"`
+                        : 'Kho hiện chưa có hàng hóa ở trạng thái này'}
                     </p>
                   </td>
                 </tr>
               ) : (
                 data.map((row) => {
-                  const selectedIndex = selectedOrderCodes.indexOf(row.orderCode);
+                  // Match by order id (not order code): two lines may share one order code.
+                  const selectedIndex = selectedItemIds.findIndex(
+                    (id) => id !== null && id !== undefined && String(id) === String(row.id)
+                  );
                   const isAlreadySelected = selectedIndex !== -1;
-                  const isCurrentRowSelected = targetRowIndex !== null && targetRowIndex !== undefined && selectedIndex === targetRowIndex;
-                  const displayStatus = (row as any).hubStatus ?? row.status;
-                  const isStored = displayStatus === 'INBOUND' || displayStatus === 'STORED' || displayStatus === 'LUU_KHO';
-                  const isDraftLike = displayStatus === 'DRAFT' || displayStatus === 'PENDING' || displayStatus === 'WAITING' || displayStatus === 'PENDING_INBOUND';
+                  const isCurrentRowSelected =
+                    targetRowIndex !== null && targetRowIndex !== undefined && selectedIndex === targetRowIndex;
+                  const displayStatus = row.hubStatus ?? row.status;
+                  const isStored = STORED_STATUSES.includes(String(displayStatus));
+                  const isDraft = displayStatus === 'DRAFT';
+                  const stock = availableOutboundStock(row);
+                  const isOutOfStock = isOutboundMode && stock <= 0;
+                  const sameCodeOnNote =
+                    !isAlreadySelected &&
+                    selectedIdSet.size > 0 &&
+                    data.some((other) => other.id !== row.id && other.orderCode === row.orderCode && selectedIdSet.has(String(other.id)));
 
                   return (
                     <tr
@@ -352,59 +330,64 @@ export function WarehouseLookupModal({
                         isCurrentRowSelected ? 'bg-blue-50/80 dark:bg-blue-950/30' : ''
                       }`}
                     >
-                      <td className="px-4 py-3 font-mono font-bold text-[#0F3D62] dark:text-blue-400 whitespace-nowrap">
+                      <td className="px-1.5 py-1 font-mono text-[11px] font-bold whitespace-nowrap text-[#0F3D62] dark:text-blue-400">
                         {row.orderCode}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
-                        <div className="font-semibold text-slate-800 dark:text-slate-100">
-                          {row.goodsDescription || 'Hàng hóa tổng quan'}
-                        </div>
-                        {row.route && (
-                          <div className="text-[11px] text-slate-400 font-normal truncate max-w-[280px]">
-                            {row.route}
-                          </div>
+                        {sameCodeOnNote && (
+                          <div className="font-sans text-[9px] font-medium text-slate-400">Cùng mã với dòng đã chọn</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {(Number(row.totalQuantity) || 1).toLocaleString('vi-VN')} kiện
+                      <td className="px-1.5 py-1 text-slate-800 dark:text-slate-200">
+                        <div className="font-semibold">{row.goodsDescription || '—'}</div>
+                        {row.route && (
+                          <div className="max-w-[260px] truncate text-[9px] text-slate-400">{row.route}</div>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      <td
+                        className={`px-1.5 py-1 text-right font-semibold whitespace-nowrap ${
+                          isOutOfStock ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {stock.toLocaleString('vi-VN')}
+                        <span className="font-normal text-slate-400">
+                          {' '}
+                          / {(Number(row.totalQuantity) || 0).toLocaleString('vi-VN')} kiện
+                        </span>
+                      </td>
+                      <td className="px-1.5 py-1 text-right font-semibold whitespace-nowrap text-slate-700 dark:text-slate-300">
                         {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} m³
+                      <td className="px-1.5 py-1 text-right font-semibold whitespace-nowrap text-slate-700 dark:text-slate-300">
+                        {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³
                       </td>
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <td className="px-1.5 py-1 text-center whitespace-nowrap">
                         <Badge
                           variant="outline"
-                          className={
+                          className={`rounded-full px-1.5 py-0 text-[10px] font-bold ${
                             isStored
-                              ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700 font-bold px-2.5 py-0.5 rounded-full'
-                              : isDraftLike
-                                ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full'
-                                : 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-700 font-bold px-2.5 py-0.5 rounded-full'
-                          }
+                              ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                              : 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                          }`}
                         >
-                          {isStored
-                            ? '🟡 LƯU KHO'
-                            : displayStatus === 'DRAFT'
-                              ? '⚪ Đơn nháp'
-                              : '🟠 Chờ nhập kho'}
+                          {isStored ? 'Lưu kho' : isDraft ? 'Đơn nháp' : displayStatus}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <td className="px-1.5 py-1 text-center whitespace-nowrap">
                         {isAlreadySelected ? (
-                          <span className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                            <IconCheck className="h-3.5 w-3.5 text-emerald-600" />
-                            {isCurrentRowSelected ? `Đang ở Dòng #${selectedIndex + 1}` : `Đã ở Dòng #${selectedIndex + 1}`}
+                          <span className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                            <IconCheck className="h-3 w-3 text-emerald-600" />
+                            {isCurrentRowSelected ? `Đang ở dòng #${selectedIndex + 1}` : `Đã ở dòng #${selectedIndex + 1}`}
+                          </span>
+                        ) : isOutOfStock ? (
+                          <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:border-red-900 dark:bg-red-950/30">
+                            Hết tồn khả dụng
                           </span>
                         ) : (
                           <Button
                             size="sm"
                             onClick={() => handleRowSelect(row)}
-                            className="h-8 px-3.5 text-xs bg-[#0F3D62] text-white hover:bg-[#0c314f] font-semibold rounded-lg shadow-sm transition-transform active:scale-95"
+                            className="h-7 rounded-md bg-[#0F3D62] px-2 text-[10px] font-semibold text-white shadow-sm transition-transform hover:bg-[#0c314f] active:scale-95"
                           >
-                            Chọn đơn này <IconArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                            Chọn đơn này <IconArrowRight className="ml-1 h-3 w-3" />
                           </Button>
                         )}
                       </td>
@@ -416,38 +399,38 @@ export function WarehouseLookupModal({
           </table>
         </div>
 
-        {/* ── Pagination Bar (Frame lm_pagination in Pen) ── */}
-        <div className="px-6 py-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-          <div className="flex items-center gap-3">
-            <span>
-              Hiển thị <strong className="text-slate-800 dark:text-slate-200">{startRecord} - {endRecord}</strong> trên{' '}
-              <strong className="text-slate-800 dark:text-slate-200">{meta.total}</strong> đơn hàng trong kho
-            </span>
-          </div>
+        {/* ── Pagination + Footer ── */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5 border-t border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/90">
+          <span>
+            Hiển thị{' '}
+            <strong className="text-slate-800 dark:text-slate-200">
+              {startRecord} - {endRecord}
+            </strong>{' '}
+            trên <strong className="text-slate-800 dark:text-slate-200">{meta.total}</strong> đơn hàng trong kho
+          </span>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
               disabled={page <= 1 || isLoading}
               onClick={() => setPage(1)}
-              className="h-8 w-8 p-0 rounded-md border-slate-200 dark:border-slate-700"
+              className="h-7 w-7 rounded-md border-slate-200 p-0 dark:border-slate-700"
               title="Trang đầu"
             >
-              <IconChevronsLeft className="h-4 w-4" />
+              <IconChevronsLeft className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="outline"
               size="sm"
               disabled={page <= 1 || isLoading}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-8 w-8 p-0 rounded-md border-slate-200 dark:border-slate-700"
+              className="h-7 w-7 rounded-md border-slate-200 p-0 dark:border-slate-700"
               title="Trang trước"
             >
-              <IconChevronLeft className="h-4 w-4" />
+              <IconChevronLeft className="h-3.5 w-3.5" />
             </Button>
 
-            {/* Page number buttons */}
             {Array.from({ length: meta.totalPages }, (_, i) => i + 1)
               .filter((p) => p === 1 || p === meta.totalPages || Math.abs(p - page) <= 1)
               .map((p, idx, arr) => {
@@ -456,15 +439,15 @@ export function WarehouseLookupModal({
 
                 return (
                   <React.Fragment key={p}>
-                    {showEllipsis && <span className="px-1 text-slate-400 font-bold">...</span>}
+                    {showEllipsis && <span className="px-1 font-bold text-slate-400">...</span>}
                     <Button
                       variant={page === p ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setPage(p)}
-                      className={`h-8 w-8 p-0 rounded-md font-semibold text-xs ${
+                      className={`h-7 w-7 rounded-md p-0 text-[10px] font-semibold ${
                         page === p
                           ? 'bg-[#0F3D62] text-white hover:bg-[#0c314f]'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-300'
                       }`}
                     >
                       {p}
@@ -478,36 +461,29 @@ export function WarehouseLookupModal({
               size="sm"
               disabled={page >= meta.totalPages || isLoading}
               onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              className="h-8 w-8 p-0 rounded-md border-slate-200 dark:border-slate-700"
+              className="h-7 w-7 rounded-md border-slate-200 p-0 dark:border-slate-700"
               title="Trang sau"
             >
-              <IconChevronRight className="h-4 w-4" />
+              <IconChevronRight className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="outline"
               size="sm"
               disabled={page >= meta.totalPages || isLoading}
               onClick={() => setPage(meta.totalPages)}
-              className="h-8 w-8 p-0 rounded-md border-slate-200 dark:border-slate-700"
+              className="h-7 w-7 rounded-md border-slate-200 p-0 dark:border-slate-700"
               title="Trang cuối"
             >
-              <IconChevronsRight className="h-4 w-4" />
+              <IconChevronsRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="ml-1.5 h-7 border-slate-300 px-2 text-[10px] font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              Đóng
             </Button>
           </div>
-        </div>
-
-        {/* ── Footer Bar (Frame lm_footer in Pen) ── */}
-        <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <span>💡 Nhấn <strong>&apos;Chọn đơn này&apos;</strong> để tự động điền thông tin hàng hóa vào dòng xuất kho đang chọn.</span>
-          </div>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="h-9 px-4 text-xs font-semibold border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <IconX className="mr-1.5 h-4 w-4" /> Đóng
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

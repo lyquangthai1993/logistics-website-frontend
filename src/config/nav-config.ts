@@ -18,7 +18,8 @@ import { NavGroup } from '@/types';
  */
 export const navGroups: NavGroup[] = [
   {
-    label: 'Overview',
+    // Unlabeled top-level group: app-sidebar skips SidebarGroupLabel when label is empty
+    label: '',
     items: [
       {
         title: 'Dashboard',
@@ -109,35 +110,6 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         items: [],
         access: { role: 'SUPER_ADMIN' }
-      }
-    ]
-  },
-  {
-    label: 'Không gian làm việc',
-    items: [
-      {
-        title: 'Kanban',
-        url: '/dashboard/kanban',
-        icon: 'kanban',
-        shortcut: ['k', 'k'],
-        isActive: false,
-        items: []
-      },
-      {
-        title: 'Chat',
-        url: '/dashboard/chat',
-        icon: 'chat',
-        shortcut: ['c', 'c'],
-        isActive: false,
-        items: []
-      },
-      {
-        title: 'AI Chat',
-        url: '/dashboard/ai-chat',
-        icon: 'sparkles',
-        shortcut: ['a', 'i'],
-        isActive: false,
-        items: []
       }
     ]
   }

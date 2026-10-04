@@ -49,7 +49,7 @@ export interface WaybillDetailData {
   deliveryMode?: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' | string;
   destinationHub?: string;
   destinationHubId?: number | null;
-  destinationHubEntity?: { id?: number; name?: string; code?: string };
+  destinationHubEntity?: { id?: number; name?: string; code?: string; level?: number };
   originHub?: string;
   originHubId?: number | null;
   originHubEntity?: { id?: number; name?: string; code?: string };
@@ -566,11 +566,15 @@ export function WarehouseWaybillDetailModal({
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <Badge variant="outline" className="text-[10px] font-semibold bg-slate-50 dark:bg-slate-800">
-                          {waybill.deliveryMode === 'HUB_L1' || waybill.destinationHub
-                            ? 'Hub Cấp 1'
-                            : waybill.deliveryMode === 'XE_BO'
+                          {waybill.destinationHubEntity?.level === 2 ||
+                          waybill.deliveryMode === 'XE_BO' ||
+                          /xe\s*bo/i.test(waybill.destinationHub ?? '')
                             ? 'Xe bo'
-                            : 'Giao thẳng'}
+                            : waybill.deliveryMode === 'HUB_L1' ||
+                                waybill.destinationHubEntity?.level === 1 ||
+                                !!waybill.destinationHubId
+                              ? 'Hub Cấp 1'
+                              : 'Giao thẳng'}
                         </Badge>
                       </td>
                     </tr>
