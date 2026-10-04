@@ -914,30 +914,8 @@ export default function WarehouseOutboundPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
-            {/* Vehicle & Customer Info Header */}
+            {/* Outbound Info Header */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border">
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Biển số xe giao hàng / trung chuyển
-                </label>
-                <Input
-                  value={outboundLicensePlate}
-                  onChange={(e) => setOutboundLicensePlate(e.target.value)}
-                  placeholder="Ví dụ: 29C-123.45"
-                  className="h-8 text-xs font-mono font-bold"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Tài xế giao hàng
-                </label>
-                <Input
-                  value={outboundDriverName}
-                  onChange={(e) => setOutboundDriverName(e.target.value)}
-                  placeholder="Họ tên tài xế"
-                  className="h-8 text-xs"
-                />
-              </div>
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                   Ngày xuất kho
@@ -951,35 +929,24 @@ export default function WarehouseOutboundPage() {
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Khách hàng / Người nhận
+                  Họ tên tài xế giao hàng
                 </label>
                 <Input
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Tên người nhận (nếu giao khách lẻ)"
-                  className="h-8 text-xs font-medium"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Số điện thoại người nhận
-                </label>
-                <Input
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Số điện thoại"
-                  className="h-8 text-xs font-medium"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Địa chỉ giao hàng / Hub nhận
-                </label>
-                <Input
-                  value={customerAddress}
-                  onChange={(e) => setCustomerAddress(e.target.value)}
-                  placeholder="Địa chỉ giao hoặc ghi chú đích đến"
+                  value={outboundDriverName}
+                  onChange={(e) => setOutboundDriverName(e.target.value)}
+                  placeholder="Họ tên tài xế"
                   className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Biển số xe
+                </label>
+                <Input
+                  value={outboundLicensePlate}
+                  onChange={(e) => setOutboundLicensePlate(e.target.value)}
+                  placeholder="Ví dụ: 29C-123.45"
+                  className="h-8 text-xs font-mono font-bold"
                 />
               </div>
             </div>

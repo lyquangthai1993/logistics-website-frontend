@@ -383,8 +383,8 @@ function OrderCodeCell({
         <Input
           value={r.orderCode}
           readOnly
-          placeholder="Chọn mã đơn..."
-          className="h-7 px-2 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
+          placeholder=""
+          className="h-7 px-1.5 text-xs font-mono font-bold bg-slate-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300 min-w-0"
         />
         <Button
           type="button"
@@ -411,9 +411,14 @@ function OrderCodeCell({
       <Input
         value={value}
         onChange={handleChange}
-        placeholder="(Tự sinh nếu trống)"
-        title="Nhập mã vận đơn tùy ý, nếu để trống hệ thống sẽ tự động cấp mã. Cho phép trùng mã đơn hàng."
-        className="h-[30px] px-2 text-xs font-mono font-bold uppercase tracking-tight border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500"
+        required
+        title="Bắt buộc nhập mã vận đơn."
+        className={cn(
+          "h-7 px-1.5 text-xs font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500",
+          !value.trim()
+            ? "border-red-400 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
+            : "border-slate-300 dark:border-slate-700"
+        )}
       />
     </div>
   );
@@ -425,7 +430,8 @@ function PickupAddressCell({
   column,
   table,
 }: CellContext<WarehouseRowItem, any>) {
-  const initialValue = getValue() ?? '';
+  // const initialValue = getValue() ?? '';
+  const initialValue =  '';
   const [value, setValue] = useState(initialValue);
 
   useEffect(() => {
@@ -443,8 +449,8 @@ function PickupAddressCell({
       rows={2}
       value={value}
       onChange={handleChange}
-      placeholder="Địa chỉ / Hub nhận hàng..."
-      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+      placeholder=""
+      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
     />
   );
 }
@@ -473,8 +479,8 @@ function GoodsDescriptionCell({
       <Input
         value={value}
         onChange={handleChange}
-        placeholder="Tên loại hàng..."
-        className="h-[30px] pr-6 text-xs font-medium border-slate-300 dark:border-slate-700"
+        placeholder=""
+        className="h-7 px-1.5 text-xs font-medium border-slate-300 dark:border-slate-700"
       />
     </div>
   );
@@ -528,7 +534,7 @@ function QuantityCell({
         onChange={handleChange}
         onBlur={handleBlur}
         className={cn(
-          "h-[30px] px-2 text-xs text-right font-bold",
+          "h-7 px-1 text-xs text-right font-bold",
           isExceeded
             ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300"
             : "border-slate-300 dark:border-slate-700"
@@ -537,11 +543,11 @@ function QuantityCell({
       {isOutbound && availStock !== undefined && (
         <div
           className={cn(
-            "text-[10px] text-right font-semibold",
+            "text-[9px] text-right font-semibold leading-tight",
             isExceeded ? "text-red-600 font-bold" : "text-slate-500"
           )}
         >
-          {isExceeded ? `Vượt tồn! (Tồn: ${availStock})` : `Tồn: ${availStock} kiện`}
+          {isExceeded ? `Vượt tồn!` : `Tồn: ${availStock}`}
         </div>
       )}
     </div>
@@ -585,7 +591,7 @@ function WeightCell({
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
-      className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+      className="h-7 px-1 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
     />
   );
 }
@@ -627,7 +633,7 @@ function VolumeCell({
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
-      className="h-[30px] px-2 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+      className="h-7 px-1 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
     />
   );
 }
@@ -706,19 +712,19 @@ function DeliveryAddressCell({
         rows={2}
         value={addressText}
         onChange={handleAddressTextChange}
-        placeholder="Nhập địa chỉ giao hàng bất kỳ..."
-        className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+        placeholder=""
+        className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
       />
     );
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {/* Top Tier: Mode Selector */}
       <select
         value={r.deliveryMode}
         onChange={(e) => handleModeChange(e.target.value as any)}
-        className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
       >
         <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
         <option value="HUB_L1">Hub cấp 1</option>
@@ -761,8 +767,8 @@ function DeliveryAddressCell({
           rows={2}
           value={addressText}
           onChange={handleAddressTextChange}
-          placeholder="25 Nguyễn Văn Linh, Q.7, TP.HCM..."
-          className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1.5 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[50px]"
+          placeholder="Địa chỉ giao..."
+          className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
         />
       )}
     </div>
@@ -793,8 +799,8 @@ function ProvinceCell({
       rows={2}
       value={value}
       onChange={handleChange}
-      placeholder="VD: Hà Nội, TP.HCM..."
-      className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+      placeholder=""
+      className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
     />
   );
 }
@@ -823,8 +829,8 @@ function AccompanyingDocsCell({
       type="text"
       value={value}
       onChange={handleChange}
-      placeholder="1 BCT, KHÔNG CÓ..."
-      className="h-[30px] text-xs font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+      placeholder=""
+      className="h-7 px-1.5 text-xs font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
     />
   );
 }
@@ -853,8 +859,8 @@ function NotesCell({
       rows={2}
       value={value}
       onChange={handleChange}
-      placeholder="Ghi chú bốc dỡ, lưu ý..."
-      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1.5 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[58px]"
+      placeholder=""
+      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
     />
   );
 }
@@ -866,7 +872,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const rowsCount = meta?.rowsCount ?? 1;
 
   return (
-    <div className="flex items-center justify-center gap-1">
+    <div className="flex items-center justify-center gap-0.5">
       <Button
         type="button"
         size="sm"
@@ -881,7 +887,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
             createdAt: new Date(),
           })
         }
-        className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
+        className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
         title="In tem nhận diện A4"
       >
         <IconPrinter className="h-3.5 w-3.5" />
@@ -891,7 +897,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
         size="sm"
         variant="ghost"
         onClick={() => meta?.duplicateRow?.(idx)}
-        className="h-7 w-7 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
         title="Nhân bản dòng"
       >
         <IconCopy className="h-3.5 w-3.5" />
@@ -902,7 +908,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
         variant="ghost"
         disabled={rowsCount <= 1}
         onClick={() => meta?.deleteRow?.(idx)}
-        className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
+        className="h-6 w-6 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
         title="Xóa dòng"
       >
         <IconTrash className="h-3.5 w-3.5" />
@@ -1206,105 +1212,114 @@ export function WarehouseEditableGrid({
       {
         id: 'stt',
         header: 'STT',
-        size: 48,
+        size: 36,
         cell: SttCell,
       },
       {
         id: 'orderCode',
-        header: isOutboundMode ? 'MÃ ĐƠN HÀNG' : 'MÃ VẬN ĐƠN',
-        size: 210,
+        header: () => (
+          <span className="leading-tight block whitespace-nowrap">
+            MÃ VẬN ĐƠN{' '}
+            <span className="text-red-600 font-black">*</span>
+          </span>
+        ),
+        size: 115,
         cell: OrderCodeCell,
       },
       {
         accessorKey: 'pickupAddress',
         id: 'pickupAddress',
         header: () => (
-          <span>
-            ĐỊA CHỈ NHẬN HÀNG <span className="text-red-600 font-black">*</span>
+          <span className="leading-tight block">
+            ĐỊA CHỈ NHẬN <span className="text-red-600 font-black">*</span>
           </span>
         ),
-        size: 210,
+        size: 120,
         cell: PickupAddressCell,
       },
       {
         accessorKey: 'goodsDescription',
         id: 'goodsDescription',
         header: () => (
-          <span>
+          <span className="leading-tight block">
             TÊN HÀNG <span className="text-red-600 font-black">*</span>
           </span>
         ),
-        size: 210,
+        size: 110,
         cell: GoodsDescriptionCell,
       },
       {
         accessorKey: 'totalQuantity',
         id: 'totalQuantity',
         header: () => (
-          <span>
+          <span className="leading-tight block text-right">
             SỐ KIỆN <span className="text-red-600 font-black">*</span>
           </span>
         ),
-        size: 95,
+        size: 62,
         cell: QuantityCell,
       },
       {
         accessorKey: 'totalWeight',
         id: 'totalWeight',
         header: () => (
-          <span>
+          <span className="leading-tight block text-right">
             SỐ KG <span className="text-red-600 font-black">*</span>
           </span>
         ),
-        size: 115,
+        size: 64,
         cell: WeightCell,
       },
       {
         accessorKey: 'totalVolume',
         id: 'totalVolume',
         header: () => (
-          <span>
+          <span className="leading-tight block text-right">
             SỐ M³ <span className="text-red-600 font-black">*</span>
           </span>
         ),
-        size: 95,
+        size: 62,
         cell: VolumeCell,
       },
       {
         id: 'deliveryAddress',
         header: () => (
-          <span>
-            ĐỊA CHỈ GIAO HÀNG <span className="text-red-600 font-black">*</span>
+          <span className="leading-tight block">
+            ĐỊA CHỈ GIAO <span className="text-red-600 font-black">*</span>
           </span>
         ),
-        size: 280,
+        size: 150,
         cell: DeliveryAddressCell,
       },
       {
         accessorKey: 'province',
         id: 'province',
         header: 'TỈNH / TP',
-        size: 180,
+        size: 92,
         cell: ProvinceCell,
       },
       {
         accessorKey: 'accompanyingDocs',
         id: 'accompanyingDocs',
-        header: 'CHỨNG TỪ ĐI KÈM',
-        size: 160,
+        header: () => (
+          <span title="Chứng từ đi kèm" className="cursor-help">
+            CHỨNG TỪ
+          </span>
+        ),
+        size: 85,
         cell: AccompanyingDocsCell,
       },
       {
         accessorKey: 'notes',
         id: 'notes',
         header: 'GHI CHÚ',
-        size: 220,
+        size: 95,
         cell: NotesCell,
       },
       {
         id: 'actions',
         header: 'THAO TÁC',
-        size: 90,
+        size: 76,
         cell: ActionsCell,
       },
     ],
@@ -1354,7 +1369,7 @@ export function WarehouseEditableGrid({
       position: isPinned ? 'sticky' : undefined,
       width: `${column.getSize()}px`,
       minWidth: `${column.getSize()}px`,
-      maxWidth: `${column.getSize()}px`,
+      maxWidth: isPinned ? `${column.getSize()}px` : undefined,
       zIndex: isPinned ? (isHeader ? 30 : 20) : undefined,
       boxShadow: isLastLeft
         ? '2px 0 5px -2px rgba(0, 0, 0, 0.1)'
@@ -1429,7 +1444,7 @@ export function WarehouseEditableGrid({
 
       {/* ── TanStack Table Container with Native Horizontal Scroll & Solid Sticky Columns ── */}
       <div className="relative border rounded-xl overflow-x-auto shadow-sm bg-white dark:bg-slate-900">
-        <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
+        <table className="w-full text-xs text-left border-collapse min-w-full">
           <thead className="select-none font-bold">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
@@ -1443,7 +1458,7 @@ export function WarehouseEditableGrid({
                       key={header.id}
                       style={getPinningStyles(header.column, true)}
                       className={cn(
-                        'py-1.5 px-2 text-[11px] font-bold border-b border-slate-200 dark:border-slate-700',
+                        'py-1 px-1 text-[9px] font-bold whitespace-nowrap border-b border-slate-200 dark:border-slate-700',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
                         ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
                         isPinned === 'left' && colId === 'orderCode'
@@ -1480,7 +1495,7 @@ export function WarehouseEditableGrid({
                       key={cell.id}
                       style={getPinningStyles(cell.column, false)}
                       className={cn(
-                        'py-1 px-1.5 text-xs',
+                        'py-1 px-1 text-xs',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
                         ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
                         isPinned

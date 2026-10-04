@@ -202,6 +202,9 @@ export function WarehouseExcelImportModal({
 
         // Validation checks
         const errors: string[] = [];
+        if (!String(orderCode).trim()) {
+          errors.push('Thiếu mã vận đơn');
+        }
         if (!String(goodsDescription).trim()) {
           errors.push('Thiếu tên hàng');
         }

@@ -424,6 +424,10 @@ export default function WarehouseInboundPage() {
     for (let i = 0; i < mode1Rows.length; i++) {
       const row = mode1Rows[i];
       const rowNum = i + 1;
+      if (!row.orderCode || !row.orderCode.trim()) {
+        toast.error(`Dòng ${rowNum}: Vui lòng nhập Mã vận đơn (bắt buộc)`);
+        return;
+      }
       if (!row.goodsDescription || !row.goodsDescription.trim()) {
         toast.error(`Dòng ${rowNum}: Vui lòng nhập Tên loại hàng`);
         return;
@@ -451,11 +455,8 @@ export default function WarehouseInboundPage() {
 
     try {
       const itemsPayload = mode1Rows.map((row) => {
-        const rawCode = row.orderCode?.trim();
-        const finalCode =
-          rawCode && rawCode !== '(Tự sinh khi lưu)' && !rawCode.startsWith('(Tự sinh')
-            ? rawCode.toUpperCase()
-            : undefined;
+        const rawCode = row.orderCode?.trim() || '';
+        const finalCode = rawCode.toUpperCase();
 
         return {
           orderCode: finalCode,
@@ -538,16 +539,22 @@ export default function WarehouseInboundPage() {
       return;
     }
 
+    for (let i = 0; i < mode1Rows.length; i++) {
+      const row = mode1Rows[i];
+      const rowNum = i + 1;
+      if (!row.orderCode || !row.orderCode.trim()) {
+        toast.error(`Dòng ${rowNum}: Vui lòng nhập Mã vận đơn (bắt buộc)`);
+        return;
+      }
+    }
+
     setIsSavingDraft(true);
     const token = tokenManager.getAccessToken();
 
     try {
       const itemsPayload = mode1Rows.map((row) => {
-        const rawCode = row.orderCode?.trim();
-        const finalCode =
-          rawCode && rawCode !== '(Tự sinh khi lưu)' && !rawCode.startsWith('(Tự sinh')
-            ? rawCode.toUpperCase()
-            : undefined;
+        const rawCode = row.orderCode?.trim() || '';
+        const finalCode = rawCode.toUpperCase();
 
         return {
           orderCode: finalCode,
