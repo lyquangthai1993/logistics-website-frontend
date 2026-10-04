@@ -135,6 +135,8 @@ export default function WarehouseInboundPage() {
   // KPI Stats
   const [kpiStats, setKpiStats] = useState({
     total: 0,
+    inboundTotal: 0,
+    outboundTotal: 0,
     waitingInbound: 0,
     customerInbound: 0,
     transferInbound: 0,
@@ -171,6 +173,7 @@ export default function WarehouseInboundPage() {
     const query = new URLSearchParams({
       page: page.toString(),
       limit: pageSize.toString(),
+      flow: 'INBOUND',
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusTab !== 'ALL' ? { status: statusTab } : {})
     });
@@ -215,14 +218,33 @@ export default function WarehouseInboundPage() {
   // Group inbound orders by vehicle / trip
   const vehicleGroups: InboundVehicleGroup[] = useMemo(() => {
     const map = new Map<string, InboundVehicleGroup>();
+    const viewerHubId = user?.hub?.id;
 
     for (const o of orders) {
-      // Current trip of the cargo: the trip still carrying it, else the most recent allocation
+      // Outbound-dispatched goods from this hub belong to Outbound history, not Inbound board
+      if (o.hubStatus === 'COMPLETED_INBOUND') {
+        continue;
+      }
+
+      // Filter out trips that were outbound departures from this hub to another hub or customer
       const sortedTrips = [...(o.trips ?? [])].sort(
         (a: any, b: any) => Number(b?.id ?? 0) - Number(a?.id ?? 0)
       );
+
+      const inboundTrips = sortedTrips.filter((t: any) => {
+        if (
+          viewerHubId &&
+          t.originHubId === viewerHubId &&
+          (t.type === 'OUTBOUND' || (t.destinationHubId && t.destinationHubId !== viewerHubId))
+        ) {
+          return false;
+        }
+        return true;
+      });
+
       const activeTrip =
-        (o.currentTripCode && sortedTrips.find((t: any) => t?.tripCode === o.currentTripCode)) ||
+        inboundTrips.find((t: any) => t?.tripCode === o.currentTripCode) ||
+        inboundTrips[0] ||
         sortedTrips[0];
       let plate =
         activeTrip?.licensePlate?.trim()?.toUpperCase() ||
@@ -689,7 +711,10 @@ export default function WarehouseInboundPage() {
                   {/* Status Tabs */}
                   <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
                     {[
-                      { key: 'ALL', label: `Tất cả (${kpiStats.total ?? meta.total})` },
+                      {
+                        key: 'ALL',
+                        label: `Tất cả (${kpiStats.inboundTotal ?? kpiStats.waitingInbound + kpiStats.storedInbound})`
+                      },
                       { key: 'WAITING', label: `Chờ nhập kho (${kpiStats.waitingInbound ?? 0})` },
                       { key: 'CUSTOMER', label: `Khách gửi (${kpiStats.customerInbound ?? 0})` },
                       { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferInbound ?? 0})` },
@@ -941,7 +966,9 @@ export default function WarehouseInboundPage() {
                                   </div>
                                 </td>
                                 <td className='py-1 px-2 text-center'>
-                                  <TripStopStatusBadge status={hasWaiting ? 'PENDING' : 'COMPLETED'} />
+                                  <TripStopStatusBadge
+                                    status={hasWaiting ? 'PENDING' : 'COMPLETED'}
+                                  />
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
