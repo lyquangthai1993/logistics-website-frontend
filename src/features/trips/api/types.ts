@@ -20,6 +20,10 @@ export interface TripOrderSummary {
 export interface Trip {
   id: number;
   orderId: number;
+  /** Short global trip code (SD1, SD2...) shared by every order on the same vehicle run */
+  tripCode?: string | null;
+  /** Trip status as seen by the viewer's hub (PENDING / COMPLETED) */
+  hubStatus?: string | null;
   licensePlate?: string | null;
   driverName?: string | null;
   status: TripStatus;

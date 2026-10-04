@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,7 +98,10 @@ export function WarehouseInboundTransferFlow({
     'kho hiện tại';
 
   // ── 1. Chuyến xe đang đến kho hiện tại ──────────────────────────────────────
+  // Only the latest request may update the list (typing fires several requests)
+  const tripRequestSeq = useRef(0);
   const fetchTrips = useCallback(() => {
+    const seq = ++tripRequestSeq.current;
     setIsLoadingTrips(true);
     const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
@@ -119,17 +122,23 @@ export function WarehouseInboundTransferFlow({
         }
         return res.json();
       })
-      .then((resData) => setTripsList(resData?.data ?? []))
+      .then((resData) => {
+        if (seq === tripRequestSeq.current) setTripsList(resData?.data ?? []);
+      })
       .catch((err) => {
+        if (seq !== tripRequestSeq.current) return;
         setTripsList([]);
         showApiErrorToast(err, 'Không tải được danh sách chuyến xe đang đến');
       })
-      .finally(() => setIsLoadingTrips(false));
+      .finally(() => {
+        if (seq === tripRequestSeq.current) setIsLoadingTrips(false);
+      });
   }, [tripSearch]);
 
   useEffect(() => {
-    fetchTrips();
-  }, [fetchTrips]);
+    const timer = setTimeout(fetchTrips, tripSearch.trim() ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [fetchTrips, tripSearch]);
 
   // Khởi tạo trạng thái kiểm đếm khi bảng kê chuyến tải xong
   useEffect(() => {
@@ -487,7 +496,7 @@ export function WarehouseInboundTransferFlow({
                   >
                     {tallySummary.actual}
                   </strong>{' '}
-                  kiện &bull; {formatWeight(tallySummary.weight)}
+                  kiện &bull; {formatWeight(tallySummary.weight)} kg
                 </div>
 
                 <Button
@@ -639,7 +648,7 @@ export function WarehouseInboundTransferFlow({
                                   Đơn chờ dỡ tại kho
                                 </span>
                                 <span className='text-xs font-semibold text-slate-700 dark:text-slate-200'>
-                                  {remaining} / {total} đơn &bull; {formatWeight(trip.totalWeight ?? 0)}
+                                  {remaining} / {total} đơn &bull; {formatWeight(trip.totalWeight ?? 0)} kg
                                 </span>
                               </div>
                             </div>

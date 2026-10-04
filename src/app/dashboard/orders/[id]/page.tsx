@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ordersApi, Order, OrderStatus, isContractLocked } from '@/features/orders/api';
+import { ordersApi, Order, OrderStatus, isContractLocked, useOrderLedgerQuery } from '@/features/orders/api';
+import { computeCurrentHubStock } from '@/features/orders/lib/current-hub-stock';
 import { OrderTimelineLedger } from '@/features/orders/components/order-timeline-ledger';
 import { OrderAdminOverrideDialog } from '@/features/orders/components/order-admin-override-dialog';
 import { Button } from '@/components/ui/button';
@@ -104,10 +105,27 @@ function renderStatusBadge(status: OrderStatus) {
           Đã hủy
         </Badge>
       );
-    default:
-      return <Badge variant='outline'>{status}</Badge>;
+    default: {
+      const warehouseLabel = WAREHOUSE_STATUS_LABEL[status as string];
+      return <Badge variant='outline'>{warehouseLabel ?? 'Đang xử lý'}</Badge>;
+    }
   }
 }
+
+/** Warehouse lifecycle statuses written by the warehouse module (not part of OrderStatus union) */
+const WAREHOUSE_STATUS_LABEL: Record<string, string> = {
+  INBOUND: 'Lưu kho',
+  PENDING_INBOUND: 'Chờ nhập kho',
+  COMPLETED_INBOUND: 'Đã xuất kho'
+};
+
+const TRIP_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Chờ xử lý',
+  CONFIRMED: 'Đã xác nhận',
+  IN_TRANSIT: 'Đang vận chuyển',
+  COMPLETED: 'Hoàn tất',
+  CANCELLED: 'Đã hủy'
+};
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -118,6 +136,9 @@ export default function OrderDetailPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Ledger shares its query cache with <OrderTimelineLedger />; drives the per-hub stock counters.
+  const { data: ledger, isLoading: ledgerLoading } = useOrderLedgerQuery(order?.id);
 
   // Master Contract override (SUPER_ADMIN only)
   const [isOverrideOpen, setIsOverrideOpen] = useState(false);
@@ -263,13 +284,13 @@ export default function OrderDetailPage() {
 
   if (loading) {
     return (
-      <div className='p-8 text-center text-slate-400'>Đang tải thông tin chi tiết đơn hàng...</div>
+      <div className='p-2 text-center text-slate-400'>Đang tải thông tin chi tiết đơn hàng...</div>
     );
   }
 
   if (!order) {
     return (
-      <div className='p-8 text-center space-y-4'>
+      <div className='p-2 text-center space-y-2'>
         <p className='text-rose-500 font-medium'>Không tìm thấy đơn hàng #{orderId}</p>
         <Link href='/dashboard/orders'>
           <Button variant='outline'>
@@ -279,6 +300,9 @@ export default function OrderDetailPage() {
       </div>
     );
   }
+
+  const hubStock = ledger ? computeCurrentHubStock(order, ledger) : null;
+  const stockValue = (n: number | undefined) => (ledgerLoading ? '…' : (n ?? 0));
 
   return (
     <div className='flex-1 space-y-2 p-2'>
@@ -431,8 +455,8 @@ export default function OrderDetailPage() {
 
       {/* NO_VEHICLE Alert Banner */}
       {order.status === 'NO_VEHICLE' && (
-        <div className='p-5 rounded-xl bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50/50 dark:from-rose-950/40 dark:via-amber-950/30 dark:to-rose-950/20 border-2 border-rose-200 dark:border-rose-900 shadow-sm'>
-          <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
+        <div className='p-2 rounded-xl bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50/50 dark:from-rose-950/40 dark:via-amber-950/30 dark:to-rose-950/20 border-2 border-rose-200 dark:border-rose-900 shadow-sm'>
+          <div className='flex flex-col md:flex-row md:items-center justify-between gap-2'>
             <div className='space-y-1.5'>
               <div className='flex items-center gap-2 text-rose-800 dark:text-rose-300 font-bold text-base'>
                 <IconAlertTriangle className='h-5 w-5 text-rose-600 flex-shrink-0' />
@@ -480,8 +504,8 @@ export default function OrderDetailPage() {
                 Thông Tin Vận Chuyển
               </CardTitle>
             </CardHeader>
-            <CardContent className='p-1 space-y-4'>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            <CardContent className='p-1 space-y-2'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
                 <div className='p-3 bg-slate-50 dark:bg-slate-900 rounded-lg space-y-1'>
                   <span className='text-xs text-slate-400 flex items-center gap-1 font-medium'>
                     <IconMapPin className='h-3.5 w-3.5 text-blue-500' /> Hub xuất phát (Origin)
@@ -501,7 +525,7 @@ export default function OrderDetailPage() {
                 </div>
               </div>
 
-              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2'>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2'>
                 <div className='space-y-1'>
                   <span className='text-xs text-slate-400'>Số lượng kiện / cái</span>
                   <div className='text-lg font-bold text-slate-900 dark:text-slate-100 font-mono'>
@@ -585,19 +609,19 @@ export default function OrderDetailPage() {
                   </p>
                 </div>
               ) : (
-                <div className='space-y-3'>
+                <div className='space-y-2'>
                   {order.trips.map((trip, idx) => (
                     <div
                       key={trip.id}
-                      className='p-4 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-slate-300 transition-colors space-y-3 bg-slate-50/40 dark:bg-slate-900/30'
+                      className='p-2 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-slate-300 transition-colors space-y-2 bg-slate-50/40 dark:bg-slate-900/30'
                     >
                       <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-2'>
-                          <span className='font-semibold text-sm text-slate-900 dark:text-slate-100'>
-                            Chuyến #{trip.sequenceNumber || idx + 1}
+                          <span className='text-[11px] font-mono font-bold text-slate-900 dark:text-slate-100'>
+                            {trip.tripCode ?? `Chuyến #${trip.sequenceNumber || idx + 1}`}
                           </span>
-                          <Badge variant='outline' className='text-xs'>
-                            {trip.status}
+                          <Badge variant='outline' className='text-[10px]'>
+                            {TRIP_STATUS_LABEL[trip.status] ?? 'Đang xử lý'}
                           </Badge>
                           {order.isExternalVehicleNeeded && (
                             <Badge className='bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 text-[11px] font-bold'>
@@ -611,7 +635,7 @@ export default function OrderDetailPage() {
                         </span>
                       </div>
 
-                      <div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600 dark:text-slate-400'>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400'>
                         <div className='flex items-center gap-2'>
                           <IconTruck className='h-4 w-4 text-slate-400' />
                           <span>
@@ -660,23 +684,40 @@ export default function OrderDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className='p-2 space-y-1.5'>
+              {hubStock?.hubName && (
+                <div className='text-[10px] text-slate-500 dark:text-slate-400'>
+                  Số liệu tại kho:{' '}
+                  <strong className='text-slate-800 dark:text-slate-200' data-testid='hub-stock-hub'>
+                    {hubStock.hubName}
+                  </strong>
+                </div>
+              )}
               <div className='grid grid-cols-3 gap-1.5 text-center'>
                 <div className='rounded-md bg-slate-50 dark:bg-slate-900 p-1'>
                   <div className='text-[10px] text-slate-500'>Tổng nhập</div>
-                  <div className='text-xs font-bold font-mono text-slate-900 dark:text-slate-100'>
-                    {order.inboundQuantity ?? 0}
+                  <div
+                    className='text-xs font-bold font-mono text-slate-900 dark:text-slate-100'
+                    data-testid='hub-stock-inbound'
+                  >
+                    {stockValue(hubStock?.inbound)}
                   </div>
                 </div>
                 <div className='rounded-md bg-slate-50 dark:bg-slate-900 p-1'>
                   <div className='text-[10px] text-slate-500'>Đã xuất</div>
-                  <div className='text-xs font-bold font-mono text-slate-900 dark:text-slate-100'>
-                    {order.outboundQuantity ?? 0}
+                  <div
+                    className='text-xs font-bold font-mono text-slate-900 dark:text-slate-100'
+                    data-testid='hub-stock-outbound'
+                  >
+                    {stockValue(hubStock?.outbound)}
                   </div>
                 </div>
                 <div className='rounded-md bg-emerald-50 dark:bg-emerald-950/40 p-1'>
                   <div className='text-[10px] text-emerald-700 dark:text-emerald-300'>Tồn khả dụng</div>
-                  <div className='text-xs font-bold font-mono text-emerald-800 dark:text-emerald-200'>
-                    {order.remainingQuantity ?? 0}
+                  <div
+                    className='text-xs font-bold font-mono text-emerald-800 dark:text-emerald-200'
+                    data-testid='hub-stock-available'
+                  >
+                    {stockValue(hubStock?.available)}
                   </div>
                 </div>
               </div>
@@ -703,8 +744,8 @@ export default function OrderDetailPage() {
                 Tiến Trình Đơn Hàng
               </CardTitle>
             </CardHeader>
-            <CardContent className='p-1 space-y-4'>
-              <div className='relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700'>
+            <CardContent className='p-1 space-y-2'>
+              <div className='relative pl-6 space-y-2 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700'>
                 <div className='relative'>
                   <div className='absolute -left-6 top-0.5 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900' />
                   <div className='text-xs font-semibold text-slate-900 dark:text-slate-100'>
@@ -792,7 +833,7 @@ export default function OrderDetailPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className='space-y-4 py-2 text-sm'>
+          <div className='space-y-2 py-2 text-sm'>
             <div className='p-3 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200'>
               <div className='font-semibold mb-1 flex items-center gap-1.5'>
                 <IconInfoCircle className='h-4 w-4 text-amber-600' />
@@ -805,7 +846,7 @@ export default function OrderDetailPage() {
               </p>
             </div>
 
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
               <div className='space-y-1.5'>
                 <label
                   htmlFor='vendorName'
@@ -897,8 +938,8 @@ export default function OrderDetailPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSaveEditOrder} className='space-y-4 py-2 text-sm'>
-            <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
+          <form onSubmit={handleSaveEditOrder} className='space-y-2 py-2 text-sm'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
               <div className='space-y-1.5'>
                 <div className='flex items-center justify-between'>
                   <label
