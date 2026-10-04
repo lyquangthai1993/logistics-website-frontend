@@ -22,32 +22,53 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconFoldUp,
-  IconFoldDown,
+  IconFoldDown
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
-import { WarehouseEditableGrid, WarehouseRowItem } from '@/features/warehouse/components/warehouse-editable-grid';
+import {
+  WarehouseEditableGrid,
+  WarehouseRowItem
+} from '@/features/warehouse/components/warehouse-editable-grid';
 import { WarehouseInboundTransferFlow } from '@/features/warehouse/components/warehouse-inbound-transfer-flow';
-import { PalletLabelA4Modal, PalletLabelData } from '@/features/warehouse/components/pallet-label-a4-modal';
-import { WarehouseInboundReceiptModal, InboundReceiptData, InboundReceiptItem } from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
-import { WarehouseWaybillDetailModal, WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
+import {
+  PalletLabelA4Modal,
+  PalletLabelData
+} from '@/features/warehouse/components/pallet-label-a4-modal';
+import {
+  WarehouseInboundReceiptModal,
+  InboundReceiptData,
+  InboundReceiptItem
+} from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
+import {
+  WarehouseWaybillDetailModal,
+  WaybillDetailData
+} from '@/features/warehouse/components/warehouse-waybill-detail-modal';
 import { WarehouseTallyModal } from '@/features/warehouse/components/warehouse-tally-modal';
-import { WarehouseTripDetailModal, InboundVehicleGroup } from '@/features/warehouse/components/warehouse-trip-detail-modal';
+import {
+  WarehouseTripDetailModal,
+  InboundVehicleGroup
+} from '@/features/warehouse/components/warehouse-trip-detail-modal';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
+import { formatWeight, formatVolume } from '@/lib/format';
 
 export default function WarehouseInboundPage() {
   const user = useAuthStore((state) => state.user);
 
   // Active View State: 'BOARD' (sq2P6) | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'
-  const [activeView, setActiveView] = useState<'BOARD' | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'>('BOARD');
+  const [activeView, setActiveView] = useState<'BOARD' | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'>(
+    'BOARD'
+  );
 
   // Inbound Board State (sq2P6)
   const [search, setSearch] = useState('');
-  const [statusTab, setStatusTab] = useState<'ALL' | 'WAITING' | 'CUSTOMER' | 'TRANSFER' | 'STORED'>('ALL');
+  const [statusTab, setStatusTab] = useState<
+    'ALL' | 'WAITING' | 'CUSTOMER' | 'TRANSFER' | 'STORED'
+  >('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [orders, setOrders] = useState<any[]>([]);
@@ -59,10 +80,13 @@ export default function WarehouseInboundPage() {
 
   // Modals
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedWaybillForDetail, setSelectedWaybillForDetail] = useState<WaybillDetailData | null>(null);
+  const [selectedWaybillForDetail, setSelectedWaybillForDetail] =
+    useState<WaybillDetailData | null>(null);
 
   const [isTallyModalOpen, setIsTallyModalOpen] = useState(false);
-  const [selectedWaybillForTally, setSelectedWaybillForTally] = useState<WaybillDetailData | null>(null);
+  const [selectedWaybillForTally, setSelectedWaybillForTally] = useState<WaybillDetailData | null>(
+    null
+  );
 
   // Vehicle Trip Detail & Tally Modal State
   const [isTripDetailModalOpen, setIsTripDetailModalOpen] = useState(false);
@@ -99,8 +123,8 @@ export default function WarehouseInboundPage() {
       deliveryAddress: '',
       province: '',
       accompanyingDocs: '',
-      notes: '',
-    },
+      notes: ''
+    }
   ]);
 
   // Submitting State
@@ -115,7 +139,7 @@ export default function WarehouseInboundPage() {
     transferInbound: 0,
     storedInbound: 0,
     waitingOutbound: 0,
-    completedOutboundToday: 0,
+    completedOutboundToday: 0
   });
 
   // Fetch KPI
@@ -124,8 +148,8 @@ export default function WarehouseInboundPage() {
     fetch('/api/v1/warehouse/kpi', {
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
@@ -147,21 +171,21 @@ export default function WarehouseInboundPage() {
       page: page.toString(),
       limit: pageSize.toString(),
       ...(search.trim() ? { search: search.trim() } : {}),
-      ...(statusTab !== 'ALL' ? { status: statusTab } : {}),
+      ...(statusTab !== 'ALL' ? { status: statusTab } : {})
     });
 
     fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         setOrders(resData?.data || []);
         setMeta({
           total: resData?.meta?.total ?? resData?.data?.length ?? 0,
-          totalPages: resData?.meta?.totalPages ?? 1,
+          totalPages: resData?.meta?.totalPages ?? 1
         });
       })
       .catch(() => {
@@ -183,7 +207,7 @@ export default function WarehouseInboundPage() {
   const toggleExpandVehicle = (key: string) => {
     setExpandedVehicleKeys((prev) => ({
       ...prev,
-      [key]: !prev[key],
+      [key]: !prev[key]
     }));
   };
 
@@ -199,8 +223,7 @@ export default function WarehouseInboundPage() {
         '';
       let driver = activeTrip?.driverName?.trim() || o.driverName?.trim() || '';
       let tripCode =
-        activeTrip?.tripCode?.trim() ||
-        (activeTrip?.id ? `TRIP-${activeTrip.id}` : '');
+        activeTrip?.tripCode?.trim() || (activeTrip?.id ? `TRIP-${activeTrip.id}` : '');
 
       if (!plate && o.notes) {
         const m = o.notes.match(/\[Xe:\s*([^-\]]+)/i);
@@ -236,15 +259,15 @@ export default function WarehouseInboundPage() {
           totalWeight: 0,
           totalVolume: 0,
           goodsDescription: '',
-          notes: o.notes || '',
+          notes: o.notes || ''
         });
       }
 
       const grp = map.get(key)!;
       grp.orders.push(o);
       grp.totalQuantity += Number(o.inboundQuantity ?? o.totalQuantity ?? 1);
-      grp.totalWeight += Number(o.totalWeight ?? 0);
-      grp.totalVolume += Number(o.totalVolume ?? 0);
+      grp.totalWeight = Math.round((grp.totalWeight + Number(o.totalWeight ?? 0)) * 100) / 100;
+      grp.totalVolume = Math.round((grp.totalVolume + Number(o.totalVolume ?? 0)) * 1000) / 1000;
 
       // If any order is waiting/draft, show waiting status
       if (['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status)) {
@@ -253,9 +276,7 @@ export default function WarehouseInboundPage() {
     }
 
     map.forEach((grp) => {
-      const descs = Array.from(
-        new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)),
-      );
+      const descs = Array.from(new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)));
       if (descs.length === 1) {
         grp.goodsDescription = descs[0];
       } else if (descs.length > 1) {
@@ -304,7 +325,7 @@ export default function WarehouseInboundPage() {
       unit: 'Kiện',
       deliveryAddress: o.deliveryAddress || o.destinationHub || '—',
       accompanyingDocs: o.accompanyingDocs || 'KHÔNG CÓ',
-      notes: o.notes || '',
+      notes: o.notes || ''
     }));
 
     setSelectedReceiptData({
@@ -323,7 +344,7 @@ export default function WarehouseInboundPage() {
       driverName: grp.driverName,
       licensePlate: grp.licensePlate,
       createdAt: grp.orders[0]?.createdAt || new Date(),
-      items,
+      items
     });
     setIsInboundReceiptModalOpen(true);
   };
@@ -340,9 +361,9 @@ export default function WarehouseInboundPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
-          body: JSON.stringify({ orderIds }),
+          body: JSON.stringify({ orderIds })
         });
       }
       fetchKpi();
@@ -370,11 +391,11 @@ export default function WarehouseInboundPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          orderIds: selectedOrderIds,
-        }),
+          orderIds: selectedOrderIds
+        })
       });
 
       if (!res.ok) {
@@ -416,15 +437,26 @@ export default function WarehouseInboundPage() {
         toast.error(`Dòng ${rowNum}: Số kiện phải lớn hơn hoặc bằng 1`);
         return;
       }
-      if (row.totalWeight === undefined || row.totalWeight === null || Number(row.totalWeight) < 0) {
+      if (
+        row.totalWeight === undefined ||
+        row.totalWeight === null ||
+        Number(row.totalWeight) < 0
+      ) {
         toast.error(`Dòng ${rowNum}: Số kg phải lớn hơn hoặc bằng 0`);
         return;
       }
-      if (row.totalVolume === undefined || row.totalVolume === null || Number(row.totalVolume) < 0) {
+      if (
+        row.totalVolume === undefined ||
+        row.totalVolume === null ||
+        Number(row.totalVolume) < 0
+      ) {
         toast.error(`Dòng ${rowNum}: Số khối m³ phải lớn hơn hoặc bằng 0`);
         return;
       }
-      if (row.deliveryMode === 'DIRECT_CUSTOMER' && (!row.deliveryAddress || !row.deliveryAddress.trim())) {
+      if (
+        row.deliveryMode === 'DIRECT_CUSTOMER' &&
+        (!row.deliveryAddress || !row.deliveryAddress.trim())
+      ) {
         toast.error(`Dòng ${rowNum}: Vui lòng nhập Địa chỉ giao hàng`);
         return;
       }
@@ -451,7 +483,7 @@ export default function WarehouseInboundPage() {
           deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
           destinationHubId: row.destinationHubId || null,
           notes: row.notes?.trim() || undefined,
-          initialStatus: 'INBOUND',
+          initialStatus: 'INBOUND'
         };
       });
 
@@ -459,14 +491,14 @@ export default function WarehouseInboundPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || undefined,
           receiveDate: receiveDate || undefined,
-          items: itemsPayload,
-        }),
+          items: itemsPayload
+        })
       });
 
       if (!res.ok) {
@@ -478,7 +510,7 @@ export default function WarehouseInboundPage() {
       const batchResult = resJson?.data || resJson;
 
       toast.success(
-        `Đã tiếp nhận thành công xe ${licensePlate.trim().toUpperCase()} (${mode1Rows.length} dòng hàng) - Mã chuyến: ${batchResult?.tripCode || 'TRIP'}!`,
+        `Đã tiếp nhận thành công xe ${licensePlate.trim().toUpperCase()} (${mode1Rows.length} dòng hàng) - Mã chuyến: ${batchResult?.tripCode || 'TRIP'}!`
       );
 
       setMode1Rows([
@@ -493,8 +525,8 @@ export default function WarehouseInboundPage() {
           deliveryAddress: '',
           province: '',
           accompanyingDocs: '',
-          notes: '',
-        },
+          notes: ''
+        }
       ]);
       setLicensePlate('');
       setDriverName('');
@@ -549,7 +581,7 @@ export default function WarehouseInboundPage() {
           deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
           destinationHubId: row.destinationHubId || null,
           notes: row.notes?.trim() || undefined,
-          initialStatus: 'DRAFT',
+          initialStatus: 'DRAFT'
         };
       });
 
@@ -557,14 +589,14 @@ export default function WarehouseInboundPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || undefined,
           receiveDate: receiveDate || undefined,
-          items: itemsPayload,
-        }),
+          items: itemsPayload
+        })
       });
 
       if (!res.ok) {
@@ -585,8 +617,8 @@ export default function WarehouseInboundPage() {
           deliveryAddress: '',
           province: '',
           accompanyingDocs: '',
-          notes: '',
-        },
+          notes: ''
+        }
       ]);
       setLicensePlate('');
       setDriverName('');
@@ -605,62 +637,61 @@ export default function WarehouseInboundPage() {
 
   return (
     <PageContainer>
-      <div className="space-y-4 flex-1 w-full min-w-0">
+      <div className='space-y-2 flex-1 w-full min-w-0'>
         {/* ── Page Header (Frame sq2P6 parity) ── */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <div className='flex flex-wrap items-center justify-between gap-2 border-b pb-2'>
           <div>
-            <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400">
-              <IconBuildingWarehouse className="h-6 w-6" />
+            <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
+              <IconBuildingWarehouse className='h-6 w-6' />
               <span>Nhập kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className='text-xs text-slate-500 mt-0.5'>
               Quản lý luồng hàng nhập kho (Khách gửi trực tiếp hoặc Luân chuyển liên Hub).
             </p>
           </div>
 
           {activeView === 'BOARD' ? (
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
                 onClick={() => setActiveView('MODE1_CUSTOMER')}
-                className="bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm"
+                className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm'
               >
-                <IconPlus className="mr-1 h-4 w-4" /> Tạo đơn nhập mới
+                <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
               </Button>
               <Button
                 onClick={() => setActiveView('MODE2_TRANSFER')}
-                className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold shadow-sm"
+                className='bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold shadow-sm'
               >
-                <IconTruck className="mr-1 h-4 w-4" /> Nhận luân chuyển nội bộ
+                <IconTruck className='mr-1 h-4 w-4' /> Nhận luân chuyển nội bộ
               </Button>
             </div>
           ) : (
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               onClick={() => setActiveView('BOARD')}
-              className="text-xs font-semibold"
+              className='text-xs font-semibold'
             >
-              <IconX className="mr-1.5 h-4 w-4" /> Quay lại danh sách
+              <IconX className='mr-1.5 h-4 w-4' /> Quay lại danh sách
             </Button>
           )}
         </div>
 
         {/* ── View 1: Main Inbound Board (Frame sq2P6 Danh sách nhập kho) ── */}
         {activeView === 'BOARD' && (
-          <div className="space-y-4">
-
+          <div className='space-y-1.5'>
             {/* Toolbar: Search, Status Tabs & Refresh Button */}
-            <Card className="bg-white dark:bg-slate-900 shadow-sm border py-0">
-              <CardContent className="p-1 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+            <Card className='bg-white dark:bg-slate-900 shadow-sm border py-0'>
+              <CardContent className='p-1 space-y-1.5'>
+                <div className='flex flex-wrap items-center justify-between gap-2'>
                   {/* Status Tabs */}
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
+                  <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
                     {[
                       { key: 'ALL', label: `Tất cả (${kpiStats.total ?? meta.total})` },
                       { key: 'WAITING', label: `Chờ nhập kho (${kpiStats.waitingInbound ?? 0})` },
                       { key: 'CUSTOMER', label: `Khách gửi (${kpiStats.customerInbound ?? 0})` },
                       { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferInbound ?? 0})` },
-                      { key: 'STORED', label: `Đã nhập kho (${kpiStats.storedInbound ?? 0})` },
+                      { key: 'STORED', label: `Đã nhập kho (${kpiStats.storedInbound ?? 0})` }
                     ].map((tab) => (
                       <button
                         key={tab.key}
@@ -680,37 +711,37 @@ export default function WarehouseInboundPage() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+                  <div className='flex items-center gap-2 flex-1 sm:flex-initial justify-end'>
                     {/* Search Input */}
-                    <div className="relative min-w-[340px] max-w-xs">
-                      <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                    <div className='relative min-w-[340px] max-w-xs'>
+                      <IconSearch className='absolute left-2.5 top-2.5 h-4 w-4 text-gray-400' />
                       <Input
                         value={search}
                         onChange={(e) => {
                           setSearch(e.target.value);
                           setPage(1);
                         }}
-                        placeholder="Tìm mã vận đơn, khách hàng, nguồn/trip..."
-                        className="pl-8 h-9 text-xs"
+                        placeholder='Tìm mã vận đơn, khách hàng, nguồn/trip...'
+                        className='pl-8 h-9 text-xs'
                       />
                     </div>
 
                     {/* Expand / Collapse All Vehicles */}
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant='outline'
+                      size='sm'
                       onClick={toggleAllGroups}
-                      className="h-9 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50"
+                      className='h-9 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50'
                       title={allExpanded ? 'Thu gọn tất cả xe' : 'Mở rộng tất cả xe'}
                     >
                       {allExpanded ? (
                         <>
-                          <IconFoldUp className="mr-1.5 h-4 w-4 text-slate-600" />
+                          <IconFoldUp className='mr-1.5 h-4 w-4 text-slate-600' />
                           <span>Thu gọn tất cả</span>
                         </>
                       ) : (
                         <>
-                          <IconFoldDown className="mr-1.5 h-4 w-4 text-slate-600" />
+                          <IconFoldDown className='mr-1.5 h-4 w-4 text-slate-600' />
                           <span>Mở rộng tất cả</span>
                         </>
                       )}
@@ -718,13 +749,15 @@ export default function WarehouseInboundPage() {
 
                     {/* Refresh Metrics Button */}
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant='outline'
+                      size='sm'
                       onClick={handleRefreshMetrics}
                       disabled={isRefreshing}
-                      className="h-9 text-xs font-bold border-slate-300"
+                      className='h-9 text-xs font-bold border-slate-300'
                     >
-                      <IconRefresh className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      <IconRefresh
+                        className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`}
+                      />
                       <span>Cập nhật lại thông số</span>
                     </Button>
                   </div>
@@ -732,32 +765,34 @@ export default function WarehouseInboundPage() {
 
                 {/* Floating Batch Action Bar if rows selected */}
                 {selectedOrderIds.length > 0 && (
-                  <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-200 dark:border-blue-900 text-xs animate-in fade-in duration-200">
-                    <span className="font-bold text-blue-900 dark:text-blue-200">
+                  <div className='flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-200 dark:border-blue-900 text-xs animate-in fade-in duration-200'>
+                    <span className='font-bold text-blue-900 dark:text-blue-200'>
                       Đã chọn {selectedOrderIds.length} đơn hàng
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className='flex items-center gap-2'>
                       <Button
-                        variant="ghost"
-                        size="sm"
+                        variant='ghost'
+                        size='sm'
                         onClick={() => setSelectedOrderIds([])}
-                        className="h-7 text-xs text-slate-600"
+                        className='h-7 text-xs text-slate-600'
                       >
                         Bỏ chọn
                       </Button>
                       <Button
-                        size="sm"
+                        size='sm'
                         onClick={handleBatchConfirmInbound}
                         disabled={isBatchSubmitting}
-                        className="h-7 text-xs font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f]"
+                        className='h-7 text-xs font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f]'
                       >
                         {isBatchSubmitting ? (
                           <>
-                            <IconLoader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Đang nhập kho...
+                            <IconLoader2 className='h-3.5 w-3.5 mr-1 animate-spin' /> Đang nhập
+                            kho...
                           </>
                         ) : (
                           <>
-                            <IconCircleCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Xác nhận nhập kho {selectedOrderIds.length} đơn
+                            <IconCircleCheck className='h-3.5 w-3.5 mr-1 text-emerald-400' /> Xác
+                            nhận nhập kho {selectedOrderIds.length} đơn
                           </>
                         )}
                       </Button>
@@ -766,13 +801,13 @@ export default function WarehouseInboundPage() {
                 )}
 
                 {/* Inbound Board Table (Frame sq2P6) */}
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-[11px] text-left">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]">
+                <div className='border rounded-lg overflow-hidden'>
+                  <table className='w-full text-[11px] text-left'>
+                    <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
-                        <th className="py-1.5 px-2 w-[36px] text-center">
+                        <th className='py-1.5 px-2 w-[36px] text-center'>
                           <input
-                            type="checkbox"
+                            type='checkbox'
                             checked={
                               orders.length > 0 &&
                               orders.every((o) => selectedOrderIds.includes(Number(o.id)))
@@ -784,28 +819,28 @@ export default function WarehouseInboundPage() {
                                 setSelectedOrderIds([]);
                               }
                             }}
-                            className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                            className='rounded border-gray-300 text-blue-600 cursor-pointer'
                           />
                         </th>
-                        <th className="py-1.5 px-2 w-[150px]">CHUYẾN XE / TRIP</th>
-                        <th className="py-1.5 px-2 w-[150px]">XE & TÀI XẾ</th>
-                        <th className="py-1.5 px-2 text-right w-[130px]">SỐ KIỆN / TẢI TRỌNG</th>
-                        <th className="py-1.5 px-2 w-[100px] text-center">TRẠNG THÁI</th>
-                        <th className="py-1.5 px-2 text-center w-[100px]">LOẠI TIẾP NHẬN</th>
-                        <th className="py-1.5 px-2 text-center w-[180px]">THAO TÁC</th>
+                        <th className='py-1.5 px-2 w-[150px]'>CHUYẾN XE / TRIP</th>
+                        <th className='py-1.5 px-2 w-[150px]'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
+                        <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
+                        <th className='py-1.5 px-2 text-center w-[100px]'>LOẠI TIẾP NHẬN</th>
+                        <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                    <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-gray-500">
-                            <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          <td colSpan={7} className='p-8 text-center text-gray-500'>
+                            <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-gray-400">
+                          <td colSpan={7} className='p-8 text-center text-gray-400'>
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -817,56 +852,60 @@ export default function WarehouseInboundPage() {
                             groupOrderIds.length > 0 &&
                             groupOrderIds.every((id) => selectedOrderIds.includes(id));
                           const hasWaiting = grp.orders.some((o) =>
-                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status),
+                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(o.status)
                           );
 
                           return (
                             <React.Fragment key={grp.groupKey}>
-                              <tr className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors">
-                                <td className="py-1 px-2 text-center">
+                              <tr className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'>
+                                <td className='py-1 px-2 text-center'>
                                   <input
-                                    type="checkbox"
+                                    type='checkbox'
                                     checked={isGroupSelected}
                                     onChange={(e) => {
                                       if (e.target.checked) {
                                         setSelectedOrderIds((prev) =>
-                                          Array.from(new Set([...prev, ...groupOrderIds])),
+                                          Array.from(new Set([...prev, ...groupOrderIds]))
                                         );
                                       } else {
                                         setSelectedOrderIds((prev) =>
-                                          prev.filter((id) => !groupOrderIds.includes(id)),
+                                          prev.filter((id) => !groupOrderIds.includes(id))
                                         );
                                       }
                                     }}
-                                    className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                                    className='rounded border-gray-300 text-blue-600 cursor-pointer'
                                   />
                                 </td>
-                                <td className="py-1 px-2">
-                                  <div className="flex items-center gap-1.5">
+                                <td className='py-1 px-2'>
+                                  <div className='flex items-center gap-1.5'>
                                     <button
-                                      type="button"
+                                      type='button'
                                       onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                      className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer"
-                                      title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem chi tiết các đơn trên xe'}
+                                      className='p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer'
+                                      title={
+                                        isExpanded
+                                          ? 'Thu gọn danh sách đơn'
+                                          : 'Xem chi tiết các đơn trên xe'
+                                      }
                                     >
                                       {isExpanded ? (
-                                        <IconChevronDown className="h-3.5 w-3.5 text-blue-600 font-bold" />
+                                        <IconChevronDown className='h-3.5 w-3.5 text-blue-600 font-bold' />
                                       ) : (
-                                        <IconChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                                        <IconChevronRight className='h-3.5 w-3.5 text-slate-400' />
                                       )}
                                     </button>
                                     <div>
                                       <button
-                                        type="button"
+                                        type='button'
                                         onClick={() => handleOpenTripDetail(grp)}
-                                        className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left"
-                                        title="Nhấp để xem chi tiết & kiểm đếm chuyến xe"
+                                        className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
+                                        title='Nhấp để xem chi tiết chuyến xe'
                                       >
                                         <span>{grp.tripCode}</span>
                                         {grp.orders.length > 1 && (
                                           <Badge
-                                            variant="outline"
-                                            className="ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer"
+                                            variant='outline'
+                                            className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
                                           >
                                             {grp.orders.length} đơn
                                           </Badge>
@@ -875,15 +914,15 @@ export default function WarehouseInboundPage() {
                                     </div>
                                   </div>
                                 </td>
-                                <td className="py-1 px-2">
-                                  <div className="text-[11px] space-y-0.5">
-                                    <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
-                                      <IconTruck className="h-3 w-3 text-blue-600 shrink-0" />
+                                <td className='py-1 px-2'>
+                                  <div className='text-[11px] space-y-0.5'>
+                                    <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1'>
+                                      <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
                                       <span>{grp.licensePlate}</span>
                                     </div>
                                     {grp.driverName && (
                                       <div
-                                        className="text-[10px] text-gray-500 truncate max-w-[140px]"
+                                        className='text-[10px] text-gray-500 truncate max-w-[140px]'
                                         title={grp.driverName}
                                       >
                                         {grp.driverName}
@@ -891,18 +930,19 @@ export default function WarehouseInboundPage() {
                                     )}
                                   </div>
                                 </td>
-                                <td className="py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                                <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px]'>
                                   <div>{grp.totalQuantity} kiện</div>
-                                  <div className="text-gray-400 text-[10px]">
-                                    {grp.totalWeight.toLocaleString('vi-VN')} kg &bull; {grp.totalVolume} m³
+                                  <div className='text-gray-400 text-[10px]'>
+                                    {formatWeight(grp.totalWeight)} kg &bull;{' '}
+                                    {formatVolume(grp.totalVolume)} m³
                                   </div>
                                 </td>
-                                <td className="py-1 px-2 text-center">
+                                <td className='py-1 px-2 text-center'>
                                   {renderWarehouseOrderStatusBadge(grp.status)}
                                 </td>
-                                <td className="py-1 px-2 text-center">
+                                <td className='py-1 px-2 text-center'>
                                   <Badge
-                                    variant="outline"
+                                    variant='outline'
                                     className={
                                       grp.isTransfer
                                         ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
@@ -912,34 +952,23 @@ export default function WarehouseInboundPage() {
                                     {grp.isTransfer ? 'Luân chuyển' : 'Khách gửi'}
                                   </Badge>
                                 </td>
-                                <td className="py-1 px-2 text-center">
-                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                    {hasWaiting ? (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleOpenTripDetail(grp)}
-                                        className="h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs"
-                                        title="Kiểm đếm nhận hàng chuyến xe"
-                                      >
-                                        <IconClipboardCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Kiểm đếm
-                                      </Button>
-                                    ) : null}
-
+                                <td className='py-1 px-2 text-center'>
+                                  <div className='flex items-center justify-center gap-1.5 flex-wrap'>
                                     <Button
-                                      variant="outline"
-                                      size="sm"
+                                      variant='outline'
+                                      size='sm'
                                       onClick={() => handleOpenReceiptForVehicle(grp)}
-                                      className="h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold"
-                                      title="In phiếu nhập xe (chứa tất cả đơn hàng của xe)"
+                                      className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
+                                      title='In phiếu nhập xe (chứa tất cả đơn hàng của xe)'
                                     >
-                                      <IconPrinter className="h-3.5 w-3.5 mr-1" /> In phiếu nhập
+                                      <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
                                     </Button>
 
                                     <Button
-                                      variant="ghost"
-                                      size="sm"
+                                      variant='ghost'
+                                      size='sm'
                                       onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                      className="h-7 text-[11px] text-slate-600 hover:text-blue-700 px-1.5"
+                                      className='h-7 text-[11px] text-slate-600 hover:text-blue-700 px-1.5'
                                       title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem các đơn'}
                                     >
                                       {isExpanded ? 'Thu gọn' : 'Xem đơn'}
@@ -950,147 +979,174 @@ export default function WarehouseInboundPage() {
 
                               {/* Nested Sub-row with all orders of this vehicle */}
                               {isExpanded && (
-                                <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-                                  <td colSpan={7} className="py-1 px-2 pl-8">
-                                    <div className="bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1">
-                                      <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                                        <span className="flex items-center gap-1">
-                                          <IconTruck className="h-3 w-3 text-blue-600" />
-                                          <span>Chi tiết các đơn hàng thuộc xe {grp.licensePlate} ({grp.tripCode})</span>
+                                <tr className='bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800'>
+                                  <td colSpan={7} className='py-1 px-2 pl-8'>
+                                    <div className='bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1'>
+                                      <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
+                                        <span className='flex items-center gap-1'>
+                                          <IconTruck className='h-3 w-3 text-blue-600' />
+                                          <span>
+                                            Chi tiết các đơn hàng thuộc xe {grp.licensePlate} (
+                                            {grp.tripCode})
+                                          </span>
                                         </span>
-                                        <span>Tổng cộng: {grp.orders.length} đơn &bull; {grp.totalQuantity} kiện</span>
+                                        <span>
+                                          Tổng cộng: {grp.orders.length} đơn &bull;{' '}
+                                          {grp.totalQuantity} kiện
+                                        </span>
                                       </div>
-                                      <table className="w-full text-[10px]">
+                                      <table className='w-full text-[10px]'>
                                         <thead>
-                                          <tr className="text-slate-400 text-[10px] border-b border-slate-100 dark:border-slate-700 text-left">
-                                            <th className="py-0.5 px-1.5 font-semibold w-[130px]">MÃ VẬN ĐƠN</th>
-                                            <th className="py-0.5 px-1.5 font-semibold min-w-[150px]">HÀNG HÓA</th>
-                                            <th className="py-0.5 px-1.5 font-semibold text-right w-[130px]">SỐ KIỆN / TẢI TRỌNG</th>
-                                            <th className="py-0.5 px-1.5 font-semibold text-center w-[100px]">TRẠNG THÁI</th>
-                                            <th className="py-0.5 px-1.5 font-semibold text-center w-[100px]">CHỨNG TỪ</th>
-                                            <th className="py-0.5 px-1.5 font-semibold min-w-[130px]">GHI CHÚ</th>
-                                            <th className="py-0.5 px-1.5 font-semibold text-center w-[150px]">THAO TÁC</th>
+                                          <tr className='text-slate-400 text-[10px] border-b border-slate-100 dark:border-slate-700 text-left'>
+                                            <th className='py-0.5 px-1.5 font-semibold w-[130px]'>
+                                              MÃ VẬN ĐƠN
+                                            </th>
+                                            <th className='py-0.5 px-1.5 font-semibold min-w-[150px]'>
+                                              HÀNG HÓA
+                                            </th>
+                                            <th className='py-0.5 px-1.5 font-semibold text-right w-[130px]'>
+                                              SỐ KIỆN / TẢI TRỌNG
+                                            </th>
+                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
+                                              TRẠNG THÁI
+                                            </th>
+                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
+                                              CHỨNG TỪ
+                                            </th>
+                                            <th className='py-0.5 px-1.5 font-semibold min-w-[130px]'>
+                                              GHI CHÚ
+                                            </th>
+                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[150px]'>
+                                              THAO TÁC
+                                            </th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                          {grp.orders.map((subOrder) => {
-                                            const subWaiting = ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(subOrder.status);
-
-                                            return (
-                                              <tr key={subOrder.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                                <td className="py-1 px-1.5">
-                                                  <button
-                                                    type="button"
+                                        <tbody className='divide-y divide-slate-100 dark:divide-slate-700'>
+                                          {grp.orders.map((subOrder) => (
+                                            <tr
+                                              key={subOrder.id}
+                                              className='hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                            >
+                                              <td className='py-1 px-1.5'>
+                                                <button
+                                                  type='button'
+                                                  onClick={() => {
+                                                    setSelectedWaybillForDetail(subOrder);
+                                                    setIsDetailModalOpen(true);
+                                                  }}
+                                                  className='font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]'
+                                                  title='Xem chi tiết mã vận đơn'
+                                                >
+                                                  {subOrder.orderCode}
+                                                </button>
+                                              </td>
+                                              <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]'>
+                                                {subOrder.goodsDescription || 'Hàng hóa nhập kho'}
+                                              </td>
+                                              <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
+                                                <div>
+                                                  {subOrder.inboundQuantity ??
+                                                    subOrder.totalQuantity ??
+                                                    1}{' '}
+                                                  kiện
+                                                </div>
+                                                <div className='text-gray-400 text-[9px]'>
+                                                  {formatWeight(subOrder.totalWeight)} kg &bull;{' '}
+                                                  {formatVolume(subOrder.totalVolume)} m³
+                                                </div>
+                                              </td>
+                                              <td className='py-1.5 px-2 text-center'>
+                                                {renderWarehouseOrderStatusBadge(subOrder.status)}
+                                              </td>
+                                              <td className='py-1.5 px-2 text-center'>
+                                                {subOrder.accompanyingDocs &&
+                                                subOrder.accompanyingDocs.toUpperCase() !==
+                                                  'KHÔNG CÓ' ? (
+                                                  <Badge
+                                                    variant='outline'
+                                                    className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
+                                                  >
+                                                    {subOrder.accompanyingDocs}
+                                                  </Badge>
+                                                ) : (
+                                                  <Badge
+                                                    variant='outline'
+                                                    className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
+                                                  >
+                                                    {subOrder.accompanyingDocs || 'Không có'}
+                                                  </Badge>
+                                                )}
+                                              </td>
+                                              <td
+                                                className='py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]'
+                                                title={subOrder.notes}
+                                              >
+                                                {subOrder.notes || '—'}
+                                              </td>
+                                              <td className='py-1.5 px-2 text-center'>
+                                                <div className='flex items-center justify-center gap-1'>
+                                                  <Button
+                                                    variant='ghost'
+                                                    size='sm'
                                                     onClick={() => {
                                                       setSelectedWaybillForDetail(subOrder);
                                                       setIsDetailModalOpen(true);
                                                     }}
-                                                    className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]"
-                                                    title="Xem chi tiết mã vận đơn"
+                                                    className='h-6 text-[10px] px-1.5 text-slate-600 hover:text-blue-700 font-semibold'
                                                   >
-                                                    {subOrder.orderCode}
-                                                  </button>
-                                                </td>
-                                                <td className="py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]">
-                                                  {subOrder.goodsDescription || 'Hàng hóa nhập kho'}
-                                                </td>
-                                                <td className="py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]">
-                                                  <div>{subOrder.inboundQuantity ?? subOrder.totalQuantity ?? 1} kiện</div>
-                                                  <div className="text-gray-400 text-[9px]">
-                                                    {subOrder.totalWeight?.toLocaleString('vi-VN')} kg &bull; {subOrder.totalVolume} m³
-                                                  </div>
-                                                </td>
-                                                <td className="py-1.5 px-2 text-center">
-                                                  {renderWarehouseOrderStatusBadge(subOrder.status)}
-                                                </td>
-                                                <td className="py-1.5 px-2 text-center">
-                                                  {subOrder.accompanyingDocs && subOrder.accompanyingDocs.toUpperCase() !== 'KHÔNG CÓ' ? (
-                                                    <Badge
-                                                      variant="outline"
-                                                      className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]"
-                                                    >
-                                                      {subOrder.accompanyingDocs}
-                                                    </Badge>
-                                                  ) : (
-                                                    <Badge
-                                                      variant="outline"
-                                                      className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]"
-                                                    >
-                                                      {subOrder.accompanyingDocs || 'Không có'}
-                                                    </Badge>
-                                                  )}
-                                                </td>
-                                                <td className="py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]" title={subOrder.notes}>
-                                                  {subOrder.notes || '—'}
-                                                </td>
-                                                <td className="py-1.5 px-2 text-center">
-                                                  <div className="flex items-center justify-center gap-1">
-                                                    {subWaiting ? (
-                                                      <Button
-                                                        size="sm"
-                                                        onClick={() => {
-                                                          setSelectedWaybillForTally(subOrder);
-                                                          setIsTallyModalOpen(true);
-                                                        }}
-                                                        className="h-6 text-[10px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs"
-                                                      >
-                                                        <IconClipboardCheck className="h-3 w-3 mr-1 text-emerald-400" /> Kiểm đếm
-                                                      </Button>
-                                                    ) : (
-                                                      <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                          setSelectedWaybillForDetail(subOrder);
-                                                          setIsDetailModalOpen(true);
-                                                        }}
-                                                        className="h-6 text-[10px] px-1.5 text-slate-600 hover:text-blue-700 font-semibold"
-                                                      >
-                                                        <IconEye className="h-3 w-3 mr-1" /> Chi tiết
-                                                      </Button>
-                                                    )}
+                                                    <IconEye className='h-3 w-3 mr-1' /> Chi tiết
+                                                  </Button>
 
-                                                    <Button
-                                                      variant="outline"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        const isTrans =
-                                                          subOrder.inboundType === 'TRANSFER' ||
-                                                          subOrder.orderCode?.startsWith('TRIP') ||
-                                                          (subOrder.originHub && subOrder.destinationHub && subOrder.originHub !== subOrder.destinationHub) ||
-                                                          (subOrder.trips && subOrder.trips.length > 0);
-                                                        const orig =
-                                                          subOrder.pickupAddress?.trim() ||
-                                                          (isTrans ? subOrder.originHub : null) ||
-                                                          subOrder.originHubEntity?.name ||
-                                                          subOrder.originHub ||
-                                                          (subOrder.route?.includes('→') ? subOrder.route.split('→')[0].trim() : '') ||
-                                                          user?.hub?.name;
-                                                        const dest =
-                                                          subOrder.destinationHubEntity?.name ||
-                                                          subOrder.destinationHub ||
-                                                          subOrder.deliveryAddress?.trim() ||
-                                                          (subOrder.route?.includes('→') ? subOrder.route.split('→')[1].trim() : '');
-                                                        setSelectedLabelData({
-                                                          orderCode: subOrder.orderCode,
-                                                          goodsDescription: subOrder.goodsDescription || 'Hàng hóa nhập kho',
-                                                          totalQuantity: subOrder.totalQuantity || 1,
-                                                          originHub: orig,
-                                                          destinationHub: dest,
-                                                          createdAt: new Date(),
-                                                        });
-                                                        setIsLabelModalOpen(true);
-                                                      }}
-                                                      className="h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 px-1.5 font-semibold"
-                                                      title="In tem nhận diện A4"
-                                                    >
-                                                      <IconPrinter className="h-3 w-3 mr-1" /> In tem
-                                                    </Button>
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
+                                                  <Button
+                                                    variant='outline'
+                                                    size='sm'
+                                                    onClick={() => {
+                                                      const isTrans =
+                                                        subOrder.inboundType === 'TRANSFER' ||
+                                                        subOrder.orderCode?.startsWith('TRIP') ||
+                                                        (subOrder.originHub &&
+                                                          subOrder.destinationHub &&
+                                                          subOrder.originHub !==
+                                                            subOrder.destinationHub) ||
+                                                        (subOrder.trips &&
+                                                          subOrder.trips.length > 0);
+                                                      const orig =
+                                                        subOrder.pickupAddress?.trim() ||
+                                                        (isTrans ? subOrder.originHub : null) ||
+                                                        subOrder.originHubEntity?.name ||
+                                                        subOrder.originHub ||
+                                                        (subOrder.route?.includes('→')
+                                                          ? subOrder.route.split('→')[0].trim()
+                                                          : '') ||
+                                                        user?.hub?.name;
+                                                      const dest =
+                                                        subOrder.destinationHubEntity?.name ||
+                                                        subOrder.destinationHub ||
+                                                        subOrder.deliveryAddress?.trim() ||
+                                                        (subOrder.route?.includes('→')
+                                                          ? subOrder.route.split('→')[1].trim()
+                                                          : '');
+                                                      setSelectedLabelData({
+                                                        orderCode: subOrder.orderCode,
+                                                        goodsDescription:
+                                                          subOrder.goodsDescription ||
+                                                          'Hàng hóa nhập kho',
+                                                        totalQuantity: subOrder.totalQuantity || 1,
+                                                        originHub: orig,
+                                                        destinationHub: dest,
+                                                        createdAt: new Date()
+                                                      });
+                                                      setIsLabelModalOpen(true);
+                                                    }}
+                                                    className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 px-1.5 font-semibold'
+                                                    title='In tem nhận diện A4'
+                                                  >
+                                                    <IconPrinter className='h-3 w-3 mr-1' /> In tem
+                                                  </Button>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          ))}
                                         </tbody>
                                       </table>
                                     </div>
@@ -1106,7 +1162,7 @@ export default function WarehouseInboundPage() {
                 </div>
 
                 {/* Pagination Bar */}
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className='pt-2 border-t border-slate-100 dark:border-slate-800'>
                   <TablePaginationBar
                     page={page}
                     totalPages={meta.totalPages}
@@ -1127,72 +1183,73 @@ export default function WarehouseInboundPage() {
 
         {/* ── View 2: Mode 1 - Nhập Kho Từ Khách Hàng (Frame WH_CASE_01) ── */}
         {activeView === 'MODE1_CUSTOMER' && (
-          <div className="space-y-4">
+          <div className='space-y-1.5'>
             {/* Inbound Mode Switch Tabs (Frame SPiXE in WH_CASE_01) */}
-            <div className="w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+            <div className='w-full bg-[#E8EDF4] dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner'>
               <button
-                type="button"
+                type='button'
                 onClick={() => setActiveView('MODE1_CUSTOMER')}
-                className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm"
+                className='flex-1 py-1.5 px-3 rounded-lg text-xs transition-all bg-white dark:bg-slate-700 text-[#0F3D62] dark:text-blue-300 font-bold shadow-sm'
               >
                 Mới hoàn toàn
               </button>
               <button
-                type="button"
+                type='button'
                 onClick={() => setActiveView('MODE2_TRANSFER')}
-                className="flex-1 py-2.5 px-4 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white"
+                className='flex-1 py-1.5 px-3 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white'
               >
                 Luân chuyển nội bộ
               </button>
             </div>
 
             {/* Khối Header Thông Tin Tiếp Nhận Tại Cửa Kho (3 Trường Bắt Buộc Viền Đỏ - Frame UVtv4) */}
-            <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0">
-              <CardContent className="p-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Card className='bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0'>
+              <CardContent className='p-1 grid grid-cols-1 md:grid-cols-3 gap-2'>
                 {/* 1. Ngày nhận */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    1. Ngày tiếp nhận <span className="text-red-600 font-black">*</span>
+                  <label className='text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1'>
+                    1. Ngày tiếp nhận <span className='text-red-600 font-black'>*</span>
                   </label>
-                  <div className="relative">
-                    <IconCalendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                  <div className='relative'>
+                    <IconCalendar className='absolute left-2.5 top-2.5 h-4 w-4 text-gray-400' />
                     <Input
-                      type="date"
+                      type='date'
                       value={receiveDate}
                       onChange={(e) => setReceiveDate(e.target.value)}
-                      className="h-9 pl-8 text-xs border-red-300 focus:border-red-500 bg-red-50/20 dark:bg-red-950/20 dark:border-red-900"
+                      className='h-9 pl-8 text-xs border-red-300 focus:border-red-500 bg-red-50/20 dark:bg-red-950/20 dark:border-red-900'
                     />
                   </div>
                 </div>
 
                 {/* 2. Biển số xe */}
                 <div>
-                  <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1">
-                    2. Biển số xe <span className="text-red-600 font-black">*</span>
+                  <label className='text-xs font-bold text-red-600 dark:text-red-400 block mb-1'>
+                    2. Biển số xe <span className='text-red-600 font-black'>*</span>
                   </label>
-                  <div className="relative">
-                    <IconTruck className="absolute left-2.5 top-2.5 h-4 w-4 text-red-400" />
+                  <div className='relative'>
+                    <IconTruck className='absolute left-2.5 top-2.5 h-4 w-4 text-red-400' />
                     <Input
                       value={licensePlate}
                       onChange={(e) => setLicensePlate(e.target.value)}
-                      placeholder="VD: 29C-123.45"
-                      className="h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 uppercase bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
+                      placeholder='VD: 29C-123.45'
+                      className='h-9 pl-8 text-xs font-bold border-red-400 focus:border-red-500 uppercase bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200'
                     />
                   </div>
                 </div>
 
                 {/* 3. Tài xế / Người giao (Không bắt buộc) */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    3. Họ tên người nhận / tài xế <span className="text-slate-400 font-normal">(Tùy chọn)</span>
+                  <label className='text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1'>
+                    3. Họ tên người nhận / tài xế{' '}
+                    <span className='text-slate-400 font-normal'>(Tùy chọn)</span>
                   </label>
-                  <div className="relative">
-                    <IconUser className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <div className='relative'>
+                    <IconUser className='absolute left-2.5 top-2.5 h-4 w-4 text-slate-400' />
                     <Input
                       value={driverName}
                       onChange={(e) => setDriverName(e.target.value)}
-                      placeholder="VD: Nguyễn Văn A"
-                      className="h-9 pl-8 text-xs font-medium border-slate-300 focus:border-blue-500 bg-white dark:bg-slate-800 dark:border-slate-700"
+                      placeholder='VD: Nguyễn Văn A'
+                      className='h-9 pl-8 text-xs font-medium border-slate-300 focus:border-blue-500 bg-white dark:bg-slate-800 dark:border-slate-700'
                     />
                   </div>
                 </div>
@@ -1200,8 +1257,8 @@ export default function WarehouseInboundPage() {
             </Card>
 
             {/* Bảng kê hàng nhập kho 10 cột */}
-            <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0">
-              <CardContent className="p-1 space-y-2.5">
+            <Card className='bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0'>
+              <CardContent className='p-1 space-y-2.5'>
                 <WarehouseEditableGrid
                   rows={mode1Rows}
                   onChange={setMode1Rows}
@@ -1209,23 +1266,24 @@ export default function WarehouseInboundPage() {
                 />
 
                 {/* Sticky Action Footer (Frame ufHcR in WH_CASE_01) */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <div className='flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800'>
+                  <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
                     {mode1Rows.length} dòng hàng
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className='flex items-center gap-2'>
                     <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                      type='button'
+                      variant='outline'
+                      size='sm'
                       onClick={handleSaveDraftMode1}
                       disabled={isSavingDraft || isSubmitting || mode1Rows.length === 0}
-                      className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
+                      className='text-xs font-semibold h-9 border-slate-300 dark:border-slate-700'
                     >
                       {isSavingDraft ? (
                         <>
-                          <IconLoader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Đang lưu nháp...
+                          <IconLoader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' /> Đang lưu
+                          nháp...
                         </>
                       ) : (
                         'Lưu nháp'
@@ -1233,14 +1291,17 @@ export default function WarehouseInboundPage() {
                     </Button>
 
                     <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                      type='button'
+                      variant='outline'
+                      size='sm'
                       onClick={() => {
                         if (mode1Rows.length > 0) {
                           const r = mode1Rows[0];
                           setSelectedLabelData({
-                            orderCode: r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
+                            orderCode:
+                              r.orderCode && r.orderCode !== '(Tự sinh khi lưu)'
+                                ? r.orderCode
+                                : 'LTV2609-0025',
                             goodsDescription: r.goodsDescription || 'Vải cuộn',
                             totalQuantity: r.totalQuantity || 50,
                             packagesOnPallet: r.totalQuantity || 50,
@@ -1248,12 +1309,12 @@ export default function WarehouseInboundPage() {
                             totalPallets: 1,
                             originHub: r.pickupAddress,
                             destinationHub: r.deliveryAddress,
-                            createdAt: new Date(),
+                            createdAt: new Date()
                           });
                           setIsLabelModalOpen(true);
                         }
                       }}
-                      className="text-xs font-semibold h-9 border-slate-300 dark:border-slate-700"
+                      className='text-xs font-semibold h-9 border-slate-300 dark:border-slate-700'
                     >
                       Xem trước
                     </Button>
@@ -1261,15 +1322,16 @@ export default function WarehouseInboundPage() {
                     <Button
                       onClick={handleSubmitMode1}
                       disabled={isSubmitting || mode1Rows.length === 0}
-                      className="bg-[#0F3D62] hover:bg-[#0c314f] text-white px-5 font-bold shadow-md h-9 text-xs"
+                      className='bg-[#0F3D62] hover:bg-[#0c314f] text-white px-5 font-bold shadow-md h-9 text-xs'
                     >
                       {isSubmitting ? (
                         <>
-                          <IconLoader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu dữ liệu...
+                          <IconLoader2 className='mr-2 h-4 w-4 animate-spin' /> Đang lưu dữ liệu...
                         </>
                       ) : (
                         <>
-                          <IconCircleCheck className="mr-1.5 h-4 w-4 text-emerald-400" /> Xác nhận tiếp nhận & Lưu kho
+                          <IconCircleCheck className='mr-1.5 h-4 w-4 text-emerald-400' /> Xác nhận
+                          tiếp nhận & Lưu kho
                         </>
                       )}
                     </Button>
@@ -1323,7 +1385,7 @@ export default function WarehouseInboundPage() {
               totalQuantity: waybill.totalQuantity || 1,
               originHub: orig,
               destinationHub: dest,
-              createdAt: new Date(),
+              createdAt: new Date()
             });
             setIsLabelModalOpen(true);
           }}
@@ -1359,7 +1421,7 @@ export default function WarehouseInboundPage() {
               totalQuantity: waybill.totalQuantity || 1,
               originHub: orig,
               destinationHub: dest,
-              createdAt: new Date(),
+              createdAt: new Date()
             });
             setIsLabelModalOpen(true);
           }}

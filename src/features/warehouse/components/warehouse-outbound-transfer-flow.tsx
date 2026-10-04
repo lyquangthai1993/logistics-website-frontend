@@ -23,13 +23,14 @@ import {
   IconPackage,
   IconPackageImport,
   IconInbox,
-  IconCheck,
+  IconCheck
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { formatWeight, formatVolume } from '@/lib/format';
 
 export interface HubOption {
   id: number;
@@ -62,7 +63,7 @@ interface WarehouseOutboundTransferFlowProps {
 export function WarehouseOutboundTransferFlow({
   onBackToBoard,
   onSwitchToCustomerMode,
-  onSuccess,
+  onSuccess
 }: WarehouseOutboundTransferFlowProps) {
   const user = useAuthStore((state) => state.user);
 
@@ -73,7 +74,7 @@ export function WarehouseOutboundTransferFlow({
   const [hubs, setHubs] = useState<HubOption[]>([
     { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
     { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
-    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
+    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 }
   ]);
 
   // Step 1 Form State (Trip Info)
@@ -105,8 +106,8 @@ export function WarehouseOutboundTransferFlow({
     fetch('/api/v1/hubs/active?level=1', {
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((res) => {
@@ -130,14 +131,14 @@ export function WarehouseOutboundTransferFlow({
       page: page.toString(),
       limit: limit.toString(),
       ...(search.trim() ? { search: search.trim() } : {}),
-      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
     });
 
     fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
@@ -153,7 +154,7 @@ export function WarehouseOutboundTransferFlow({
           createdAt: o.createdAt || new Date().toISOString(),
           destinationHub: o.destinationHub || o.route || '',
           deliveryAddress: o.deliveryAddress || '',
-          originHub: o.originHub || user?.hub?.name || 'Kho tiếp nhận',
+          originHub: o.originHub || user?.hub?.name || 'Kho tiếp nhận'
         }));
         setWarehouseOrders(formatted);
 
@@ -161,7 +162,7 @@ export function WarehouseOutboundTransferFlow({
           setCounts({
             total: resData.meta.allCount ?? resData.meta.total ?? 0,
             stored: resData.meta.storedCount ?? 0,
-            draft: resData.meta.draftCount ?? 0,
+            draft: resData.meta.draftCount ?? 0
           });
         }
       })
@@ -184,7 +185,7 @@ export function WarehouseOutboundTransferFlow({
         code: 'HUB-DAD-01',
         name: 'Magellan Hub - Đà Nẵng',
         city: 'Đà Nẵng',
-        level: 1,
+        level: 1
       }
     );
   }, [hubs, destinationHubId]);
@@ -205,7 +206,7 @@ export function WarehouseOutboundTransferFlow({
       count: selectedOrders.length,
       packages: totalQty,
       weight: totalKg,
-      volume: totalM3,
+      volume: totalM3
     };
   }, [selectedOrders]);
 
@@ -235,7 +236,9 @@ export function WarehouseOutboundTransferFlow({
   const handleRefreshMetrics = async () => {
     setIsRefreshing(true);
     const token = tokenManager.getAccessToken();
-    const orderIds = Array.from(selectedOrderIds).map(Number).filter((id) => !isNaN(id));
+    const orderIds = Array.from(selectedOrderIds)
+      .map(Number)
+      .filter((id) => !isNaN(id));
 
     try {
       if (orderIds.length > 0) {
@@ -243,9 +246,9 @@ export function WarehouseOutboundTransferFlow({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
-          body: JSON.stringify({ orderIds }),
+          body: JSON.stringify({ orderIds })
         });
       }
       fetchWarehouseOrders();
@@ -259,7 +262,9 @@ export function WarehouseOutboundTransferFlow({
 
   // Submit Outbound Transfer in Step 3
   const handleConfirmOutboundTransfer = async () => {
-    const orderIds = Array.from(selectedOrderIds).map(Number).filter((id) => !isNaN(id));
+    const orderIds = Array.from(selectedOrderIds)
+      .map(Number)
+      .filter((id) => !isNaN(id));
     if (orderIds.length === 0) {
       toast.error('Vui lòng chọn ít nhất một đơn hàng để xuất kho!');
       return;
@@ -273,7 +278,7 @@ export function WarehouseOutboundTransferFlow({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           orderIds,
@@ -281,15 +286,17 @@ export function WarehouseOutboundTransferFlow({
           destinationHubId,
           licensePlate,
           driverName,
-          dispatchDate,
-        }),
+          dispatchDate
+        })
       });
 
       if (!res.ok) {
         throw new Error('Xác nhận xuất kho không thành công');
       }
 
-      toast.success('Đã xác nhận xuất kho luân chuyển thành công! Chuyến xe đã sẵn sàng khởi hành.');
+      toast.success(
+        'Đã xác nhận xuất kho luân chuyển thành công! Chuyến xe đã sẵn sàng khởi hành.'
+      );
       onSuccess();
     } catch (err: any) {
       toast.error('Lỗi khi xuất kho: ' + (err?.message || 'Vui lòng thử lại'));
@@ -299,19 +306,19 @@ export function WarehouseOutboundTransferFlow({
   };
 
   return (
-    <div className="space-y-4">
+    <div className='space-y-4'>
       {/* ── Top Bar Navigation ── */}
-      <div className="flex items-center justify-between border-b pb-3">
+      <div className='flex items-center justify-between border-b pb-3'>
         <button
-          type="button"
+          type='button'
           onClick={() => {
             if (step === 1) onBackToBoard();
             else if (step === 2) setStep(1);
             else if (step === 3) setStep(2);
           }}
-          className="text-xs font-bold text-[#0F3D62] dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors"
+          className='text-xs font-bold text-[#0F3D62] dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors'
         >
-          <IconArrowLeft className="h-4 w-4" />
+          <IconArrowLeft className='h-4 w-4' />
           {step === 1
             ? 'Danh sách xuất kho'
             : step === 2
@@ -320,20 +327,20 @@ export function WarehouseOutboundTransferFlow({
         </button>
 
         <Button
-          variant="outline"
-          size="sm"
+          variant='outline'
+          size='sm'
           onClick={onBackToBoard}
-          className="h-8 text-xs font-semibold"
+          className='h-8 text-xs font-semibold'
         >
-          <IconX className="mr-1.5 h-3.5 w-3.5" />
+          <IconX className='mr-1.5 h-3.5 w-3.5' />
           Đóng
         </Button>
       </div>
 
       {/* ── Page Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className='flex flex-wrap items-center justify-between gap-3'>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h1 className='text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2'>
             <span>
               {step === 1
                 ? 'Tạo phiếu xuất kho'
@@ -342,7 +349,7 @@ export function WarehouseOutboundTransferFlow({
                   : 'Xác nhận phiếu xuất kho'}
             </span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className='text-xs text-slate-500 mt-0.5'>
             {step === 1
               ? `Luân chuyển hàng từ ${currentHubName} đến một Hub nội bộ khác.`
               : step === 2
@@ -353,48 +360,51 @@ export function WarehouseOutboundTransferFlow({
 
         {/* Header Badges */}
         {step === 1 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 rounded-md text-xs font-bold text-blue-700 dark:text-blue-300">
-            <IconBuildingWarehouse className="h-4 w-4 text-blue-600" />
-            <span>Kho xuất: {currentHubName} · {currentHubCode}</span>
+          <div className='flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 rounded-md text-xs font-bold text-blue-700 dark:text-blue-300'>
+            <IconBuildingWarehouse className='h-4 w-4 text-blue-600' />
+            <span>
+              Kho xuất: {currentHubName} · {currentHubCode}
+            </span>
           </div>
         )}
 
         {step === 2 && (
-          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200 text-xs px-3 py-1 font-bold">
+          <Badge className='bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200 text-xs px-3 py-1 font-bold'>
             {counts.total} đơn trong kho
           </Badge>
         )}
 
         {step === 3 && (
-          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 text-xs px-3 py-1 font-bold">
-            {selectedMetrics.count} đơn · {selectedMetrics.packages} kiện · {selectedMetrics.weight.toLocaleString('vi-VN')} kg
+          <Badge className='bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 text-xs px-3 py-1 font-bold'>
+            {selectedMetrics.count} đơn · {selectedMetrics.packages} kiện ·{' '}
+            {selectedMetrics.weight.toLocaleString('vi-VN')} kg
           </Badge>
         )}
       </div>
 
       {/* ── Outbound Mode Selector (Frame oct_mode / ol_mode) ── */}
-      <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#E9EEF5] dark:bg-slate-800 rounded-lg text-xs font-bold">
+      <div className='grid grid-cols-2 gap-1.5 p-1 bg-[#E9EEF5] dark:bg-slate-800 rounded-lg text-xs font-bold'>
         <button
-          type="button"
+          type='button'
           onClick={onSwitchToCustomerMode}
-          className="flex items-center justify-center gap-2 py-2 rounded-md transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900"
+          className='flex items-center justify-center gap-2 py-2 rounded-md transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900'
         >
-          <IconPackage className="h-4 w-4" />
+          <IconPackage className='h-4 w-4' />
           Xuất kho cho khách hàng
         </button>
         <button
-          type="button"
-          className="flex items-center justify-center gap-2 py-2 rounded-md bg-white dark:bg-slate-900 text-[#0F3D62] dark:text-blue-400 shadow-sm border border-[#DCE3EC] dark:border-slate-700"
+          type='button'
+          className='flex items-center justify-center gap-2 py-2 rounded-md bg-white dark:bg-slate-900 text-[#0F3D62] dark:text-blue-400 shadow-sm border border-[#DCE3EC] dark:border-slate-700'
         >
-          <IconTruck className="h-4 w-4 text-[#0F3D62] dark:text-blue-400" />
+          <IconTruck className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
           Xuất kho luân chuyển nội bộ
         </button>
       </div>
 
       {/* ── Journey Stepper (3 Steps - Frames oct_stepper, sm_trip_bar, ol_stepper) ── */}
-      <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+      <div className='flex items-center justify-between px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
         {/* Step 1 */}
-        <div className="flex items-center gap-3">
+        <div className='flex items-center gap-3'>
           <div
             className={cn(
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
@@ -402,10 +412,10 @@ export function WarehouseOutboundTransferFlow({
                 ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
                 : step > 1
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-200 text-slate-500',
+                  : 'bg-slate-200 text-slate-500'
             )}
           >
-            {step > 1 ? <IconCheck className="h-4 w-4" /> : '1'}
+            {step > 1 ? <IconCheck className='h-4 w-4' /> : '1'}
           </div>
           <div>
             <div
@@ -415,7 +425,7 @@ export function WarehouseOutboundTransferFlow({
                   ? 'text-[#0F3D62] dark:text-blue-400 font-bold'
                   : step > 1
                     ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-slate-500',
+                    : 'text-slate-500'
               )}
             >
               Chọn Hub đích & Thông tin xe
@@ -423,11 +433,7 @@ export function WarehouseOutboundTransferFlow({
             <div
               className={cn(
                 'text-[9px] font-bold uppercase tracking-wider',
-                step === 1
-                  ? 'text-blue-600'
-                  : step > 1
-                    ? 'text-emerald-600'
-                    : 'text-slate-400',
+                step === 1 ? 'text-blue-600' : step > 1 ? 'text-emerald-600' : 'text-slate-400'
               )}
             >
               {step === 1 ? 'ĐANG THỰC HIỆN' : 'HOÀN THÀNH ✓'}
@@ -435,10 +441,14 @@ export function WarehouseOutboundTransferFlow({
           </div>
         </div>
 
-        <span className={cn('text-sm font-bold', step >= 2 ? 'text-emerald-600' : 'text-slate-300')}>➔</span>
+        <span
+          className={cn('text-sm font-bold', step >= 2 ? 'text-emerald-600' : 'text-slate-300')}
+        >
+          ➔
+        </span>
 
         {/* Step 2 */}
-        <div className="flex items-center gap-3">
+        <div className='flex items-center gap-3'>
           <div
             className={cn(
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
@@ -446,10 +456,10 @@ export function WarehouseOutboundTransferFlow({
                 ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
                 : step > 2
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-200 text-slate-500',
+                  : 'bg-slate-200 text-slate-500'
             )}
           >
-            {step > 2 ? <IconCheck className="h-4 w-4" /> : '2'}
+            {step > 2 ? <IconCheck className='h-4 w-4' /> : '2'}
           </div>
           <div>
             <div
@@ -459,7 +469,7 @@ export function WarehouseOutboundTransferFlow({
                   ? 'text-[#0F3D62] dark:text-blue-400 font-bold'
                   : step > 2
                     ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-slate-500',
+                    : 'text-slate-500'
               )}
             >
               Chọn hàng trong kho
@@ -467,11 +477,7 @@ export function WarehouseOutboundTransferFlow({
             <div
               className={cn(
                 'text-[9px] font-bold uppercase tracking-wider',
-                step === 2
-                  ? 'text-blue-600'
-                  : step > 2
-                    ? 'text-emerald-600'
-                    : 'text-slate-400',
+                step === 2 ? 'text-blue-600' : step > 2 ? 'text-emerald-600' : 'text-slate-400'
               )}
             >
               {step === 2 ? 'ĐANG THỰC HIỆN' : step > 2 ? 'HOÀN THÀNH ✓' : 'CHỜ THỰC HIỆN'}
@@ -479,16 +485,20 @@ export function WarehouseOutboundTransferFlow({
           </div>
         </div>
 
-        <span className={cn('text-sm font-bold', step >= 3 ? 'text-emerald-600' : 'text-slate-300')}>➔</span>
+        <span
+          className={cn('text-sm font-bold', step >= 3 ? 'text-emerald-600' : 'text-slate-300')}
+        >
+          ➔
+        </span>
 
         {/* Step 3 */}
-        <div className="flex items-center gap-3">
+        <div className='flex items-center gap-3'>
           <div
             className={cn(
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
               step === 3
                 ? 'bg-[#0F3D62] text-white ring-4 ring-blue-100 dark:ring-blue-950'
-                : 'bg-slate-200 text-slate-500',
+                : 'bg-slate-200 text-slate-500'
             )}
           >
             3
@@ -497,9 +507,7 @@ export function WarehouseOutboundTransferFlow({
             <div
               className={cn(
                 'text-xs font-semibold',
-                step === 3
-                  ? 'text-[#0F3D62] dark:text-blue-400 font-bold'
-                  : 'text-slate-500',
+                step === 3 ? 'text-[#0F3D62] dark:text-blue-400 font-bold' : 'text-slate-500'
               )}
             >
               Xác nhận & In phiếu xuất
@@ -507,7 +515,7 @@ export function WarehouseOutboundTransferFlow({
             <div
               className={cn(
                 'text-[9px] font-bold uppercase tracking-wider',
-                step === 3 ? 'text-blue-600' : 'text-slate-400',
+                step === 3 ? 'text-blue-600' : 'text-slate-400'
               )}
             >
               {step === 3 ? 'ĐANG THỰC HIỆN' : 'CHỜ THỰC HIỆN'}
@@ -520,36 +528,36 @@ export function WarehouseOutboundTransferFlow({
       {/* ── STEP 1: WH_OUTBOUND_CREATE_TRIP (Chọn Hub & Thông Tin Xe) ─────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {step === 1 && (
-        <div className="space-y-4 animate-in fade-in-50 duration-200">
+        <div className='space-y-4 animate-in fade-in-50 duration-200'>
           {/* Step 1 Alert Bar (Frame oct_step1_bar) */}
-          <div className="flex items-center justify-between p-3.5 bg-[#EFF6FF] dark:bg-blue-950/40 border border-[#BFDBFE] dark:border-blue-900 rounded-lg">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#1D4ED8] dark:text-blue-300">
-              <IconMapPin className="h-4 w-4" />
+          <div className='flex items-center justify-between p-3.5 bg-[#EFF6FF] dark:bg-blue-950/40 border border-[#BFDBFE] dark:border-blue-900 rounded-lg'>
+            <div className='flex items-center gap-2 text-xs font-bold text-[#1D4ED8] dark:text-blue-300'>
+              <IconMapPin className='h-4 w-4' />
               <span>BƯỚC 1: CHỌN HUB ĐÍCH & THÔNG TIN XE CHUYẾN</span>
             </div>
-            <Badge className="bg-[#DBEAFE] text-[#1D4ED8] border-none text-[11px] font-semibold px-3 py-1 rounded-full">
+            <Badge className='bg-[#DBEAFE] text-[#1D4ED8] border-none text-[11px] font-semibold px-3 py-1 rounded-full'>
               {counts.stored} đơn đang lưu kho tại hub
             </Badge>
           </div>
 
           {/* Trip Info Form (Frame oct_form) */}
-          <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0">
-            <CardContent className="p-1 space-y-4">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          <Card className='bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0'>
+            <CardContent className='p-1 space-y-4'>
+              <h2 className='text-sm font-bold text-slate-900 dark:text-slate-100'>
                 Thông tin chuyến xuất
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
                 {/* Field 1: Destination Hub */}
                 <div>
-                  <label className="text-xs font-bold text-[#EF4444] block mb-1.5">
+                  <label className='text-xs font-bold text-[#EF4444] block mb-1.5'>
                     Hub nhận nội bộ *
                   </label>
-                  <div className="relative">
+                  <div className='relative'>
                     <select
                       value={destinationHubId}
                       onChange={(e) => setDestinationHubId(Number(e.target.value))}
-                      className="w-full h-10 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 px-3 pl-8 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className='w-full h-10 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 px-3 pl-8 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500'
                     >
                       {hubs.map((h) => (
                         <option key={h.id} value={h.id}>
@@ -557,56 +565,56 @@ export function WarehouseOutboundTransferFlow({
                         </option>
                       ))}
                     </select>
-                    <IconBuildingWarehouse className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600 pointer-events-none" />
+                    <IconBuildingWarehouse className='absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600 pointer-events-none' />
                   </div>
                 </div>
 
                 {/* Field 2: Dispatch Date */}
                 <div>
-                  <label className="text-xs font-bold text-[#EF4444] block mb-1.5">
+                  <label className='text-xs font-bold text-[#EF4444] block mb-1.5'>
                     Ngày xuất kho *
                   </label>
-                  <div className="relative">
+                  <div className='relative'>
                     <Input
-                      type="date"
+                      type='date'
                       value={dispatchDate}
                       onChange={(e) => setDispatchDate(e.target.value)}
-                      className="h-10 text-xs font-semibold bg-[#F8FAFC] dark:bg-slate-800/80 pl-8"
+                      className='h-10 text-xs font-semibold bg-[#F8FAFC] dark:bg-slate-800/80 pl-8'
                     />
-                    <IconCalendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <IconCalendar className='absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none' />
                   </div>
                 </div>
 
                 {/* Field 3: License Plate */}
                 <div>
-                  <label className="text-xs font-bold text-[#EF4444] block mb-1.5">
+                  <label className='text-xs font-bold text-[#EF4444] block mb-1.5'>
                     Biển số xe *
                   </label>
                   <Input
                     value={licensePlate}
                     onChange={(e) => setLicensePlate(e.target.value)}
-                    placeholder="VD: 29C-123.45..."
-                    className="h-10 text-xs font-bold uppercase bg-[#F8FAFC] dark:bg-slate-800/80"
+                    placeholder='VD: 29C-123.45...'
+                    className='h-10 text-xs font-bold uppercase bg-[#F8FAFC] dark:bg-slate-800/80'
                   />
                 </div>
 
                 {/* Field 4: Driver Name */}
                 <div>
-                  <label className="text-xs font-bold text-[#EF4444] block mb-1.5">
+                  <label className='text-xs font-bold text-[#EF4444] block mb-1.5'>
                     Họ tên tài xế *
                   </label>
                   <Input
                     value={driverName}
                     onChange={(e) => setDriverName(e.target.value)}
-                    placeholder="VD: Nguyễn Văn A..."
-                    className="h-10 text-xs font-semibold bg-[#F8FAFC] dark:bg-slate-800/80"
+                    placeholder='VD: Nguyễn Văn A...'
+                    className='h-10 text-xs font-semibold bg-[#F8FAFC] dark:bg-slate-800/80'
                   />
                 </div>
               </div>
 
               {/* Action Button to advance to Step 2 (Frame oct_select_btn) */}
               <Button
-                type="button"
+                type='button'
                 onClick={() => {
                   if (!licensePlate.trim()) {
                     toast.error('Vui lòng nhập biển số xe điều chuyển');
@@ -618,45 +626,46 @@ export function WarehouseOutboundTransferFlow({
                   }
                   setStep(2);
                 }}
-                className="w-full h-12 bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 mt-3 transition-all"
+                className='w-full h-12 bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 mt-3 transition-all'
               >
-                <IconPackageImport className="h-5 w-5" />
+                <IconPackageImport className='h-5 w-5' />
                 <span>Chọn hàng trong kho →</span>
               </Button>
             </CardContent>
           </Card>
 
           {/* Empty State Card (Frame oct_empty) */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-            <CardContent className="py-12 flex flex-col items-center justify-center text-center space-y-2">
-              <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                <IconInbox className="h-7 w-7" />
+          <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl'>
+            <CardContent className='py-12 flex flex-col items-center justify-center text-center space-y-2'>
+              <div className='w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400'>
+                <IconInbox className='h-7 w-7' />
               </div>
-              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+              <h3 className='text-sm font-bold text-slate-700 dark:text-slate-300'>
                 Chưa có hàng hóa nào được chọn
               </h3>
-              <p className="text-xs text-slate-400 max-w-sm">
-                Vui lòng điền thông tin xe và bấm "Chọn hàng trong kho" để bắt đầu chọn các đơn lưu kho xuất sang Hub đích.
+              <p className='text-xs text-slate-400 max-w-sm'>
+                Vui lòng điền thông tin xe và bấm "Chọn hàng trong kho" để bắt đầu chọn các đơn lưu
+                kho xuất sang Hub đích.
               </p>
             </CardContent>
           </Card>
 
           {/* Sticky Footer for Step 1 (Frame oct_sticky_footer) */}
-          <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
-            <Button variant="outline" onClick={onBackToBoard} className="text-xs font-semibold">
+          <div className='flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
+            <Button variant='outline' onClick={onBackToBoard} className='text-xs font-semibold'>
               Hủy
             </Button>
-            <div className="flex items-center gap-3">
+            <div className='flex items-center gap-3'>
               <Button
-                variant="outline"
+                variant='outline'
                 onClick={() => toast.success('Đã lưu nháp thông tin chuyến xe')}
-                className="text-xs font-semibold"
+                className='text-xs font-semibold'
               >
                 Lưu nháp
               </Button>
               <Button
                 disabled
-                className="text-xs font-bold opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500"
+                className='text-xs font-bold opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500'
               >
                 Xác nhận xuất kho (Chưa có hàng)
               </Button>
@@ -669,74 +678,76 @@ export function WarehouseOutboundTransferFlow({
       {/* ── STEP 2: WH_OUTBOUND_SELECT_MODAL (Chọn Hàng Từ Kho) ──────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {step === 2 && (
-        <div className="space-y-4 animate-in fade-in-50 duration-200">
+        <div className='space-y-4 animate-in fade-in-50 duration-200'>
           {/* Trip Summary Chip Bar (Frame sm_trip_bar) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#F0F9FF] dark:bg-sky-950/40 border border-[#BAE6FD] dark:border-sky-900 rounded-xl text-xs font-semibold text-[#0284C7] dark:text-sky-300">
-            <div className="flex items-center gap-2">
-              <IconBuildingWarehouse className="h-4 w-4 text-sky-600" />
+          <div className='flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#F0F9FF] dark:bg-sky-950/40 border border-[#BAE6FD] dark:border-sky-900 rounded-xl text-xs font-semibold text-[#0284C7] dark:text-sky-300'>
+            <div className='flex items-center gap-2'>
+              <IconBuildingWarehouse className='h-4 w-4 text-sky-600' />
               <span>Kho xuất: {currentHubName}</span>
             </div>
-            <span className="text-sky-300">|</span>
-            <div className="flex items-center gap-2">
-              <IconMapPin className="h-4 w-4 text-sky-600" />
+            <span className='text-sky-300'>|</span>
+            <div className='flex items-center gap-2'>
+              <IconMapPin className='h-4 w-4 text-sky-600' />
               <span>Hub nhận: {selectedDestHub.name}</span>
             </div>
-            <span className="text-sky-300">|</span>
-            <div className="flex items-center gap-2">
-              <IconTruck className="h-4 w-4 text-sky-600" />
-              <span>Xe: {licensePlate} · {driverName}</span>
+            <span className='text-sky-300'>|</span>
+            <div className='flex items-center gap-2'>
+              <IconTruck className='h-4 w-4 text-sky-600' />
+              <span>
+                Xe: {licensePlate} · {driverName}
+              </span>
             </div>
           </div>
 
           {/* Search & Filter Toolbar (Frame sm_toolbar) */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm py-0">
-            <CardContent className="p-1 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+          <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm py-0'>
+            <CardContent className='p-1 space-y-3'>
+              <div className='flex flex-wrap items-center justify-between gap-3'>
                 {/* Search Bar */}
-                <div className="relative flex-1 min-w-[260px]">
-                  <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className='relative flex-1 min-w-[260px]'>
+                  <IconSearch className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Tìm mã đơn, tên hàng..."
-                    className="pl-9 h-9 text-xs bg-slate-50 dark:bg-slate-800/80"
+                    placeholder='Tìm mã đơn, tên hàng...'
+                    className='pl-9 h-9 text-xs bg-slate-50 dark:bg-slate-800/80'
                   />
                 </div>
 
                 {/* Status Tabs */}
-                <div className="flex items-center gap-1.5">
+                <div className='flex items-center gap-1.5'>
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => setStatusFilter('ALL')}
                     className={cn(
                       'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all',
                       statusFilter === 'ALL'
                         ? 'bg-[#0F3D62] text-white shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200',
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
                     )}
                   >
                     Tất cả ({counts.total})
                   </button>
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => setStatusFilter('INBOUND')}
                     className={cn(
                       'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border',
                       statusFilter === 'INBOUND'
                         ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                        : 'bg-[#FEF9EE] text-[#D97706] border-[#FDE68A] hover:bg-amber-100/50',
+                        : 'bg-[#FEF9EE] text-[#D97706] border-[#FDE68A] hover:bg-amber-100/50'
                     )}
                   >
                     LƯU KHO ({counts.stored})
                   </button>
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => setStatusFilter('DRAFT')}
                     className={cn(
                       'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border',
                       statusFilter === 'DRAFT'
                         ? 'bg-slate-700 text-white border-slate-700 shadow-sm'
-                        : 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0] hover:bg-slate-100',
+                        : 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0] hover:bg-slate-100'
                     )}
                   >
                     DRAFT ({counts.draft})
@@ -744,20 +755,20 @@ export function WarehouseOutboundTransferFlow({
                 </div>
 
                 {/* Selection Counter Badge & Check All */}
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-[#DCFCE7] text-[#059669] dark:bg-emerald-950/60 dark:text-emerald-300 border-none text-xs px-3 py-1 font-bold rounded-full">
+                <div className='flex items-center gap-3'>
+                  <Badge className='bg-[#DCFCE7] text-[#059669] dark:bg-emerald-950/60 dark:text-emerald-300 border-none text-xs px-3 py-1 font-bold rounded-full'>
                     Đã chọn {selectedOrderIds.size} / {counts.total} đơn
                   </Badge>
 
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 select-none">
+                  <label className='flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 select-none'>
                     <input
-                      type="checkbox"
+                      type='checkbox'
                       checked={
                         selectedOrderIds.size >= warehouseOrders.length &&
                         warehouseOrders.length > 0
                       }
                       onChange={handleToggleSelectAll}
-                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-300"
+                      className='rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-300'
                     />
                     <span>Chọn tất cả</span>
                   </label>
@@ -765,42 +776,42 @@ export function WarehouseOutboundTransferFlow({
               </div>
 
               {/* Multi-Select Orders Table (Frame sm_table) */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto bg-white dark:bg-slate-900">
-                <table className="w-full text-xs text-left min-w-[950px]">
-                  <thead className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+              <div className='border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto bg-white dark:bg-slate-900'>
+                <table className='w-full text-xs text-left min-w-[950px]'>
+                  <thead className='bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                     <tr>
-                      <th className="p-3 w-10 text-center">
+                      <th className='p-3 w-10 text-center'>
                         <input
-                          type="checkbox"
+                          type='checkbox'
                           checked={
                             selectedOrderIds.size >= warehouseOrders.length &&
                             warehouseOrders.length > 0
                           }
                           onChange={handleToggleSelectAll}
-                          className="rounded text-blue-600 h-4 w-4 border-slate-300"
+                          className='rounded text-blue-600 h-4 w-4 border-slate-300'
                         />
                       </th>
-                      <th className="p-3 w-[200px]">MÃ ĐƠN HÀNG</th>
-                      <th className="p-3 w-[220px]">TÊN HÀNG</th>
-                      <th className="p-3 text-right w-[90px]">SỐ KIỆN</th>
-                      <th className="p-3 text-right w-[100px]">SỐ KG</th>
-                      <th className="p-3 text-right w-[90px]">SỐ M³</th>
-                      <th className="p-3 text-center w-[120px]">NGÀY NHẬP KHO</th>
-                      <th className="p-3 text-center w-[120px]">TRẠNG THÁI</th>
-                      <th className="p-3 text-center w-[100px]">HÀNH ĐỘNG</th>
+                      <th className='p-3 w-[200px]'>MÃ ĐƠN HÀNG</th>
+                      <th className='p-3 w-[220px]'>TÊN HÀNG</th>
+                      <th className='p-3 text-right w-[90px]'>SỐ KIỆN</th>
+                      <th className='p-3 text-right w-[100px]'>SỐ KG</th>
+                      <th className='p-3 text-right w-[90px]'>SỐ M³</th>
+                      <th className='p-3 text-center w-[120px]'>NGÀY NHẬP KHO</th>
+                      <th className='p-3 text-center w-[120px]'>TRẠNG THÁI</th>
+                      <th className='p-3 text-center w-[100px]'>HÀNH ĐỘNG</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                     {isLoadingOrders ? (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-slate-500">
-                          <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                        <td colSpan={9} className='p-8 text-center text-slate-500'>
+                          <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                           Đang tải danh sách hàng trong kho...
                         </td>
                       </tr>
                     ) : warehouseOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-slate-400">
+                        <td colSpan={9} className='p-8 text-center text-slate-400'>
                           Không tìm thấy đơn hàng nào phù hợp với bộ lọc
                         </td>
                       </tr>
@@ -815,53 +826,51 @@ export function WarehouseOutboundTransferFlow({
                               'cursor-pointer transition-colors',
                               isChecked
                                 ? 'bg-[#EFF6FF] dark:bg-blue-950/40 hover:bg-blue-100/60'
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/50',
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                             )}
                           >
-                            <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <td className='p-3 text-center' onClick={(e) => e.stopPropagation()}>
                               <input
-                                type="checkbox"
+                                type='checkbox'
                                 checked={isChecked}
                                 onChange={() => handleToggleSelect(order.id)}
-                                className="rounded text-blue-600 h-4 w-4 border-slate-300"
+                                className='rounded text-blue-600 h-4 w-4 border-slate-300'
                               />
                             </td>
-                            <td className="p-3 font-mono font-bold text-blue-700 dark:text-blue-400">
+                            <td className='p-3 font-mono font-bold text-blue-700 dark:text-blue-400'>
                               {order.orderCode}
                             </td>
-                            <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
+                            <td className='p-3 font-medium text-slate-800 dark:text-slate-200'>
                               {order.goodsDescription}
                             </td>
-                            <td className="p-3 text-right font-bold">
-                              {order.totalQuantity} kiện
+                            <td className='p-3 text-right font-bold'>{order.totalQuantity} kiện</td>
+                            <td className='p-3 text-right font-bold text-slate-700 dark:text-slate-300'>
+                              {order.totalWeight ? `${formatWeight(order.totalWeight)} kg` : '0 kg'}
                             </td>
-                            <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                              {order.totalWeight ? `${order.totalWeight.toLocaleString('vi-VN')} kg` : '0 kg'}
+                            <td className='p-3 text-right font-bold text-slate-700 dark:text-slate-300'>
+                              {order.totalVolume ? `${formatVolume(order.totalVolume)} m³` : '0 m³'}
                             </td>
-                            <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                              {order.totalVolume ? `${order.totalVolume} m³` : '0 m³'}
-                            </td>
-                            <td className="p-3 text-center text-slate-500 font-medium">
+                            <td className='p-3 text-center text-slate-500 font-medium'>
                               {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                             </td>
-                            <td className="p-3 text-center">
+                            <td className='p-3 text-center'>
                               <Badge
-                                variant="outline"
+                                variant='outline'
                                 className={cn(
                                   'text-[10px] font-bold px-2 py-0.5 rounded-full',
                                   order.status === 'INBOUND'
                                     ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
-                                    : 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]',
+                                    : 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]'
                                 )}
                               >
                                 {order.status === 'INBOUND' ? 'LƯU KHO' : order.status}
                               </Badge>
                             </td>
-                            <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <td className='p-3 text-center' onClick={(e) => e.stopPropagation()}>
                               <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
+                                type='button'
+                                size='sm'
+                                variant='ghost'
                                 onClick={() =>
                                   setPrintLabelData({
                                     orderCode: order.orderCode,
@@ -869,13 +878,13 @@ export function WarehouseOutboundTransferFlow({
                                     totalQuantity: order.totalQuantity,
                                     originHub: currentHubName,
                                     destinationHub: selectedDestHub.name,
-                                    createdAt: order.createdAt,
+                                    createdAt: order.createdAt
                                   })
                                 }
-                                className="h-7 w-7 p-0 text-slate-600 hover:text-blue-600"
-                                title="In tem nhận diện A4"
+                                className='h-7 w-7 p-0 text-slate-600 hover:text-blue-600'
+                                title='In tem nhận diện A4'
                               >
-                                <IconPrinter className="h-3.5 w-3.5" />
+                                <IconPrinter className='h-3.5 w-3.5' />
                               </Button>
                             </td>
                           </tr>
@@ -887,33 +896,34 @@ export function WarehouseOutboundTransferFlow({
               </div>
 
               {/* Pagination Bar (Frame sm_pag) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-2">
+              <div className='flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-2'>
                 <span>
-                  Hiển thị {warehouseOrders.length} / {counts.total} đơn đang lưu tại {currentHubName}
+                  Hiển thị {warehouseOrders.length} / {counts.total} đơn đang lưu tại{' '}
+                  {currentHubName}
                 </span>
 
-                <div className="flex items-center gap-1">
+                <div className='flex items-center gap-1'>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant='outline'
+                    size='sm'
                     disabled={page <= 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="h-8 text-xs px-2.5"
+                    className='h-8 text-xs px-2.5'
                   >
                     ‹ Trước
                   </Button>
                   <Button
-                    size="sm"
-                    className="h-8 w-8 p-0 bg-[#0F3D62] text-white font-bold text-xs"
+                    size='sm'
+                    className='h-8 w-8 p-0 bg-[#0F3D62] text-white font-bold text-xs'
                   >
                     {page}
                   </Button>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant='outline'
+                    size='sm'
                     disabled={page * limit >= counts.total}
                     onClick={() => setPage((p) => p + 1)}
-                    className="h-8 text-xs px-2.5"
+                    className='h-8 text-xs px-2.5'
                   >
                     Sau ›
                   </Button>
@@ -923,21 +933,22 @@ export function WarehouseOutboundTransferFlow({
           </Card>
 
           {/* Sticky Bottom Action Bar (Frame sm_bottom_bar) */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md">
+          <div className='flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
             {/* Live Selected Summary */}
-            <div className="flex items-center gap-2 text-xs font-bold text-[#059669] dark:text-emerald-400">
-              <IconCircleCheck className="h-5 w-5 text-emerald-600" />
+            <div className='flex items-center gap-2 text-xs font-bold text-[#059669] dark:text-emerald-400'>
+              <IconCircleCheck className='h-5 w-5 text-emerald-600' />
               <span>
                 Đã chọn: {selectedMetrics.count} đơn · {selectedMetrics.packages} kiện ·{' '}
-                {selectedMetrics.weight.toLocaleString('vi-VN')} kg · {selectedMetrics.volume.toFixed(1).replace('.', ',')} m³
+                {selectedMetrics.weight.toLocaleString('vi-VN')} kg ·{' '}
+                {selectedMetrics.volume.toFixed(1).replace('.', ',')} m³
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className='flex items-center gap-3'>
               <Button
-                variant="outline"
+                variant='outline'
                 onClick={() => setStep(1)}
-                className="text-xs font-semibold"
+                className='text-xs font-semibold'
               >
                 Hủy
               </Button>
@@ -950,10 +961,10 @@ export function WarehouseOutboundTransferFlow({
                   setStep(3);
                 }}
                 disabled={selectedOrderIds.size === 0}
-                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-5 shadow-sm flex items-center gap-1.5"
+                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-5 shadow-sm flex items-center gap-1.5'
               >
                 <span>Xác nhận hàng đã chọn → Sang Bước 3</span>
-                <IconArrowRight className="h-4 w-4" />
+                <IconArrowRight className='h-4 w-4' />
               </Button>
             </div>
           </div>
@@ -964,47 +975,47 @@ export function WarehouseOutboundTransferFlow({
       {/* ── STEP 3: WH_OUTBOUND_LOADED (Xác Nhận & In Phiếu Xuất) ─────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {step === 3 && (
-        <div className="space-y-4 animate-in fade-in-50 duration-200">
+        <div className='space-y-4 animate-in fade-in-50 duration-200'>
           {/* Readonly Trip Info Card (Frame ol_trip_card) */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl py-0">
-            <CardContent className="p-1 space-y-3">
-              <div className="flex items-center justify-between border-b pb-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-100">
-                  <IconTruck className="h-4 w-4 text-[#0F3D62]" />
+          <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl py-0'>
+            <CardContent className='p-1 space-y-3'>
+              <div className='flex items-center justify-between border-b pb-2.5'>
+                <div className='flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-100'>
+                  <IconTruck className='h-4 w-4 text-[#0F3D62]' />
                   <span>Thông tin chuyến xe xuất kho</span>
                 </div>
-                <Badge className="bg-[#FEF9EE] text-[#D97706] border border-[#FDE68A] text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <IconLock className="h-3 w-3" />
+                <Badge className='bg-[#FEF9EE] text-[#D97706] border border-[#FDE68A] text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1'>
+                  <IconLock className='h-3 w-3' />
                   Khóa từ Bước 1
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div className='grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs'>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Hub nhận nội bộ</span>
-                  <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1.5">
-                    <IconBuildingWarehouse className="h-3.5 w-3.5 text-blue-600" />
+                  <span className='text-slate-500 block text-[10px]'>Hub nhận nội bộ</span>
+                  <div className='font-bold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1.5'>
+                    <IconBuildingWarehouse className='h-3.5 w-3.5 text-blue-600' />
                     <span>{selectedDestHub.name}</span>
                   </div>
                 </div>
 
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Ngày xuất kho</span>
-                  <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                  <span className='text-slate-500 block text-[10px]'>Ngày xuất kho</span>
+                  <div className='font-bold text-slate-900 dark:text-slate-100 mt-0.5'>
                     {new Date(dispatchDate).toLocaleDateString('vi-VN')}
                   </div>
                 </div>
 
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Biển số xe</span>
-                  <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 uppercase">
+                  <span className='text-slate-500 block text-[10px]'>Biển số xe</span>
+                  <div className='font-bold text-slate-900 dark:text-slate-100 mt-0.5 uppercase'>
                     {licensePlate}
                   </div>
                 </div>
 
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Tài xế nhận hàng</span>
-                  <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                  <span className='text-slate-500 block text-[10px]'>Tài xế nhận hàng</span>
+                  <div className='font-bold text-slate-900 dark:text-slate-100 mt-0.5'>
                     {driverName}
                   </div>
                 </div>
@@ -1013,78 +1024,81 @@ export function WarehouseOutboundTransferFlow({
           </Card>
 
           {/* Table Toolbar (Frame ol_tbl_toolbar) */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
-            <h2 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+          <div className='flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
+            <h2 className='text-xs font-bold text-slate-900 dark:text-slate-100'>
               Danh sách hàng xuất kho ({selectedOrders.length} đơn)
             </h2>
 
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
-                variant="outline"
-                size="sm"
+                variant='outline'
+                size='sm'
                 onClick={handleRefreshMetrics}
                 disabled={isRefreshing}
-                className="h-8 text-xs font-semibold"
+                className='h-8 text-xs font-semibold'
               >
-                <IconRefresh className={cn('mr-1.5 h-3.5 w-3.5 text-slate-600', isRefreshing && 'animate-spin')} />
+                <IconRefresh
+                  className={cn(
+                    'mr-1.5 h-3.5 w-3.5 text-slate-600',
+                    isRefreshing && 'animate-spin'
+                  )}
+                />
                 Cập nhật lại thông số
               </Button>
               <Button
-                variant="outline"
-                size="sm"
+                variant='outline'
+                size='sm'
                 onClick={() => setStep(2)}
-                className="h-8 text-xs font-bold text-[#0F3D62] border-[#0F3D62]"
+                className='h-8 text-xs font-bold text-[#0F3D62] border-[#0F3D62]'
               >
-                <IconPlus className="mr-1 h-3.5 w-3.5" />
+                <IconPlus className='mr-1 h-3.5 w-3.5' />
                 Thêm hàng phát sinh
               </Button>
             </div>
           </div>
 
           {/* Table of Loaded Goods (Frame ol_table & Total Row ol_total_row) */}
-          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto bg-white dark:bg-slate-900 shadow-sm">
-            <table className="w-full text-xs text-left min-w-[950px]">
-              <thead className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+          <div className='border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto bg-white dark:bg-slate-900 shadow-sm'>
+            <table className='w-full text-xs text-left min-w-[950px]'>
+              <thead className='bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                 <tr>
-                  <th className="p-3 w-10 text-center">STT</th>
-                  <th className="p-3 w-[200px]">MÃ ĐƠN HÀNG</th>
-                  <th className="p-3 w-[220px]">TÊN HÀNG</th>
-                  <th className="p-3 text-right w-[90px]">SỐ KIỆN</th>
-                  <th className="p-3 text-right w-[110px]">SỐ KG</th>
-                  <th className="p-3 text-right w-[100px]">SỐ M³</th>
-                  <th className="p-3 w-[240px]">HUB NHẬN / ĐỊA CHỈ GIAO</th>
-                  <th className="p-3 text-center w-[80px]">IN TEM</th>
+                  <th className='p-3 w-10 text-center'>STT</th>
+                  <th className='p-3 w-[200px]'>MÃ ĐƠN HÀNG</th>
+                  <th className='p-3 w-[220px]'>TÊN HÀNG</th>
+                  <th className='p-3 text-right w-[90px]'>SỐ KIỆN</th>
+                  <th className='p-3 text-right w-[110px]'>SỐ KG</th>
+                  <th className='p-3 text-right w-[100px]'>SỐ M³</th>
+                  <th className='p-3 w-[240px]'>HUB NHẬN / ĐỊA CHỈ GIAO</th>
+                  <th className='p-3 text-center w-[80px]'>IN TEM</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                 {selectedOrders.map((order, idx) => (
-                  <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="p-3 text-center font-mono font-bold text-slate-400">
+                  <tr key={order.id} className='hover:bg-slate-50 dark:hover:bg-slate-800/50'>
+                    <td className='p-3 text-center font-mono font-bold text-slate-400'>
                       {(idx + 1).toString().padStart(2, '0')}
                     </td>
-                    <td className="p-3 font-mono font-bold text-[#1D4ED8] dark:text-blue-400">
+                    <td className='p-3 font-mono font-bold text-[#1D4ED8] dark:text-blue-400'>
                       {order.orderCode}
                     </td>
-                    <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
+                    <td className='p-3 font-medium text-slate-800 dark:text-slate-200'>
                       {order.goodsDescription}
                     </td>
-                    <td className="p-3 text-right font-bold">
-                      {order.totalQuantity} kiện
+                    <td className='p-3 text-right font-bold'>{order.totalQuantity} kiện</td>
+                    <td className='p-3 text-right font-bold text-slate-700 dark:text-slate-300'>
+                      {formatWeight(order.totalWeight)} kg
                     </td>
-                    <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                      {order.totalWeight.toLocaleString('vi-VN')} kg
+                    <td className='p-3 text-right font-bold text-slate-700 dark:text-slate-300'>
+                      {formatVolume(order.totalVolume)} m³
                     </td>
-                    <td className="p-3 text-right font-bold text-slate-700 dark:text-slate-300">
-                      {order.totalVolume} m³
-                    </td>
-                    <td className="p-3 text-slate-600 dark:text-slate-400">
+                    <td className='p-3 text-slate-600 dark:text-slate-400'>
                       {selectedDestHub.name}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className='p-3 text-center'>
                       <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
+                        type='button'
+                        size='sm'
+                        variant='ghost'
                         onClick={() =>
                           setPrintLabelData({
                             orderCode: order.orderCode,
@@ -1092,13 +1106,13 @@ export function WarehouseOutboundTransferFlow({
                             totalQuantity: order.totalQuantity,
                             originHub: currentHubName,
                             destinationHub: selectedDestHub.name,
-                            createdAt: order.createdAt,
+                            createdAt: order.createdAt
                           })
                         }
-                        className="h-7 w-7 p-0 text-slate-600 hover:text-blue-600"
-                        title="In tem nhận diện A4"
+                        className='h-7 w-7 p-0 text-slate-600 hover:text-blue-600'
+                        title='In tem nhận diện A4'
                       >
-                        <IconPrinter className="h-3.5 w-3.5" />
+                        <IconPrinter className='h-3.5 w-3.5' />
                       </Button>
                     </td>
                   </tr>
@@ -1106,21 +1120,19 @@ export function WarehouseOutboundTransferFlow({
               </tbody>
 
               {/* Total Row (Frame ol_total_row - Green Highlighting) */}
-              <tfoot className="bg-[#F0FDF4] dark:bg-emerald-950/30 font-bold border-t-2 border-[#BBF7D0] dark:border-emerald-900 text-xs text-[#059669] dark:text-emerald-400">
+              <tfoot className='bg-[#F0FDF4] dark:bg-emerald-950/30 font-bold border-t-2 border-[#BBF7D0] dark:border-emerald-900 text-xs text-[#059669] dark:text-emerald-400'>
                 <tr>
-                  <td colSpan={3} className="p-3 text-left tracking-wider uppercase">
+                  <td colSpan={3} className='p-3 text-left tracking-wider uppercase'>
                     TỔNG KẾT HÀNG XUẤT ({selectedOrders.length} đơn)
                   </td>
-                  <td className="p-3 text-right">
-                    {selectedMetrics.packages} kiện
-                  </td>
-                  <td className="p-3 text-right">
+                  <td className='p-3 text-right'>{selectedMetrics.packages} kiện</td>
+                  <td className='p-3 text-right'>
                     {selectedMetrics.weight.toLocaleString('vi-VN')} kg
                   </td>
-                  <td className="p-3 text-right">
+                  <td className='p-3 text-right'>
                     {selectedMetrics.volume.toFixed(1).replace('.', ',')} m³
                   </td>
-                  <td colSpan={2} className="p-3 text-right text-[11px] text-emerald-600">
+                  <td colSpan={2} className='p-3 text-right text-[11px] text-emerald-600'>
                     Sẵn sàng chất xếp lên xe {licensePlate}
                   </td>
                 </tr>
@@ -1129,41 +1141,41 @@ export function WarehouseOutboundTransferFlow({
           </div>
 
           {/* Sticky Footer for Step 3 (Frame ol_sticky_footer) */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md">
+          <div className='flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
             <Button
-              variant="outline"
+              variant='outline'
               onClick={() => setStep(2)}
-              className="text-xs font-semibold flex items-center gap-1.5"
+              className='text-xs font-semibold flex items-center gap-1.5'
             >
-              <IconArrowLeft className="h-4 w-4" />
+              <IconArrowLeft className='h-4 w-4' />
               Quay lại Bước 2
             </Button>
 
-            <div className="flex items-center gap-3">
+            <div className='flex items-center gap-3'>
               <Button
-                variant="outline"
+                variant='outline'
                 onClick={() => toast.success('Đã lưu nháp phiếu xuất kho luân chuyển')}
-                className="text-xs font-semibold"
+                className='text-xs font-semibold'
               >
                 Lưu nháp
               </Button>
               <Button
-                variant="outline"
+                variant='outline'
                 onClick={() => window.print()}
-                className="text-xs font-semibold flex items-center gap-1.5"
+                className='text-xs font-semibold flex items-center gap-1.5'
               >
-                <IconPrinter className="h-4 w-4 text-slate-600" />
+                <IconPrinter className='h-4 w-4 text-slate-600' />
                 In Loading Plan (A4 Ngang)
               </Button>
               <Button
                 onClick={handleConfirmOutboundTransfer}
                 disabled={isSubmitting}
-                className="bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-6 shadow-sm flex items-center gap-2"
+                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-6 shadow-sm flex items-center gap-2'
               >
                 {isSubmitting ? (
-                  <IconLoader2 className="h-4 w-4 animate-spin" />
+                  <IconLoader2 className='h-4 w-4 animate-spin' />
                 ) : (
-                  <IconCircleCheck className="h-4 w-4 text-emerald-400" />
+                  <IconCircleCheck className='h-4 w-4 text-emerald-400' />
                 )}
                 Xác nhận xuất kho luân chuyển
               </Button>

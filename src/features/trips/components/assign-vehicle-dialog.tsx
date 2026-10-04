@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { CapacityGauge } from './capacity-gauge';
 import { useCreateTripMutation, useCreateSplitTripsMutation } from '../api/mutations';
+import { formatVolume, formatWeight } from '@/lib/format';
 import type { Order } from '@/features/orders/api/types';
 import type { Vehicle, Driver } from '@/features/fleet/api/types';
 import type { SplitRow, CreateSplitTripsPayload } from '../api/types';
@@ -237,7 +238,7 @@ export function AssignVehicleDialog({
                 <div>
                   <span className='text-slate-400 block font-medium'>Tổng thể tích</span>
                   <span className='font-mono font-bold text-slate-800 dark:text-slate-200'>
-                    {order.totalVolume} m³
+                    {formatVolume(order.totalVolume)} m³
                   </span>
                 </div>
                 <div>
@@ -480,7 +481,7 @@ export function AssignVehicleDialog({
                     <span>
                       Thể tích:{' '}
                       <strong className='font-mono text-blue-600'>
-                        {splitTotalVolume} / {order.totalVolume} m³
+                        {formatVolume(splitTotalVolume)} / {formatVolume(order.totalVolume)} m³
                       </strong>
                     </span>
                   </div>

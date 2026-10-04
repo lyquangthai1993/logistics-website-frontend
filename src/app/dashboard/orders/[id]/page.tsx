@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatWeight, formatVolume } from '@/lib/format';
 import {
   Dialog,
   DialogContent,
@@ -485,14 +486,14 @@ export default function OrderDetailPage() {
                 <div className='space-y-1'>
                   <span className='text-xs text-slate-400'>Tổng khối lượng hàng</span>
                   <div className='text-lg font-bold text-slate-900 dark:text-slate-100 font-mono'>
-                    {order.totalWeight.toLocaleString()} kg
+                    {formatWeight(order.totalWeight)} kg
                   </div>
                 </div>
 
                 <div className='space-y-1'>
                   <span className='text-xs text-slate-400'>Tổng thể tích hàng</span>
                   <div className='text-lg font-bold text-slate-900 dark:text-slate-100 font-mono'>
-                    {order.totalVolume} m³
+                    {formatVolume(order.totalVolume)} m³
                   </div>
                 </div>
               </div>

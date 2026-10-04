@@ -37,7 +37,7 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
   }
 
   return (
-    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2'>
       {trips.map((trip) => {
         const isExternal = trip.order?.isExternalVehicleNeeded;
         const licensePlate = trip.licensePlate;
@@ -83,7 +83,7 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
               </div>
             </CardHeader>
 
-            <CardContent className='p-1 space-y-3'>
+            <CardContent className='p-1 space-y-1.5'>
               {/* Route & Hub */}
               <div className='space-y-1 text-xs'>
                 <div className='flex items-center gap-1.5 text-muted-foreground font-medium'>
@@ -100,25 +100,19 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
               <div className='p-2.5 bg-muted/50 rounded-lg text-xs space-y-1.5 border border-border/60'>
                 <div className='flex items-center justify-between'>
                   <span className='text-muted-foreground'>Biển số xe:</span>
-                  <span className='font-mono font-bold text-foreground'>
-                    {licensePlate || '—'}
-                  </span>
+                  <span className='font-mono font-bold text-foreground'>{licensePlate || '—'}</span>
                 </div>
 
                 {isExternal && externalProvider && (
                   <div className='flex items-center justify-between text-amber-700 dark:text-amber-300 font-medium'>
                     <span>Nhà xe đối tác:</span>
-                    <span className='font-bold'>
-                      {externalProvider}
-                    </span>
+                    <span className='font-bold'>{externalProvider}</span>
                   </div>
                 )}
 
                 <div className='flex items-center justify-between'>
                   <span className='text-muted-foreground'>Tài xế phụ trách:</span>
-                  <span className='font-medium text-foreground'>
-                    {driverName || 'Chưa gán'}
-                  </span>
+                  <span className='font-medium text-foreground'>{driverName || 'Chưa gán'}</span>
                 </div>
               </div>
 

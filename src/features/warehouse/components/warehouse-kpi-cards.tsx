@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icons } from '@/components/icons';
 import type { Trip } from '@/features/trips/api/types';
+import { formatWeight, formatVolume } from '@/lib/format';
 
 interface WarehouseKpiCardsProps {
   trips?: Trip[];
@@ -76,7 +77,7 @@ export function WarehouseKpiCards({ trips = [], loading = false }: WarehouseKpiC
             {loading ? (
               <span className='inline-block h-8 w-24 bg-emerald-100 dark:bg-emerald-950/50 rounded animate-pulse' />
             ) : (
-              `${metrics.totalWeight.toLocaleString()} kg`
+              `${formatWeight(metrics.totalWeight)} kg`
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Khối lượng hàng tiếp nhận</p>
@@ -96,7 +97,7 @@ export function WarehouseKpiCards({ trips = [], loading = false }: WarehouseKpiC
             {loading ? (
               <span className='inline-block h-8 w-20 bg-purple-100 dark:bg-purple-950/50 rounded animate-pulse' />
             ) : (
-              `${metrics.totalVolume} m³`
+              `${formatVolume(metrics.totalVolume)} m³`
             )}
           </div>
           <p className='text-xs text-slate-500 mt-1'>Thể tích kho cần chuẩn bị</p>

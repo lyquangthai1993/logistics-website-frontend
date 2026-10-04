@@ -12,6 +12,7 @@ import { AssignVehicleDialog } from './assign-vehicle-dialog';
 import { NoVehicleDialog } from './no-vehicle-dialog';
 import type { Order } from '@/features/orders/api/types';
 import type { Vehicle, Driver } from '@/features/fleet/api/types';
+import { formatWeight, formatVolume } from '@/lib/format';
 
 interface PendingOrdersViewProps {
   search?: string;
@@ -137,13 +138,13 @@ export function PendingOrdersView({
                       <span>
                         Khối lượng:{' '}
                         <strong className='font-mono text-slate-800 dark:text-slate-200'>
-                          {order.totalWeight.toLocaleString()} kg
+                          {formatWeight(order.totalWeight)} kg
                         </strong>
                       </span>
                       <span>
                         Thể tích:{' '}
                         <strong className='font-mono text-slate-800 dark:text-slate-200'>
-                          {order.totalVolume} m³
+                          {formatVolume(order.totalVolume)} m³
                         </strong>
                       </span>
                     </div>
