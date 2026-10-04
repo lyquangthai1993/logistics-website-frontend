@@ -92,7 +92,7 @@ export function WarehouseTripDetailModal({
             pickupAddr = o.route.split('→')[0]?.trim() || '';
           }
           if (!pickupAddr || pickupAddr === 'Hub') {
-            pickupAddr = o.originHub || user?.hub?.name || '';
+            pickupAddr = o.originHub || '';
           }
 
           return {
@@ -121,7 +121,7 @@ export function WarehouseTripDetailModal({
         setRows([
           {
             orderCode: '',
-            pickupAddress: user?.hub?.name || '',
+            pickupAddress: '',
             goodsDescription: '',
             totalQuantity: 1,
             totalWeight: 0,
@@ -344,8 +344,8 @@ export function WarehouseTripDetailModal({
         {/* Scrollable Body Content */}
         <div className="p-4 space-y-3.5 overflow-y-auto flex-1">
           {/* Top Card: Vehicle Information (Frame UVtv4 parity) */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <CardContent className="p-3.5 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0">
+            <CardContent className="p-1 grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* 1. Ngày xuất kho / nhập kho */}
               <div>
                 <label
@@ -425,8 +425,8 @@ export function WarehouseTripDetailModal({
           </Card>
 
           {/* Grid Card */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <CardContent className="p-3.5 space-y-3">
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0">
+            <CardContent className="p-1 space-y-3">
               <div className="flex items-center justify-between pb-1">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <IconBuildingWarehouse className="h-3.5 w-3.5 text-blue-600" />
@@ -439,20 +439,20 @@ export function WarehouseTripDetailModal({
 
               {readOnly ? (
                 <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                  <table className="w-full text-[10px] text-left">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 text-[10px]">
                       <tr>
-                        <th className="py-2 px-2.5 w-[36px] text-center">STT</th>
-                        <th className="py-2 px-2.5 w-[140px]">MÃ VẬN ĐƠN</th>
-                        <th className="py-2 px-2.5 min-w-[140px]">ĐỊA CHỈ NHẬN</th>
-                        <th className="py-2 px-2.5 min-w-[150px]">TÊN HÀNG HÓA</th>
-                        <th className="py-2 px-2.5 text-right w-[75px]">SỐ KIỆN</th>
-                        <th className="py-2 px-2.5 text-right w-[75px]">SỐ KG</th>
-                        <th className="py-2 px-2.5 text-right w-[75px]">SỐ M³</th>
-                        <th className="py-2 px-2.5 min-w-[160px]">ĐỊA CHỈ GIAO</th>
-                        <th className="py-2 px-2.5 w-[95px]">TỈNH / TP</th>
-                        <th className="py-2 px-2.5 w-[90px] text-center">CHỨNG TỪ</th>
-                        <th className="py-2 px-2.5 min-w-[120px]">GHI CHÚ</th>
+                        <th className="py-1 px-1.5 w-[36px] text-center">STT</th>
+                        <th className="py-1 px-1.5 w-[140px]">MÃ VẬN ĐƠN</th>
+                        <th className="py-1 px-1.5 min-w-[140px]">ĐỊA CHỈ NHẬN</th>
+                        <th className="py-1 px-1.5 min-w-[150px]">TÊN HÀNG HÓA</th>
+                        <th className="py-1 px-1.5 text-right w-[75px]">SỐ KIỆN</th>
+                        <th className="py-1 px-1.5 text-right w-[75px]">SỐ KG</th>
+                        <th className="py-1 px-1.5 text-right w-[75px]">SỐ M³</th>
+                        <th className="py-1 px-1.5 min-w-[160px]">ĐỊA CHỈ GIAO</th>
+                        <th className="py-1 px-1.5 w-[95px]">TỈNH / TP</th>
+                        <th className="py-1 px-1.5 w-[90px] text-center">CHỨNG TỪ</th>
+                        <th className="py-1 px-1.5 min-w-[120px]">GHI CHÚ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -465,39 +465,39 @@ export function WarehouseTripDetailModal({
                       ) : (
                         rows.map((r, i) => (
                           <tr key={r.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td className="py-2 px-2.5 text-center font-bold text-slate-500">
+                            <td className="py-1 px-1.5 text-center font-bold text-slate-500">
                               {String(i + 1).padStart(2, '0')}
                             </td>
-                            <td className="py-2 px-2.5 font-mono font-bold text-blue-700 dark:text-blue-300">
+                            <td className="py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300">
                               {r.orderCode}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-700 dark:text-slate-300">
+                            <td className="py-1 px-1.5 text-slate-700 dark:text-slate-300">
                               {r.pickupAddress || '—'}
                             </td>
-                            <td className="py-2 px-2.5 font-medium text-slate-900 dark:text-white">
+                            <td className="py-1 px-1.5 font-medium text-slate-900 dark:text-white">
                               {r.goodsDescription || '—'}
                             </td>
-                            <td className="py-2 px-2.5 text-right font-bold text-slate-800 dark:text-slate-200">
+                            <td className="py-1 px-1.5 text-right font-bold text-slate-800 dark:text-slate-200">
                               {r.totalQuantity}
                             </td>
-                            <td className="py-2 px-2.5 text-right text-slate-700 dark:text-slate-300">
+                            <td className="py-1 px-1.5 text-right text-slate-700 dark:text-slate-300">
                               {Number(r.totalWeight || 0).toLocaleString('vi-VN')}
                             </td>
-                            <td className="py-2 px-2.5 text-right text-slate-700 dark:text-slate-300">
+                            <td className="py-1 px-1.5 text-right text-slate-700 dark:text-slate-300">
                               {Number(r.totalVolume || 0).toLocaleString('vi-VN')}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-700 dark:text-slate-300">
+                            <td className="py-1 px-1.5 text-slate-700 dark:text-slate-300">
                               {r.deliveryAddress || '—'}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-600 dark:text-slate-400">
+                            <td className="py-1 px-1.5 text-slate-600 dark:text-slate-400">
                               {r.province || '—'}
                             </td>
-                            <td className="py-2 px-2.5 text-center">
-                              <Badge variant="outline" className="text-[10px]">
+                            <td className="py-1 px-1.5 text-center">
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
                                 {r.accompanyingDocs || 'Không có'}
                               </Badge>
                             </td>
-                            <td className="py-2 px-2.5 text-slate-500 text-[11px]">
+                            <td className="py-1 px-1.5 text-slate-500 text-[10px]">
                               {r.notes || '—'}
                             </td>
                           </tr>

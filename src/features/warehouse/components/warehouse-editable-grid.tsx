@@ -160,7 +160,7 @@ function SearchableHubSelect({
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          'w-full h-[32px] text-xs font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
+          'w-full h-[32px] text-[10px] font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
           'bg-[#F8FAFC] dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800',
           isXeBo
             ? 'border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 focus:ring-1 focus:ring-purple-500'
@@ -351,11 +351,121 @@ export function parseTsvWithQuotes(text: string): string[][] {
   return rows;
 }
 
+/**
+ * Checks if a parsed TSV row looks like an Excel header row.
+ */
+export function isTsvHeaderRow(cols: string[]): boolean {
+  if (!cols || cols.length === 0) return true;
+  const col0 = (cols[0] || '').toLowerCase().trim();
+  const col1 = (cols[1] || '').toLowerCase().trim();
+  const col2 = (cols[2] || '').toLowerCase().trim();
+  const col3 = (cols[3] || '').toLowerCase().trim();
+  const col6 = (cols[6] || '').toLowerCase().trim();
+  const col7 = (cols[7] || '').toLowerCase().trim();
+
+  return (
+    col0 === 'stt' ||
+    col0.includes('mã vận đơn') ||
+    col0.includes('mã đơn') ||
+    col1.includes('mã vận đơn') ||
+    col1.includes('mã đơn') ||
+    col1.includes('địa chỉ nhận') ||
+    col1.includes('nơi nhận') ||
+    col2.includes('địa chỉ nhận') ||
+    col2.includes('nơi nhận') ||
+    col2.includes('tên hàng') ||
+    col2.includes('mặt hàng') ||
+    col3.includes('tên hàng') ||
+    col3.includes('số kiện') ||
+    col6.includes('địa chỉ giao') ||
+    col7.includes('địa chỉ giao')
+  );
+}
+
+/**
+ * Detects if the pasted row starts with an STT (sequence number) column.
+ */
+export function hasSttColumn(cols: string[]): boolean {
+  if (cols.length < 2) return false;
+  const first = cols[0]?.trim();
+  const isFirstNumeric = /^\d{1,4}$/.test(first);
+  if (!isFirstNumeric) return false;
+
+  // 11 or more columns clearly indicates STT is included
+  if (cols.length >= 11) return true;
+
+  // In 10-column without STT: cols[3] is qty (numeric)
+  // In 10-column WITH STT: cols[3] is goodsDescription (text), cols[4] is qty (numeric)
+  const isCol3Qty = !isNaN(Number(cols[3]?.trim())) && cols[3]?.trim() !== '';
+  const isCol4Qty = !isNaN(Number(cols[4]?.trim())) && cols[4]?.trim() !== '';
+
+  if (!isCol3Qty && isCol4Qty) {
+    return true;
+  }
+
+  if (cols.length >= 10 && Number(first) <= 500 && /[a-zA-Z]/.test(cols[1])) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Maps raw TSV column array from Excel clipboard to a WarehouseRowItem.
+ * Supports both layouts:
+ * - With STT (11 columns): STT (0), Mã vận đơn (1), Địa chỉ nhận (2), Tên hàng (3), Số kiện (4), Số kg (5), Số m³ (6), Địa chỉ giao (7), Tỉnh/TP (8), Chứng từ (9), Ghi chú (10)
+ * - Without STT (10 columns): Mã vận đơn (0), Địa chỉ nhận (1), Tên hàng (2), Số kiện (3), Số kg (4), Số m³ (5), Địa chỉ giao (6), Tỉnh/TP (7), Chứng từ (8), Ghi chú (9)
+ */
+export function mapPastedColsToRow(
+  cols: string[],
+  defaultPickup = '',
+): WarehouseRowItem {
+  const withStt = hasSttColumn(cols);
+  const offset = withStt ? 1 : 0;
+
+  const pastedCode = cols[offset]?.trim() || '';
+  const cleanCode =
+    pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
+      ? ''
+      : pastedCode;
+
+  const pickupAddress = cols[offset + 1]?.trim() || defaultPickup;
+  const goodsDescription = cols[offset + 2]?.trim() || 'Hàng hóa tiếp nhận';
+  const totalQuantity = parseInt(cols[offset + 3]?.trim(), 10) || 1;
+  const totalWeight = parseFloat((cols[offset + 4] || '0').replace(/,/g, '')) || 0;
+  const totalVolume = parseFloat((cols[offset + 5] || '0').replace(/,/g, '')) || 0;
+  const deliveryAddress = cols[offset + 6]?.trim() || '';
+
+  // Province
+  const province = cols[offset + 7]?.trim() || '';
+
+  // Accompanying docs (Chứng từ)
+  const accompanyingDocs = cols[offset + 8]?.trim() || '';
+
+  // Notes (Ghi chú)
+  const notes =
+    cols.length > offset + 9 ? cols.slice(offset + 9).join(' ').trim() : '';
+
+  return {
+    orderCode: cleanCode,
+    pickupAddress,
+    goodsDescription,
+    totalQuantity,
+    totalWeight,
+    totalVolume,
+    deliveryMode: 'DIRECT_CUSTOMER',
+    deliveryAddress,
+    province,
+    accompanyingDocs,
+    notes,
+  };
+}
+
 // ── Stable Cell Components (Defined Outside to Prevent Unmounting & Focus Loss) ──
 
 function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
   return (
-    <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
+    <span className="font-mono font-bold text-[10px] text-slate-600 dark:text-slate-300">
       {(row.index + 1).toString().padStart(2, '0')}
     </span>
   );
@@ -577,9 +687,8 @@ function OrderCodeCell({
             onChange={handleOutboundChange}
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
-            placeholder="Nhập mã đơn..."
             className={cn(
-              "h-7 px-1.5 text-xs font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500",
+              "h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500",
               isSearching && "pr-6",
             )}
             title="Nhập mã đơn hàng (hệ thống tự tra cứu sau 3s hoặc nhấn Enter)"
@@ -616,7 +725,7 @@ function OrderCodeCell({
         required
         title="Bắt buộc nhập mã vận đơn."
         className={cn(
-          "h-7 px-1.5 text-xs font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500",
+          "h-7 px-1.5 text-[10px] font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500",
           !value.trim()
             ? "border-red-400 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
             : "border-slate-300 dark:border-slate-700"
@@ -651,7 +760,7 @@ function PickupAddressCell({
       value={value}
       onChange={handleChange}
       placeholder=""
-      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      className="w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
     />
   );
 }
@@ -681,7 +790,7 @@ function GoodsDescriptionCell({
         value={value}
         onChange={handleChange}
         placeholder=""
-        className="h-7 px-1.5 text-xs font-medium border-slate-300 dark:border-slate-700"
+        className="h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700"
       />
     </div>
   );
@@ -735,7 +844,7 @@ function QuantityCell({
         onChange={handleChange}
         onBlur={handleBlur}
         className={cn(
-          "h-7 px-1 text-xs text-right font-bold",
+          "h-7 px-1 text-[10px] text-right font-bold",
           isExceeded
             ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300"
             : "border-slate-300 dark:border-slate-700"
@@ -792,7 +901,7 @@ function WeightCell({
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
-      className="h-7 px-1 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+      className="h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700"
     />
   );
 }
@@ -834,7 +943,7 @@ function VolumeCell({
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
-      className="h-7 px-1 text-xs text-right font-bold border-slate-300 dark:border-slate-700"
+      className="h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700"
     />
   );
 }
@@ -914,7 +1023,7 @@ function DeliveryAddressCell({
         value={addressText}
         onChange={handleAddressTextChange}
         placeholder=""
-        className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+        className="w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
       />
     );
   }
@@ -925,7 +1034,7 @@ function DeliveryAddressCell({
       <select
         value={r.deliveryMode}
         onChange={(e) => handleModeChange(e.target.value as any)}
-        className="w-full h-7 text-xs font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full h-7 text-[10px] font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
       >
         <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
         <option value="HUB_L1">Hub cấp 1</option>
@@ -969,7 +1078,7 @@ function DeliveryAddressCell({
           value={addressText}
           onChange={handleAddressTextChange}
           placeholder="Địa chỉ giao..."
-          className="w-full text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+          className="w-full text-[10px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
         />
       )}
     </div>
@@ -1001,7 +1110,7 @@ function ProvinceCell({
       value={value}
       onChange={handleChange}
       placeholder=""
-      className="w-full text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      className="w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
     />
   );
 }
@@ -1031,7 +1140,7 @@ function AccompanyingDocsCell({
       value={value}
       onChange={handleChange}
       placeholder=""
-      className="h-7 px-1.5 text-xs font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+      className="h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
     />
   );
 }
@@ -1061,7 +1170,7 @@ function NotesCell({
       value={value}
       onChange={handleChange}
       placeholder=""
-      className="w-full text-xs rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      className="w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
     />
   );
 }
@@ -1212,7 +1321,6 @@ export function WarehouseEditableGrid({
   // Add new empty row
   const handleAddRow = () => {
     const defaultPickup =
-      user?.hub?.name ||
       (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
       '';
     const newRow: WarehouseRowItem = {
@@ -1258,6 +1366,32 @@ export function WarehouseEditableGrid({
     [rows, onChange],
   );
 
+  // Helper to append or replace pasted rows from Excel
+  const applyPastedRows = useCallback(
+    (newRows: WarehouseRowItem[]) => {
+      if (newRows.length === 0) return;
+
+      const isCurrentDefaultOnly =
+        rows.length === 1 &&
+        (!rows[0].orderCode ||
+          rows[0].orderCode === '(Tự sinh khi lưu)' ||
+          rows[0].orderCode.startsWith('(Tự sinh')) &&
+        !rows[0].goodsDescription?.trim() &&
+        !rows[0].deliveryAddress?.trim();
+
+      if (isCurrentDefaultOnly) {
+        onChange(newRows);
+        toast.success(`Đã dán thành công ${newRows.length} dòng hàng từ Excel`);
+      } else {
+        onChange([...rows, ...newRows]);
+        toast.success(
+          `Đã dán thêm ${newRows.length} dòng hàng từ Excel (Tổng cộng: ${rows.length + newRows.length} dòng)`,
+        );
+      }
+    },
+    [rows, onChange],
+  );
+
   // Smart Paste from Excel (TSV clipboard)
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -1266,45 +1400,19 @@ export function WarehouseEditableGrid({
 
       e.preventDefault();
       const defaultPickup =
-        user?.hub?.name ||
         (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
         '';
       const parsedMatrix = parseTsvWithQuotes(text);
-      const parsedRows: WarehouseRowItem[] = parsedMatrix.map((cols) => {
-        const pastedCode = cols[0]?.trim() || '';
-        const cleanCode =
-          pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
-            ? ''
-            : pastedCode;
-        const col7 = cols[7]?.trim() || '';
-        const col8 = cols[8]?.trim() || '';
-        const col9 = cols[9]?.trim() || '';
-        const has10Cols = cols.length >= 10;
-        const has9Cols = cols.length === 9;
-        const province = has10Cols || has9Cols ? col7 : '';
-        const accompanyingDocs = has10Cols ? col8 : '';
-        const notes = has10Cols ? col9 : (has9Cols ? col8 : col7);
+      const dataRows = parsedMatrix.filter(
+        (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== ''),
+      );
+      const parsedRows: WarehouseRowItem[] = dataRows.map((cols) =>
+        mapPastedColsToRow(cols, defaultPickup),
+      );
 
-        return {
-          orderCode: cleanCode,
-          pickupAddress: cols[1]?.trim() || defaultPickup,
-          goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
-          totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
-          totalWeight: parseFloat((cols[4] || '0').replace(/,/g, '')) || 0,
-          totalVolume: parseFloat((cols[5] || '0').replace(/,/g, '')) || 0,
-          deliveryMode: 'DIRECT_CUSTOMER',
-          deliveryAddress: cols[6]?.trim() || '',
-          province,
-          accompanyingDocs,
-          notes,
-        };
-      });
-
-      if (parsedRows.length > 0) {
-        onChange(parsedRows);
-      }
+      applyPastedRows(parsedRows);
     },
-    [onChange, rows, user?.hub?.name],
+    [applyPastedRows, rows],
   );
 
   // Trigger manual paste notification
@@ -1314,45 +1422,24 @@ export function WarehouseEditableGrid({
       .then((text) => {
         if (text && text.includes('\t')) {
           const defaultPickup =
-            user?.hub?.name ||
             (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
             '';
           const parsedMatrix = parseTsvWithQuotes(text);
-          const parsedRows: WarehouseRowItem[] = parsedMatrix.map((cols) => {
-            const pastedCode = cols[0]?.trim() || '';
-            const cleanCode =
-              pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
-                ? ''
-                : pastedCode;
-            const col7 = cols[7]?.trim() || '';
-            const col8 = cols[8]?.trim() || '';
-            const col9 = cols[9]?.trim() || '';
-            const has10Cols = cols.length >= 10;
-            const has9Cols = cols.length === 9;
-            const province = has10Cols || has9Cols ? col7 : '';
-            const accompanyingDocs = has10Cols ? col8 : '';
-            const notes = has10Cols ? col9 : (has9Cols ? col8 : col7);
+          const dataRows = parsedMatrix.filter(
+            (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== ''),
+          );
+          const parsedRows: WarehouseRowItem[] = dataRows.map((cols) =>
+            mapPastedColsToRow(cols, defaultPickup),
+          );
 
-            return {
-              orderCode: cleanCode,
-              pickupAddress: cols[1]?.trim() || defaultPickup,
-              goodsDescription: cols[2]?.trim() || 'Hàng hóa tiếp nhận',
-              totalQuantity: parseInt(cols[3]?.trim(), 10) || 1,
-              totalWeight: parseFloat((cols[4] || '0').replace(/,/g, '')) || 0,
-              totalVolume: parseFloat((cols[5] || '0').replace(/,/g, '')) || 0,
-              deliveryMode: 'DIRECT_CUSTOMER',
-              deliveryAddress: cols[6]?.trim() || '',
-              province,
-              accompanyingDocs,
-              notes,
-            };
-          });
-          if (parsedRows.length > 0) {
-            onChange(parsedRows);
-          }
+          applyPastedRows(parsedRows);
+        } else {
+          toast.info('Clipboard không chứa dữ liệu dạng bảng từ Excel');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        toast.error('Không thể đọc dữ liệu clipboard từ trình duyệt');
+      });
   };
 
   // Handle selected order from lookup modal
@@ -1590,7 +1677,7 @@ export function WarehouseEditableGrid({
             variant="outline"
             size="sm"
             onClick={handleManualPaste}
-            className="h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
+            className="hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
           >
             <IconFileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600" />
             Dán từ Excel
@@ -1600,7 +1687,7 @@ export function WarehouseEditableGrid({
             variant="outline"
             size="sm"
             onClick={() => setIsExcelImportModalOpen(true)}
-            className="h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
+            className="hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
           >
             <IconFileSpreadsheet className="mr-1.5 h-4 w-4 text-blue-600" />
             Import Excel
@@ -1645,8 +1732,8 @@ export function WarehouseEditableGrid({
 
       {/* ── TanStack Table Container with Native Horizontal Scroll & Solid Sticky Columns ── */}
       <div className="relative border rounded-xl overflow-x-auto shadow-sm bg-white dark:bg-slate-900">
-        <table className="w-full text-xs text-left border-collapse min-w-full">
-          <thead className="select-none font-bold">
+        <table className="w-full text-[10px] text-left border-collapse min-w-full">
+          <thead className="select-none font-bold text-[10px]">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
                 {headerGroup.headers.map((header) => {
@@ -1659,7 +1746,7 @@ export function WarehouseEditableGrid({
                       key={header.id}
                       style={getPinningStyles(header.column, true)}
                       className={cn(
-                        'py-1 px-1 text-[9px] font-bold whitespace-nowrap border-b border-slate-200 dark:border-slate-700',
+                        'py-1 px-1 text-[10px] font-bold whitespace-nowrap border-b border-slate-200 dark:border-slate-700',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
                         ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
                         isPinned === 'left' && colId === 'orderCode'
@@ -1696,7 +1783,7 @@ export function WarehouseEditableGrid({
                       key={cell.id}
                       style={getPinningStyles(cell.column, false)}
                       className={cn(
-                        'py-1 px-1 text-xs',
+                        'py-1 px-1 text-[10px]',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
                         ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
                         isPinned

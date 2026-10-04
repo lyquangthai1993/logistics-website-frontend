@@ -147,7 +147,7 @@ export default function WarehouseOutboundPage() {
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '',
-      pickupAddress: user?.hub?.name || 'Kho xuất hàng',
+      pickupAddress: '',
       goodsDescription: '',
       totalQuantity: 1,
       totalWeight: 0,
@@ -191,7 +191,7 @@ export default function WarehouseOutboundPage() {
   const [mode2Rows, setMode2Rows] = useState<WarehouseRowItem[]>([
     {
       orderCode: '',
-      pickupAddress: user?.hub?.name || 'Kho xuất hàng',
+      pickupAddress: '',
       goodsDescription: '',
       totalQuantity: 1,
       totalWeight: 0,
@@ -720,8 +720,8 @@ export default function WarehouseOutboundPage() {
       {activeView === 'BOARD' && (
         <div className="space-y-4">
           {/* Toolbar with Search, Date Range Filter, Status Tabs & Refresh Button */}
-          <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-            <CardContent className="p-4 space-y-3">
+          <Card className="bg-white dark:bg-slate-900 shadow-sm border py-0">
+            <CardContent className="p-1 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 {/* Search Box & Date Range Filter */}
                 <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
@@ -871,10 +871,10 @@ export default function WarehouseOutboundPage() {
 
               {/* Outbound Board Table (Frame sq2P6 parity với Inbound) */}
               <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
+                <table className="w-full text-[11px] text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]">
                     <tr>
-                      <th className="p-2.5 w-[40px] text-center">
+                      <th className="py-1.5 px-2 w-[36px] text-center">
                         <input
                           type="checkbox"
                           checked={
@@ -891,12 +891,12 @@ export default function WarehouseOutboundPage() {
                           className="rounded border-gray-300 text-blue-600 cursor-pointer"
                         />
                       </th>
-                      <th className="p-2.5 w-[160px]">CHUYẾN XE / TRIP</th>
-                      <th className="p-2.5 w-[160px]">XE & TÀI XẾ</th>
-                      <th className="p-2.5 text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
-                      <th className="p-2.5 w-[110px] text-center">TRẠNG THÁI</th>
-                      <th className="p-2.5 text-center w-[110px]">LOẠI XUẤT KHO</th>
-                      <th className="p-2.5 text-center w-[190px]">THAO TÁC</th>
+                      <th className="py-1.5 px-2 w-[150px]">CHUYẾN XE / TRIP</th>
+                      <th className="py-1.5 px-2 w-[150px]">XE & TÀI XẾ</th>
+                      <th className="py-1.5 px-2 text-right w-[130px]">SỐ KIỆN / TẢI TRỌNG</th>
+                      <th className="py-1.5 px-2 w-[100px] text-center">TRẠNG THÁI</th>
+                      <th className="py-1.5 px-2 text-center w-[100px]">LOẠI XUẤT KHO</th>
+                      <th className="py-1.5 px-2 text-center w-[180px]">THAO TÁC</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -927,7 +927,7 @@ export default function WarehouseOutboundPage() {
                         return (
                           <React.Fragment key={grp.groupKey}>
                             <tr className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors">
-                              <td className="p-2.5 text-center">
+                              <td className="py-1 px-2 text-center">
                                 <input
                                   type="checkbox"
                                   checked={isGroupSelected}
@@ -945,32 +945,32 @@ export default function WarehouseOutboundPage() {
                                   className="rounded border-gray-300 text-blue-600 cursor-pointer"
                                 />
                               </td>
-                              <td className="py-2 px-2.5">
+                              <td className="py-1 px-2">
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer"
+                                    className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer"
                                     title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem chi tiết các đơn trên xe'}
                                   >
                                     {isExpanded ? (
-                                      <IconChevronDown className="h-4 w-4 text-blue-600 font-bold" />
+                                      <IconChevronDown className="h-3.5 w-3.5 text-blue-600 font-bold" />
                                     ) : (
-                                      <IconChevronRight className="h-4 w-4 text-slate-400" />
+                                      <IconChevronRight className="h-3.5 w-3.5 text-slate-400" />
                                     )}
                                   </button>
                                   <div>
                                     <button
                                       type="button"
                                       onClick={() => handleOpenTripDetail(grp)}
-                                      className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left"
+                                      className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left"
                                       title="Nhấp để xem chi tiết chuyến xe (chế độ xem)"
                                     >
                                       <span>{grp.tripCode}</span>
                                       {grp.orders.length > 1 && (
                                         <Badge
                                           variant="outline"
-                                          className="ml-1.5 text-[10px] px-1.5 py-0 h-4 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer"
+                                          className="ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer"
                                         >
                                           {grp.orders.length} đơn
                                         </Badge>
@@ -979,15 +979,15 @@ export default function WarehouseOutboundPage() {
                                   </div>
                                 </div>
                               </td>
-                              <td className="py-2 px-2.5">
-                                <div className="text-xs space-y-0.5">
-                                  <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1">
-                                    <IconTruck className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                              <td className="py-1 px-2">
+                                <div className="text-[11px] space-y-0.5">
+                                  <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
+                                    <IconTruck className="h-3 w-3 text-blue-600 shrink-0" />
                                     <span>{grp.licensePlate}</span>
                                   </div>
                                   {grp.driverName && (
                                     <div
-                                      className="text-[11px] text-gray-500 truncate max-w-[140px]"
+                                      className="text-[10px] text-gray-500 truncate max-w-[140px]"
                                       title={grp.driverName}
                                     >
                                       {grp.driverName}
@@ -995,16 +995,16 @@ export default function WarehouseOutboundPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className="py-2 px-2.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                              <td className="py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
                                 <div>{grp.totalQuantity} kiện</div>
                                 <div className="text-gray-400 text-[10px]">
                                   {grp.totalWeight.toLocaleString('vi-VN')} kg &bull; {grp.totalVolume} m³
                                 </div>
                               </td>
-                              <td className="py-2 px-2.5 text-center">
+                              <td className="py-1 px-2 text-center">
                                 {renderWarehouseOrderStatusBadge(grp.status)}
                               </td>
-                              <td className="py-2 px-2.5 text-center">
+                              <td className="py-1 px-2 text-center">
                                 <Badge
                                   variant="outline"
                                   className={
@@ -1053,49 +1053,49 @@ export default function WarehouseOutboundPage() {
                             {/* Nested Sub-row with all orders of this vehicle */}
                             {isExpanded && (
                               <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-                                <td colSpan={7} className="p-3 pl-10 pr-4">
-                                  <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 shadow-xs space-y-2">
-                                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                                      <span className="flex items-center gap-1.5">
-                                        <IconTruck className="h-3.5 w-3.5 text-blue-600" />
+                                <td colSpan={7} className="py-1 px-2 pl-8">
+                                  <div className="bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1">
+                                    <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                      <span className="flex items-center gap-1">
+                                        <IconTruck className="h-3 w-3 text-blue-600" />
                                         <span>Chi tiết các đơn hàng thuộc xe {grp.licensePlate} ({grp.tripCode})</span>
                                       </span>
                                       <span>Tổng cộng: {grp.orders.length} đơn &bull; {grp.totalQuantity} kiện</span>
                                     </div>
-                                    <table className="w-full text-xs">
+                                    <table className="w-full text-[10px]">
                                       <thead>
-                                        <tr className="text-slate-400 text-[11px] border-b border-slate-100 dark:border-slate-700 text-left">
-                                          <th className="py-1 px-2 font-medium w-[140px]">MÃ VẬN ĐƠN</th>
-                                          <th className="py-1 px-2 font-medium min-w-[160px]">HÀNG HÓA</th>
-                                          <th className="py-1 px-2 font-medium text-right w-[140px]">SỐ KIỆN / TẢI TRỌNG</th>
-                                          <th className="py-1 px-2 font-medium text-center w-[110px]">TRẠNG THÁI</th>
-                                          <th className="py-1 px-2 font-medium text-center w-[110px]">CHỨNG TỪ</th>
-                                          <th className="py-1 px-2 font-medium min-w-[140px]">GHI CHÚ</th>
-                                          <th className="py-1 px-2 font-medium text-center w-[160px]">THAO TÁC</th>
+                                        <tr className="text-slate-400 text-[10px] border-b border-slate-100 dark:border-slate-700 text-left">
+                                          <th className="py-0.5 px-1.5 font-semibold w-[130px]">MÃ VẬN ĐƠN</th>
+                                          <th className="py-0.5 px-1.5 font-semibold min-w-[150px]">HÀNG HÓA</th>
+                                          <th className="py-0.5 px-1.5 font-semibold text-right w-[130px]">SỐ KIỆN / TẢI TRỌNG</th>
+                                          <th className="py-0.5 px-1.5 font-semibold text-center w-[100px]">TRẠNG THÁI</th>
+                                          <th className="py-0.5 px-1.5 font-semibold text-center w-[100px]">CHỨNG TỪ</th>
+                                          <th className="py-0.5 px-1.5 font-semibold min-w-[130px]">GHI CHÚ</th>
+                                          <th className="py-0.5 px-1.5 font-semibold text-center w-[150px]">THAO TÁC</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                         {grp.orders.map((subOrder) => (
                                           <tr key={subOrder.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                            <td className="py-1.5 px-2">
+                                            <td className="py-1 px-1.5">
                                               <button
                                                 type="button"
                                                 onClick={() => {
                                                   setSelectedWaybillForDetail(subOrder);
                                                   setIsDetailModalOpen(true);
                                                 }}
-                                                className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-xs"
+                                                className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]"
                                                 title="Xem chi tiết mã vận đơn"
                                               >
                                                 {subOrder.orderCode}
                                               </button>
                                             </td>
-                                            <td className="py-1.5 px-2 font-medium text-slate-800 dark:text-slate-200">
+                                            <td className="py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]">
                                               {subOrder.goodsDescription || 'Hàng hóa xuất kho'}
                                             </td>
-                                            <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                            <td className="py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]">
                                               <div>{subOrder.totalQuantity ?? 1} kiện</div>
-                                              <div className="text-gray-400 text-[10px]">
+                                              <div className="text-gray-400 text-[9px]">
                                                 {subOrder.totalWeight?.toLocaleString('vi-VN')} kg &bull; {subOrder.totalVolume} m³
                                               </div>
                                             </td>
@@ -1170,16 +1170,16 @@ export default function WarehouseOutboundPage() {
 
       {/* ── View 2: Mode 1 - Xuất Kho (Editable Table + Lookup + Vehicle fields) ── */}
       {activeView === 'MODE1_CUSTOMER' && (
-        <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-          <CardHeader className="py-3 px-4 border-b">
+        <Card className="bg-white dark:bg-slate-900 shadow-sm border py-0">
+          <CardHeader className="py-1 px-1 border-b">
             <CardTitle className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
               <span>Tạo Phiếu Xuất Kho</span>
               <Badge className="bg-[#0F3D62] text-white font-mono">Phiếu xuất kho</Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 space-y-4">
+          <CardContent className="p-1 space-y-4">
             {/* Outbound Info Header: 3 Thông tin Xuất kho (Frame UVtv4 parity với Nhập kho) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs">
               {/* 1. Ngày xuất kho */}
               <div>
                 <label className="text-xs font-bold text-red-600 dark:text-red-400 block mb-1.5">

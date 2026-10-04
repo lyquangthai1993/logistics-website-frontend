@@ -129,8 +129,8 @@ export default function WarehouseOrdersPage() {
       </div>
 
       {/* Main Filter & Data Table Card */}
-      <Card className="bg-white dark:bg-slate-900 shadow-sm border">
-        <CardContent className="p-4 space-y-4">
+      <Card className="bg-white dark:bg-slate-900 shadow-sm border py-0">
+        <CardContent className="p-1 space-y-4">
           {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="relative flex-1 min-w-[260px]">
@@ -174,20 +174,20 @@ export default function WarehouseOrdersPage() {
 
           {/* Table */}
           <div className="border rounded-lg overflow-x-auto">
-            <table className="w-full text-xs text-left min-w-[950px]">
-              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[11px]">
+            <table className="w-full text-[11px] text-left min-w-[950px]">
+              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]">
                 <tr>
-                  <th className="py-1.5 px-2 w-[45px] text-center">STT</th>
-                  <th className="py-1.5 px-2 w-[160px]">MÃ ĐƠN HÀNG</th>
-                  <th className="py-1.5 px-2 min-w-[150px]">TÊN HÀNG HÓA</th>
-                  <th className="py-1.5 px-2 w-[140px]">CHUYẾN XE / TRIP</th>
-                  <th className="py-1.5 px-2 w-[85px] text-right">TỒN KHO</th>
-                  <th className="py-1.5 px-2 w-[75px] text-right">SỐ KIỆN</th>
-                  <th className="py-1.5 px-2 w-[85px] text-right">SỐ KG</th>
-                  <th className="py-1.5 px-2 w-[75px] text-right">SỐ M³</th>
-                  <th className="py-1.5 px-2 min-w-[160px]">ĐÍCH ĐẾN</th>
-                  <th className="py-1.5 px-2 w-[110px] text-center">TRẠNG THÁI</th>
-                  <th className="py-1.5 px-2 w-[100px] text-center">THAO TÁC</th>
+                  <th className="py-1 px-1.5 w-[40px] text-center">STT</th>
+                  <th className="py-1 px-1.5 w-[150px]">MÃ ĐƠN HÀNG</th>
+                  <th className="py-1 px-1.5 min-w-[140px]">TÊN HÀNG HÓA</th>
+                  <th className="py-1 px-1.5 w-[130px]">CHUYẾN XE / TRIP</th>
+                  <th className="py-1 px-1.5 w-[80px] text-right">TỒN KHO</th>
+                  <th className="py-1 px-1.5 w-[70px] text-right">SỐ KIỆN</th>
+                  <th className="py-1 px-1.5 w-[80px] text-right">SỐ KG</th>
+                  <th className="py-1 px-1.5 w-[70px] text-right">SỐ M³</th>
+                  <th className="py-1 px-1.5 min-w-[150px]">ĐÍCH ĐẾN</th>
+                  <th className="py-1 px-1.5 w-[100px] text-center">TRẠNG THÁI</th>
+                  <th className="py-1 px-1.5 w-[90px] text-center">THAO TÁC</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -214,16 +214,16 @@ export default function WarehouseOrdersPage() {
                       }}
                       className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                     >
-                      <td className="py-1.5 px-2 text-center font-mono text-gray-400 text-[11px]">
+                      <td className="py-1 px-1.5 text-center font-mono text-gray-400 text-[10px]">
                         {((page - 1) * 15 + idx + 1).toString().padStart(2, '0')}
                       </td>
-                      <td className="py-1.5 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
+                      <td className="py-1 px-1.5 font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">
                         {row.orderCode}
                       </td>
-                      <td className="py-1.5 px-2 font-semibold text-slate-800 dark:text-slate-200">
+                      <td className="py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200 text-[11px]">
                         {row.goodsDescription || 'Hàng hóa tổng quan'}
                       </td>
-                      <td className="py-1.5 px-2">
+                      <td className="py-1 px-1.5">
                         {(() => {
                           const activeTrip = row.trips?.[0];
                           const tripCode =
@@ -233,13 +233,13 @@ export default function WarehouseOrdersPage() {
                           const driver = activeTrip?.driverName || row.driverName;
 
                           if (!tripCode && !plate) {
-                            return <span className="text-gray-400 italic text-[11px]">—</span>;
+                            return <span className="text-gray-400 italic text-[10px]">—</span>;
                           }
 
                           return (
-                            <div className="text-xs space-y-0.5">
+                            <div className="text-[10px] space-y-0.5">
                               {tripCode && (
-                                <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] flex items-center gap-1">
+                                <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[10px] flex items-center gap-1">
                                   <span>{tripCode}</span>
                                   {row.trips && row.trips.length > 1 && (
                                     <Badge
@@ -252,14 +252,14 @@ export default function WarehouseOrdersPage() {
                                 </div>
                               )}
                               {plate && (
-                                <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1">
+                                <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 text-[10px] flex items-center gap-1">
                                   <IconTruck className="h-3 w-3 text-slate-400 shrink-0" />
                                   <span>{plate}</span>
                                 </div>
                               )}
                               {driver && (
                                 <div
-                                  className="text-[10px] text-gray-400 truncate max-w-[120px]"
+                                  className="text-[9px] text-gray-400 truncate max-w-[120px]"
                                   title={driver}
                                 >
                                   {driver}
@@ -269,25 +269,25 @@ export default function WarehouseOrdersPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-1.5 px-2 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                      <td className="py-1 px-1.5 text-right font-bold text-emerald-600 dark:text-emerald-400 text-[10px]">
                         {row.remainingQuantity ?? row.totalQuantity ?? 0} kiện
                       </td>
-                      <td className="py-1.5 px-2 text-right font-bold text-slate-900 dark:text-white">
+                      <td className="py-1 px-1.5 text-right font-bold text-slate-900 dark:text-white text-[10px]">
                         {row.totalQuantity ?? 1}
                       </td>
-                      <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]">
                         {row.totalWeight?.toLocaleString('vi-VN')} kg
                       </td>
-                      <td className="py-1.5 px-2 text-right font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]">
                         {row.totalVolume?.toLocaleString('vi-VN')} m³
                       </td>
-                      <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300">
+                      <td className="py-1 px-1.5 text-slate-600 dark:text-slate-300 text-[10px]">
                         {row.destinationHub || row.route || 'Giao khách lẻ'}
                       </td>
-                      <td className="py-1.5 px-2 text-center">
+                      <td className="py-1 px-1.5 text-center">
                         {renderWarehouseOrderStatusBadge(row.status)}
                       </td>
-                      <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1 px-1.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             size="sm"

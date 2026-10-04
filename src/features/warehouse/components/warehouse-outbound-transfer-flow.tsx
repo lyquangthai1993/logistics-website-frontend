@@ -533,8 +533,8 @@ export function WarehouseOutboundTransferFlow({
           </div>
 
           {/* Trip Info Form (Frame oct_form) */}
-          <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
-            <CardContent className="p-5 space-y-4">
+          <Card className="bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 py-0">
+            <CardContent className="p-1 space-y-4">
               <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Thông tin chuyến xuất
               </h2>
@@ -689,8 +689,8 @@ export function WarehouseOutboundTransferFlow({
           </div>
 
           {/* Search & Filter Toolbar (Frame sm_toolbar) */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardContent className="p-3.5 space-y-3">
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm py-0">
+            <CardContent className="p-1 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 {/* Search Bar */}
                 <div className="relative flex-1 min-w-[260px]">
@@ -966,8 +966,8 @@ export function WarehouseOutboundTransferFlow({
       {step === 3 && (
         <div className="space-y-4 animate-in fade-in-50 duration-200">
           {/* Readonly Trip Info Card (Frame ol_trip_card) */}
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl">
-            <CardContent className="p-4 space-y-3">
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl py-0">
+            <CardContent className="p-1 space-y-3">
               <div className="flex items-center justify-between border-b pb-2.5">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-100">
                   <IconTruck className="h-4 w-4 text-[#0F3D62]" />

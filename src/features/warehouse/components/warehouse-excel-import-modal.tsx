@@ -66,40 +66,42 @@ export function WarehouseExcelImportModal({
     try {
       const headers = [
         'STT',
-        'Địa chỉ nhận hàng (*)',
+        'Mã vận đơn (*)',
+        'Địa chỉ nhận (*)',
         'Tên hàng (*)',
         'Số kiện (*)',
-        'Số kg',
-        'Số m³',
-        'Địa chỉ giao hàng (*)',
-        'Tỉnh/TP',
-        'Chứng từ đi kèm',
+        'Số kg (*)',
+        'Số m³ (*)',
+        'Địa chỉ giao (*)',
+        'Tỉnh / TP',
+        'Chứng từ',
         'Ghi chú',
       ];
 
       // Provide clean empty rows ready for user/customer to fill in directly
       const emptyRows = [
-        [1, '', '', '', '', '', '', '', '', ''],
-        [2, '', '', '', '', '', '', '', '', ''],
-        [3, '', '', '', '', '', '', '', '', ''],
-        [4, '', '', '', '', '', '', '', '', ''],
-        [5, '', '', '', '', '', '', '', '', ''],
+        [1, '', '', '', 1, '', '', '', '', '', ''],
+        [2, '', '', '', 1, '', '', '', '', '', ''],
+        [3, '', '', '', 1, '', '', '', '', '', ''],
+        [4, '', '', '', 1, '', '', '', '', '', ''],
+        [5, '', '', '', 1, '', '', '', '', '', ''],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...emptyRows]);
 
-      // Set column widths
+      // Set column widths matching table visual layout
       ws['!cols'] = [
         { wch: 6 },  // STT
-        { wch: 28 }, // Địa chỉ nhận
-        { wch: 32 }, // Tên hàng
-        { wch: 12 }, // Số kiện
-        { wch: 12 }, // Số kg
-        { wch: 12 }, // Số m3
-        { wch: 45 }, // Địa chỉ giao
-        { wch: 20 }, // Tỉnh/TP
-        { wch: 18 }, // Chứng từ đi kèm
-        { wch: 35 }, // Ghi chú
+        { wch: 18 }, // Mã vận đơn (*)
+        { wch: 32 }, // Địa chỉ nhận (*)
+        { wch: 25 }, // Tên hàng (*)
+        { wch: 12 }, // Số kiện (*)
+        { wch: 12 }, // Số kg (*)
+        { wch: 12 }, // Số m³ (*)
+        { wch: 42 }, // Địa chỉ giao (*)
+        { wch: 18 }, // Tỉnh / TP
+        { wch: 18 }, // Chứng từ
+        { wch: 30 }, // Ghi chú
       ];
 
       const wb = XLSX.utils.book_new();
@@ -178,17 +180,11 @@ export function WarehouseExcelImportModal({
           findVal(['chứng từ đi kèm', 'chứng từ', 'bct', 'accompanying docs', 'documents', 'kèm theo']) || '';
         const notes = findVal(['ghi chú', 'note', 'notes', 'remark']) || '';
 
-        // Skip completely blank rows in Excel
+        // Skip completely blank rows in Excel or placeholder rows that don't have orderCode, goodsDescription, and deliveryAddress
         if (
           !String(orderCode).trim() &&
           !String(goodsDescription).trim() &&
-          !String(totalQuantityRaw).trim() &&
-          !String(totalWeightRaw).trim() &&
-          !String(totalVolumeRaw).trim() &&
-          !String(deliveryAddress).trim() &&
-          !String(province).trim() &&
-          !String(accompanyingDocs).trim() &&
-          !String(notes).trim()
+          !String(deliveryAddress).trim()
         ) {
           continue;
         }

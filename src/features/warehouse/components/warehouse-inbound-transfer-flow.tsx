@@ -310,8 +310,8 @@ export function WarehouseInboundTransferFlow({
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* ── MAIN WORKSPACE PAGE: Node [PAGE] dd8X5 (Nhập kho luân chuyển) ──── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardHeader className="py-3 px-6 border-b flex flex-wrap items-center justify-between gap-3">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm py-0">
+        <CardHeader className="py-1 px-1 border-b flex flex-wrap items-center justify-between gap-3">
           {/* Stepper Progression Bar */}
           <div className="flex items-center gap-3">
             {/* Step 1 Chip */}
@@ -434,7 +434,7 @@ export function WarehouseInboundTransferFlow({
           </Button>
         </CardHeader>
 
-        <CardContent className="p-6">
+        <CardContent className="p-1">
           {gridRows.length === 0 ? (
             /* Empty dd8X5 State: Prompts user to open WH_CASE_02B_TRIP_MODAL */
             <div className="text-center py-16 space-y-4 max-w-md mx-auto">

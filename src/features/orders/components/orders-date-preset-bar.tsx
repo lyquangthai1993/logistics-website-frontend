@@ -49,8 +49,8 @@ export function OrdersDatePresetBar({
   const displayTo = toDateVi || dateRange.to;
 
   return (
-    <Card className='border-slate-200/80 shadow-sm dark:border-slate-800'>
-      <CardContent className='py-3'>
+    <Card className='border-slate-200/80 shadow-sm dark:border-slate-800 py-0'>
+      <CardContent className='p-1'>
         <div className='flex flex-wrap items-center gap-3'>
           {/* Label */}
           <div className='flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 shrink-0'>

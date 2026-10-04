@@ -38,8 +38,8 @@ export function TripsDatePresetBar({
   const displayTo = toDateVi ? formatDateVi(toDateVi) : formatDateVi(dateRange.to);
 
   return (
-    <Card className='shadow-xs border-slate-200/80 dark:border-slate-800'>
-      <CardContent className='pt-4 pb-3'>
+    <Card className='shadow-xs border-slate-200/80 dark:border-slate-800 py-0'>
+      <CardContent className='p-1'>
         <div className='flex flex-wrap items-center gap-3'>
           {/* Label */}
           <div className='flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 shrink-0'>

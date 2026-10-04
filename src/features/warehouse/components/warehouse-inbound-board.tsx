@@ -48,13 +48,13 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
         return (
           <Card
             key={trip.id}
-            className={`shadow-xs transition-all hover:shadow-md border ${
+            className={`shadow-xs transition-all hover:shadow-md border py-0 ${
               isExternal
                 ? 'border-amber-300 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10'
                 : 'border-slate-200/80 dark:border-slate-800'
             }`}
           >
-            <CardHeader className='pb-3 border-b border-border/60 flex flex-row items-center justify-between'>
+            <CardHeader className='py-1 px-1 border-b border-border/60 flex flex-row items-center justify-between'>
               <div>
                 {trip.orderId ? (
                   <Link
@@ -83,7 +83,7 @@ export function WarehouseInboundBoard({ trips, loading = false }: WarehouseInbou
               </div>
             </CardHeader>
 
-            <CardContent className='p-4 space-y-3'>
+            <CardContent className='p-1 space-y-3'>
               {/* Route & Hub */}
               <div className='space-y-1 text-xs'>
                 <div className='flex items-center gap-1.5 text-muted-foreground font-medium'>

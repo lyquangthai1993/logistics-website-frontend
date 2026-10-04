@@ -440,14 +440,14 @@ export default function OrderDetailPage() {
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
         {/* Left Column: Order Overview */}
         <div className='lg:col-span-2 space-y-6'>
-          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
-            <CardHeader className='pb-3 border-b border-slate-100 dark:border-slate-800'>
+          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 py-0'>
+            <CardHeader className='py-1 px-1 border-b border-slate-100 dark:border-slate-800'>
               <CardTitle className='text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2'>
                 <IconFileText className='h-4 w-4 text-blue-500' />
                 Thông Tin Vận Chuyển
               </CardTitle>
             </CardHeader>
-            <CardContent className='p-4 space-y-4'>
+            <CardContent className='p-1 space-y-4'>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div className='p-3 bg-slate-50 dark:bg-slate-900 rounded-lg space-y-1'>
                   <span className='text-xs text-slate-400 flex items-center gap-1 font-medium'>
@@ -533,14 +533,14 @@ export default function OrderDetailPage() {
           </Card>
 
           {/* Assigned Trips Section */}
-          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
-            <CardHeader className='pb-3 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between'>
+          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 py-0'>
+            <CardHeader className='py-1 px-1 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between'>
               <CardTitle className='text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2'>
                 <IconTruck className='h-4 w-4 text-emerald-500' />
                 Danh Sách Chuyến Xe Điều Phối ({order.trips?.length || 0})
               </CardTitle>
             </CardHeader>
-            <CardContent className='p-4'>
+            <CardContent className='p-1'>
               {!order.trips || order.trips.length === 0 ? (
                 <div className='text-center py-8 text-slate-400 space-y-2'>
                   <IconClock className='h-8 w-8 mx-auto text-slate-300 dark:text-slate-600' />
@@ -618,13 +618,13 @@ export default function OrderDetailPage() {
 
         {/* Right Column: Workflow Timeline / Guidance */}
         <div className='space-y-6'>
-          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800'>
-            <CardHeader className='pb-3 border-b border-slate-100 dark:border-slate-800'>
+          <Card className='shadow-sm border-slate-200/80 dark:border-slate-800 py-0'>
+            <CardHeader className='py-1 px-1 border-b border-slate-100 dark:border-slate-800'>
               <CardTitle className='text-base font-semibold text-slate-800 dark:text-slate-200'>
                 Tiến Trình Đơn Hàng
               </CardTitle>
             </CardHeader>
-            <CardContent className='p-4 space-y-4'>
+            <CardContent className='p-1 space-y-4'>
               <div className='relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700'>
                 <div className='relative'>
                   <div className='absolute -left-6 top-0.5 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900' />
