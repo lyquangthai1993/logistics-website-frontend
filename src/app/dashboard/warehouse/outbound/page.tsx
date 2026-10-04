@@ -33,7 +33,8 @@ import {
 import { WarehouseOutboundTransferFlow } from '@/features/warehouse/components/warehouse-outbound-transfer-flow';
 import {
   WarehouseOutboundReceiptModal,
-  OutboundReceiptData
+  OutboundReceiptData,
+  OutboundReceiptItem
 } from '@/features/warehouse/components/warehouse-outbound-receipt-modal';
 import {
   WarehouseTripDetailModal,
@@ -650,8 +651,25 @@ export default function WarehouseOutboundPage() {
       grp.orders[0]?.deliveryAddress?.trim() ||
       '';
 
+    const items: OutboundReceiptItem[] = grp.orders.map((o) => ({
+      orderCode: o.orderCode,
+      goodsDescription: o.goodsDescription || 'Hàng hóa xuất kho',
+      quantity: Number(o.totalQuantity ?? 1),
+      unit: 'Kiện',
+      deliveryAddress: o.deliveryAddress || o.destinationHub || dest,
+      province: o.province || o.destinationHubEntity?.province || '—',
+      accompanyingDocs: o.accompanyingDocs || '01 BỘ CT',
+      notes: o.notes || ''
+    }));
+
     const receiptData: OutboundReceiptData = {
-      orderCode: grp.orders[0]?.orderCode || grp.tripCode,
+      tripCode: grp.tripCode !== '—' ? grp.tripCode : undefined,
+      orderCode:
+        grp.orders.length > 1
+          ? grp.tripCode !== '—'
+            ? grp.tripCode
+            : `CHUYẾN-${grp.licensePlate}`
+          : grp.orders[0]?.orderCode || 'WH-OUT',
       goodsDescription: grp.goodsDescription,
       totalQuantity: grp.totalQuantity,
       outboundQuantity: grp.totalQuantity,
@@ -661,9 +679,11 @@ export default function WarehouseOutboundPage() {
       licensePlate: grp.licensePlate,
       deliveryAddress: dest,
       destinationHub: dest,
+      originHub: orig,
       mode: grp.isTransfer ? 'TRANSFER' : 'CUSTOMER',
       dispatchDate: grp.receiveDate || new Date().toISOString().split('T')[0],
-      notes: grp.notes || ''
+      notes: grp.notes || '',
+      items
     };
     setSelectedReceiptData(receiptData);
     setIsReceiptModalOpen(true);
@@ -920,21 +940,20 @@ export default function WarehouseOutboundPage() {
                         <th className='py-1.5 px-2 w-[150px]'>XE & TÀI XẾ</th>
                         <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
                         <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
-                        <th className='py-1.5 px-2 text-center w-[100px]'>LOẠI XUẤT KHO</th>
                         <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoading ? (
                         <tr>
-                          <td colSpan={7} className='p-2 text-center text-gray-500'>
+                          <td colSpan={6} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn xuất kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className='p-2 text-center text-gray-400'>
+                          <td colSpan={6} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe xuất kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -1036,31 +1055,9 @@ export default function WarehouseOutboundPage() {
                                 <td className='py-1 px-2 text-center'>
                                   <TripStopStatusBadge status={canExport ? 'PENDING' : 'COMPLETED'} />
                                 </td>
-                                <td className='py-1 px-2 text-center'>
-                                  <Badge
-                                    variant='outline'
-                                    className={
-                                      grp.isTransfer
-                                        ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
-                                        : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
-                                    }
-                                  >
-                                    {grp.isTransfer ? 'Luân chuyển' : 'Xuất khách'}
-                                  </Badge>
-                                </td>
                                 <td className='py-2 px-2.5 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
-                                    {canExport && (
-                                      <Button
-                                        size='sm'
-                                        onClick={() => handleExportVehicleTrip(grp)}
-                                        className='h-7 text-[11px] font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 shadow-xs'
-                                        title='Xuất chuyến xe này'
-                                      >
-                                        <IconTruck className='h-3.5 w-3.5 mr-1 text-emerald-400' />{' '}
-                                        Xuất chuyến
-                                      </Button>
-                                    )}
+                                    
                                     <Button
                                       variant='outline'
                                       size='sm'
@@ -1070,15 +1067,7 @@ export default function WarehouseOutboundPage() {
                                     >
                                       <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu xuất
                                     </Button>
-                                    <Button
-                                      variant='ghost'
-                                      size='sm'
-                                      onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                      className='h-7 text-[11px] text-slate-600 hover:text-blue-700 px-1.5'
-                                      title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem các đơn'}
-                                    >
-                                      {isExpanded ? 'Thu gọn' : 'Xem đơn'}
-                                    </Button>
+                                   
                                   </div>
                                 </td>
                               </tr>
@@ -1086,7 +1075,7 @@ export default function WarehouseOutboundPage() {
                               {/* Nested Sub-row with all orders of this vehicle */}
                               {isExpanded && (
                                 <tr className='bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800'>
-                                  <td colSpan={7} className='py-1 px-2 pl-8'>
+                                  <td colSpan={6} className='py-1 px-2 pl-8'>
                                     <div className='bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1'>
                                       <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
                                         <span className='flex items-center gap-1'>

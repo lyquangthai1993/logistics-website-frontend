@@ -666,12 +666,6 @@ export default function WarehouseInboundPage() {
               >
                 <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
               </Button>
-              <Button
-                onClick={() => setActiveView('MODE2_TRANSFER')}
-                className='bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold shadow-sm'
-              >
-                <IconTruck className='mr-1 h-4 w-4' /> Nhận luân chuyển nội bộ
-              </Button>
             </div>
           ) : (
             <Button
@@ -834,21 +828,20 @@ export default function WarehouseInboundPage() {
                         <th className='py-1.5 px-2 w-[150px]'>XE & TÀI XẾ</th>
                         <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
                         <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
-                        <th className='py-1.5 px-2 text-center w-[100px]'>LOẠI TIẾP NHẬN</th>
                         <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={7} className='p-2 text-center text-gray-500'>
+                          <td colSpan={6} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className='p-2 text-center text-gray-400'>
+                          <td colSpan={6} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -951,18 +944,6 @@ export default function WarehouseInboundPage() {
                                   <TripStopStatusBadge status={hasWaiting ? 'PENDING' : 'COMPLETED'} />
                                 </td>
                                 <td className='py-1 px-2 text-center'>
-                                  <Badge
-                                    variant='outline'
-                                    className={
-                                      grp.isTransfer
-                                        ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
-                                        : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
-                                    }
-                                  >
-                                    {grp.isTransfer ? 'Luân chuyển' : 'Khách gửi'}
-                                  </Badge>
-                                </td>
-                                <td className='py-1 px-2 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
                                     <Button
                                       variant='outline'
@@ -990,7 +971,7 @@ export default function WarehouseInboundPage() {
                               {/* Nested Sub-row with all orders of this vehicle */}
                               {isExpanded && (
                                 <tr className='bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800'>
-                                  <td colSpan={7} className='py-1 px-2 pl-8'>
+                                  <td colSpan={6} className='py-1 px-2 pl-8'>
                                     <div className='bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1'>
                                       <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
                                         <span className='flex items-center gap-1'>

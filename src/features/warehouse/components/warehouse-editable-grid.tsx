@@ -28,6 +28,7 @@ import {
   IconTruck,
   IconBuildingWarehouse,
   IconLoader2,
+  IconMapPin,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
 import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
+import { WarehouseDestinationModal } from './warehouse-destination-modal';
 
 export interface HubOption {
   id: number;
@@ -60,6 +62,7 @@ export interface WarehouseRowItem {
   totalVolume: number;
   deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
   deliveryAddress: string;
+  originalDeliveryAddress?: string;
   destinationHubId?: number | null;
   province?: string;
   accompanyingDocs?: string;
@@ -598,6 +601,11 @@ function OrderCodeCell({
               foundOrder.deliveryAddress ||
               (foundOrder.route?.includes('→') ? foundOrder.route.split('→')[1]?.trim() : '') ||
               '',
+            originalDeliveryAddress:
+              foundOrder.destinationHub ||
+              foundOrder.deliveryAddress ||
+              (foundOrder.route?.includes('→') ? foundOrder.route.split('→')[1]?.trim() : '') ||
+              '',
             province: foundOrder.province || currentRow.province || '',
             accompanyingDocs: foundOrder.accompanyingDocs || currentRow.accompanyingDocs || '',
             notes: foundOrder.notes || '',
@@ -959,59 +967,44 @@ function DeliveryAddressCell({
   const level2XeBoHubs = meta?.level2XeBoHubs || [];
 
   const [addressText, setAddressText] = useState(r.deliveryAddress || '');
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     setAddressText(r.deliveryAddress || '');
   }, [r.deliveryAddress]);
 
-  const handleModeChange = (newMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO') => {
-    let newAddress = r.deliveryAddress;
-    let destId = r.destinationHubId;
-
-    if (newMode === 'HUB_L1') {
-      const currentMatch = level1Hubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
-      const targetHub = currentMatch || level1Hubs[0];
-      if (targetHub) {
-        newAddress = `${targetHub.name} · nhận trung chuyển`;
-        destId = targetHub.id;
-      }
-    } else if (newMode === 'XE_BO') {
-      const currentMatch = level2XeBoHubs.find((h) => newAddress?.includes(h.name) || h.id === destId);
-      const targetXeBo = currentMatch || level2XeBoHubs[0];
-      if (targetXeBo) {
-        newAddress = `${targetXeBo.name} · gom hàng tuyến nội thành`;
-        destId = targetXeBo.id;
-      }
-    }
-
-    meta?.updateRow(idx, {
-      ...r,
-      deliveryMode: newMode,
-      deliveryAddress: newAddress,
-      destinationHubId: destId,
-    });
-  };
-
-  const handleHubSelect = (selectedHub: HubOption) => {
-    meta?.updateRow(idx, {
-      ...r,
-      destinationHubId: selectedHub.id,
-      deliveryAddress: `${selectedHub.name} · nhận trung chuyển`,
-    });
-  };
-
-  const handleXeBoSelect = (selectedXeBo: HubOption) => {
-    meta?.updateRow(idx, {
-      ...r,
-      destinationHubId: selectedXeBo.id,
-      deliveryAddress: `${selectedXeBo.name} · gom hàng tuyến nội thành`,
-    });
-  };
-
   const handleAddressTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextVal = e.target.value;
     setAddressText(nextVal);
     meta?.updateData(idx, 'deliveryAddress', nextVal);
+  };
+
+  const handleSelectDestination = (hub: HubOption) => {
+    const isL1 = hub.level === 1;
+    const mode = isL1 ? 'HUB_L1' : 'XE_BO';
+    const label = `${hub.name} · ${isL1 ? 'nhận trung chuyển' : 'gom hàng tuyến nội thành'}`;
+
+    meta?.updateRow(idx, {
+      ...r,
+      deliveryMode: mode,
+      destinationHubId: hub.id,
+      deliveryAddress: label,
+      destinationHub: hub,
+    });
+    setModalOpen(false);
+  };
+
+  const handleResetToOriginal = () => {
+    const orig = r.originalDeliveryAddress || r.deliveryAddress || '';
+    meta?.updateRow(idx, {
+      ...r,
+      deliveryMode: 'DIRECT_CUSTOMER',
+      destinationHubId: null,
+      deliveryAddress: orig,
+      destinationHub: null,
+    });
+    setAddressText(orig);
+    setModalOpen(false);
   };
 
   const isOutbound = meta?.isOutboundMode;
@@ -1028,59 +1021,74 @@ function DeliveryAddressCell({
     );
   }
 
+  const isChangedHub = r.deliveryMode === 'HUB_L1' || r.deliveryMode === 'XE_BO';
+
   return (
     <div className="space-y-1">
-      {/* Top Tier: Mode Selector */}
-      <select
-        value={r.deliveryMode}
-        onChange={(e) => handleModeChange(e.target.value as any)}
-        className="w-full h-7 text-[10px] font-bold text-[#1E3A8A] dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-600 rounded-md px-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-      >
-        <option value="DIRECT_CUSTOMER">Địa chỉ thường</option>
-        <option value="HUB_L1">Hub cấp 1</option>
-        <option value="XE_BO">Xe bo</option>
-      </select>
-
-      {/* Bottom Tier: Mode-specific selector or input */}
-      {r.deliveryMode === 'HUB_L1' ? (
-        <div className="space-y-1">
-          <SearchableHubSelect
-            type="HUB_L1"
-            value={r.destinationHubId}
-            deliveryAddress={r.deliveryAddress}
-            options={level1Hubs}
-            placeholder="Chọn Hub cấp 1..."
-            searchPlaceholder="Tìm Hub (tên, mã, tỉnh)..."
-            onSelect={handleHubSelect}
-          />
-          <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium px-1 truncate">
-            Đích: {r.deliveryAddress || (level1Hubs[0] ? `${level1Hubs[0].name} · nhận trung chuyển` : 'Chưa chọn Hub')}
+      {isChangedHub ? (
+        <div className="p-1 rounded-md bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] space-y-1">
+          <div className="flex items-center justify-between gap-1">
+            <span
+              className={cn(
+                'font-bold text-[9px] px-1.5 py-0.5 rounded',
+                r.deliveryMode === 'HUB_L1' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
+              )}
+            >
+              {r.deliveryMode === 'HUB_L1' ? 'Hub Cấp 1' : 'Tuyến Xe Bo'}
+            </span>
+            <button
+              type="button"
+              onClick={handleResetToOriginal}
+              className="text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer"
+              title="Khôi phục lại địa chỉ giao ban đầu"
+            >
+              Quay lại địa chỉ thường
+            </button>
           </div>
-        </div>
-      ) : r.deliveryMode === 'XE_BO' ? (
-        <div className="space-y-1">
-          <SearchableHubSelect
-            type="XE_BO"
-            value={r.destinationHubId}
-            deliveryAddress={r.deliveryAddress}
-            options={level2XeBoHubs}
-            placeholder="Chọn Tuyến xe bo..."
-            searchPlaceholder="Tìm Tuyến xe bo (tên, mã, tỉnh)..."
-            onSelect={handleXeBoSelect}
-          />
-          <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-1 truncate">
-            Tuyến: {r.deliveryAddress || (level2XeBoHubs[0] ? `${level2XeBoHubs[0].name} · gom hàng tuyến nội thành` : 'Chưa chọn Xe bo')}
+          <div className="font-semibold text-slate-800 dark:text-slate-200 truncate" title={r.deliveryAddress}>
+            {r.deliveryAddress}
           </div>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="w-full text-center text-[9px] font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-0.5 border border-dashed border-blue-300 rounded hover:bg-blue-100/50"
+          >
+            Đổi kho đích khác...
+          </button>
         </div>
       ) : (
-        <textarea
-          rows={2}
-          value={addressText}
-          onChange={handleAddressTextChange}
-          placeholder="Địa chỉ giao..."
-          className="w-full text-[10px] rounded-md border border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
-        />
+        <div className="space-y-1">
+          <textarea
+            rows={2}
+            value={addressText}
+            onChange={handleAddressTextChange}
+            placeholder="Địa chỉ giao khách..."
+            className="w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px]"
+          />
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors"
+          >
+            <IconMapPin className="h-3 w-3 text-blue-600" />
+            <span>Thay đổi địa chỉ (Điều chuyển)</span>
+          </button>
+        </div>
       )}
+
+      {/* Destination Selection Modal */}
+      <WarehouseDestinationModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSelect={handleSelectDestination}
+        onResetToOriginal={handleResetToOriginal}
+        selectedHubId={r.destinationHubId}
+        orderCode={r.orderCode}
+        originalAddress={r.originalDeliveryAddress}
+        currentAddress={r.deliveryAddress}
+        level1Hubs={level1Hubs}
+        level2XeBoHubs={level2XeBoHubs}
+      />
     </div>
   );
 }
@@ -1464,6 +1472,7 @@ export function WarehouseEditableGrid({
       totalVolume: order.totalVolume || 0,
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
+      originalDeliveryAddress: order.destinationHub || order.deliveryAddress || '',
       province: (order as any).province || updated[lookupRowIndex].province || '',
       accompanyingDocs: (order as any).accompanyingDocs || updated[lookupRowIndex].accompanyingDocs || '',
       notes: order.notes || '',
@@ -1579,13 +1588,17 @@ export function WarehouseEditableGrid({
         size: 150,
         cell: DeliveryAddressCell,
       },
-      {
-        accessorKey: 'province',
-        id: 'province',
-        header: 'TỈNH / TP',
-        size: 92,
-        cell: ProvinceCell,
-      },
+      ...(isOutboundMode
+        ? []
+        : [
+            {
+              accessorKey: 'province',
+              id: 'province',
+              header: 'TỈNH / TP',
+              size: 92,
+              cell: ProvinceCell,
+            },
+          ]),
       {
         accessorKey: 'accompanyingDocs',
         id: 'accompanyingDocs',

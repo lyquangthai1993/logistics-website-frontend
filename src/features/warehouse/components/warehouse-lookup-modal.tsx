@@ -38,6 +38,7 @@ export interface WarehouseLookupItem {
   deliveryAddress: string;
   deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
   status: string;
+  hubStatus?: string | null;
   notes?: string | null;
   originHub?: string | null;
   destinationHub?: string | null;
@@ -108,16 +109,16 @@ export function WarehouseLookupModal({
         const allCount = resData?.meta?.allCount ?? total;
         const storedCount =
           resData?.meta?.storedCount ??
-          items.filter(
-            (i: any) =>
-              i.status === 'INBOUND' ||
-              i.status === 'STORED' ||
-              i.status === 'LUU_KHO',
-          ).length;
+          items.filter((i: any) => {
+            const s = i.hubStatus ?? i.status;
+            return s === 'INBOUND' || s === 'STORED' || s === 'LUU_KHO';
+          }).length;
         const draftCount =
           resData?.meta?.draftCount ??
-          items.filter((i: any) => i.status === 'DRAFT' || i.status === 'PENDING')
-            .length;
+          items.filter((i: any) => {
+            const s = i.hubStatus ?? i.status;
+            return s === 'DRAFT' || s === 'PENDING' || s === 'WAITING' || s === 'PENDING_INBOUND';
+          }).length;
 
         setData(items);
         setMeta({
@@ -276,7 +277,7 @@ export function WarehouseLookupModal({
                   }`}
                 >
                   <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
-                  DRAFT ({meta.draftCount})
+                  Đơn nháp ({meta.draftCount})
                 </button>
               </div>
             </div>
@@ -340,7 +341,9 @@ export function WarehouseLookupModal({
                   const selectedIndex = selectedOrderCodes.indexOf(row.orderCode);
                   const isAlreadySelected = selectedIndex !== -1;
                   const isCurrentRowSelected = targetRowIndex !== null && targetRowIndex !== undefined && selectedIndex === targetRowIndex;
-                  const isStored = row.status === 'INBOUND' || row.status === 'STORED' || row.status === 'LUU_KHO';
+                  const displayStatus = (row as any).hubStatus ?? row.status;
+                  const isStored = displayStatus === 'INBOUND' || displayStatus === 'STORED' || displayStatus === 'LUU_KHO';
+                  const isDraftLike = displayStatus === 'DRAFT' || displayStatus === 'PENDING' || displayStatus === 'WAITING' || displayStatus === 'PENDING_INBOUND';
 
                   return (
                     <tr
@@ -377,10 +380,16 @@ export function WarehouseLookupModal({
                           className={
                             isStored
                               ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700 font-bold px-2.5 py-0.5 rounded-full'
-                              : 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full'
+                              : isDraftLike
+                                ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full'
+                                : 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-700 font-bold px-2.5 py-0.5 rounded-full'
                           }
                         >
-                          {isStored ? '🟡 LƯU KHO' : `⚫ ${row.status}`}
+                          {isStored
+                            ? '🟡 LƯU KHO'
+                            : displayStatus === 'DRAFT'
+                              ? '⚪ Đơn nháp'
+                              : '🟠 Chờ nhập kho'}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
