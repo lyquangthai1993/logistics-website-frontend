@@ -457,37 +457,41 @@ export default function WarehouseOutboundPage() {
     setActiveView('BOARD');
   };
 
-  // Group outbound orders by vehicle / trip (identical structure to Inbound)
+  // Group outbound orders by vehicle / trip (Outbound perspective)
   const vehicleGroups: InboundVehicleGroup[] = useMemo(() => {
     const map = new Map<string, InboundVehicleGroup>();
 
     for (const o of orders) {
-      // Current trip of the cargo: the trip still carrying it, else the most recent allocation
-      const sortedTrips = [...(o.trips ?? [])].sort(
-        (a: any, b: any) => Number(b?.id ?? 0) - Number(a?.id ?? 0)
+      // Find an outbound trip for this order (dispatched or in transit from this hub)
+      const outboundTx = o.inventoryTransactions?.find(
+        (tx: any) => tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER'
       );
+      const outboundTrip = (o.trips ?? []).find(
+        (t: any) =>
+          t?.type === 'OUTBOUND' ||
+          t?.type === 'TRANSFER' ||
+          t?.notes?.includes('[XUẤT KHO') ||
+          (t?.tripCode === o.currentTripCode && o.currentTripCode) ||
+          (t?.status === 'IN_TRANSIT' && !t?.notes?.includes('[NHẬP KHO]'))
+      );
+
       const activeTrip =
-        (o.currentTripCode && sortedTrips.find((t: any) => t?.tripCode === o.currentTripCode)) ||
-        sortedTrips[0];
-      let plate =
-        activeTrip?.licensePlate?.trim()?.toUpperCase() ||
-        o.vehicleLicensePlate?.trim()?.toUpperCase() ||
-        '';
-      let driver = activeTrip?.driverName?.trim() || o.driverName?.trim() || '';
-      let tripCode =
-        activeTrip?.tripCode?.trim() || (activeTrip?.id ? `TRIP-${activeTrip.id}` : '');
+        outboundTrip ||
+        (outboundTx?.tripCode
+          ? {
+              tripCode: outboundTx.tripCode,
+              licensePlate: outboundTx.licensePlate,
+              driverName: outboundTx.driverName,
+              pickupDate: outboundTx.createdAt?.split('T')[0]
+            }
+          : null);
 
-      if (!plate && o.notes) {
-        const m = o.notes.match(/\[Xe:\s*([^-\]]+)/i);
-        if (m) plate = m[1].trim().toUpperCase();
-      }
-      if (!driver && o.notes) {
-        const m = o.notes.match(/TX:\s*([^-\]]+)/i);
-        if (m) driver = m[1].trim();
-      }
+      let plate = activeTrip?.licensePlate?.trim()?.toUpperCase() || '';
+      let driver = activeTrip?.driverName?.trim() || '';
+      let tripCode = activeTrip?.tripCode?.trim() || '';
 
-      // Grouping key: prefer tripCode, then plate, then order id fallback
-      const key = tripCode || (plate ? `PLATE-${plate}` : `ORD-${o.id}`);
+      const isUnassigned = !tripCode && !plate;
+      const key = isUnassigned ? 'UNASSIGNED' : tripCode || `PLATE-${plate}`;
 
       const isTransfer =
         o.inboundType === 'TRANSFER' ||
@@ -502,18 +506,18 @@ export default function WarehouseOutboundPage() {
       if (!map.has(key)) {
         map.set(key, {
           groupKey: key,
-          licensePlate: plate || 'CHƯA GÁN XE',
+          licensePlate: isUnassigned ? 'CHƯA GÁN XE' : plate,
           driverName: driver,
-          tripCode: tripCode || '—',
+          tripCode: isUnassigned ? '—' : tripCode,
           receiveDate: activeTrip?.pickupDate || o.createdAt?.split('T')[0],
-          status: hubScopedStatus,
+          status: isUnassigned ? 'INBOUND' : hubScopedStatus,
           isTransfer,
           orders: [],
           totalQuantity: 0,
           totalWeight: 0,
           totalVolume: 0,
           goodsDescription: '',
-          notes: o.notes || ''
+          notes: isUnassigned ? 'Hàng đang lưu kho chờ điều phối xuất' : (o.notes || '')
         });
       }
 
@@ -524,7 +528,7 @@ export default function WarehouseOutboundPage() {
       grp.totalVolume = Math.round((grp.totalVolume + Number(o.totalVolume ?? 0)) * 1000) / 1000;
 
       // If any order is still in stock at this hub, show that status
-      if (['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(hubScopedStatus)) {
+      if (!isUnassigned && ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(hubScopedStatus)) {
         grp.status = hubScopedStatus;
       }
     }
@@ -1010,22 +1014,31 @@ export default function WarehouseOutboundPage() {
                                       )}
                                     </button>
                                     <div>
-                                      <button
-                                        type='button'
-                                        onClick={() => handleOpenTripDetail(grp)}
-                                        className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
-                                        title='Nhấp để xem chi tiết chuyến xe (chế độ xem)'
-                                      >
-                                        <span>{grp.tripCode}</span>
-                                        {grp.orders.length > 1 && (
-                                          <Badge
-                                            variant='outline'
-                                            className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
-                                          >
-                                            {grp.orders.length} đơn
-                                          </Badge>
-                                        )}
-                                      </button>
+                                      {grp.tripCode === '—' ? (
+                                        <div className='flex items-center'>
+                                          <span className='font-mono font-semibold text-slate-400 dark:text-slate-500 text-[11px]'>—</span>
+                                          <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1.5'>
+                                            ({grp.orders.length} đơn chờ xuất)
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type='button'
+                                          onClick={() => handleOpenTripDetail(grp)}
+                                          className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
+                                          title='Nhấp để xem chi tiết chuyến xe (chế độ xem)'
+                                        >
+                                          <span>{grp.tripCode}</span>
+                                          {grp.orders.length > 1 && (
+                                            <Badge
+                                              variant='outline'
+                                              className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
+                                            >
+                                              {grp.orders.length} đơn
+                                            </Badge>
+                                          )}
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </td>
@@ -1053,21 +1066,30 @@ export default function WarehouseOutboundPage() {
                                   </div>
                                 </td>
                                 <td className='py-1 px-2 text-center'>
-                                  <TripStopStatusBadge status={canExport ? 'PENDING' : 'COMPLETED'} />
+                                  {grp.tripCode === '—' ? (
+                                    <Badge
+                                      variant='outline'
+                                      className='bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 text-[10px] font-semibold py-0.5 px-2'
+                                    >
+                                      LƯU KHO
+                                    </Badge>
+                                  ) : (
+                                    <TripStopStatusBadge status={canExport ? 'PENDING' : 'COMPLETED'} />
+                                  )}
                                 </td>
                                 <td className='py-2 px-2.5 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
-                                    
-                                    <Button
-                                      variant='outline'
-                                      size='sm'
-                                      onClick={() => handleOpenReceiptForVehicle(grp)}
-                                      className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
-                                      title='In phiếu xuất xe (chứa tất cả đơn hàng của xe)'
-                                    >
-                                      <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu xuất
-                                    </Button>
-                                   
+                                    {grp.tripCode !== '—' && (
+                                      <Button
+                                        variant='outline'
+                                        size='sm'
+                                        onClick={() => handleOpenReceiptForVehicle(grp)}
+                                        className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
+                                        title='In phiếu xuất xe (chứa tất cả đơn hàng của xe)'
+                                      >
+                                        <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu xuất
+                                      </Button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -1081,8 +1103,9 @@ export default function WarehouseOutboundPage() {
                                         <span className='flex items-center gap-1'>
                                           <IconTruck className='h-3 w-3 text-blue-600' />
                                           <span>
-                                            Chi tiết các đơn hàng thuộc xe {grp.licensePlate} (
-                                            {grp.tripCode})
+                                            {grp.tripCode === '—'
+                                              ? 'Chi tiết các đơn hàng lưu kho chờ xuất'
+                                              : `Chi tiết các đơn hàng thuộc xe ${grp.licensePlate} (${grp.tripCode})`}
                                           </span>
                                         </span>
                                         <span>
