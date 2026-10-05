@@ -16,7 +16,8 @@ import {
   IconLoader2,
   IconX,
   IconDeviceFloppy,
-  IconChevronRight
+  IconChevronRight,
+  IconPlus,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,6 +25,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { formatApiError, showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
+import { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 import { renderWarehouseOrderStatusBadge } from './warehouse-tables/columns';
 import { formatWeight, formatVolume } from '@/lib/format';
 import {
@@ -96,6 +98,59 @@ export function WarehouseTripDetailModal({
 
   const [tally, setTally] = useState<TallyState>({});
   const [hideOtherHubs, setHideOtherHubs] = useState(false);
+  const [isAppendModalOpen, setIsAppendModalOpen] = useState(false);
+
+  /**
+   * Print receipt scoped strictly to current hub (never print orders of downstream hubs).
+   */
+  const handlePrintReceipt = () => {
+    if (!onOpenReceipt || !tripGroup) return;
+
+    if (mode === 'INBOUND' && manifest && manifest.lines && manifest.lines.length > 0) {
+      const isCompleted = manifest.currentHubStatus === 'COMPLETED';
+      let targetLines = manifest.lines.filter((l) =>
+        isCompleted ? l.isReceivedHere || Number(l.receivedQuantity) > 0 : l.isForCurrentHub
+      );
+      if (targetLines.length === 0) {
+        targetLines = manifest.lines.filter((l) => l.isForCurrentHub);
+      }
+      if (targetLines.length === 0) {
+        targetLines = manifest.lines;
+      }
+
+      const filteredOrders = targetLines.map((l) => ({
+        id: l.id,
+        orderCode: l.orderCode,
+        goodsDescription: l.goodsDescription || 'Hàng hóa nhập kho',
+        totalQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+        inboundQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+        totalWeight: l.totalWeight || l.weightAllocated || 0,
+        totalVolume: l.totalVolume || l.volumeAllocated || 0,
+        deliveryAddress: l.deliveryAddress || l.destinationHub || '—',
+        destinationHub: l.destinationHub,
+        destinationHubId: l.destinationHubId,
+        destinationHubEntity: l.destinationHubEntity,
+        accompanyingDocs: l.accompanyingDocs || 'KHÔNG CÓ',
+        notes: l.notes || '',
+        pickupAddress: l.pickupAddress,
+      }));
+
+      const totalQty = filteredOrders.reduce((sum, o) => sum + (Number(o.inboundQuantity) || 1), 0);
+      const totalWeight = filteredOrders.reduce((sum, o) => sum + (Number(o.totalWeight) || 0), 0);
+      const totalVolume = filteredOrders.reduce((sum, o) => sum + (Number(o.totalVolume) || 0), 0);
+
+      onOpenReceipt({
+        ...tripGroup,
+        orders: filteredOrders,
+        totalQuantity: totalQty,
+        totalWeight,
+        totalVolume,
+      });
+      return;
+    }
+
+    onOpenReceipt(tripGroup);
+  };
 
   useEffect(() => {
     if (isOpen && manifest) {
@@ -517,11 +572,22 @@ export function WarehouseTripDetailModal({
           </div>
 
           <div className='flex items-center gap-2'>
+            {mode === 'INBOUND' && !effectiveReadOnly && isManifestTripCode(tripGroup?.tripCode) && (
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setIsAppendModalOpen(true)}
+                className='h-8 text-xs text-[#0F3D62] border-[#0F3D62]/40 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-950 font-bold'
+                title='Bốc thêm đơn dọc đường vào chuyến xe này'
+              >
+                <IconPlus className='h-3.5 w-3.5 mr-1' /> Bốc thêm đơn
+              </Button>
+            )}
             {onOpenReceipt && (
               <Button
                 variant='outline'
                 size='sm'
-                onClick={() => onOpenReceipt(tripGroup)}
+                onClick={handlePrintReceipt}
                 className='h-8 text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 font-semibold'
                 title={mode === 'OUTBOUND' ? 'In phiếu xuất xe' : 'In phiếu nhập xe'}
               >
@@ -693,9 +759,22 @@ export function WarehouseTripDetailModal({
                       : 'Bảng kê chi tiết các dòng hàng trên chuyến xe'}
                   </span>
                 </span>
-                <span className='text-[11px] text-gray-500'>
-                  {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} đơn hàng trên xe
-                </span>
+                <div className='flex items-center gap-2'>
+                  <span className='text-[11px] text-gray-500'>
+                    {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} đơn hàng trên xe
+                  </span>
+                  {mode === 'INBOUND' && !effectiveReadOnly && isManifestTripCode(tripGroup?.tripCode) && (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setIsAppendModalOpen(true)}
+                      className='h-6 px-2 text-[10px] text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950 font-bold'
+                    >
+                      <IconPlus className='h-3 w-3 mr-1' /> Bốc thêm đơn lên xe
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {manifestPending ? (
@@ -914,6 +993,20 @@ export function WarehouseTripDetailModal({
             )}
           </div>
         </div>
+
+        {isAppendModalOpen && tripGroup && (
+          <WarehouseAppendOrderModal
+            isOpen={isAppendModalOpen}
+            onClose={() => setIsAppendModalOpen(false)}
+            tripCode={tripGroup.tripCode}
+            licensePlate={licensePlate || tripGroup.licensePlate}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
+              queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] });
+              onSuccess?.();
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

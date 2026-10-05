@@ -55,6 +55,8 @@ export interface WaybillDetailData {
   originHubEntity?: { id?: number; name?: string; code?: string };
   /** Warehouse currently holding the goods (null while on a vehicle). */
   currentHubEntity?: { id?: number; name?: string; code?: string } | null;
+  /** Current active trip code carrying this cargo */
+  currentTripCode?: string | null;
   route?: string;
   goodsDescription?: string;
   totalQuantity?: number;
@@ -470,26 +472,110 @@ export function WarehouseWaybillDetailModal({
                     );
                   })}
 
-                  {/* Trạng thái tồn kho hiện tại */}
-                  <div className="relative flex items-start gap-3">
-                    <div className="flex flex-col items-center shrink-0 w-6">
-                      <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-emerald-600 text-white shadow-xs ring-4 ring-white dark:ring-slate-900">
-                        <IconCheck className="h-3.5 w-3.5" />
+                  {/* Trạng thái tồn kho / vận chuyển hiện tại */}
+                  {(() => {
+                    const currentWarehouseName =
+                      waybill.currentHubEntity?.name ||
+                      waybill.originHubEntity?.name ||
+                      (waybill.originHub &&
+                      !waybill.originHub.toUpperCase().includes('TÂY NINH') &&
+                      waybill.originHub !== waybill.pickupAddress
+                        ? waybill.originHub
+                        : '') ||
+                      'Kho lưu trữ';
+
+                    const latestOutboundTx = transactions.find(
+                      (tx) => tx.type === 'TRANSFER' || tx.type === 'OUTBOUND',
+                    );
+                    const activeTrip = waybill.trip || waybill.trips?.[0];
+                    const vehiclePlate = (
+                      waybill.vehicleLicensePlate ||
+                      latestOutboundTx?.licensePlate ||
+                      activeTrip?.licensePlate ||
+                      '—'
+                    ).trim();
+                    const tripCode = (
+                      waybill.currentTripCode ||
+                      activeTrip?.tripCode ||
+                      (activeTrip?.id ? `TRIP-${activeTrip.id}` : '') ||
+                      '—'
+                    ).trim();
+                    const destName =
+                      waybill.destinationHubEntity?.name ||
+                      waybill.destinationHub ||
+                      latestOutboundTx?.destination ||
+                      '';
+
+                    const isFullyDispatched =
+                      (waybill.remainingQuantity ?? waybill.totalQuantity ?? 0) === 0 &&
+                      (waybill.outboundQuantity ?? 0) > 0;
+                    const isPartialDispatched =
+                      (waybill.outboundQuantity ?? 0) > 0 &&
+                      (waybill.remainingQuantity ?? 0) > 0;
+                    const isInTransit =
+                      waybill.status === 'IN_TRANSIT' ||
+                      waybill.status === 'DISPATCHED' ||
+                      isFullyDispatched;
+
+                    if (isInTransit) {
+                      return (
+                        <div className="relative flex items-start gap-3">
+                          <div className="flex flex-col items-center shrink-0 w-6">
+                            <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-blue-600 text-white shadow-xs ring-4 ring-white dark:ring-slate-900">
+                              <IconTruck className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 text-xs">
+                            <span className="font-bold text-blue-900 dark:text-blue-300">
+                              Đang trên xe <strong className="font-mono text-[#0F3D62] dark:text-blue-200 uppercase">{vehiclePlate}</strong>, chuyến xe <strong className="font-mono text-[#0F3D62] dark:text-blue-200">{tripCode}</strong>
+                              {destName ? ` · Đang vận chuyển đến ${destName}` : ''}
+                            </span>
+                            <span className="font-mono font-black text-blue-700 dark:text-blue-400">
+                              {waybill.outboundQuantity ?? waybill.totalQuantity ?? 0} kiện trên xe
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (isPartialDispatched) {
+                      return (
+                        <div className="relative flex items-start gap-3">
+                          <div className="flex flex-col items-center shrink-0 w-6">
+                            <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-amber-500 text-white shadow-xs ring-4 ring-white dark:ring-slate-900">
+                              <IconTruck className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs">
+                            <span className="font-bold text-amber-900 dark:text-amber-300">
+                              Đang xuất từng phần · Còn tồn {waybill.remainingQuantity ?? 0} kiện tại {currentWarehouseName} · Đã xuất {waybill.outboundQuantity ?? 0} kiện trên xe {vehiclePlate} ({tripCode})
+                            </span>
+                            <span className="font-mono font-black text-amber-700 dark:text-amber-400">
+                              Tồn: {waybill.remainingQuantity ?? 0} kiện
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="relative flex items-start gap-3">
+                        <div className="flex flex-col items-center shrink-0 w-6">
+                          <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-emerald-600 text-white shadow-xs ring-4 ring-white dark:ring-slate-900">
+                            <IconCheck className="h-3.5 w-3.5" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs">
+                          <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                            Đang lưu kho an toàn tại {currentWarehouseName} · Tồn khả dụng sẵn sàng xuất
+                          </span>
+                          <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">
+                            {waybill.remainingQuantity ?? waybill.totalQuantity ?? 0} kiện
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs">
-                      <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                        {(waybill.remainingQuantity ?? waybill.totalQuantity ?? 0) === 0 && (waybill.outboundQuantity ?? 0) > 0
-                          ? 'Đã xuất kho toàn bộ · Đơn hàng đã hoàn tất xuất kho'
-                          : (waybill.outboundQuantity ?? 0) > 0
-                          ? `Đang xuất từng phần · Còn tồn ${waybill.remainingQuantity ?? 0} kiện sẵn sàng xuất tiếp`
-                          : `Đang lưu kho an toàn tại ${waybill.originHub || 'Hub'} · Tồn khả dụng sẵn sàng xuất`}
-                      </span>
-                      <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">
-                        {waybill.remainingQuantity ?? waybill.totalQuantity ?? 0} kiện
-                      </span>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

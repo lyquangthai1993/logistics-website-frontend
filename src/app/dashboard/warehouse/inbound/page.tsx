@@ -304,7 +304,42 @@ export default function WarehouseInboundPage() {
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
     // or the destination/current/origin hub entity), NEVER the customer's pickup address!
-    const firstOrder = grp.orders[0];
+    const userHubId = user?.hub?.id;
+    const userHubName = user?.hub?.name?.trim()?.toLowerCase();
+
+    // Filter orders to only those actually destined for or received at the current hub
+    const filteredOrders = (grp.orders || []).filter((o: any) => {
+      // If user has no assigned hub (e.g. SUPER_ADMIN viewing overall), keep all
+      if (!userHubId && !userHubName) return true;
+      // Match destinationHubId or currentHubId or destinationHub entity
+      if (
+        userHubId &&
+        (o.destinationHubId === userHubId ||
+          o.currentHubId === userHubId ||
+          o.destinationHubEntity?.id === userHubId)
+      ) {
+        return true;
+      }
+      if (
+        userHubName &&
+        (o.destinationHub?.trim()?.toLowerCase() === userHubName ||
+          o.destinationHubEntity?.name?.trim()?.toLowerCase() === userHubName)
+      ) {
+        return true;
+      }
+      // Check if any INBOUND transaction was completed at this hub
+      if (Array.isArray(o.inventoryTransactions) && userHubId) {
+        const hasHubInbound = o.inventoryTransactions.some(
+          (tx: any) => tx.type === 'INBOUND' && (tx.hubId === userHubId || tx.hub?.id === userHubId),
+        );
+        if (hasHubInbound) return true;
+      }
+      return false;
+    });
+
+    const effectiveOrders = filteredOrders.length > 0 ? filteredOrders : grp.orders;
+    const firstOrder = effectiveOrders[0] || grp.orders[0];
+
     const orig =
       user?.hub?.name ||
       firstOrder?.destinationHubEntity?.name ||
@@ -317,7 +352,7 @@ export default function WarehouseInboundPage() {
       firstOrder?.deliveryAddress?.trim() ||
       '';
 
-    const items: InboundReceiptItem[] = grp.orders.map((o) => ({
+    const items: InboundReceiptItem[] = effectiveOrders.map((o: any) => ({
       orderCode: o.orderCode,
       goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
       quantity: o.inboundQuantity ?? o.totalQuantity ?? 1,
@@ -327,22 +362,26 @@ export default function WarehouseInboundPage() {
       notes: o.notes || ''
     }));
 
+    const totalQty = items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
+    const totalWt = effectiveOrders.reduce((sum: number, o: any) => sum + (Number(o.totalWeight) || 0), 0);
+    const totalVol = effectiveOrders.reduce((sum: number, o: any) => sum + (Number(o.totalVolume) || 0), 0);
+
     setSelectedReceiptData({
       tripCode: grp.tripCode !== '—' ? grp.tripCode : undefined,
-      orderCode: grp.orders[0]?.orderCode || grp.tripCode,
-      goodsDescription: grp.goodsDescription,
-      totalQuantity: grp.totalQuantity,
-      inboundQuantity: grp.totalQuantity,
-      totalWeight: grp.totalWeight,
-      totalVolume: grp.totalVolume,
+      orderCode: effectiveOrders[0]?.orderCode || grp.orders[0]?.orderCode || grp.tripCode,
+      goodsDescription: effectiveOrders.length === 1 ? effectiveOrders[0]?.goodsDescription : grp.goodsDescription,
+      totalQuantity: totalQty,
+      inboundQuantity: totalQty,
+      totalWeight: totalWt > 0 ? totalWt : grp.totalWeight,
+      totalVolume: totalVol > 0 ? totalVol : grp.totalVolume,
       originHub: orig,
       destinationHub: dest,
-      pickupAddress: grp.orders[0]?.pickupAddress,
-      deliveryAddress: grp.orders[0]?.deliveryAddress,
+      pickupAddress: effectiveOrders[0]?.pickupAddress || grp.orders[0]?.pickupAddress,
+      deliveryAddress: effectiveOrders[0]?.deliveryAddress || grp.orders[0]?.deliveryAddress,
       notes: grp.notes,
       driverName: grp.driverName,
       licensePlate: grp.licensePlate,
-      createdAt: grp.orders[0]?.createdAt || new Date(),
+      createdAt: effectiveOrders[0]?.createdAt || grp.orders[0]?.createdAt || new Date(),
       items
     });
     setIsInboundReceiptModalOpen(true);
