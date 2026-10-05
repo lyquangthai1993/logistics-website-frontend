@@ -305,12 +305,13 @@ export default function WarehouseInboundPage() {
     // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
     // or the destination/current/origin hub entity), NEVER the customer's pickup address!
     const userHubId = user?.hub?.id;
-    const userHubName = user?.hub?.name?.trim()?.toLowerCase();
+    const userHubName = user?.hub?.name?.trim()?.toLowerCase() || '';
 
     // Filter orders to only those actually destined for or received at the current hub
-    const filteredOrders = (grp.orders || []).filter((o: any) => {
+    const isDestMatchingHub = (o: any) => {
       // If user has no assigned hub (e.g. SUPER_ADMIN viewing overall), keep all
       if (!userHubId && !userHubName) return true;
+
       // Match destinationHubId or currentHubId or destinationHub entity
       if (
         userHubId &&
@@ -320,22 +321,75 @@ export default function WarehouseInboundPage() {
       ) {
         return true;
       }
-      if (
-        userHubName &&
-        (o.destinationHub?.trim()?.toLowerCase() === userHubName ||
-          o.destinationHubEntity?.name?.trim()?.toLowerCase() === userHubName)
-      ) {
-        return true;
+
+      const destCandidates = [
+        o.destinationHub,
+        o.destinationHubEntity?.name,
+        o.destinationHubEntity?.code
+      ]
+        .filter(Boolean)
+        .map((s: string) => s.trim().toLowerCase());
+
+      const userHubLower = userHubName.toLowerCase();
+
+      for (const dest of destCandidates) {
+        if (dest === userHubLower) return true;
+        if (userHubLower.includes(dest) || dest.includes(userHubLower)) return true;
+
+        // Abbreviation / alias matching (ĐN = Đà Nẵng, HY = Hưng Yên, HCM = TP. Hồ Chí Minh)
+        const isUserDaNang =
+          userHubLower.includes('đà nẵng') || userHubLower.includes('dad') || userHubId === 2;
+        if (
+          isUserDaNang &&
+          (dest === 'đn' ||
+            dest === 'dn' ||
+            dest.includes('đà nẵng') ||
+            dest.includes('da nang') ||
+            dest.includes('dad'))
+        ) {
+          return true;
+        }
+
+        const isUserHungYen =
+          userHubLower.includes('hưng yên') || userHubLower.includes('hyn') || userHubId === 3;
+        if (
+          isUserHungYen &&
+          (dest === 'hy' ||
+            dest.includes('hưng yên') ||
+            dest.includes('hung yen') ||
+            dest.includes('hyn'))
+        ) {
+          return true;
+        }
+
+        const isUserHcm =
+          userHubLower.includes('hcm') ||
+          userHubLower.includes('hồ chí minh') ||
+          userHubLower.includes('sgn') ||
+          userHubId === 1;
+        if (
+          isUserHcm &&
+          (dest === 'hcm' ||
+            dest === 'sgn' ||
+            dest.includes('hồ chí minh') ||
+            dest.includes('hcm') ||
+            dest.includes('sài gòn'))
+        ) {
+          return true;
+        }
       }
+
       // Check if any INBOUND transaction was completed at this hub
       if (Array.isArray(o.inventoryTransactions) && userHubId) {
         const hasHubInbound = o.inventoryTransactions.some(
-          (tx: any) => tx.type === 'INBOUND' && (tx.hubId === userHubId || tx.hub?.id === userHubId),
+          (tx: any) => tx.type === 'INBOUND' && (tx.hubId === userHubId || tx.hub?.id === userHubId)
         );
         if (hasHubInbound) return true;
       }
       return false;
-    });
+    };
+
+    const filteredOrders = (grp.orders || []).filter(isDestMatchingHub);
 
     const effectiveOrders = filteredOrders.length > 0 ? filteredOrders : grp.orders;
     const firstOrder = effectiveOrders[0] || grp.orders[0];
@@ -363,13 +417,20 @@ export default function WarehouseInboundPage() {
     }));
 
     const totalQty = items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
-    const totalWt = effectiveOrders.reduce((sum: number, o: any) => sum + (Number(o.totalWeight) || 0), 0);
-    const totalVol = effectiveOrders.reduce((sum: number, o: any) => sum + (Number(o.totalVolume) || 0), 0);
+    const totalWt = effectiveOrders.reduce(
+      (sum: number, o: any) => sum + (Number(o.totalWeight) || 0),
+      0
+    );
+    const totalVol = effectiveOrders.reduce(
+      (sum: number, o: any) => sum + (Number(o.totalVolume) || 0),
+      0
+    );
 
     setSelectedReceiptData({
       tripCode: grp.tripCode !== '—' ? grp.tripCode : undefined,
       orderCode: effectiveOrders[0]?.orderCode || grp.orders[0]?.orderCode || grp.tripCode,
-      goodsDescription: effectiveOrders.length === 1 ? effectiveOrders[0]?.goodsDescription : grp.goodsDescription,
+      goodsDescription:
+        effectiveOrders.length === 1 ? effectiveOrders[0]?.goodsDescription : grp.goodsDescription,
       totalQuantity: totalQty,
       inboundQuantity: totalQty,
       totalWeight: totalWt > 0 ? totalWt : grp.totalWeight,
@@ -1002,9 +1063,7 @@ export default function WarehouseInboundPage() {
                                   </div>
                                 </td>
                                 <td className='py-1 px-2 text-center'>
-                                  <TripStopStatusBadge
-                                    status={grp.status}
-                                  />
+                                  <TripStopStatusBadge status={grp.status} />
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
@@ -1190,7 +1249,8 @@ export default function WarehouseInboundPage() {
                                                         totalQuantity: subOrder.totalQuantity || 1,
                                                         originHub: orig,
                                                         destinationHub: dest,
-                                                        warehouseName: subOrder.currentHubEntity?.name,
+                                                        warehouseName:
+                                                          subOrder.currentHubEntity?.name,
                                                         createdAt: new Date()
                                                       });
                                                       setIsLabelModalOpen(true);
