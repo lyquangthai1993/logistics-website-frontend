@@ -124,44 +124,71 @@ export default function WarehouseOrdersPage() {
 
   /** Stock held at the viewer's hub (ledger) — falls back to remainingQuantity without hub scope. */
   const renderStock = (r: any) => {
-    const stock = r.hubStock ?? r.remainingQuantity ?? 0;
+    const rawStock = Number(r.hubStock ?? r.remainingQuantity ?? 0);
+    const rawTotal = Number(r.totalQuantity ?? 0);
+    const total = Math.max(rawTotal, rawStock, 0);
+    const stock = Math.max(0, Math.min(rawStock, total));
     return (
       <>
-        <span className='font-bold text-emerald-600 dark:text-emerald-400'>{Number(stock) || 0}</span>
-        <span className='text-slate-400'> / {Number(r.totalQuantity) || 0} kiện</span>
+        <span className='font-bold text-emerald-600 dark:text-emerald-400'>{stock}</span>
+        <span className='text-slate-400'> / {total} kiện</span>
       </>
     );
   };
 
   const renderTripCell = (r: any) => {
-    const activeTrip = r.trips?.[0];
+    const allTrips: any[] = Array.isArray(r.trips) && r.trips.length > 0 ? r.trips : [];
+    const activeTrip = allTrips[0];
     const tripCode = activeTrip?.tripCode || (activeTrip?.id ? `TRIP-${activeTrip.id}` : null);
     const plate = activeTrip?.licensePlate || r.vehicleLicensePlate;
     const driver = activeTrip?.driverName || r.driverName;
 
-    if (!tripCode && !plate) {
+    if (!tripCode && !plate && allTrips.length === 0) {
       return <span className='text-gray-400 italic text-[10px]'>—</span>;
     }
 
+    const multiTruckCount = allTrips.length;
+    const hasMultiTrucks = multiTruckCount > 1;
+    const multiTruckTooltip = allTrips
+      .map(
+        (t: any, i: number) =>
+          `Xe ${i + 1}: ${t.licensePlate || 'Chưa có BKS'} (${t.tripCode || 'Chưa có mã trip'})${
+            t.driverName ? ` - ${t.driverName}` : ''
+          }`
+      )
+      .join('\n');
+
     return (
-      <div className='text-[10px] space-y-0.5'>
+      <div
+        className='text-[10px] space-y-0.5'
+        title={hasMultiTrucks ? multiTruckTooltip : undefined}
+      >
         {tripCode && (
           <div className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[10px] flex items-center gap-1'>
             <span>{tripCode}</span>
-            {r.trips && r.trips.length > 1 && (
+            {hasMultiTrucks && (
               <Badge
                 variant='outline'
-                className='text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50'
+                className='text-[9px] font-bold px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800'
+                title={`Đơn hàng gồm ${multiTruckCount} chuyến xe tiếp nhận`}
               >
-                +{r.trips.length - 1}
+                +{multiTruckCount - 1} trip
               </Badge>
             )}
           </div>
         )}
         {plate && (
-          <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[10px] flex items-center gap-1'>
+          <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[10px] flex items-center gap-1 flex-wrap'>
             <IconTruck className='h-3 w-3 text-slate-400 shrink-0' />
             <span>{plate}</span>
+            {hasMultiTrucks && (
+              <Badge
+                className='text-[9px] font-bold px-1 py-0 h-3.5 bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-0'
+                title={`Vận chuyển bởi ${multiTruckCount} phương tiện:\n${multiTruckTooltip}`}
+              >
+                +{multiTruckCount - 1} xe
+              </Badge>
+            )}
           </div>
         )}
         {driver && (
@@ -329,7 +356,8 @@ export default function WarehouseOrdersPage() {
                     </tr>
                   ) : (
                     data.map((row, idx) => {
-                      const members: any[] = Array.isArray(row.items) && row.items.length > 0 ? row.items : [row];
+                      const members: any[] =
+                        Array.isArray(row.items) && row.items.length > 0 ? row.items : [row];
                       const isMulti = members.length > 1;
                       const isExpanded = isMulti && expandedCodes.has(row.orderCode);
                       const openDetail = (target: any) => {
@@ -340,7 +368,9 @@ export default function WarehouseOrdersPage() {
                       return (
                         <React.Fragment key={`${row.orderCode}-${row.id}`}>
                           <tr
-                            onClick={() => (isMulti ? toggleExpanded(row.orderCode) : openDetail(members[0]))}
+                            onClick={() =>
+                              isMulti ? toggleExpanded(row.orderCode) : openDetail(members[0])
+                            }
                             className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${
                               isExpanded ? 'bg-blue-50/30 dark:bg-slate-800/30' : ''
                             }`}
@@ -380,7 +410,10 @@ export default function WarehouseOrdersPage() {
                               {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg
                             </td>
                             <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                              {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³
+                              {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
+                                maximumFractionDigits: 3
+                              })}{' '}
+                              m³
                             </td>
                             <td className='py-1 px-1.5 text-slate-600 dark:text-slate-300 text-[10px]'>
                               {row.destinationHub || row.route || 'Giao khách lẻ'}
@@ -388,17 +421,31 @@ export default function WarehouseOrdersPage() {
                             <td className='py-1 px-1.5 text-center'>
                               {renderWarehouseOrderStatusBadge(row.hubStatus ?? row.status)}
                             </td>
-                            <td className='py-1 px-1.5 text-center' onClick={(e) => e.stopPropagation()}>
+                            <td
+                              className='py-1 px-1.5 text-center'
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {isMulti ? (
-                                <Button
-                                  size='sm'
-                                  variant='ghost'
-                                  onClick={() => toggleExpanded(row.orderCode)}
-                                  className='h-7 px-1.5 text-[10px] text-slate-600 hover:text-blue-600 hover:bg-blue-50'
-                                  title='Xem từng dòng hàng của đơn'
-                                >
-                                  {isExpanded ? 'Thu gọn' : 'Xem dòng'}
-                                </Button>
+                                <div className='flex items-center justify-center gap-1'>
+                                  <Button
+                                    size='sm'
+                                    variant='ghost'
+                                    onClick={() => toggleExpanded(row.orderCode)}
+                                    className='h-7 px-1.5 text-[10px] text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                                    title='Xem từng dòng hàng của đơn'
+                                  >
+                                    {isExpanded ? 'Thu gọn' : 'Xem dòng'}
+                                  </Button>
+                                  <Button
+                                    size='sm'
+                                    variant='ghost'
+                                    onClick={() => openDetail(row)}
+                                    className='h-7 w-7 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                                    title='Xem chi tiết tổng hợp'
+                                  >
+                                    <IconEye className='h-4 w-4' />
+                                  </Button>
+                                </div>
                               ) : (
                                 renderActions(members[0], openDetail)
                               )}
@@ -429,15 +476,24 @@ export default function WarehouseOrdersPage() {
                                   {(Number(m.totalWeight) || 0).toLocaleString('vi-VN')} kg
                                 </td>
                                 <td className='py-1 px-1.5 text-right text-slate-600 dark:text-slate-300 text-[10px]'>
-                                  {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³
+                                  {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', {
+                                    maximumFractionDigits: 3
+                                  })}{' '}
+                                  m³
                                 </td>
                                 <td className='py-1 px-1.5 text-slate-500 dark:text-slate-400 text-[10px]'>
-                                  {m.destinationHub || m.destinationHubEntity?.name || m.route || 'Giao khách lẻ'}
+                                  {m.destinationHub ||
+                                    m.destinationHubEntity?.name ||
+                                    m.route ||
+                                    'Giao khách lẻ'}
                                 </td>
                                 <td className='py-1 px-1.5 text-center'>
                                   {renderWarehouseOrderStatusBadge(m.hubStatus ?? m.status)}
                                 </td>
-                                <td className='py-1 px-1.5 text-center' onClick={(e) => e.stopPropagation()}>
+                                <td
+                                  className='py-1 px-1.5 text-center'
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   {renderActions(m, openDetail)}
                                 </td>
                               </tr>

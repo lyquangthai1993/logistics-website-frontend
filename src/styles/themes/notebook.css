@@ -31,9 +31,9 @@
   --sidebar-accent-foreground: oklch(0.4015 0.0436 37.9587);
   --sidebar-border: oklch(0.8078 0 0);
   --sidebar-ring: oklch(0.7058 0 0);
-  --font-sans: 'Architects Daughter', sans-serif;
+  --font-sans: var(--font-architects-daughter), var(--font-playpen-sans), cursive, sans-serif;
   --font-serif: 'Times New Roman', Times, serif;
-  --font-mono: 'Courier New', Courier, monospace;
+  --font-mono: var(--font-jetbrains-mono), 'Courier New', monospace;
   --radius: 0.625rem;
   --shadow-x: 1px;
   --shadow-y: 4px;
@@ -86,9 +86,9 @@
   --sidebar-accent-foreground: oklch(0.3211 0 0);
   --sidebar-border: oklch(0.4276 0 0);
   --sidebar-ring: oklch(0.8078 0 0);
-  --font-sans: 'Architects Daughter', sans-serif;
+  --font-sans: var(--font-architects-daughter), var(--font-playpen-sans), cursive, sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: 'Fira Code', 'Courier New', monospace;
+  --font-mono: var(--font-jetbrains-mono), 'Courier New', monospace;
   --radius: 0.625rem;
   --shadow-x: 1px;
   --shadow-y: 4px;
