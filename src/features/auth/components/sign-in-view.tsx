@@ -65,11 +65,8 @@ export default function SignInViewPage() {
       {/* Right Login Form Column */}
       <div className='flex h-full items-center justify-center p-4 lg:p-8 bg-background'>
         <div className='flex w-full max-w-md flex-col items-center justify-center space-y-6'>
-          <div className='flex flex-col space-y-2 text-center'>
+          <div className='flex flex-col text-center'>
             <h1 className='text-2xl font-semibold tracking-tight text-foreground'>Đăng nhập</h1>
-            <p className='text-muted-foreground text-sm'>
-              Nhập email và mật khẩu được cung cấp bởi quản trị viên
-            </p>
           </div>
           <LoginForm />
         </div>

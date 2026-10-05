@@ -21,6 +21,9 @@ test.describe('[Login Page] UI baseline', () => {
     await expect(page.locator('input[name="email"]')).toBeVisible();
     await expect(page.locator('input[name="password"]')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
+    await expect(
+      page.getByText('Nhập email và mật khẩu được cung cấp bởi quản trị viên')
+    ).not.toBeVisible();
   });
 
   test('shows error on empty submit', async ({ page }) => {
