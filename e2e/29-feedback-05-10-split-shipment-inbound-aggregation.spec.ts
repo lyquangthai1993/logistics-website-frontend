@@ -212,40 +212,60 @@ test.describe.serial('Feedback 05/10 - Item 4: Split Shipment Inbound Aggregatio
 
     // 5. Verify Multi-Truck Badge (+N xe / +N trip) and Accordion toggle
     const multiLineBadge = page.locator('span:has-text("dòng hàng")').first();
-    if (await multiLineBadge.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Check multi-truck badge (+N xe or +N trip)
-      const multiTruckBadge = page.locator('text=/\\+\\d+\\s*(xe|trip)/i').first();
-      const isBadgeVisible = await multiTruckBadge.isVisible({ timeout: 3000 }).catch(() => false);
-      if (isBadgeVisible) {
-        await expect(multiTruckBadge).toBeVisible();
-      }
+    await expect(multiLineBadge).toBeVisible({ timeout: 5000 });
 
-      // Click "Xem dòng" button or row to expand
-      const expandBtn = page.locator('button:has-text("Xem dòng")').first();
-      if (await expandBtn.isVisible()) {
-        await expandBtn.click();
-        await page.waitForTimeout(600);
+    // Verify multi-truck badge (+N xe or +N trip)
+    const multiTruckBadge = page.locator('text=/\\+\\d+\\s*(xe|trip)/i').first();
+    await expect(multiTruckBadge).toBeVisible({ timeout: 5000 });
 
-        // Child lines (Dòng 1, Dòng 2) must appear
-        const childRow = page.locator('td:has-text("Dòng 1")').first();
-        await expect(childRow).toBeVisible({ timeout: 5000 });
+    // Directory for saving screenshots in root
+    const rootEvidenceDir = path.resolve(__dirname, '../../docs/feedback_evidence/05_10');
+    if (!fs.existsSync(rootEvidenceDir)) fs.mkdirSync(rootEvidenceDir, { recursive: true });
 
-        // Click "Thu gọn"
-        const collapseBtn = page.locator('button:has-text("Thu gọn")').first();
-        await collapseBtn.click();
+    const saveEvidence = async (filename: string) => {
+      const rootPath = path.join(rootEvidenceDir, filename);
+      await page.screenshot({ path: rootPath, fullPage: false });
+    };
+
+    // ── EVIDENCE 1: Master Consolidated Row (Collapsed) ──
+    // Demonstrates: 1 row per waybill code, +1 xe / +1 trip badge, 100/100 pkgs (no 200/100 bug), 2.100 kg, 15 m³
+    await saveEvidence('06_split_shipment_inbound_aggregation_master.png');
+    // Also save legacy name for backwards compatibility
+    await saveEvidence('06_split_shipment_inbound_aggregation_verified.png');
+
+    // ── EVIDENCE 2: Master-Detail Drill-Down (Expanded Accordion) ──
+    const expandBtn = page.locator('button:has-text("Xem dòng")').first();
+    await expect(expandBtn).toBeVisible({ timeout: 5000 });
+    await expandBtn.click();
+    await page.waitForTimeout(600);
+
+    // Child lines (Dòng 1, Dòng 2) must appear
+    const childRow1 = page.locator('td:has-text("Dòng 1")').first();
+    await expect(childRow1).toBeVisible({ timeout: 5000 });
+    const childRow2 = page.locator('td:has-text("Dòng 2")').first();
+    await expect(childRow2).toBeVisible({ timeout: 5000 });
+
+    // Capture expanded Master-Detail state
+    await saveEvidence('07_split_shipment_inbound_aggregation_expanded.png');
+
+    // ── EVIDENCE 3: Detail Modal (WarehouseWaybillDetailModal) ──
+    const eyeBtn = page.locator('button[title="Xem chi tiết tổng hợp"]').first();
+    if (await eyeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await eyeBtn.click();
+      await page.waitForTimeout(800);
+      const modal = page.locator('[role="dialog"]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+      await saveEvidence('08_split_shipment_inbound_waybill_detail_modal.png');
+
+      // Close modal
+      const closeBtn = page
+        .locator('button:has-text("Đóng"), [role="dialog"] button:has-text("✕")')
+        .first();
+      if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await closeBtn.click();
         await page.waitForTimeout(400);
       }
     }
-
-    // 6. Capture screenshot artifact for evidence
-    const evidenceDir = path.resolve('docs/feedback_evidence/05_10');
-    if (!fs.existsSync(evidenceDir)) fs.mkdirSync(evidenceDir, { recursive: true });
-    const screenshotPath = path.join(
-      evidenceDir,
-      '06_split_shipment_inbound_aggregation_verified.png'
-    );
-    await page.screenshot({ path: screenshotPath, fullPage: false });
-    expect(fs.existsSync(screenshotPath)).toBeTruthy();
 
     // Verify 0 fatal runtime errors
     const fatalErrors = consoleErrors.filter(
