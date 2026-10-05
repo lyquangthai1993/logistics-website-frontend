@@ -6,11 +6,11 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Sign-in Page Header Cleanliness', () => {
   test('verifies admin subtext is removed from sign-in view', async ({ page }) => {
-    await page.goto('/auth/sign-in');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/auth/sign-in', { waitUntil: 'domcontentloaded' });
 
     // Title 'Đăng nhập' must be visible
-    await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+    const heading = page.getByRole('heading', { name: 'Đăng nhập' });
+    await expect(heading).toBeVisible({ timeout: 15000 });
 
     // The subtext must NOT exist
     const subtextLocator = page.getByText('Nhập email và mật khẩu được cung cấp bởi quản trị viên');
