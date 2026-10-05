@@ -70,7 +70,6 @@ export default function WarehouseInboundPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
-  const [statusTab, setStatusTab] = useState<'ALL' | 'CUSTOMER' | 'TRANSFER'>('ALL');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
@@ -80,10 +79,7 @@ export default function WarehouseInboundPage() {
   const [tripCounts, setTripCounts] = useState({
     allCount: 0,
     pendingCount: 0,
-    completedCount: 0,
-    typeAllCount: 0,
-    customerCount: 0,
-    transferCount: 0
+    completedCount: 0
   });
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -177,10 +173,10 @@ export default function WarehouseInboundPage() {
     fetchKpi();
   }, [fetchKpi]);
 
-  // Reset page to 1 when search, status, tab, or dates change
+  // Reset page to 1 when search, status, or dates change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
+  }, [debouncedSearch, boardStatus, fromDate, toDate]);
 
   // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
   const fetchInboundTrips = useCallback(() => {
@@ -191,7 +187,6 @@ export default function WarehouseInboundPage() {
       limit: pageSize.toString(),
       ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
-      ...(statusTab !== 'ALL' ? { type: statusTab } : {}),
       ...(fromDate ? { fromDate } : {}),
       ...(toDate ? { toDate } : {})
     });
@@ -220,10 +215,7 @@ export default function WarehouseInboundPage() {
           setTripCounts({
             allCount: payload.meta.allCount ?? 0,
             pendingCount: payload.meta.pendingCount ?? 0,
-            completedCount: payload.meta.completedCount ?? 0,
-            typeAllCount: payload.meta.typeAllCount ?? 0,
-            customerCount: payload.meta.customerCount ?? 0,
-            transferCount: payload.meta.transferCount ?? 0
+            completedCount: payload.meta.completedCount ?? 0
           });
         }
       })
@@ -232,7 +224,7 @@ export default function WarehouseInboundPage() {
         setMeta({ total: 0, totalPages: 1 });
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
+  }, [page, pageSize, debouncedSearch, boardStatus, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -754,30 +746,6 @@ export default function WarehouseInboundPage() {
                         }}
                         className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                           boardStatus === tab.key
-                            ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
-                            : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Tier 2: Trip Type Sub-filter */}
-                  <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
-                    {[
-                      { key: 'ALL', label: `Tất cả loại (${tripCounts.typeAllCount ?? 0})` },
-                      { key: 'CUSTOMER', label: `Khách gửi (${tripCounts.customerCount ?? 0})` },
-                      { key: 'TRANSFER', label: `Luân chuyển (${tripCounts.transferCount ?? 0})` }
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        onClick={() => {
-                          setStatusTab(tab.key as typeof statusTab);
-                          setSelectedOrderIds([]);
-                        }}
-                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
-                          statusTab === tab.key
                             ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                             : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
                         }`}

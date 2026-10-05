@@ -8,8 +8,8 @@
  *      typeAllCount = customerCount + transferCount (1:1 parity).
  *    - Query filtering by status (PENDING / COMPLETED) and type (CUSTOMER / TRANSFER).
  * 2. Browser UI Verification on Dev Frontend:
- *    - Tier 1 Status Tabs: Tất cả, Chờ xử lý, Đã xử lý with dynamic counters.
- *    - Tier 2 Sub-filter Tabs: Tất cả loại, Khách gửi, Luân chuyển with dynamic counters.
+ *    - Processing Status Tabs: Tất cả, Chờ xử lý, Đã xử lý with dynamic counters.
+ *    - Confirmation that trip-type sub-filters (Tất cả loại, Khách gửi, Luân chuyển) are eliminated.
  *    - TablePaginationBar unitLabel displays "chuyến xe".
  *    - Zero critical console errors.
  */
@@ -177,14 +177,14 @@ test.describe.serial('Suite 28: Inbound Trip Status Filters & 1:1 Counter Parity
     await expect(pendingTab, 'Tab "Chờ xử lý" must be visible').toBeVisible({ timeout: 10_000 });
     await expect(completedTab, 'Tab "Đã xử lý" must be visible').toBeVisible({ timeout: 10_000 });
 
-    // 6. Assert Tier 2 trip-type sub-filters
-    const allTypesTab = page.locator('button:has-text("Tất cả loại (")').first();
-    const customerTab = page.locator('button:has-text("Khách gửi (")').first();
-    const transferTab = page.locator('button:has-text("Luân chuyển (")').first();
+    // 6. Assert Tier 2 trip-type sub-filters are eliminated per user decision
+    const allTypesTab = page.locator('button:has-text("Tất cả loại (")');
+    const customerTab = page.locator('button:has-text("Khách gửi (")');
+    const transferTab = page.locator('button:has-text("Luân chuyển (")');
 
-    await expect(allTypesTab, 'Tab "Tất cả loại" must be visible').toBeVisible({ timeout: 10_000 });
-    await expect(customerTab, 'Tab "Khách gửi" must be visible').toBeVisible({ timeout: 10_000 });
-    await expect(transferTab, 'Tab "Luân chuyển" must be visible').toBeVisible({ timeout: 10_000 });
+    await expect(allTypesTab, 'Tab "Tất cả loại" must be removed').toHaveCount(0);
+    await expect(customerTab, 'Tab "Khách gửi" must be removed').toHaveCount(0);
+    await expect(transferTab, 'Tab "Luân chuyển" must be removed').toHaveCount(0);
 
     // 7. Verify Date Range pickers
     const fromDateInput = page.getByLabel('Từ ngày');

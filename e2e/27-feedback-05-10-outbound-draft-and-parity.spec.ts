@@ -7,7 +7,8 @@
  *    verify status PENDING, cancel draft (DELETE /v1/warehouse/outbound/drafts/:tripCode),
  *    and confirm draft into dispatched trip (POST /v1/warehouse/outbound/confirm with draftTripCode).
  * 3. Browser UI verification on dev frontend:
- *    - Status tabs (Tất cả / Chờ xử lý / Đã xử lý) & sub-filters (Tất cả loại / Xuất khách / Luân chuyển).
+ *    - Status tabs (Tất cả / Chờ xử lý / Đã xử lý).
+ *    - Confirmation that trip-type sub-filters (Xuất khách / Luân chuyển) are eliminated.
  *    - Draft action buttons (Tiếp tục, Hủy nháp, Lưu nháp).
  *    - Console health (zero critical errors).
  */
@@ -204,11 +205,11 @@ test.describe.serial('Feedback 05/10: Outbound Drafts & Trip Board Parity', () =
     await expect(pendingTab, 'Tab "Chờ xử lý" must be visible').toBeVisible({ timeout: 10_000 });
     await expect(completedTab, 'Tab "Đã xử lý" must be visible').toBeVisible({ timeout: 10_000 });
 
-    // 6. Assert trip-type sub-filters
+    // 6. Assert trip-type sub-filters are eliminated per user decision
     const customerTab = page.locator('button:has-text("Xuất khách (")');
     const transferTab = page.locator('button:has-text("Luân chuyển (")');
-    await expect(customerTab, 'Tab "Xuất khách" must be visible').toBeVisible({ timeout: 10_000 });
-    await expect(transferTab, 'Tab "Luân chuyển" must be visible').toBeVisible({ timeout: 10_000 });
+    await expect(customerTab, 'Tab "Xuất khách" must be removed').toHaveCount(0);
+    await expect(transferTab, 'Tab "Luân chuyển" must be removed').toHaveCount(0);
 
     // 7. Click "Chờ xử lý" tab and ensure table filters without crashing
     await pendingTab.click();

@@ -70,8 +70,6 @@ export default function WarehouseOutboundPage() {
   const debouncedSearch = useDebounce(search, 300);
   // Processing status at this hub: PENDING = Chờ xử lý (nháp), COMPLETED = Đã xử lý (đã xuất)
   const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
-  // Trip type sub-filter
-  const [statusTab, setStatusTab] = useState<'ALL' | 'CUSTOMER' | 'TRANSFER'>('ALL');
   const [tripGroups, setTripGroups] = useState<any[]>([]);
   // SD code of the draft trip currently opened on the note (null = new note)
   const [draftTripCode, setDraftTripCode] = useState<string | null>(null);
@@ -130,10 +128,7 @@ export default function WarehouseOutboundPage() {
   const [tripCounts, setTripCounts] = useState({
     allCount: 0,
     pendingCount: 0,
-    completedCount: 0,
-    typeAllCount: 0,
-    customerCount: 0,
-    transferCount: 0
+    completedCount: 0
   });
 
   // Customer Mode 1 Form Fields
@@ -216,7 +211,7 @@ export default function WarehouseOutboundPage() {
   // Reset page to 1 when search, tab, or dates change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
+  }, [debouncedSearch, boardStatus, fromDate, toDate]);
 
   // Fetch Board Trips (one row per SD trip of this hub: drafts + dispatched) + tab counters (same query)
   const fetchOrders = useCallback(() => {
@@ -227,7 +222,6 @@ export default function WarehouseOutboundPage() {
       limit: pageSize.toString(),
       ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
-      ...(statusTab !== 'ALL' ? { type: statusTab } : {}),
       ...(fromDate ? { fromDate } : {}),
       ...(toDate ? { toDate } : {})
     });
@@ -259,10 +253,7 @@ export default function WarehouseOutboundPage() {
         setTripCounts({
           allCount: m?.allCount ?? 0,
           pendingCount: m?.pendingCount ?? 0,
-          completedCount: m?.completedCount ?? 0,
-          typeAllCount: m?.typeAllCount ?? 0,
-          customerCount: m?.customerCount ?? 0,
-          transferCount: m?.transferCount ?? 0
+          completedCount: m?.completedCount ?? 0
         });
       })
       .catch((err) => {
@@ -270,7 +261,7 @@ export default function WarehouseOutboundPage() {
         showApiErrorToast(err, 'Không thể tải danh sách chuyến xe xuất kho');
       })
       .finally(() => setIsLoading(false));
-  }, [page, pageSize, debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
+  }, [page, pageSize, debouncedSearch, boardStatus, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -1108,27 +1099,6 @@ export default function WarehouseOutboundPage() {
                         onClick={() => setBoardStatus(tab.key as typeof boardStatus)}
                         className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                           boardStatus === tab.key
-                            ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
-                            : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Trip Type Sub-filter */}
-                  <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
-                    {[
-                      { key: 'ALL', label: `Tất cả loại (${tripCounts.typeAllCount ?? 0})` },
-                      { key: 'CUSTOMER', label: `Xuất khách (${tripCounts.customerCount ?? 0})` },
-                      { key: 'TRANSFER', label: `Luân chuyển (${tripCounts.transferCount ?? 0})` }
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        onClick={() => setStatusTab(tab.key as typeof statusTab)}
-                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
-                          statusTab === tab.key
                             ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                             : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
                         }`}
