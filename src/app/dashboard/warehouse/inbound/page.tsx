@@ -237,7 +237,9 @@ export default function WarehouseInboundPage() {
         if (
           viewerHubId &&
           t.originHubId === viewerHubId &&
-          (t.type === 'OUTBOUND' || (t.destinationHubId && t.destinationHubId !== viewerHubId))
+          (t.type === 'OUTBOUND' ||
+            t.type === 'TRANSFER' ||
+            (t.destinationHubId && t.destinationHubId !== viewerHubId))
         ) {
           return false;
         }
@@ -1160,6 +1162,7 @@ export default function WarehouseInboundPage() {
                                                         totalQuantity: subOrder.totalQuantity || 1,
                                                         originHub: orig,
                                                         destinationHub: dest,
+                                                        warehouseName: subOrder.currentHubEntity?.name,
                                                         createdAt: new Date()
                                                       });
                                                       setIsLabelModalOpen(true);
@@ -1327,10 +1330,10 @@ export default function WarehouseInboundPage() {
                             orderCode:
                               r.orderCode && r.orderCode !== '(Tự sinh khi lưu)'
                                 ? r.orderCode
-                                : 'LTV2609-0025',
-                            goodsDescription: r.goodsDescription || 'Vải cuộn',
-                            totalQuantity: r.totalQuantity || 50,
-                            packagesOnPallet: r.totalQuantity || 50,
+                                : '(Tự sinh khi lưu)',
+                            goodsDescription: r.goodsDescription || '',
+                            totalQuantity: Number(r.totalQuantity) || 0,
+                            packagesOnPallet: Number(r.totalQuantity) || 0,
                             palletIndex: 1,
                             totalPallets: 1,
                             originHub: r.pickupAddress,
@@ -1411,6 +1414,7 @@ export default function WarehouseInboundPage() {
               totalQuantity: waybill.totalQuantity || 1,
               originHub: orig,
               destinationHub: dest,
+              warehouseName: waybill.currentHubEntity?.name,
               createdAt: new Date()
             });
             setIsLabelModalOpen(true);
@@ -1447,6 +1451,7 @@ export default function WarehouseInboundPage() {
               totalQuantity: waybill.totalQuantity || 1,
               originHub: orig,
               destinationHub: dest,
+              warehouseName: waybill.currentHubEntity?.name,
               createdAt: new Date()
             });
             setIsLabelModalOpen(true);

@@ -22,7 +22,9 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconFoldUp,
-  IconFoldDown
+  IconFoldDown,
+  IconPencil,
+  IconTrash
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -66,8 +68,15 @@ export default function WarehouseOutboundPage() {
   // Board Filter & Data
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const [statusTab, setStatusTab] = useState('ALL');
-  const [orders, setOrders] = useState<any[]>([]);
+  // Processing status at this hub: PENDING = Chờ xử lý (nháp), COMPLETED = Đã xử lý (đã xuất)
+  const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
+  // Trip type sub-filter
+  const [statusTab, setStatusTab] = useState<'ALL' | 'CUSTOMER' | 'TRANSFER'>('ALL');
+  const [tripGroups, setTripGroups] = useState<any[]>([]);
+  // SD code of the draft trip currently opened on the note (null = new note)
+  const [draftTripCode, setDraftTripCode] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [cancellingDraftCode, setCancellingDraftCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -90,7 +99,7 @@ export default function WarehouseOutboundPage() {
   };
 
   // Checkbox selection & batch confirm outbound
-  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+  const [selectedTripCodes, setSelectedTripCodes] = useState<string[]>([]);
   const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
 
   // Expanded Vehicle Groups State
@@ -117,45 +126,15 @@ export default function WarehouseOutboundPage() {
   const [fromDate, setFromDate] = useState(getDefaultFromDate);
   const [toDate, setToDate] = useState(getDefaultToDate);
 
-  // KPI Stats
-  const [kpiStats, setKpiStats] = useState({
-    total: 0,
-    inboundTotal: 0,
-    outboundTotal: 0,
-    waitingInbound: 0,
-    customerInbound: 0,
-    transferInbound: 0,
-    storedInbound: 0,
-    waitingOutbound: 0,
-    customerOutbound: 0,
-    transferOutbound: 0,
-    completedOutboundToday: 0,
-    completedOutbound: 0
+  // Trip tab counters — returned by the same query that renders the board rows (1:1 parity)
+  const [tripCounts, setTripCounts] = useState({
+    allCount: 0,
+    pendingCount: 0,
+    completedCount: 0,
+    typeAllCount: 0,
+    customerCount: 0,
+    transferCount: 0
   });
-
-  const fetchKpi = useCallback(() => {
-    const token = tokenManager.getAccessToken();
-    const query = new URLSearchParams({
-      ...(fromDate ? { fromDate } : {}),
-      ...(toDate ? { toDate } : {})
-    });
-    fetch(`/api/v1/warehouse/kpi?${query.toString()}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((resData) => {
-        const payload = resData?.data || resData;
-        if (payload) setKpiStats((prev) => ({ ...prev, ...payload }));
-      })
-      .catch(() => {});
-  }, [fromDate, toDate]);
-
-  useEffect(() => {
-    fetchKpi();
-  }, [fetchKpi]);
 
   // Customer Mode 1 Form Fields
   const [outboundLicensePlate, setOutboundLicensePlate] = useState('');
@@ -237,50 +216,61 @@ export default function WarehouseOutboundPage() {
   // Reset page to 1 when search, tab, or dates change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusTab, fromDate, toDate]);
+  }, [debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
 
-  // Fetch Board Orders
+  // Fetch Board Trips (one row per SD trip of this hub: drafts + dispatched) + tab counters (same query)
   const fetchOrders = useCallback(() => {
     setIsLoading(true);
-    const token =
-      typeof window !== 'undefined'
-        ? useAuthStore.getState()?.accessToken ||
-          localStorage.getItem('access_token') ||
-          document.cookie.match(/(?:^|; )access_token=([^;]*)/)?.[1]
-        : null;
+    const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
       page: page.toString(),
       limit: pageSize.toString(),
-      flow: 'OUTBOUND',
       ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-      ...(statusTab !== 'ALL' ? { status: statusTab } : {}),
+      ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
+      ...(statusTab !== 'ALL' ? { type: statusTab } : {}),
       ...(fromDate ? { fromDate } : {}),
       ...(toDate ? { toDate } : {})
     });
 
-    fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+    fetch(`/api/v1/warehouse/outbound-trips?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((resData) => {
-        setOrders(resData?.data || []);
-        if (resData?.meta) {
-          setMeta({
-            total: resData.meta.total ?? 0,
-            page: resData.meta.page ?? 1,
-            limit: resData.meta.limit ?? pageSize,
-            totalPages: resData.meta.totalPages ?? 1
-          });
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
         }
+        return res.json();
       })
-      .catch(() => {
-        setOrders([]);
+      .then((resData) => {
+        // Accept both raw `{ data, meta }` and wrapped `{ data: { data, meta } }` payloads
+        const payload = resData?.meta ? resData : (resData?.data ?? resData);
+        setTripGroups(Array.isArray(payload?.data) ? payload.data : []);
+        const m = payload?.meta;
+        setMeta({
+          total: m?.total ?? 0,
+          page: m?.page ?? 1,
+          limit: m?.limit ?? pageSize,
+          totalPages: m?.totalPages ?? 1
+        });
+        setTripCounts({
+          allCount: m?.allCount ?? 0,
+          pendingCount: m?.pendingCount ?? 0,
+          completedCount: m?.completedCount ?? 0,
+          typeAllCount: m?.typeAllCount ?? 0,
+          customerCount: m?.customerCount ?? 0,
+          transferCount: m?.transferCount ?? 0
+        });
+      })
+      .catch((err) => {
+        setTripGroups([]);
+        showApiErrorToast(err, 'Không thể tải danh sách chuyến xe xuất kho');
       })
       .finally(() => setIsLoading(false));
-  }, [page, pageSize, debouncedSearch, statusTab, fromDate, toDate]);
+  }, [page, pageSize, debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -353,7 +343,6 @@ export default function WarehouseOutboundPage() {
         }
         toast.success('Đã cập nhật lại tồn kho khả dụng của các dòng hàng!');
       } else {
-        fetchKpi();
         fetchOrders();
         toast.success('Đã cập nhật lại thông số danh sách xuất kho!');
       }
@@ -364,17 +353,17 @@ export default function WarehouseOutboundPage() {
     }
   };
 
-  // Submit Outbound
-  const handleSubmitOutbound = async (mode: 'CUSTOMER' | 'TRANSFER') => {
+  // Validate the note and build the request body shared by "Xác nhận xuất kho" and "Lưu nháp"
+  const buildOutboundRequest = (mode: 'CUSTOMER' | 'TRANSFER') => {
     if (mode === 'CUSTOMER') {
       if (!outboundLicensePlate.trim()) {
         toast.error('Vui lòng nhập Biển số xe xuất kho (bắt buộc)');
-        return;
+        return null;
       }
     } else if (mode === 'TRANSFER') {
       if (!transferLicensePlate.trim()) {
         toast.error('Vui lòng nhập Biển số xe luân chuyển (bắt buộc)');
-        return;
+        return null;
       }
     }
 
@@ -383,7 +372,7 @@ export default function WarehouseOutboundPage() {
 
     if (validRows.length === 0) {
       toast.error('Vui lòng nhập hoặc chọn ít nhất một đơn hàng cần xuất kho');
-      return;
+      return null;
     }
 
     // Partial stock validation
@@ -391,14 +380,14 @@ export default function WarehouseOutboundPage() {
       const exportQty = Number(r.totalQuantity) || 0;
       if (exportQty <= 0) {
         toast.error(`Đơn ${r.orderCode}: Số lượng xuất phải lớn hơn 0`);
-        return;
+        return null;
       }
       if (r.remainingQuantity !== undefined && r.remainingQuantity !== null) {
         if (exportQty > r.remainingQuantity) {
           toast.error(
             `Đơn ${r.orderCode}: Số lượng xuất (${exportQty}) vượt quá tồn kho hiện tại (${r.remainingQuantity} kiện)!`
           );
-          return;
+          return null;
         }
       }
     }
@@ -412,7 +401,7 @@ export default function WarehouseOutboundPage() {
         toast.error(
           `Dòng hàng ${validRows[i].orderCode} đang bị chọn 2 lần trên phiếu. Vui lòng gộp số lượng vào một dòng.`
         );
-        return;
+        return null;
       }
       seenIds.set(key, i);
     }
@@ -424,7 +413,8 @@ export default function WarehouseOutboundPage() {
       (r) =>
         r.destinationHubId && (!user?.hub?.id || Number(r.destinationHubId) !== Number(user.hub.id))
     );
-    const effectiveMode = mode === 'TRANSFER' || hasTransferItem ? 'TRANSFER' : 'CUSTOMER';
+    const effectiveMode: 'CUSTOMER' | 'TRANSFER' =
+      mode === 'TRANSFER' || hasTransferItem ? 'TRANSFER' : 'CUSTOMER';
     const primaryDestHubId =
       mode === 'TRANSFER'
         ? parseInt(transferHubId, 10)
@@ -442,6 +432,29 @@ export default function WarehouseOutboundPage() {
         deliveryAddress: r.deliveryAddress || undefined
       }));
 
+    const body = {
+      orderIds: orderIds.length > 0 ? orderIds : undefined,
+      items: items.length > 0 ? items : undefined,
+      mode: effectiveMode,
+      customerName: effectiveMode === 'CUSTOMER' ? customerName : undefined,
+      customerPhone: effectiveMode === 'CUSTOMER' ? customerPhone : undefined,
+      deliveryAddress: effectiveMode === 'CUSTOMER' ? customerAddress : undefined,
+      destinationHubId: primaryDestHubId,
+      licensePlate: mode === 'TRANSFER' ? transferLicensePlate : outboundLicensePlate,
+      driverName: mode === 'TRANSFER' ? transferDriverName : outboundDriverName,
+      dispatchDate: dispatchDate || undefined,
+      draftTripCode: draftTripCode || undefined
+    };
+
+    return { body, validRows, effectiveMode, primaryDestHubId };
+  };
+
+  // Submit Outbound
+  const handleSubmitOutbound = async (mode: 'CUSTOMER' | 'TRANSFER') => {
+    const request = buildOutboundRequest(mode);
+    if (!request) return;
+    const { body, validRows, effectiveMode, primaryDestHubId } = request;
+
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
 
@@ -452,17 +465,7 @@ export default function WarehouseOutboundPage() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          orderIds: orderIds.length > 0 ? orderIds : undefined,
-          items: items.length > 0 ? items : undefined,
-          mode: effectiveMode,
-          customerName: effectiveMode === 'CUSTOMER' ? customerName : undefined,
-          customerPhone: effectiveMode === 'CUSTOMER' ? customerPhone : undefined,
-          deliveryAddress: effectiveMode === 'CUSTOMER' ? customerAddress : undefined,
-          destinationHubId: primaryDestHubId,
-          licensePlate: mode === 'TRANSFER' ? transferLicensePlate : outboundLicensePlate,
-          driverName: mode === 'TRANSFER' ? transferDriverName : outboundDriverName
-        })
+        body: JSON.stringify(body)
       });
 
       if (!res.ok) {
@@ -527,8 +530,8 @@ export default function WarehouseOutboundPage() {
       });
       setIsReceiptModalOpen(true);
 
+      setDraftTripCode(null);
       setActiveView('BOARD');
-      fetchKpi();
       fetchOrders();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xuất kho');
@@ -537,165 +540,178 @@ export default function WarehouseOutboundPage() {
     }
   };
 
-  const handleSaveDraftMode1 = () => {
-    if (!outboundLicensePlate.trim()) {
-      toast.error('Vui lòng nhập Biển số xe để lưu nháp');
-      return;
-    }
-    toast.success('Đã lưu nháp phiếu xuất kho thành công!');
-    setActiveView('BOARD');
+  const emptyMode1Row = (): WarehouseRowItem => ({
+    orderCode: '',
+    pickupAddress: '',
+    goodsDescription: '',
+    totalQuantity: 1,
+    totalWeight: 0,
+    totalVolume: 0,
+    deliveryMode: 'DIRECT_CUSTOMER',
+    deliveryAddress: '',
+    notes: ''
+  });
+
+  // Fresh customer note (no draft attached)
+  const resetMode1Form = () => {
+    setDraftTripCode(null);
+    setOutboundLicensePlate('');
+    setOutboundDriverName('');
+    setDispatchDate(new Date().toISOString().split('T')[0]);
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setMode1Rows([emptyMode1Row()]);
   };
 
-  // Group outbound orders by vehicle / trip (Outbound perspective)
-  const vehicleGroups: InboundVehicleGroup[] = useMemo(() => {
-    const map = new Map<string, InboundVehicleGroup>();
+  // "Tạo phiếu xuất": keeps an unfinished new note, but never continues a reopened draft by accident
+  const handleOpenNewMode1 = () => {
+    if (draftTripCode) resetMode1Form();
+    setActiveView('MODE1_CUSTOMER');
+  };
 
-    for (const o of orders) {
-      // Find an outbound trip for this order (dispatched or in transit from this hub)
-      const outboundTx = o.inventoryTransactions?.find(
-        (tx: any) => tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER'
-      );
-      const outboundTrip = (o.trips ?? []).find(
-        (t: any) =>
-          t?.type === 'OUTBOUND' ||
-          t?.type === 'TRANSFER' ||
-          t?.notes?.includes('[XUẤT KHO') ||
-          (t?.tripCode === o.currentTripCode && o.currentTripCode) ||
-          (t?.status === 'IN_TRANSIT' && !t?.notes?.includes('[NHẬP KHO]'))
-      );
+  // "Lưu nháp": persists the note as a draft trip (Chờ xử lý) — allocates SD code, no stock deduction
+  const handleSaveDraftMode1 = async () => {
+    const request = buildOutboundRequest('CUSTOMER');
+    if (!request) return;
 
-      const activeTrip =
-        outboundTrip ||
-        (outboundTx?.tripCode
-          ? {
-              tripCode: outboundTx.tripCode,
-              licensePlate: outboundTx.licensePlate,
-              driverName: outboundTx.driverName,
-              pickupDate: outboundTx.createdAt?.split('T')[0]
-            }
-          : null);
-
-      // Nếu đơn hàng chưa được gán chuyến xe xuất kho (chưa có chuyến xuất và chưa có giao dịch xuất),
-      // thì đơn hàng vẫn đang lưu kho, KHÔNG hiển thị trên bảng Chuyến xe xuất kho!
-      if (!activeTrip) {
-        continue;
+    setIsSavingDraft(true);
+    const token = tokenManager.getAccessToken();
+    try {
+      const res = await fetch('/api/v1/warehouse/outbound/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(request.body)
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
       }
-
-      const plate = activeTrip.licensePlate?.trim()?.toUpperCase() || '';
-      const driver = activeTrip.driverName?.trim() || '';
-      const tripCode = activeTrip.tripCode?.trim() || '';
-
-      const key = tripCode || (plate ? `PLATE-${plate}` : `TX-${outboundTx?.id || o.id}`);
-
-      const isTransfer =
-        o.inboundType === 'TRANSFER' ||
-        o.orderCode?.startsWith('TRIP') ||
-        (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
-        (o.originHubEntity?.id &&
-          o.destinationHubEntity?.id &&
-          o.originHubEntity.id !== o.destinationHubEntity.id);
-
-      const hubScopedStatus = o.hubStatus ?? o.status;
-
-      if (!map.has(key)) {
-        map.set(key, {
-          groupKey: key,
-          licensePlate: plate || 'XE XUẤT KHO',
-          driverName: driver,
-          tripCode: tripCode || '—',
-          receiveDate: activeTrip.pickupDate || o.createdAt?.split('T')[0],
-          status: hubScopedStatus,
-          isTransfer,
-          orders: [],
-          totalQuantity: 0,
-          totalWeight: 0,
-          totalVolume: 0,
-          goodsDescription: '',
-          notes: o.notes || ''
-        });
-      }
-
-      const grp = map.get(key)!;
-      grp.orders.push(o);
-
-      // Lấy chính xác số lượng, tải trọng thực xuất trong chuyến xe này từ Sổ cái giao dịch
-      const tripTx = o.inventoryTransactions?.find(
-        (tx: any) =>
-          (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
-          (tripCode === '—' || !tripCode || !tx?.tripCode || tx.tripCode === tripCode)
+      const json = await res.json().catch(() => ({}));
+      const payload = json?.data ?? json;
+      toast.success(
+        payload?.tripCode
+          ? `Đã lưu nháp chuyến ${payload.tripCode} (Chờ xử lý)`
+          : 'Đã lưu nháp phiếu xuất kho'
       );
-      const exportedQty = tripTx
-        ? Number(tripTx.quantity || 0)
-        : Number(o.outboundQuantity || o.totalQuantity || 1);
-      const contractTotal = Math.max(Number(o.totalQuantity || 1), 1);
-      const exportedWeight =
-        tripTx?.weight != null
-          ? Number(tripTx.weight)
-          : (Number(o.totalWeight || 0) * exportedQty) / contractTotal;
-      const exportedVolume =
-        tripTx?.volume != null
-          ? Number(tripTx.volume)
-          : (Number(o.totalVolume || 0) * exportedQty) / contractTotal;
-
-      grp.totalQuantity += exportedQty;
-      grp.totalWeight = Math.round((grp.totalWeight + exportedWeight) * 100) / 100;
-      grp.totalVolume = Math.round((grp.totalVolume + exportedVolume) * 1000) / 1000;
-
-      // Chuyến xe đã có giao dịch xuất kho hoặc đang chạy ➔ trạng thái Đã xử lý / Đã xuất kho
-      // Chỉ khi chưa có giao dịch xuất kho và đơn vẫn đang chờ thì mới tính là chờ xuất
-      if (!tripTx && ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(hubScopedStatus)) {
-        grp.status = hubScopedStatus;
-      }
+      resetMode1Form();
+      // Switching back to BOARD triggers the board effect with the "Chờ xử lý" filter applied
+      setBoardStatus('PENDING');
+      setActiveView('BOARD');
+    } catch (err: any) {
+      showApiErrorToast(err, 'Không thể lưu nháp phiếu xuất kho');
+    } finally {
+      setIsSavingDraft(false);
     }
+  };
 
-    map.forEach((grp) => {
-      // Xác định trạng thái của chuyến xe từ góc nhìn vận hành xuất kho:
-      // Chuyến xe đã xuất kho xong (COMPLETED - Đã xử lý) khi:
-      // 1. Tất cả đơn trên xe đều đã có giao dịch xuất kho (OUTBOUND/TRANSFER) tương ứng với chuyến này, HOẶC
-      // 2. Chuyến xe đang chạy (IN_TRANSIT) hoặc đã hoàn thành (COMPLETED)
-      const allDispatched =
-        grp.orders.length > 0 &&
-        grp.orders.every((o) => {
-          const tx = o.inventoryTransactions?.find(
-            (t: any) =>
-              (t?.type === 'OUTBOUND' || t?.type === 'TRANSFER') &&
-              (grp.tripCode === '—' || !t?.tripCode || t.tripCode === grp.tripCode)
-          );
-          return !!tx;
-        });
-
-      const isTripRunning = grp.orders.some((o) =>
-        o.trips?.some(
-          (t: any) =>
-            grp.tripCode !== '—' &&
-            t.tripCode === grp.tripCode &&
-            (t.status === 'IN_TRANSIT' || t.status === 'COMPLETED')
-        )
-      );
-
-      if (allDispatched || isTripRunning) {
-        grp.status = 'COMPLETED';
-      } else {
-        const hasPending = grp.orders.some((o) =>
-          ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(
-            o.hubStatus ?? o.status
-          )
-        );
-        grp.status = hasPending ? 'PENDING' : 'COMPLETED';
-      }
-
-      const descs = Array.from(new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)));
-      if (descs.length === 1) {
-        grp.goodsDescription = descs[0];
-      } else if (descs.length > 1) {
-        grp.goodsDescription = `${descs[0]} (+${descs.length - 1} loại hàng)`;
-      } else {
-        grp.goodsDescription = 'Hàng hóa tổng quan';
-      }
+  // "Tiếp tục": reopen a draft trip on the outbound note to edit or confirm it
+  const handleResumeDraft = (grp: InboundVehicleGroup) => {
+    const rows: WarehouseRowItem[] = grp.orders.map((o: any) => {
+      const plannedDest = o.plannedDestinationHubId ? Number(o.plannedDestinationHubId) : null;
+      return {
+        id: o.id,
+        orderCode: o.orderCode,
+        pickupAddress: o.pickupAddress || '',
+        goodsDescription: o.goodsDescription || '',
+        totalQuantity: Number(o.exportedQuantity) || 0,
+        quantityToExport: Number(o.exportedQuantity) || 0,
+        // Drafts do not hold stock: available stock at this hub is the live ledger figure
+        remainingQuantity: availableOutboundStock(o),
+        totalWeight: Number(o.exportedWeight) || 0,
+        totalVolume: Number(o.exportedVolume) || 0,
+        deliveryMode: plannedDest ? 'HUB_L1' : 'DIRECT_CUSTOMER',
+        deliveryAddress: plannedDest ? '' : o.deliveryAddress || '',
+        originalDeliveryAddress: o.deliveryAddress || '',
+        destinationHubId: plannedDest,
+        province: o.province || '',
+        accompanyingDocs: o.accompanyingDocs || '',
+        notes: o.notes || '',
+        status: o.hubStatus ?? o.status
+      };
     });
 
-    return Array.from(map.values());
-  }, [orders]);
+    setDraftTripCode(grp.tripCode);
+    setOutboundLicensePlate(grp.licensePlate === 'XE XUẤT KHO' ? '' : grp.licensePlate);
+    setOutboundDriverName(grp.driverName || '');
+    setDispatchDate(grp.receiveDate || new Date().toISOString().split('T')[0]);
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setMode1Rows(rows.length > 0 ? rows : [emptyMode1Row()]);
+    setActiveView('MODE1_CUSTOMER');
+  };
+
+  // "Hủy nháp": drops the draft trip (no stock was deducted, nothing to roll back)
+  const handleCancelDraft = async (tripCode: string) => {
+    if (!window.confirm(`Hủy chuyến nháp ${tripCode}? Các dòng hàng dự kiến xuất sẽ bị xóa khỏi chuyến.`)) {
+      return;
+    }
+    setCancellingDraftCode(tripCode);
+    const token = tokenManager.getAccessToken();
+    try {
+      const res = await fetch(`/api/v1/warehouse/outbound/drafts/${encodeURIComponent(tripCode)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
+      }
+      toast.success(`Đã hủy chuyến nháp ${tripCode}`);
+      if (draftTripCode === tripCode) setDraftTripCode(null);
+      fetchOrders();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Không thể hủy chuyến nháp');
+    } finally {
+      setCancellingDraftCode(null);
+    }
+  };
+
+  // Trip rows come pre-grouped from the backend (one row per SD trip dispatched from this hub)
+  const vehicleGroups: InboundVehicleGroup[] = useMemo(
+    () =>
+      tripGroups.map((g) => {
+        const descs = Array.from(
+          new Set((g.orders ?? []).map((x: any) => x.goodsDescription).filter(Boolean))
+        ) as string[];
+        return {
+          groupKey: g.tripCode,
+          licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'XE XUẤT KHO',
+          driverName: g.driverName?.trim() || '',
+          tripCode: g.tripCode,
+          receiveDate:
+            typeof g.dispatchDate === 'string' ? g.dispatchDate.split('T')[0] : undefined,
+          // Status of the trip at this hub: origin stop is "Đã xử lý" once dispatched
+          status: g.status ?? 'COMPLETED',
+          isTransfer: !!g.isTransfer,
+          orders: g.orders ?? [],
+          totalQuantity: Number(g.totalQuantity) || 0,
+          totalWeight: Number(g.totalWeight) || 0,
+          totalVolume: Number(g.totalVolume) || 0,
+          goodsDescription:
+            descs.length === 0
+              ? 'Hàng hóa tổng quan'
+              : descs.length === 1
+                ? descs[0]
+                : `${descs[0]} (+${descs.length - 1} loại hàng)`,
+          notes: g.notes || ''
+        };
+      }),
+    [tripGroups]
+  );
+
+  // Draft trips ("Chờ xử lý") are the only rows that can still be dispatched from the board
+  const draftGroups = useMemo(
+    () => vehicleGroups.filter((g) => g.status === 'PENDING'),
+    [vehicleGroups]
+  );
 
   const allExpanded = useMemo(() => {
     if (vehicleGroups.length === 0) return false;
@@ -714,42 +730,67 @@ export default function WarehouseOutboundPage() {
     }
   };
 
-  // Batch Outbound Confirmation
+  // Batch "Xác nhận xuất": dispatches each selected draft trip exactly as saved (keeps its SD code)
   const handleBatchConfirmOutbound = async () => {
-    if (selectedOrderIds.length === 0) {
-      toast.error('Vui lòng chọn ít nhất 1 đơn hàng để xuất kho');
+    const targets = draftGroups.filter((g) => selectedTripCodes.includes(g.tripCode));
+    if (targets.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 chuyến nháp để xác nhận xuất kho');
       return;
     }
 
     setIsBatchSubmitting(true);
     const token = tokenManager.getAccessToken();
+    let successCount = 0;
 
     try {
-      const res = await fetch('/api/v1/warehouse/outbound/confirm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          orderIds: selectedOrderIds,
-          mode: 'CUSTOMER'
-        })
-      });
+      for (const grp of targets) {
+        const items = grp.orders.map((o: any) => ({
+          orderId: Number(o.id),
+          quantityToExport: Number(o.exportedQuantity) || 0,
+          weightToExport: Number(o.exportedWeight) || 0,
+          volumeToExport: Number(o.exportedVolume) || 0,
+          destinationHubId: o.plannedDestinationHubId
+            ? Number(o.plannedDestinationHubId)
+            : undefined
+        }));
+        const destHubId = items.find((i) => i.destinationHubId)?.destinationHubId;
+        const res = await fetch('/api/v1/warehouse/outbound/confirm', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            orderIds: items.map((i) => i.orderId),
+            items,
+            mode: grp.isTransfer ? 'TRANSFER' : 'CUSTOMER',
+            destinationHubId: destHubId,
+            licensePlate: grp.licensePlate === 'XE XUẤT KHO' ? undefined : grp.licensePlate,
+            driverName: grp.driverName || undefined,
+            dispatchDate: grp.receiveDate || undefined,
+            draftTripCode: grp.tripCode
+          })
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ message: res.statusText }));
-        throw { response: { data: errData, status: res.status } };
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
+        }
+        successCount += 1;
       }
 
-      toast.success(`Đã xác nhận xuất kho thành công cho ${selectedOrderIds.length} đơn hàng!`);
-      setSelectedOrderIds([]);
-      fetchKpi();
-      fetchOrders();
+      toast.success(`Đã xác nhận xuất kho ${successCount} chuyến xe!`);
     } catch (err: any) {
-      showApiErrorToast(err, 'Lỗi khi xác nhận xuất kho hàng loạt');
+      showApiErrorToast(
+        err,
+        successCount > 0
+          ? `Đã xuất ${successCount} chuyến, các chuyến còn lại chưa xuất được`
+          : 'Lỗi khi xác nhận xuất kho hàng loạt'
+      );
     } finally {
+      setSelectedTripCodes([]);
       setIsBatchSubmitting(false);
+      fetchOrders();
     }
   };
 
@@ -785,7 +826,6 @@ export default function WarehouseOutboundPage() {
       }
 
       toast.success(`Đã xuất kho chuyến xe ${grp.licensePlate} (${exportableOrders.length} đơn)!`);
-      fetchKpi();
       fetchOrders();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xuất chuyến xe');
@@ -831,9 +871,12 @@ export default function WarehouseOutboundPage() {
           (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
           (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
       );
-      const exportedQty = tripTx
-        ? Number(tripTx.quantity || 0)
-        : Number(o.outboundQuantity || o.totalQuantity || 1);
+      const exportedQty =
+        o.exportedQuantity != null
+          ? Number(o.exportedQuantity)
+          : tripTx
+            ? Number(tripTx.quantity || 0)
+            : Number(o.outboundQuantity || o.totalQuantity || 1);
       return {
         orderCode: o.orderCode,
         goodsDescription: o.goodsDescription || 'Hàng hóa xuất kho',
@@ -975,7 +1018,7 @@ export default function WarehouseOutboundPage() {
             {activeView === 'BOARD' ? (
               <div className='flex items-center gap-2'>
                 <Button
-                  onClick={() => setActiveView('MODE1_CUSTOMER')}
+                  onClick={handleOpenNewMode1}
                   className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold'
                 >
                   <IconPlus className='mr-1 h-4 w-4' /> Xuất kho
@@ -1053,25 +1096,38 @@ export default function WarehouseOutboundPage() {
                     </div>
                   </div>
 
-                  {/* Status Tabs */}
+                  {/* Processing Status Tabs (trip status at this hub) */}
                   <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
                     {[
-                      {
-                        key: 'ALL',
-                        label: `Tất cả (${kpiStats.outboundTotal ?? kpiStats.waitingOutbound + (kpiStats.completedOutbound ?? 0)})`
-                      },
-                      { key: 'INBOUND', label: `Lưu kho (${kpiStats.waitingOutbound ?? 0})` },
-                      { key: 'CUSTOMER', label: `Xuất khách (${kpiStats.customerOutbound ?? 0})` },
-                      { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferOutbound ?? 0})` },
-                      {
-                        key: 'COMPLETED_INBOUND',
-                        label: `Đã xuất kho (${kpiStats.completedOutbound ?? kpiStats.completedOutboundToday ?? 0})`
-                      }
+                      { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
+                      { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
+                      { key: 'COMPLETED', label: `Đã xử lý (${tripCounts.completedCount ?? 0})` }
                     ].map((tab) => (
                       <button
                         key={tab.key}
-                        onClick={() => setStatusTab(tab.key)}
-                        className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
+                        onClick={() => setBoardStatus(tab.key as typeof boardStatus)}
+                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                          boardStatus === tab.key
+                            ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
+                            : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Trip Type Sub-filter */}
+                  <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
+                    {[
+                      { key: 'ALL', label: `Tất cả loại (${tripCounts.typeAllCount ?? 0})` },
+                      { key: 'CUSTOMER', label: `Xuất khách (${tripCounts.customerCount ?? 0})` },
+                      { key: 'TRANSFER', label: `Luân chuyển (${tripCounts.transferCount ?? 0})` }
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setStatusTab(tab.key as typeof statusTab)}
+                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                           statusTab === tab.key
                             ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                             : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
@@ -1123,16 +1179,16 @@ export default function WarehouseOutboundPage() {
                 </div>
 
                 {/* Batch Action Bar */}
-                {selectedOrderIds.length > 0 && (
-                  <div className='bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5 flex items-center justify-between'>
+                {selectedTripCodes.length > 0 && (
+                  <div className='bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-1.5 flex items-center justify-between'>
                     <span className='text-xs font-semibold text-blue-900 dark:text-blue-200'>
-                      Đã chọn {selectedOrderIds.length} đơn hàng
+                      Đã chọn {selectedTripCodes.length} chuyến nháp
                     </span>
                     <div className='flex items-center gap-2'>
                       <Button
                         variant='ghost'
                         size='sm'
-                        onClick={() => setSelectedOrderIds([])}
+                        onClick={() => setSelectedTripCodes([])}
                         className='h-7 text-xs text-slate-600'
                       >
                         Bỏ chọn
@@ -1151,7 +1207,7 @@ export default function WarehouseOutboundPage() {
                         ) : (
                           <>
                             <IconCircleCheck className='h-3.5 w-3.5 mr-1 text-emerald-400' /> Xác
-                            nhận xuất kho {selectedOrderIds.length} đơn
+                            nhận xuất {selectedTripCodes.length} chuyến
                           </>
                         )}
                       </Button>
@@ -1167,18 +1223,24 @@ export default function WarehouseOutboundPage() {
                         <th className='py-1.5 px-2 w-[36px] text-center'>
                           <input
                             type='checkbox'
+                            disabled={draftGroups.length === 0}
+                            title='Chọn tất cả chuyến nháp trên trang'
                             checked={
-                              orders.length > 0 &&
-                              orders.every((o) => selectedOrderIds.includes(Number(o.id)))
+                              draftGroups.length > 0 &&
+                              draftGroups.every((g) => selectedTripCodes.includes(g.tripCode))
                             }
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedOrderIds(orders.map((o) => Number(o.id)));
+                                setSelectedTripCodes(draftGroups.map((g) => g.tripCode));
                               } else {
-                                setSelectedOrderIds([]);
+                                setSelectedTripCodes([]);
                               }
                             }}
-                            className='rounded border-gray-300 text-blue-600 cursor-pointer'
+                            className={`rounded border-gray-300 text-blue-600 ${
+                              draftGroups.length === 0
+                                ? 'opacity-40 cursor-not-allowed'
+                                : 'cursor-pointer'
+                            }`}
                           />
                         </th>
                         <th className='py-1.5 px-2 w-[150px]'>CHUYẾN XE / TRIP</th>
@@ -1205,36 +1267,11 @@ export default function WarehouseOutboundPage() {
                       ) : (
                         vehicleGroups.map((grp) => {
                           const isExpanded = !!expandedVehicleKeys[grp.groupKey];
-                          const groupOrderIds = grp.orders.map((o) => Number(o.id));
-                          const isGroupSelected =
-                            groupOrderIds.length > 0 &&
-                            groupOrderIds.every((id) => selectedOrderIds.includes(id));
-                          const isDispatched =
-                            grp.status === 'COMPLETED' ||
-                            (grp.orders.length > 0 &&
-                              grp.orders.every((o) => {
-                                const tripTx = o.inventoryTransactions?.find(
-                                  (tx: any) =>
-                                    (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
-                                    (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
-                                );
-                                return !!tripTx;
-                              })) ||
-                            grp.orders.some((o) =>
-                              o.trips?.some(
-                                (t: any) =>
-                                  grp.tripCode !== '—' &&
-                                  t.tripCode === grp.tripCode &&
-                                  (t.status === 'IN_TRANSIT' || t.status === 'COMPLETED')
-                              )
-                            );
-                          const canExport =
-                            !isDispatched &&
-                            grp.orders.some((o) =>
-                              ['INBOUND', 'WAITING_OUTBOUND', 'CONFIRMED', 'COLLECTED'].includes(
-                                o.hubStatus ?? o.status
-                              )
-                            );
+                          const isGroupSelected = selectedTripCodes.includes(grp.tripCode);
+                          // Trip status at this hub comes from the backend: COMPLETED = đã xuất, PENDING = nháp
+                          const isDispatched = grp.status === 'COMPLETED';
+                          const isDraft = grp.status === 'PENDING';
+                          const canExport = isDraft;
 
                           return (
                             <React.Fragment key={grp.groupKey}>
@@ -1244,16 +1281,20 @@ export default function WarehouseOutboundPage() {
                                     type='checkbox'
                                     checked={isGroupSelected}
                                     disabled={!canExport}
-                                    title={!canExport ? 'Chuyến xe đã xuất kho hoàn tất' : 'Chọn chuyến xe để xuất kho'}
+                                    title={
+                                      !canExport
+                                        ? 'Chuyến xe đã xuất kho hoàn tất'
+                                        : 'Chọn chuyến nháp để xác nhận xuất kho'
+                                    }
                                     onChange={(e) => {
                                       if (!canExport) return;
                                       if (e.target.checked) {
-                                        setSelectedOrderIds((prev) =>
-                                          Array.from(new Set([...prev, ...groupOrderIds]))
+                                        setSelectedTripCodes((prev) =>
+                                          Array.from(new Set([...prev, grp.tripCode]))
                                         );
                                       } else {
-                                        setSelectedOrderIds((prev) =>
-                                          prev.filter((id) => !groupOrderIds.includes(id))
+                                        setSelectedTripCodes((prev) =>
+                                          prev.filter((code) => code !== grp.tripCode)
                                         );
                                       }
                                     }}
@@ -1328,17 +1369,46 @@ export default function WarehouseOutboundPage() {
                                     status={isDispatched ? 'COMPLETED' : 'PENDING'}
                                   />
                                 </td>
-                                <td className='py-2 px-2.5 text-center'>
+                                <td className='py-1 px-2 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
-                                    <Button
-                                      variant='outline'
-                                      size='sm'
-                                      onClick={() => handleOpenReceiptForVehicle(grp)}
-                                      className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
-                                      title='In phiếu xuất xe (chứa tất cả đơn hàng của xe)'
-                                    >
-                                      <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu xuất
-                                    </Button>
+                                    {isDraft ? (
+                                      <>
+                                        <Button
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() => handleResumeDraft(grp)}
+                                          className='h-7 text-[11px] text-[#0F3D62] border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-800 px-2 font-semibold'
+                                          title='Mở lại phiếu nháp để chỉnh sửa hoặc xác nhận xuất kho'
+                                        >
+                                          <IconPencil className='h-3.5 w-3.5 mr-1' /> Tiếp tục
+                                        </Button>
+                                        <Button
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() => handleCancelDraft(grp.tripCode)}
+                                          disabled={cancellingDraftCode === grp.tripCode}
+                                          className='h-7 text-[11px] text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 px-2 font-semibold'
+                                          title='Hủy chuyến nháp (chưa trừ tồn kho)'
+                                        >
+                                          {cancellingDraftCode === grp.tripCode ? (
+                                            <IconLoader2 className='h-3.5 w-3.5 mr-1 animate-spin' />
+                                          ) : (
+                                            <IconTrash className='h-3.5 w-3.5 mr-1' />
+                                          )}
+                                          Hủy nháp
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <Button
+                                        variant='outline'
+                                        size='sm'
+                                        onClick={() => handleOpenReceiptForVehicle(grp)}
+                                        className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
+                                        title='In phiếu xuất xe (chứa tất cả đơn hàng của xe)'
+                                      >
+                                        <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu xuất
+                                      </Button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -1389,32 +1459,13 @@ export default function WarehouseOutboundPage() {
                                         </thead>
                                         <tbody className='divide-y divide-slate-100 dark:divide-slate-700'>
                                           {grp.orders.map((subOrder) => {
-                                            const tripTx = subOrder.inventoryTransactions?.find(
-                                              (tx: any) =>
-                                                (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
-                                                (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
-                                            );
-                                            const exportedQty = tripTx
-                                              ? Number(tripTx.quantity || 0)
-                                              : Number(subOrder.outboundQuantity || subOrder.totalQuantity || 1);
+                                            // Backend sums this trip's lines per order: dispatch invoice (đã xuất) or planned line (nháp)
+                                            const exportedQty = Number(subOrder.exportedQuantity ?? 0);
                                             const contractTotal = Math.max(Number(subOrder.totalQuantity || 1), 1);
-                                            const exportedWeight =
-                                              tripTx?.weight != null
-                                                ? Number(tripTx.weight)
-                                                : (Number(subOrder.totalWeight || 0) * exportedQty) / contractTotal;
-                                            const exportedVolume =
-                                              tripTx?.volume != null
-                                                ? Number(tripTx.volume)
-                                                : (Number(subOrder.totalVolume || 0) * exportedQty) / contractTotal;
+                                            const exportedWeight = Number(subOrder.exportedWeight ?? 0);
+                                            const exportedVolume = Number(subOrder.exportedVolume ?? 0);
 
-                                            const isSubOrderDispatched =
-                                              !!tripTx ||
-                                              (grp.tripCode !== '—' &&
-                                                subOrder.trips?.some(
-                                                  (t: any) =>
-                                                    t.tripCode === grp.tripCode &&
-                                                    (t.status === 'IN_TRANSIT' || t.status === 'COMPLETED')
-                                                ));
+                                            const isSubOrderDispatched = isDispatched;
 
                                             const displayStatus = isSubOrderDispatched
                                               ? 'COMPLETED_INBOUND'
@@ -1483,15 +1534,19 @@ export default function WarehouseOutboundPage() {
                                                 >
                                                   {subOrder.notes || '—'}
                                                 </td>
-                                                <td className='py-1.5 px-2 text-center'>
-                                                  <Button
-                                                    variant='outline'
-                                                    size='sm'
-                                                    onClick={() => handlePrintOrderReceipt(subOrder, grp.tripCode)}
-                                                    className='h-6 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2'
-                                                  >
-                                                    <IconPrinter className='h-3 w-3 mr-1' /> In phiếu
-                                                  </Button>
+                                                <td className='py-1 px-1.5 text-center'>
+                                                  {isDispatched ? (
+                                                    <Button
+                                                      variant='outline'
+                                                      size='sm'
+                                                      onClick={() => handlePrintOrderReceipt(subOrder, grp.tripCode)}
+                                                      className='h-6 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2'
+                                                    >
+                                                      <IconPrinter className='h-3 w-3 mr-1' /> In phiếu
+                                                    </Button>
+                                                  ) : (
+                                                    <span className='text-[10px] text-slate-400'>—</span>
+                                                  )}
                                                 </td>
                                               </tr>
                                             );
@@ -1518,6 +1573,7 @@ export default function WarehouseOutboundPage() {
                       totalPages={meta.totalPages}
                       total={meta.total}
                       pageSize={pageSize}
+                      unitLabel='chuyến xe'
                       pageSizeOptions={[10, 20, 50, 100]}
                       onPageChange={(newPage) => setPage(newPage)}
                       onPageSizeChange={(newSize) => {
@@ -1537,8 +1593,10 @@ export default function WarehouseOutboundPage() {
           <Card className='bg-white dark:bg-slate-900 shadow-sm border py-0'>
             <CardHeader className='py-1 px-1 border-b'>
               <CardTitle className='text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between'>
-                <span>Tạo Phiếu Xuất Kho</span>
-                <Badge className='bg-[#0F3D62] text-white font-mono'>Phiếu xuất kho</Badge>
+                <span>{draftTripCode ? `Phiếu xuất nháp · ${draftTripCode}` : 'Tạo Phiếu Xuất Kho'}</span>
+                <Badge className='bg-[#0F3D62] text-white font-mono'>
+                  {draftTripCode ? 'Chờ xử lý' : 'Phiếu xuất kho'}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className='p-1 space-y-1.5'>
@@ -1612,13 +1670,15 @@ export default function WarehouseOutboundPage() {
                     variant='outline'
                     size='sm'
                     onClick={handleSaveDraftMode1}
+                    disabled={isSavingDraft || isSubmitting}
                     className='text-xs font-bold border-slate-300'
                   >
+                    {isSavingDraft && <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' />}
                     Lưu nháp
                   </Button>
                   <Button
                     onClick={() => handleSubmitOutbound('CUSTOMER')}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isSavingDraft}
                     className='bg-[#0F3D62] text-white hover:bg-[#0c314f] px-2 font-bold h-9 text-xs shadow-xs'
                   >
                     {isSubmitting ? (
@@ -1673,7 +1733,9 @@ export default function WarehouseOutboundPage() {
           tripGroup={selectedTripGroup}
           readOnly={true}
           mode='OUTBOUND'
-          onOpenReceipt={handleOpenReceiptForVehicle}
+          onOpenReceipt={
+            selectedTripGroup?.status === 'COMPLETED' ? handleOpenReceiptForVehicle : undefined
+          }
         />
       </div>
     </PageContainer>

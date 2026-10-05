@@ -24,6 +24,11 @@ export interface PalletLabelData {
   deliveryAddress?: string;
   createdAt?: string | Date;
   receiverOrDriverName?: string;
+  /**
+   * Warehouse currently holding the goods (order.currentHubEntity.name). Used for "KHO" only when
+   * the printing user has no assigned hub. Never pass a pickup/delivery address here.
+   */
+  warehouseName?: string;
 }
 
 interface PalletLabelA4ModalProps {
@@ -39,7 +44,9 @@ export function PalletLabelA4Modal({
 }: PalletLabelA4ModalProps) {
   const user = useAuthStore((state) => state.user);
 
-  const currentHubName = (data?.originHub || user?.hub?.name || 'Kho tiếp nhận').toUpperCase();
+  // "KHO" = warehouse labelling / holding the goods: the printing user's hub, then the order's
+  // current hub. `originHub` is NOT used — callers fill it with the customer pickup address.
+  const currentHubName = (user?.hub?.name || data?.warehouseName || '—').toUpperCase();
 
   const formattedDate = data?.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')

@@ -5,6 +5,7 @@ import { tokenManager, API_BASE_URL } from './token-manager';
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,11 +24,9 @@ import {
   IconEyeOff,
   IconUser
 } from '@tabler/icons-react';
-import { useAuthStore } from '@/stores/use-auth-store';
 import { formatApiError } from '@/lib/api-error';
 import { apiClient } from '@/lib/api-client';
 import { tokenManager } from '@/lib/token-manager';
-import { cn } from '@/lib/utils';
 
 const DEMO_ACCOUNTS = [
   {
@@ -75,8 +72,6 @@ const DEMO_ACCOUNTS = [
 ];
 
 export function LoginForm() {
-  const router = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -104,15 +99,23 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const { data } = await apiClient.post('/api/v1/auth/email/login', {
-        email,
-        password
-      });
+      const { data } = await apiClient.post(
+        '/api/v1/auth/email/login',
+        {
+          email,
+          password
+        },
+        { timeout: 35000 }
+      );
 
       const payload = data?.data || data || {};
       const token = payload.token || payload.access_token;
       const refreshToken = payload.refreshToken || payload.refresh_token;
       const rawUser = payload.user || {};
+
+      if (!token) {
+        throw new Error('Máy chủ không trả về mã xác thực hợp lệ. Vui lòng thử lại.');
+      }
 
       // Map numerical or object role to string role enum used in frontend
       const roleMap: Record<number | string, any> = {
@@ -140,14 +143,28 @@ export function LoginForm() {
       // Store auth state & notify all tabs
       tokenManager.notifyLogin(user, token, refreshToken);
 
-      router.push('/dashboard/overview');
+      // Determine redirect destination from URL query params or user role
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam =
+        searchParams.get('redirect') ||
+        searchParams.get('callbackUrl') ||
+        searchParams.get('from');
+
+      let targetUrl = '/dashboard/overview';
+      if (redirectParam && redirectParam.startsWith('/dashboard')) {
+        targetUrl = redirectParam;
+      } else if (roleCode === 'WAREHOUSE_MANAGER') {
+        targetUrl = '/dashboard/warehouse/inbound';
+      }
+
+      // Hard redirect ensures fresh SSR load, transmits cookies to headers, and clears stale router cache
+      window.location.replace(targetUrl);
     } catch (err: unknown) {
       const message = formatApiError(
         err,
         'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại.'
       );
       setError(message);
-    } finally {
       setIsLoading(false);
     }
   }

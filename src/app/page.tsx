@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { isTokenValid } from '@/lib/server-auth';
+import { isTokenValid, parseJwtServer } from '@/lib/server-auth';
 
 export default async function Page() {
   const cookieStore = await cookies();
@@ -9,6 +9,11 @@ export default async function Page() {
   if (!isTokenValid(token)) {
     return redirect('/auth/sign-in');
   } else {
+    const payload = parseJwtServer(token!);
+    const roleId = typeof payload?.role === 'object' ? payload.role?.id : payload?.role;
+    if (roleId === 4 || roleId === 'WAREHOUSE_MANAGER') {
+      redirect('/dashboard/warehouse/inbound');
+    }
     redirect('/dashboard/overview');
   }
 }

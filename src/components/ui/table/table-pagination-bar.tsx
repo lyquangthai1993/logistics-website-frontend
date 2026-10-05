@@ -18,6 +18,8 @@ interface TablePaginationBarProps extends React.ComponentProps<'div'> {
   pageSizeOptions?: number[];
   onPageChange: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  /** Unit shown in the row count (default: "đơn hàng"). */
+  unitLabel?: string;
 }
 
 /**
@@ -32,6 +34,7 @@ export function TablePaginationBar({
   pageSizeOptions = [10, 20, 50, 100],
   onPageChange,
   onPageSizeChange,
+  unitLabel = 'đơn hàng',
   className,
   ...props
 }: TablePaginationBarProps) {
@@ -49,10 +52,10 @@ export function TablePaginationBar({
       {/* Left: row count info */}
       <div className='text-muted-foreground text-xs sm:text-sm whitespace-nowrap'>
         {total === 0 ? (
-          <>0 đơn hàng</>
+          <>0 {unitLabel}</>
         ) : (
           <>
-            {from}–{to} / {total} đơn hàng
+            {from}–{to} / {total} {unitLabel}
           </>
         )}
       </div>

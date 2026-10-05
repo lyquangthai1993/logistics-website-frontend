@@ -197,6 +197,7 @@ export default function WarehouseOrdersPage() {
             palletIndex: 1,
             totalPallets: 1,
             destinationHub: m.destinationHub || m.route,
+            warehouseName: m.currentHubEntity?.name,
             createdAt: m.createdAt
           })
         }
@@ -489,6 +490,7 @@ export default function WarehouseOrdersPage() {
               palletIndex: 1,
               totalPallets: 1,
               destinationHub: w.destinationHub || w.route,
+              warehouseName: w.currentHubEntity?.name,
               createdAt: w.createdAt
             });
           }}

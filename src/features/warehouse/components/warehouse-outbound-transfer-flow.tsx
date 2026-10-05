@@ -95,6 +95,7 @@ export function WarehouseOutboundTransferFlow({
   // Pallet Label Modal
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch Active Level 1 Hubs (excluding the operator's own hub)
@@ -308,6 +309,61 @@ export function WarehouseOutboundTransferFlow({
       showApiErrorToast(err, 'Xác nhận xuất kho không thành công');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // "Lưu nháp": stores the transfer note as a draft trip (Chờ xử lý) — no stock is deducted yet
+  const handleSaveTransferDraft = async () => {
+    const orderIds = Array.from(selectedOrderIds)
+      .map(Number)
+      .filter((id) => !isNaN(id));
+    if (orderIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một đơn hàng trước khi lưu nháp');
+      return;
+    }
+    if (!destinationHubId) {
+      toast.error('Vui lòng chọn kho đích cho chuyến luân chuyển!');
+      return;
+    }
+    if (!licensePlate.trim()) {
+      toast.error('Vui lòng nhập biển số xe điều chuyển');
+      return;
+    }
+
+    setIsSavingDraft(true);
+    const token = tokenManager.getAccessToken();
+    try {
+      const res = await fetch('/api/v1/warehouse/outbound/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          orderIds,
+          mode: 'TRANSFER',
+          destinationHubId,
+          licensePlate,
+          driverName,
+          dispatchDate
+        })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
+      }
+      const json = await res.json().catch(() => ({}));
+      const payload = json?.data ?? json;
+      toast.success(
+        payload?.tripCode
+          ? `Đã lưu nháp chuyến luân chuyển ${payload.tripCode} (Chờ xử lý)`
+          : 'Đã lưu nháp phiếu xuất kho luân chuyển'
+      );
+      onSuccess();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Không thể lưu nháp phiếu luân chuyển');
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -664,7 +720,8 @@ export function WarehouseOutboundTransferFlow({
             <div className='flex items-center gap-2'>
               <Button
                 variant='outline'
-                onClick={() => toast.success('Đã lưu nháp thông tin chuyến xe')}
+                disabled
+                title='Chọn hàng trong kho trước khi lưu nháp'
                 className='text-xs font-semibold'
               >
                 Lưu nháp
@@ -1170,9 +1227,11 @@ export function WarehouseOutboundTransferFlow({
             <div className='flex items-center gap-2'>
               <Button
                 variant='outline'
-                onClick={() => toast.success('Đã lưu nháp phiếu xuất kho luân chuyển')}
+                onClick={handleSaveTransferDraft}
+                disabled={isSavingDraft || isSubmitting}
                 className='text-xs font-semibold'
               >
+                {isSavingDraft && <IconLoader2 className='h-4 w-4 mr-1 animate-spin' />}
                 Lưu nháp
               </Button>
               <Button

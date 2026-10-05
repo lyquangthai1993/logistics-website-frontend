@@ -53,6 +53,8 @@ export interface WaybillDetailData {
   originHub?: string;
   originHubId?: number | null;
   originHubEntity?: { id?: number; name?: string; code?: string };
+  /** Warehouse currently holding the goods (null while on a vehicle). */
+  currentHubEntity?: { id?: number; name?: string; code?: string } | null;
   route?: string;
   goodsDescription?: string;
   totalQuantity?: number;
@@ -243,6 +245,7 @@ export function WarehouseWaybillDetailModal({
         totalPallets: 1,
         originHub: waybill.pickupAddress || waybill.originHub,
         destinationHub: waybill.deliveryAddress || waybill.destinationHub,
+        warehouseName: waybill.currentHubEntity?.name,
         createdAt: waybill.createdAt,
       });
     }

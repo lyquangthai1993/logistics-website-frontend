@@ -2,12 +2,6 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const publicRoutes = ['/auth/sign-in', '/auth/forgot-password', '/auth/reset-password', '/auth'];
-const _publicApiRoutes = [
-  '/api/v1/auth/email/login',
-  '/api/v1/auth/forgot/password',
-  '/api/v1/auth/reset/password',
-  '/api/v1/auth/confirm'
-];
 
 const roleRouteMap: Record<string, string[]> = {
   '/dashboard/admin': ['SUPER_ADMIN'],
@@ -29,7 +23,10 @@ function parseJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
     if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split('')
@@ -38,7 +35,17 @@ function parseJwt(token: string) {
     );
     return JSON.parse(jsonPayload);
   } catch {
-    return null;
+    try {
+      const base64Url = token.split('.')[1];
+      if (!base64Url) return null;
+      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4 !== 0) {
+        base64 += '=';
+      }
+      return JSON.parse(atob(base64));
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -174,8 +181,12 @@ export async function proxy(request: NextRequest) {
 
   // If user has NO valid token (or refresh failed with auth error), redirect protected routes to sign-in
   if (!isAuthenticated) {
+    const signInUrl = new URL('/auth/sign-in', request.url);
+    if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/overview') {
+      signInUrl.searchParams.set('redirect', pathname);
+    }
     // If we still have a refreshToken (transient network/cold-start error), do NOT wipe refreshToken
-    const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
+    const response = NextResponse.redirect(signInUrl);
     response.cookies.delete('access_token');
     if (!refreshToken) {
       response.cookies.delete('refreshToken');

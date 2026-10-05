@@ -30,6 +30,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
 import { apiClient } from '@/lib/api-client';
+import { tokenManager } from '@/lib/token-manager';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
@@ -40,7 +41,6 @@ export default function AppSidebar() {
   const pathname = usePathname();
   const { isOpen } = useMediaQuery();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
   const filteredGroups = useFilteredNavGroups(navGroups);
 
@@ -54,10 +54,8 @@ export default function AppSidebar() {
     } catch {
       // Ignore logout API errors
     }
-    logout();
-    // Clear the access_token cookie
-    document.cookie = 'access_token=; path=/; max-age=0';
-    router.push('/auth/sign-in');
+    tokenManager.notifyLogout();
+    window.location.href = '/auth/sign-in';
   };
 
   return (
