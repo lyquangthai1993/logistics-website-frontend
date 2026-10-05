@@ -69,13 +69,22 @@ export default function WarehouseInboundPage() {
   // Inbound Board State (sq2P6)
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const [statusTab, setStatusTab] = useState<
-    'ALL' | 'WAITING' | 'CUSTOMER' | 'TRANSFER' | 'STORED'
-  >('ALL');
+  const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
+  const [statusTab, setStatusTab] = useState<'ALL' | 'CUSTOMER' | 'TRANSFER'>('ALL');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [tripGroups, setTripGroups] = useState<any[]>([]);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [tripCounts, setTripCounts] = useState({
+    allCount: 0,
+    pendingCount: 0,
+    completedCount: 0,
+    typeAllCount: 0,
+    customerCount: 0,
+    transferCount: 0
+  });
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -168,44 +177,68 @@ export default function WarehouseInboundPage() {
     fetchKpi();
   }, [fetchKpi]);
 
-  // Fetch Inbound Board Orders with Pagination
-  const fetchInboundOrders = useCallback(() => {
+  // Reset page to 1 when search, status, tab, or dates change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
+
+  // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
+  const fetchInboundTrips = useCallback(() => {
     setIsLoadingOrders(true);
     const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
       page: page.toString(),
       limit: pageSize.toString(),
-      flow: 'INBOUND',
       ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-      ...(statusTab !== 'ALL' ? { status: statusTab } : {})
+      ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
+      ...(statusTab !== 'ALL' ? { type: statusTab } : {}),
+      ...(fromDate ? { fromDate } : {}),
+      ...(toDate ? { toDate } : {})
     });
 
-    fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+    fetch(`/api/v1/warehouse/inbound-trips?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: res.statusText }));
+          throw { response: { data: errData, status: res.status } };
+        }
+        return res.json();
+      })
       .then((resData) => {
-        setOrders(resData?.data || []);
+        const payload = resData?.meta ? resData : (resData?.data ?? resData);
+        setTripGroups(payload?.data || []);
         setMeta({
-          total: resData?.meta?.total ?? resData?.data?.length ?? 0,
-          totalPages: resData?.meta?.totalPages ?? 1
+          total: payload?.meta?.total ?? 0,
+          totalPages: payload?.meta?.totalPages ?? 1
         });
+        if (payload?.meta) {
+          setTripCounts({
+            allCount: payload.meta.allCount ?? 0,
+            pendingCount: payload.meta.pendingCount ?? 0,
+            completedCount: payload.meta.completedCount ?? 0,
+            typeAllCount: payload.meta.typeAllCount ?? 0,
+            customerCount: payload.meta.customerCount ?? 0,
+            transferCount: payload.meta.transferCount ?? 0
+          });
+        }
       })
       .catch(() => {
-        setOrders([]);
+        setTripGroups([]);
         setMeta({ total: 0, totalPages: 1 });
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, debouncedSearch, statusTab]);
+  }, [page, pageSize, debouncedSearch, boardStatus, statusTab, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
-      fetchInboundOrders();
+      fetchInboundTrips();
     }
-  }, [activeView, fetchInboundOrders]);
+  }, [activeView, fetchInboundTrips]);
 
   // Collapsed / Expanded Vehicle Groups State
   const [expandedVehicleKeys, setExpandedVehicleKeys] = useState<Record<string, boolean>>({});
@@ -217,111 +250,47 @@ export default function WarehouseInboundPage() {
     }));
   };
 
-  // Group inbound orders by vehicle / trip
-  const vehicleGroups: InboundVehicleGroup[] = useMemo(() => {
-    const map = new Map<string, InboundVehicleGroup>();
-    const viewerHubId = user?.hub?.id;
+  // Group inbound trips directly from backend response
+  const vehicleGroups: InboundVehicleGroup[] = useMemo(
+    () =>
+      tripGroups.map((g) => {
+        const descs = Array.from(
+          new Set((g.orders ?? []).map((x: any) => x.goodsDescription).filter(Boolean))
+        ) as string[];
+        return {
+          groupKey: g.tripCode || g.groupKey,
+          licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'CHƯA GÁN XE',
+          driverName: g.driverName?.trim() || '',
+          tripCode: g.tripCode || '—',
+          receiveDate:
+            typeof g.receiveDate === 'string'
+              ? g.receiveDate.split('T')[0]
+              : typeof g.pickupDate === 'string'
+                ? g.pickupDate.split('T')[0]
+                : undefined,
+          status: g.status ?? 'PENDING',
+          isTransfer: !!g.isTransfer,
+          orders: g.orders ?? [],
+          totalQuantity: Number(g.totalQuantity) || 0,
+          totalWeight: Number(g.totalWeight) || 0,
+          totalVolume: Number(g.totalVolume) || 0,
+          goodsDescription:
+            g.goodsDescription ||
+            (descs.length === 0
+              ? 'Hàng hóa tổng quan'
+              : descs.length === 1
+                ? descs[0]
+                : `${descs[0]} (+${descs.length - 1} loại hàng)`),
+          notes: g.notes || ''
+        };
+      }),
+    [tripGroups]
+  );
 
-    for (const o of orders) {
-      // Outbound-dispatched goods from this hub belong to Outbound history, not Inbound board
-      if (o.hubStatus === 'COMPLETED_INBOUND') {
-        continue;
-      }
-
-      // Filter out trips that were outbound departures from this hub to another hub or customer
-      const sortedTrips = [...(o.trips ?? [])].sort(
-        (a: any, b: any) => Number(b?.id ?? 0) - Number(a?.id ?? 0)
-      );
-
-      const inboundTrips = sortedTrips.filter((t: any) => {
-        if (
-          viewerHubId &&
-          t.originHubId === viewerHubId &&
-          (t.type === 'OUTBOUND' ||
-            t.type === 'TRANSFER' ||
-            (t.destinationHubId && t.destinationHubId !== viewerHubId))
-        ) {
-          return false;
-        }
-        return true;
-      });
-
-      const activeTrip =
-        inboundTrips.find((t: any) => t?.tripCode === o.currentTripCode) ||
-        inboundTrips[0] ||
-        sortedTrips[0];
-      let plate =
-        activeTrip?.licensePlate?.trim()?.toUpperCase() ||
-        o.vehicleLicensePlate?.trim()?.toUpperCase() ||
-        '';
-      let driver = activeTrip?.driverName?.trim() || o.driverName?.trim() || '';
-      let tripCode =
-        activeTrip?.tripCode?.trim() || (activeTrip?.id ? `TRIP-${activeTrip.id}` : '');
-
-      if (!plate && o.notes) {
-        const m = o.notes.match(/\[Xe:\s*([^-\]]+)/i);
-        if (m) plate = m[1].trim().toUpperCase();
-      }
-      if (!driver && o.notes) {
-        const m = o.notes.match(/TX:\s*([^-\]]+)/i);
-        if (m) driver = m[1].trim();
-      }
-
-      // Grouping key: prefer tripCode, then plate, then order id fallback
-      const key = tripCode || (plate ? `PLATE-${plate}` : `ORD-${o.id}`);
-
-      const isTransfer =
-        o.inboundType === 'TRANSFER' ||
-        o.orderCode?.startsWith('TRIP') ||
-        (o.originHub && o.destinationHub && o.originHub !== o.destinationHub) ||
-        (o.originHubEntity?.id &&
-          o.destinationHubEntity?.id &&
-          o.originHubEntity.id !== o.destinationHubEntity.id);
-
-      if (!map.has(key)) {
-        map.set(key, {
-          groupKey: key,
-          licensePlate: plate || 'CHƯA GÁN XE',
-          driverName: driver,
-          tripCode: tripCode || '—',
-          receiveDate: activeTrip?.pickupDate || o.createdAt?.split('T')[0],
-          status: o.hubStatus ?? o.status,
-          isTransfer,
-          orders: [],
-          totalQuantity: 0,
-          totalWeight: 0,
-          totalVolume: 0,
-          goodsDescription: '',
-          notes: o.notes || ''
-        });
-      }
-
-      const grp = map.get(key)!;
-      grp.orders.push(o);
-      grp.totalQuantity += Number(o.inboundQuantity ?? o.totalQuantity ?? 1);
-      grp.totalWeight = Math.round((grp.totalWeight + Number(o.totalWeight ?? 0)) * 100) / 100;
-      grp.totalVolume = Math.round((grp.totalVolume + Number(o.totalVolume ?? 0)) * 1000) / 1000;
-
-      // If any order is waiting/draft at this hub, show waiting status
-      const hubScopedStatus = o.hubStatus ?? o.status;
-      if (['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(hubScopedStatus)) {
-        grp.status = hubScopedStatus;
-      }
-    }
-
-    map.forEach((grp) => {
-      const descs = Array.from(new Set(grp.orders.map((x) => x.goodsDescription).filter(Boolean)));
-      if (descs.length === 1) {
-        grp.goodsDescription = descs[0];
-      } else if (descs.length > 1) {
-        grp.goodsDescription = `${descs[0]} (+${descs.length - 1} loại hàng)`;
-      } else {
-        grp.goodsDescription = 'Hàng hóa tổng quan';
-      }
-    });
-
-    return Array.from(map.values());
-  }, [orders]);
+  const allVisibleOrders = useMemo(
+    () => vehicleGroups.flatMap((g) => g.orders ?? []),
+    [vehicleGroups]
+  );
 
   const allExpanded = useMemo(() => {
     if (vehicleGroups.length === 0) return false;
@@ -393,7 +362,9 @@ export default function WarehouseInboundPage() {
     const token = tokenManager.getAccessToken();
 
     try {
-      const orderIds = orders.map((o) => Number(o.id)).filter((id) => !isNaN(id) && id > 0);
+      const orderIds = allVisibleOrders
+        .map((o) => Number(o.id))
+        .filter((id) => !isNaN(id) && id > 0);
       if (orderIds.length > 0) {
         await fetch('/api/v1/orders/refresh-metrics', {
           method: 'POST',
@@ -405,7 +376,7 @@ export default function WarehouseInboundPage() {
         });
       }
       fetchKpi();
-      fetchInboundOrders();
+      fetchInboundTrips();
       toast.success('Đã cập nhật lại thông số tiếp nhận kho thành công!');
     } catch {
       toast.info('Đã làm mới thông số tiếp nhận kho.');
@@ -444,7 +415,7 @@ export default function WarehouseInboundPage() {
       toast.success(`Đã xác nhận nhập kho thành công cho ${selectedOrderIds.length} đơn hàng!`);
       setSelectedOrderIds([]);
       fetchKpi();
-      fetchInboundOrders();
+      fetchInboundTrips();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xác nhận nhập kho hàng loạt');
     } finally {
@@ -570,7 +541,7 @@ export default function WarehouseInboundPage() {
       setDriverName('');
       setActiveView('BOARD');
       fetchKpi();
-      fetchInboundOrders();
+      fetchInboundTrips();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi tiếp nhận hàng vào kho');
     } finally {
@@ -661,9 +632,9 @@ export default function WarehouseInboundPage() {
       setLicensePlate('');
       setDriverName('');
       setActiveView('BOARD');
-      setStatusTab('WAITING');
+      setBoardStatus('PENDING');
       fetchKpi();
-      fetchInboundOrders();
+      fetchInboundTrips();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi lưu nháp đơn hàng');
     } finally {
@@ -716,26 +687,96 @@ export default function WarehouseInboundPage() {
             <Card className='bg-white dark:bg-slate-900 shadow-sm border py-0'>
               <CardContent className='p-1 space-y-1.5'>
                 <div className='flex flex-wrap items-center justify-between gap-2'>
-                  {/* Status Tabs */}
+                  {/* Search Box & Date Range Filter */}
+                  <div className='flex flex-wrap items-center gap-2 flex-1 min-w-[280px]'>
+                    {/* Search Box */}
+                    <div className='relative flex-1 min-w-[200px]'>
+                      <IconSearch className='absolute left-3 top-2.5 h-4 w-4 text-gray-400' />
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder='Tìm mã chuyến, xe, tài xế, mã đơn, tên hàng...'
+                        className='pl-9 h-8.5 text-xs'
+                      />
+                    </div>
+
+                    {/* Date Range: Từ ngày -> Đến ngày */}
+                    <div className='flex items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700'>
+                      <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium'>
+                        <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
+                        <span>Từ:</span>
+                      </div>
+                      <input
+                        type='date'
+                        aria-label='Từ ngày'
+                        value={fromDate}
+                        max={toDate || undefined}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        className='px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                      />
+                      <span className='text-slate-400 font-medium px-0.5'>đến:</span>
+                      <input
+                        type='date'
+                        aria-label='Đến ngày'
+                        value={toDate}
+                        min={fromDate || undefined}
+                        onChange={(e) => setToDate(e.target.value)}
+                        className='px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                      />
+                      {(fromDate || toDate) && (
+                        <button
+                          type='button'
+                          onClick={() => {
+                            setFromDate('');
+                            setToDate('');
+                          }}
+                          className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium'
+                          title='Xóa bộ lọc ngày'
+                        >
+                          Xóa
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tier 1: Processing Status Tabs (trip status at this hub) */}
                   <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
                     {[
-                      {
-                        key: 'ALL',
-                        label: `Tất cả (${kpiStats.inboundTotal ?? kpiStats.waitingInbound + kpiStats.storedInbound})`
-                      },
-                      { key: 'WAITING', label: `Chờ nhập kho (${kpiStats.waitingInbound ?? 0})` },
-                      { key: 'CUSTOMER', label: `Khách gửi (${kpiStats.customerInbound ?? 0})` },
-                      { key: 'TRANSFER', label: `Luân chuyển (${kpiStats.transferInbound ?? 0})` },
-                      { key: 'STORED', label: `Đã nhập kho (${kpiStats.storedInbound ?? 0})` }
+                      { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
+                      { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
+                      { key: 'COMPLETED', label: `Đã xử lý (${tripCounts.completedCount ?? 0})` }
                     ].map((tab) => (
                       <button
                         key={tab.key}
                         onClick={() => {
-                          setStatusTab(tab.key as any);
+                          setBoardStatus(tab.key as typeof boardStatus);
                           setSelectedOrderIds([]);
-                          setPage(1);
                         }}
-                        className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                          boardStatus === tab.key
+                            ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
+                            : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tier 2: Trip Type Sub-filter */}
+                  <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
+                    {[
+                      { key: 'ALL', label: `Tất cả loại (${tripCounts.typeAllCount ?? 0})` },
+                      { key: 'CUSTOMER', label: `Khách gửi (${tripCounts.customerCount ?? 0})` },
+                      { key: 'TRANSFER', label: `Luân chuyển (${tripCounts.transferCount ?? 0})` }
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => {
+                          setStatusTab(tab.key as typeof statusTab);
+                          setSelectedOrderIds([]);
+                        }}
+                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                           statusTab === tab.key
                             ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                             : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
@@ -746,54 +787,39 @@ export default function WarehouseInboundPage() {
                     ))}
                   </div>
 
-                  <div className='flex items-center gap-2 flex-1 sm:flex-initial justify-end'>
-                    {/* Search Input */}
-                    <div className='relative min-w-[340px] max-w-xs'>
-                      <IconSearch className='absolute left-2.5 top-2.5 h-4 w-4 text-gray-400' />
-                      <Input
-                        value={search}
-                        onChange={(e) => {
-                          setSearch(e.target.value);
-                          setPage(1);
-                        }}
-                        placeholder='Tìm mã vận đơn, khách hàng, nguồn/trip...'
-                        className='pl-8 h-9 text-xs'
-                      />
-                    </div>
-
-                    {/* Expand / Collapse All Vehicles */}
+                  {/* Quick Actions: Expand/Collapse All & Refresh Metrics */}
+                  <div className='flex items-center gap-1.5'>
                     <Button
                       variant='outline'
                       size='sm'
                       onClick={toggleAllGroups}
-                      className='h-9 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50'
+                      className='h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50'
                       title={allExpanded ? 'Thu gọn tất cả xe' : 'Mở rộng tất cả xe'}
                     >
                       {allExpanded ? (
                         <>
                           <IconFoldUp className='mr-1.5 h-4 w-4 text-slate-600' />
-                          <span>Thu gọn tất cả</span>
+                          <span>Thu gọn</span>
                         </>
                       ) : (
                         <>
                           <IconFoldDown className='mr-1.5 h-4 w-4 text-slate-600' />
-                          <span>Mở rộng tất cả</span>
+                          <span>Mở rộng</span>
                         </>
                       )}
                     </Button>
 
-                    {/* Refresh Metrics Button */}
                     <Button
                       variant='outline'
                       size='sm'
                       onClick={handleRefreshMetrics}
                       disabled={isRefreshing}
-                      className='h-9 text-xs font-bold border-slate-300'
+                      className='h-8 text-xs font-bold border-slate-300'
                     >
                       <IconRefresh
                         className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`}
                       />
-                      <span>Cập nhật lại thông số</span>
+                      <span>Làm mới</span>
                     </Button>
                   </div>
                 </div>
@@ -844,12 +870,12 @@ export default function WarehouseInboundPage() {
                           <input
                             type='checkbox'
                             checked={
-                              orders.length > 0 &&
-                              orders.every((o) => selectedOrderIds.includes(Number(o.id)))
+                              allVisibleOrders.length > 0 &&
+                              allVisibleOrders.every((o) => selectedOrderIds.includes(Number(o.id)))
                             }
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedOrderIds(orders.map((o) => Number(o.id)));
+                                setSelectedOrderIds(allVisibleOrders.map((o) => Number(o.id)));
                               } else {
                                 setSelectedOrderIds([]);
                               }
@@ -885,11 +911,6 @@ export default function WarehouseInboundPage() {
                           const isGroupSelected =
                             groupOrderIds.length > 0 &&
                             groupOrderIds.every((id) => selectedOrderIds.includes(id));
-                          const hasWaiting = grp.orders.some((o) =>
-                            ['DRAFT', 'PENDING', 'PENDING_INBOUND', 'WAITING'].includes(
-                              o.hubStatus ?? o.status
-                            )
-                          );
 
                           return (
                             <React.Fragment key={grp.groupKey}>
@@ -975,7 +996,7 @@ export default function WarehouseInboundPage() {
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <TripStopStatusBadge
-                                    status={hasWaiting ? 'PENDING' : 'COMPLETED'}
+                                    status={grp.status}
                                   />
                                 </td>
                                 <td className='py-1 px-2 text-center'>
@@ -1197,6 +1218,7 @@ export default function WarehouseInboundPage() {
                     totalPages={meta.totalPages}
                     total={meta.total}
                     pageSize={pageSize}
+                    unitLabel='chuyến xe'
                     pageSizeOptions={[10, 20, 50, 100]}
                     onPageChange={(newPage) => setPage(newPage)}
                     onPageSizeChange={(newSize) => {
@@ -1378,7 +1400,7 @@ export default function WarehouseInboundPage() {
             onSwitchToCustomerMode={() => setActiveView('MODE1_CUSTOMER')}
             onSuccess={() => {
               setActiveView('BOARD');
-              fetchInboundOrders();
+              fetchInboundTrips();
               fetchKpi();
             }}
           />
@@ -1430,7 +1452,7 @@ export default function WarehouseInboundPage() {
           }}
           waybill={selectedWaybillForTally}
           onSuccess={() => {
-            fetchInboundOrders();
+            fetchInboundTrips();
             fetchKpi();
           }}
           onPrintLabel={(waybill) => {
@@ -1487,7 +1509,7 @@ export default function WarehouseInboundPage() {
           }}
           tripGroup={selectedTripGroup}
           onSuccess={() => {
-            fetchInboundOrders();
+            fetchInboundTrips();
             fetchKpi();
           }}
           onOpenReceipt={handleOpenReceiptForVehicle}
