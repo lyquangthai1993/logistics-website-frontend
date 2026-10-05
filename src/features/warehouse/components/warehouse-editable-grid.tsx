@@ -9,7 +9,7 @@ import {
   type ColumnDef,
   type ColumnPinningState,
   type CellContext,
-  type RowData,
+  type RowData
 } from '@tanstack/react-table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,15 +28,20 @@ import {
   IconTruck,
   IconBuildingWarehouse,
   IconLoader2,
-  IconMapPin,
+  IconMapPin
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { tokenManager } from '@/lib/token-manager';
+import { apiClient } from '@/lib/api-client';
+import axios from 'axios';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
-import { availableOutboundStock, proportionalMetric } from '@/features/warehouse/lib/outbound-stock';
+import {
+  availableOutboundStock,
+  proportionalMetric
+} from '@/features/warehouse/lib/outbound-stock';
 import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 import { WarehouseDestinationModal } from './warehouse-destination-modal';
 
@@ -115,7 +120,7 @@ function SearchableHubSelect({
   onSelect,
   placeholder = 'Chọn điểm giao...',
   searchPlaceholder = 'Tìm kiếm tên, mã, tỉnh thành...',
-  type,
+  type
 }: SearchableHubSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -141,7 +146,8 @@ function SearchableHubSelect({
   const selected =
     options.find((o) => o.id === value) ||
     options.find(
-      (o) => deliveryAddress && (deliveryAddress.includes(o.name) || deliveryAddress.includes(o.code)),
+      (o) =>
+        deliveryAddress && (deliveryAddress.includes(o.name) || deliveryAddress.includes(o.code))
     ) ||
     options[0];
 
@@ -158,10 +164,10 @@ function SearchableHubSelect({
   const isXeBo = type === 'XE_BO';
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className='relative w-full'>
       {/* Trigger Button */}
       <button
-        type="button"
+        type='button'
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           'w-full h-[32px] text-[10px] font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
@@ -169,64 +175,64 @@ function SearchableHubSelect({
           isXeBo
             ? 'border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 focus:ring-1 focus:ring-purple-500'
             : 'border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200 focus:ring-1 focus:ring-blue-500',
-          open && 'ring-2 ring-blue-400 dark:ring-blue-600 border-transparent shadow-sm',
+          open && 'ring-2 ring-blue-400 dark:ring-blue-600 border-transparent shadow-sm'
         )}
       >
-        <div className="flex items-center gap-1.5 truncate">
+        <div className='flex items-center gap-1.5 truncate'>
           {isXeBo ? (
-            <IconTruck className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+            <IconTruck className='h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400' />
           ) : (
-            <IconBuildingWarehouse className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+            <IconBuildingWarehouse className='h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400' />
           )}
-          <span className="truncate">
+          <span className='truncate'>
             {selected ? `${selected.name} (${selected.city})` : placeholder}
           </span>
         </div>
         <IconChevronDown
           className={cn(
             'h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 ml-1',
-            open && 'rotate-180 text-blue-600',
+            open && 'rotate-180 text-blue-600'
           )}
         />
       </button>
 
       {/* Dropdown Menu with Live Search */}
       {open && (
-        <div className="absolute left-0 top-[calc(100%+4px)] w-80 max-w-[90vw] z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-2 space-y-2 animate-in fade-in-0 zoom-in-95">
+        <div className='absolute left-0 top-[calc(100%+4px)] w-80 max-w-[90vw] z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-2 space-y-2 animate-in fade-in-0 zoom-in-95'>
           {/* Search Bar */}
-          <div className="relative">
-            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <div className='relative'>
+            <IconSearch className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400' />
             <input
               ref={inputRef}
-              type="text"
+              type='text'
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+              className='w-full h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400'
             />
             {search && (
               <button
-                type="button"
+                type='button'
                 onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                className='absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded'
               >
-                <IconX className="h-3 w-3" />
+                <IconX className='h-3 w-3' />
               </button>
             )}
           </div>
 
           {/* Header count info */}
-          <div className="flex items-center justify-between px-1 text-[10px] text-slate-500 dark:text-slate-400 border-b pb-1.5 dark:border-slate-800">
-            <span className="font-semibold uppercase tracking-wider">
+          <div className='flex items-center justify-between px-1 text-[10px] text-slate-500 dark:text-slate-400 border-b pb-1.5 dark:border-slate-800'>
+            <span className='font-semibold uppercase tracking-wider'>
               {isXeBo ? 'Danh sách Tuyến Xe bo' : 'Danh sách Hub cấp 1'}
             </span>
             <Badge
-              variant="outline"
+              variant='outline'
               className={cn(
                 'text-[10px] px-1.5 py-0 h-4 font-mono font-bold',
                 isXeBo
                   ? 'bg-purple-50 text-purple-700 border-purple-200'
-                  : 'bg-blue-50 text-blue-700 border-blue-200',
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
               )}
             >
               {filtered.length} {isXeBo ? 'xe bo' : 'hubs'}
@@ -234,9 +240,9 @@ function SearchableHubSelect({
           </div>
 
           {/* List Options */}
-          <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+          <div className='max-h-56 overflow-y-auto space-y-1 pr-1'>
             {filtered.length === 0 ? (
-              <div className="py-6 text-center text-xs text-slate-400">
+              <div className='py-6 text-center text-xs text-slate-400'>
                 Không tìm thấy {isXeBo ? 'tuyến xe bo' : 'hub'} nào với từ khóa "{search}"
               </div>
             ) : (
@@ -245,7 +251,7 @@ function SearchableHubSelect({
                 return (
                   <button
                     key={item.id}
-                    type="button"
+                    type='button'
                     onClick={() => {
                       onSelect(item);
                       setOpen(false);
@@ -257,15 +263,15 @@ function SearchableHubSelect({
                         ? isXeBo
                           ? 'bg-purple-50 text-purple-900 dark:bg-purple-950/50 dark:text-purple-100 font-semibold'
                           : 'bg-blue-50 text-blue-900 dark:bg-blue-950/50 dark:text-blue-100 font-semibold'
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200',
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
                     )}
                   >
-                    <div className="min-w-0 pr-2 space-y-0.5">
-                      <div className="truncate font-medium flex items-center gap-1.5">
-                        <span className="truncate">{item.name}</span>
+                    <div className='min-w-0 pr-2 space-y-0.5'>
+                      <div className='truncate font-medium flex items-center gap-1.5'>
+                        <span className='truncate'>{item.name}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                        <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">
+                      <div className='flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400'>
+                        <span className='font-mono font-semibold text-slate-600 dark:text-slate-300'>
                           {item.code}
                         </span>
                         <span>&bull;</span>
@@ -276,7 +282,7 @@ function SearchableHubSelect({
                       <IconCheck
                         className={cn(
                           'h-4 w-4 shrink-0 mt-0.5',
-                          isXeBo ? 'text-purple-600' : 'text-blue-600',
+                          isXeBo ? 'text-purple-600' : 'text-blue-600'
                         )}
                       />
                     )}
@@ -420,18 +426,13 @@ export function hasSttColumn(cols: string[]): boolean {
  * - With STT (11 columns): STT (0), Mã vận đơn (1), Địa chỉ nhận (2), Tên hàng (3), Số kiện (4), Số kg (5), Số m³ (6), Địa chỉ giao (7), Tỉnh/TP (8), Chứng từ (9), Ghi chú (10)
  * - Without STT (10 columns): Mã vận đơn (0), Địa chỉ nhận (1), Tên hàng (2), Số kiện (3), Số kg (4), Số m³ (5), Địa chỉ giao (6), Tỉnh/TP (7), Chứng từ (8), Ghi chú (9)
  */
-export function mapPastedColsToRow(
-  cols: string[],
-  defaultPickup = '',
-): WarehouseRowItem {
+export function mapPastedColsToRow(cols: string[], defaultPickup = ''): WarehouseRowItem {
   const withStt = hasSttColumn(cols);
   const offset = withStt ? 1 : 0;
 
   const pastedCode = cols[offset]?.trim() || '';
   const cleanCode =
-    pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh')
-      ? ''
-      : pastedCode;
+    pastedCode === '(Tự sinh khi lưu)' || pastedCode.startsWith('(Tự sinh') ? '' : pastedCode;
 
   const pickupAddress = cols[offset + 1]?.trim() || defaultPickup;
   const goodsDescription = cols[offset + 2]?.trim() || 'Hàng hóa tiếp nhận';
@@ -448,7 +449,12 @@ export function mapPastedColsToRow(
 
   // Notes (Ghi chú)
   const notes =
-    cols.length > offset + 9 ? cols.slice(offset + 9).join(' ').trim() : '';
+    cols.length > offset + 9
+      ? cols
+          .slice(offset + 9)
+          .join(' ')
+          .trim()
+      : '';
 
   return {
     orderCode: cleanCode,
@@ -461,7 +467,7 @@ export function mapPastedColsToRow(
     deliveryAddress,
     province,
     accompanyingDocs,
-    notes,
+    notes
   };
 }
 
@@ -469,32 +475,29 @@ export function mapPastedColsToRow(
 
 function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
   return (
-    <span className="font-mono font-bold text-[10px] text-slate-600 dark:text-slate-300">
+    <span className='font-mono font-bold text-[10px] text-slate-600 dark:text-slate-300'>
       {(row.index + 1).toString().padStart(2, '0')}
     </span>
   );
 }
 
-function OrderCodeCell({
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, unknown>) {
+function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unknown>) {
   const r = row.original;
   const idx = row.index;
   const meta = table.options.meta;
   const isOutbound = meta?.isOutboundMode;
 
   const [value, setValue] = useState(
-    r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '',
+    r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : ''
   );
   const [isSearching, setIsSearching] = useState(false);
   const searchTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const lastSearchedCodeRef = React.useRef<string>(r.id ? (r.orderCode || '').trim().toUpperCase() : '');
+  const lastSearchedCodeRef = React.useRef<string>(
+    r.id ? (r.orderCode || '').trim().toUpperCase() : ''
+  );
 
   useEffect(() => {
-    const fresh =
-      r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
+    const fresh = r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : '';
     setValue(fresh);
     if (r.id) {
       lastSearchedCodeRef.current = fresh.trim().toUpperCase();
@@ -526,7 +529,10 @@ function OrderCodeCell({
         let foundInHubStock = false;
         const otherRows = (meta?.allRows || []).filter((_, otherIdx) => otherIdx !== idx);
         const usedIds = new Set(
-          otherRows.map((o) => o.id).filter((v) => v !== undefined && v !== null).map(String),
+          otherRows
+            .map((o) => o.id)
+            .filter((v) => v !== undefined && v !== null)
+            .map(String)
         );
 
         // 1. Tìm trong hàng đang lưu kho tại Hub hiện tại (cùng phạm vi với modal tra cứu)
@@ -534,14 +540,14 @@ function OrderCodeCell({
           page: '1',
           limit: '20',
           search: trimmed,
-          flow: 'OUTBOUND_LOOKUP',
+          flow: 'OUTBOUND_LOOKUP'
         });
 
         const resWarehouse = await fetch(`/api/v1/warehouse/orders?${q.toString()}`, {
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
         });
 
         if (resWarehouse.ok) {
@@ -563,8 +569,8 @@ function OrderCodeCell({
           const resDirect = await fetch(`/api/v1/orders/${encodeURIComponent(trimmed)}`, {
             headers: {
               'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            }
           });
           if (resDirect.ok) {
             const resDirectData = await resDirect.json().catch(() => null);
@@ -585,7 +591,7 @@ function OrderCodeCell({
           const isDuplicate = usedIds.has(String(foundOrder.id));
           if (isDuplicate) {
             toast.warning(
-              `Dòng hàng ${foundOrder.orderCode} này đã được chọn ở một dòng khác trong phiếu xuất!`,
+              `Dòng hàng ${foundOrder.orderCode} này đã được chọn ở một dòng khác trong phiếu xuất!`
             );
           }
 
@@ -599,9 +605,18 @@ function OrderCodeCell({
             quantityToExport: availStock,
             inboundQuantity: foundOrder.inboundQuantity,
             outboundQuantity: foundOrder.outboundQuantity,
-            totalWeight: proportionalMetric(foundOrder.totalWeight, availStock, foundOrder.totalQuantity),
-            totalVolume: proportionalMetric(foundOrder.totalVolume, availStock, foundOrder.totalQuantity),
-            pickupAddress: foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress,
+            totalWeight: proportionalMetric(
+              foundOrder.totalWeight,
+              availStock,
+              foundOrder.totalQuantity
+            ),
+            totalVolume: proportionalMetric(
+              foundOrder.totalVolume,
+              availStock,
+              foundOrder.totalQuantity
+            ),
+            pickupAddress:
+              foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress,
             deliveryAddress:
               foundOrder.destinationHub ||
               foundOrder.deliveryAddress ||
@@ -617,18 +632,18 @@ function OrderCodeCell({
             notes: foundOrder.notes || '',
             destinationHubId: foundOrder.destinationHubId || null,
             destinationHub: foundOrder.destinationHubEntity || null,
-            deliveryMode: 'DIRECT_CUSTOMER',
+            deliveryMode: 'DIRECT_CUSTOMER'
           };
 
           meta?.updateRow(idx, updatedRow);
           setValue(foundOrder.orderCode);
           if (availStock > 0) {
             toast.success(
-              `Đã tìm thấy đơn hàng ${foundOrder.orderCode} (Tồn khả dụng: ${availStock} kiện)!`,
+              `Đã tìm thấy đơn hàng ${foundOrder.orderCode} (Tồn khả dụng: ${availStock} kiện)!`
             );
           } else {
             toast.warning(
-              `Đơn hàng ${foundOrder.orderCode} hiện không còn tồn khả dụng tại kho này, không thể xuất.`,
+              `Đơn hàng ${foundOrder.orderCode} hiện không còn tồn khả dụng tại kho này, không thể xuất.`
             );
           }
         } else {
@@ -642,7 +657,7 @@ function OrderCodeCell({
             remainingQuantity: 0,
             quantityToExport: 1,
             totalWeight: 0,
-            totalVolume: 0,
+            totalVolume: 0
           });
           toast.error(`Không tìm thấy đơn hàng "${trimmed}" trong hệ thống kho!`);
         }
@@ -652,13 +667,95 @@ function OrderCodeCell({
         setIsSearching(false);
       }
     },
-    [idx, meta, r],
+    [idx, meta, r]
   );
 
   const performSearchRef = React.useRef(performSearch);
   useEffect(() => {
     performSearchRef.current = performSearch;
   }, [performSearch]);
+
+  const performInboundSearch = useCallback(
+    async (codeToSearch: string) => {
+      const trimmed = codeToSearch.trim().toUpperCase();
+      if (!trimmed || trimmed === '(TỰ SINH KHI LƯU)' || trimmed === 'TỰ SINH') return;
+      if (lastSearchedCodeRef.current === trimmed) return;
+
+      setIsSearching(true);
+
+      try {
+        const res = await apiClient.get<{ data?: any }>(
+          `/api/v1/orders/${encodeURIComponent(trimmed)}`
+        );
+        const foundOrder = res.data?.data || res.data;
+
+        if (foundOrder && foundOrder.orderCode) {
+          lastSearchedCodeRef.current = foundOrder.orderCode.trim().toUpperCase();
+          const allRows = meta?.allRows || [];
+          const currentRow = allRows[idx] || r;
+
+          const updatedRow: WarehouseRowItem = {
+            ...currentRow,
+            orderCode: foundOrder.orderCode,
+            goodsDescription: foundOrder.goodsDescription || currentRow.goodsDescription || '',
+            pickupAddress:
+              foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress || '',
+            deliveryAddress:
+              foundOrder.destinationHub ||
+              foundOrder.deliveryAddress ||
+              (foundOrder.route?.includes('→') ? foundOrder.route.split('→')[1]?.trim() : '') ||
+              currentRow.deliveryAddress ||
+              '',
+            province: foundOrder.province || currentRow.province || '',
+            accompanyingDocs: foundOrder.accompanyingDocs || currentRow.accompanyingDocs || '',
+            notes: foundOrder.notes || currentRow.notes || '',
+            destinationHubId: foundOrder.destinationHubId || currentRow.destinationHubId || null,
+            destinationHub: foundOrder.destinationHubEntity || currentRow.destinationHub || null,
+            deliveryMode: (foundOrder.destinationHubEntity?.level === 2
+              ? 'XE_BO'
+              : foundOrder.destinationHubEntity?.level === 1 || foundOrder.destinationHubId
+                ? 'HUB_L1'
+                : currentRow.deliveryMode || 'DIRECT_CUSTOMER') as
+              | 'DIRECT_CUSTOMER'
+              | 'HUB_L1'
+              | 'XE_BO',
+            // Giữ nguyên số kiện, số kg, số m³ theo thực tế của xe hiện tại (không lấy tổng đơn cũ)
+            totalQuantity:
+              currentRow.totalQuantity && Number(currentRow.totalQuantity) > 0
+                ? currentRow.totalQuantity
+                : 1,
+            totalWeight:
+              currentRow.totalWeight !== undefined && Number(currentRow.totalWeight) >= 0
+                ? currentRow.totalWeight
+                : 0,
+            totalVolume:
+              currentRow.totalVolume !== undefined && Number(currentRow.totalVolume) >= 0
+                ? currentRow.totalVolume
+                : 0
+          };
+
+          meta?.updateRow(idx, updatedRow);
+          setValue(foundOrder.orderCode);
+          toast.success(
+            `Đã nhận diện đơn hàng ${foundOrder.orderCode} — Tự động điền thông tin chung!`
+          );
+        }
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          // Mã mới, không tìm thấy trong DB - không báo lỗi vì nhập đơn mới là trường hợp bình thường
+          lastSearchedCodeRef.current = trimmed;
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [idx, meta, r]
+  );
+
+  const performInboundSearchRef = React.useRef(performInboundSearch);
+  useEffect(() => {
+    performInboundSearchRef.current = performInboundSearch;
+  }, [performInboundSearch]);
 
   const handleOutboundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.value.toUpperCase();
@@ -672,7 +769,23 @@ function OrderCodeCell({
     if (nextVal.trim()) {
       searchTimerRef.current = setTimeout(() => {
         performSearchRef.current(nextVal);
-      }, 3000);
+      }, 1200);
+    }
+  };
+
+  const handleInboundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value.toUpperCase();
+    setValue(nextVal);
+    meta?.updateData(row.index, column.id, nextVal);
+
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    if (nextVal.trim() && nextVal.trim() !== '(TỰ SINH KHI LƯU)') {
+      searchTimerRef.current = setTimeout(() => {
+        performInboundSearchRef.current(nextVal);
+      }, 1200);
     }
   };
 
@@ -683,7 +796,11 @@ function OrderCodeCell({
         clearTimeout(searchTimerRef.current);
       }
       if (value.trim()) {
-        performSearch(value);
+        if (isOutbound) {
+          performSearch(value);
+        } else {
+          performInboundSearch(value);
+        }
       }
     }
   };
@@ -694,73 +811,73 @@ function OrderCodeCell({
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
       }
-      performSearch(trimmed);
+      if (isOutbound) {
+        performSearch(trimmed);
+      } else {
+        performInboundSearch(trimmed);
+      }
     }
   };
 
   if (isOutbound) {
     return (
-      <div className="flex items-center gap-1 relative">
-        <div className="relative flex-1 min-w-0">
+      <div className='flex items-center gap-1 relative'>
+        <div className='relative flex-1 min-w-0'>
           <Input
             value={value}
             onChange={handleOutboundChange}
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             className={cn(
-              "h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500",
-              isSearching && "pr-6",
+              'h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
+              isSearching && 'pr-6'
             )}
-            title="Nhập mã đơn hàng (hệ thống tự tra cứu sau 3s hoặc nhấn Enter)"
+            title='Nhập mã đơn hàng (hệ thống tự tra cứu sau 1.2s hoặc nhấn Enter)'
           />
           {isSearching && (
-            <IconLoader2 className="absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none" />
+            <IconLoader2 className='absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none' />
           )}
         </div>
         <Button
-          type="button"
-          size="sm"
-          variant="outline"
+          type='button'
+          size='sm'
+          variant='outline'
           onClick={() => meta?.openLookup?.(idx)}
-          className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0"
-          title="Tra cứu kho để gán mã đơn"
+          className='h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0'
+          title='Tra cứu kho để gán mã đơn'
         >
-          <IconSearch className="h-3.5 w-3.5" />
+          <IconSearch className='h-3.5 w-3.5' />
         </Button>
       </div>
     );
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextVal = e.target.value.toUpperCase();
-    setValue(nextVal);
-    meta?.updateData(row.index, column.id, nextVal);
-  };
-
   return (
-    <div className="relative">
+    <div className='relative'>
       <Input
         value={value}
-        onChange={handleChange}
+        onChange={handleInboundChange}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         required
-        title="Bắt buộc nhập mã vận đơn."
+        placeholder='Mã vận đơn'
+        title='Nhập mã vận đơn (tự động nhận diện và điền thông tin nếu đơn đã có trong hệ thống).'
         className={cn(
-          "h-7 px-1.5 text-[10px] font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500",
+          'h-7 px-1.5 text-[10px] font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500',
+          isSearching && 'pr-6',
           !value.trim()
-            ? "border-red-400 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200"
-            : "border-slate-300 dark:border-slate-700"
+            ? 'border-red-400 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200'
+            : 'border-slate-300 dark:border-slate-700'
         )}
       />
+      {isSearching && (
+        <IconLoader2 className='absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none' />
+      )}
     </div>
   );
 }
 
-function PickupAddressCell({
-  getValue,
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, any>) {
+function PickupAddressCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -779,8 +896,8 @@ function PickupAddressCell({
       rows={2}
       value={value}
       onChange={handleChange}
-      placeholder=""
-      className="w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      placeholder=''
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
     />
   );
 }
@@ -789,7 +906,7 @@ function GoodsDescriptionCell({
   getValue,
   row,
   column,
-  table,
+  table
 }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -805,23 +922,18 @@ function GoodsDescriptionCell({
   };
 
   return (
-    <div className="relative">
+    <div className='relative'>
       <Input
         value={value}
         onChange={handleChange}
-        placeholder=""
-        className="h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700"
+        placeholder=''
+        className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700'
       />
     </div>
   );
 }
 
-function QuantityCell({
-  getValue,
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, any>) {
+function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const r = row.original;
   const isOutbound = table.options.meta?.isOutboundMode;
   const initialValue = getValue() ?? 1;
@@ -855,26 +967,26 @@ function QuantityCell({
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
 
   return (
-    <div className="space-y-0.5">
+    <div className='space-y-0.5'>
       <Input
-        type="number"
+        type='number'
         min={1}
         max={isOutbound && availStock !== undefined ? availStock : undefined}
         value={value}
         onChange={handleChange}
         onBlur={handleBlur}
         className={cn(
-          "h-7 px-1 text-[10px] text-right font-bold",
+          'h-7 px-1 text-[10px] text-right font-bold',
           isExceeded
-            ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300"
-            : "border-slate-300 dark:border-slate-700"
+            ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300'
+            : 'border-slate-300 dark:border-slate-700'
         )}
       />
       {isOutbound && availStock !== undefined && (
         <div
           className={cn(
-            "text-[9px] text-right font-semibold leading-tight",
-            isExceeded ? "text-red-600 font-bold" : "text-slate-500"
+            'text-[9px] text-right font-semibold leading-tight',
+            isExceeded ? 'text-red-600 font-bold' : 'text-slate-500'
           )}
         >
           {isExceeded ? `Vượt tồn!` : `Tồn: ${availStock}`}
@@ -884,12 +996,7 @@ function QuantityCell({
   );
 }
 
-function WeightCell({
-  getValue,
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, any>) {
+function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -915,23 +1022,18 @@ function WeightCell({
 
   return (
     <Input
-      type="number"
-      step="any"
+      type='number'
+      step='any'
       min={0}
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
-      className="h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700"
+      className='h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700'
     />
   );
 }
 
-function VolumeCell({
-  getValue,
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, any>) {
+function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -957,21 +1059,18 @@ function VolumeCell({
 
   return (
     <Input
-      type="number"
-      step="0.01"
+      type='number'
+      step='0.01'
       min={0}
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
-      className="h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700"
+      className='h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700'
     />
   );
 }
 
-function DeliveryAddressCell({
-  row,
-  table,
-}: CellContext<WarehouseRowItem, unknown>) {
+function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const r = row.original;
   const idx = row.index;
   const meta = table.options.meta;
@@ -1001,7 +1100,7 @@ function DeliveryAddressCell({
       deliveryMode: mode,
       destinationHubId: hub.id,
       deliveryAddress: label,
-      destinationHub: hub,
+      destinationHub: hub
     });
     setModalOpen(false);
   };
@@ -1013,7 +1112,7 @@ function DeliveryAddressCell({
       deliveryMode: 'DIRECT_CUSTOMER',
       destinationHubId: null,
       deliveryAddress: orig,
-      destinationHub: null,
+      destinationHub: null
     });
     setAddressText(orig);
     setModalOpen(false);
@@ -1027,8 +1126,8 @@ function DeliveryAddressCell({
         rows={2}
         value={addressText}
         onChange={handleAddressTextChange}
-        placeholder=""
-        className="w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+        placeholder=''
+        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
       />
     );
   }
@@ -1036,10 +1135,10 @@ function DeliveryAddressCell({
   const isChangedHub = r.deliveryMode === 'HUB_L1' || r.deliveryMode === 'XE_BO';
 
   return (
-    <div className="space-y-1">
+    <div className='space-y-1'>
       {isChangedHub ? (
-        <div className="p-1 rounded-md bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] space-y-1">
-          <div className="flex items-center justify-between gap-1">
+        <div className='p-1 rounded-md bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] space-y-1'>
+          <div className='flex items-center justify-between gap-1'>
             <span
               className={cn(
                 'font-bold text-[9px] px-1.5 py-0.5 rounded',
@@ -1049,40 +1148,43 @@ function DeliveryAddressCell({
               {r.deliveryMode === 'HUB_L1' ? 'Hub Cấp 1' : 'Tuyến Xe Bo'}
             </span>
             <button
-              type="button"
+              type='button'
               onClick={handleResetToOriginal}
-              className="text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer"
-              title="Khôi phục lại địa chỉ giao ban đầu"
+              className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer'
+              title='Khôi phục lại địa chỉ giao ban đầu'
             >
               Quay lại địa chỉ thường
             </button>
           </div>
-          <div className="font-semibold text-slate-800 dark:text-slate-200 truncate" title={r.deliveryAddress}>
+          <div
+            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
+            title={r.deliveryAddress}
+          >
             {r.deliveryAddress}
           </div>
           <button
-            type="button"
+            type='button'
             onClick={() => setModalOpen(true)}
-            className="w-full text-center text-[9px] font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-0.5 border border-dashed border-blue-300 rounded hover:bg-blue-100/50"
+            className='w-full text-center text-[9px] font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-0.5 border border-dashed border-blue-300 rounded hover:bg-blue-100/50'
           >
             Đổi kho đích khác...
           </button>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className='space-y-1'>
           <textarea
             rows={2}
             value={addressText}
             onChange={handleAddressTextChange}
-            placeholder="Địa chỉ giao khách..."
-            className="w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px]"
+            placeholder='Địa chỉ giao khách...'
+            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px]'
           />
           <button
-            type="button"
+            type='button'
             onClick={() => setModalOpen(true)}
-            className="w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors"
+            className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors'
           >
-            <IconMapPin className="h-3 w-3 text-blue-600" />
+            <IconMapPin className='h-3 w-3 text-blue-600' />
             <span>Thay đổi địa chỉ (Điều chuyển)</span>
           </button>
         </div>
@@ -1105,12 +1207,7 @@ function DeliveryAddressCell({
   );
 }
 
-function ProvinceCell({
-  getValue,
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, any>) {
+function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1129,8 +1226,8 @@ function ProvinceCell({
       rows={2}
       value={value}
       onChange={handleChange}
-      placeholder=""
-      className="w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      placeholder=''
+      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
     />
   );
 }
@@ -1139,7 +1236,7 @@ function AccompanyingDocsCell({
   getValue,
   row,
   column,
-  table,
+  table
 }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -1156,21 +1253,16 @@ function AccompanyingDocsCell({
 
   return (
     <Input
-      type="text"
+      type='text'
       value={value}
       onChange={handleChange}
-      placeholder=""
-      className="h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+      placeholder=''
+      className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'
     />
   );
 }
 
-function NotesCell({
-  getValue,
-  row,
-  column,
-  table,
-}: CellContext<WarehouseRowItem, any>) {
+function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1189,8 +1281,8 @@ function NotesCell({
       rows={2}
       value={value}
       onChange={handleChange}
-      placeholder=""
-      className="w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]"
+      placeholder=''
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
     />
   );
 }
@@ -1202,46 +1294,47 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const rowsCount = meta?.rowsCount ?? 1;
 
   return (
-    <div className="flex items-center justify-center gap-0.5">
+    <div className='flex items-center justify-center gap-0.5'>
       <Button
-        type="button"
-        size="sm"
-        variant="ghost"
+        type='button'
+        size='sm'
+        variant='ghost'
         onClick={() =>
           meta?.openPrintLabel?.({
-            orderCode: r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
+            orderCode:
+              r.orderCode && r.orderCode !== '(Tự sinh khi lưu)' ? r.orderCode : 'LTV2609-0025',
             goodsDescription: r.goodsDescription || 'Hàng hóa tổng quan',
             totalQuantity: r.totalQuantity || 1,
             originHub: r.pickupAddress,
             destinationHub: r.deliveryAddress,
-            createdAt: new Date(),
+            createdAt: new Date()
           })
         }
-        className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800"
-        title="In tem nhận diện A4"
+        className='h-6 w-6 p-0 text-blue-600 hover:bg-blue-100 dark:hover:bg-slate-800'
+        title='In tem nhận diện A4'
       >
-        <IconPrinter className="h-3.5 w-3.5" />
+        <IconPrinter className='h-3.5 w-3.5' />
       </Button>
       <Button
-        type="button"
-        size="sm"
-        variant="ghost"
+        type='button'
+        size='sm'
+        variant='ghost'
         onClick={() => meta?.duplicateRow?.(idx)}
-        className="h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-        title="Nhân bản dòng"
+        className='h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+        title='Nhân bản dòng'
       >
-        <IconCopy className="h-3.5 w-3.5" />
+        <IconCopy className='h-3.5 w-3.5' />
       </Button>
       <Button
-        type="button"
-        size="sm"
-        variant="ghost"
+        type='button'
+        size='sm'
+        variant='ghost'
         disabled={rowsCount <= 1}
         onClick={() => meta?.deleteRow?.(idx)}
-        className="h-6 w-6 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30"
-        title="Xóa dòng"
+        className='h-6 w-6 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30'
+        title='Xóa dòng'
       >
-        <IconTrash className="h-3.5 w-3.5" />
+        <IconTrash className='h-3.5 w-3.5' />
       </Button>
     </div>
   );
@@ -1255,7 +1348,7 @@ export function WarehouseEditableGrid({
   isOutboundMode = false,
   onRefreshMetrics,
   isLoadingMetrics = false,
-  showAddressHint = true,
+  showAddressHint = true
 }: WarehouseEditableGridProps) {
   const user = useAuthStore((state) => state.user);
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
@@ -1269,10 +1362,16 @@ export function WarehouseEditableGrid({
     { id: 101, code: 'HUB-BO-DAD-01', name: 'Xe bo Tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
     { id: 102, code: 'HUB-BO-HYN-01', name: 'Xe bo Tuyến Hưng Yên', city: 'Hưng Yên', level: 2 },
     { id: 103, code: 'HUB-BO-HAN-01', name: 'Xe bo Tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
-    { id: 104, code: 'HUB-BO-HPH-01', name: 'Xe bo Tuyến Hải Phòng', city: 'TP. Hải Phòng', level: 2 },
+    {
+      id: 104,
+      code: 'HUB-BO-HPH-01',
+      name: 'Xe bo Tuyến Hải Phòng',
+      city: 'TP. Hải Phòng',
+      level: 2
+    },
     { id: 105, code: 'HUB-BO-CTH-01', name: 'Xe bo Tuyến Cần Thơ', city: 'TP. Cần Thơ', level: 2 },
     { id: 106, code: 'HUB-BO-HUE-01', name: 'Xe bo Tuyến Huế', city: 'TP. Huế', level: 2 },
-    { id: 107, code: 'HUB-BO-BNI-01', name: 'Xe bo Tuyến Bắc Ninh', city: 'Bắc Ninh', level: 2 },
+    { id: 107, code: 'HUB-BO-BNI-01', name: 'Xe bo Tuyến Bắc Ninh', city: 'Bắc Ninh', level: 2 }
   ]);
 
   // Fetch active hubs list for Level 1 & Level 2 dropdowns
@@ -1287,8 +1386,8 @@ export function WarehouseEditableGrid({
     fetch('/api/v1/hubs/active', {
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((res) => {
@@ -1313,14 +1412,14 @@ export function WarehouseEditableGrid({
           if (index === rowIndex) {
             return {
               ...row,
-              [columnId]: value,
+              [columnId]: value
             };
           }
           return row;
-        }),
+        })
       );
     },
-    [rows, onChange],
+    [rows, onChange]
   );
 
   // Update an entire row object
@@ -1332,17 +1431,15 @@ export function WarehouseEditableGrid({
             return updatedRow;
           }
           return row;
-        }),
+        })
       );
     },
-    [rows, onChange],
+    [rows, onChange]
   );
 
   // Add new empty row
   const handleAddRow = () => {
-    const defaultPickup =
-      (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
-      '';
+    const defaultPickup = (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') || '';
     const newRow: WarehouseRowItem = {
       orderCode: '',
       pickupAddress: defaultPickup,
@@ -1354,7 +1451,7 @@ export function WarehouseEditableGrid({
       deliveryAddress: '',
       province: '',
       accompanyingDocs: '',
-      notes: '',
+      notes: ''
     };
     onChange([...rows, newRow]);
   };
@@ -1366,7 +1463,7 @@ export function WarehouseEditableGrid({
       const updated = rows.filter((_, i) => i !== index);
       onChange(updated);
     },
-    [rows, onChange],
+    [rows, onChange]
   );
 
   // Duplicate row
@@ -1378,13 +1475,13 @@ export function WarehouseEditableGrid({
         id: undefined,
         orderCode: '',
         province: target.province || '',
-        accompanyingDocs: target.accompanyingDocs || '',
+        accompanyingDocs: target.accompanyingDocs || ''
       };
       const updated = [...rows];
       updated.splice(index + 1, 0, duplicated);
       onChange(updated);
     },
-    [rows, onChange],
+    [rows, onChange]
   );
 
   // Helper to append or replace pasted rows from Excel
@@ -1406,11 +1503,11 @@ export function WarehouseEditableGrid({
       } else {
         onChange([...rows, ...newRows]);
         toast.success(
-          `Đã dán thêm ${newRows.length} dòng hàng từ Excel (Tổng cộng: ${rows.length + newRows.length} dòng)`,
+          `Đã dán thêm ${newRows.length} dòng hàng từ Excel (Tổng cộng: ${rows.length + newRows.length} dòng)`
         );
       }
     },
-    [rows, onChange],
+    [rows, onChange]
   );
 
   // Smart Paste from Excel (TSV clipboard)
@@ -1420,20 +1517,18 @@ export function WarehouseEditableGrid({
       if (!text || !text.includes('\t')) return;
 
       e.preventDefault();
-      const defaultPickup =
-        (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
-        '';
+      const defaultPickup = (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') || '';
       const parsedMatrix = parseTsvWithQuotes(text);
       const dataRows = parsedMatrix.filter(
-        (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== ''),
+        (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== '')
       );
       const parsedRows: WarehouseRowItem[] = dataRows.map((cols) =>
-        mapPastedColsToRow(cols, defaultPickup),
+        mapPastedColsToRow(cols, defaultPickup)
       );
 
       applyPastedRows(parsedRows);
     },
-    [applyPastedRows, rows],
+    [applyPastedRows, rows]
   );
 
   // Trigger manual paste notification
@@ -1442,15 +1537,13 @@ export function WarehouseEditableGrid({
       ?.readText()
       .then((text) => {
         if (text && text.includes('\t')) {
-          const defaultPickup =
-            (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') ||
-            '';
+          const defaultPickup = (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') || '';
           const parsedMatrix = parseTsvWithQuotes(text);
           const dataRows = parsedMatrix.filter(
-            (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== ''),
+            (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== '')
           );
           const parsedRows: WarehouseRowItem[] = dataRows.map((cols) =>
-            mapPastedColsToRow(cols, defaultPickup),
+            mapPastedColsToRow(cols, defaultPickup)
           );
 
           applyPastedRows(parsedRows);
@@ -1484,8 +1577,9 @@ export function WarehouseEditableGrid({
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
       originalDeliveryAddress: order.destinationHub || order.deliveryAddress || '',
       province: (order as any).province || updated[lookupRowIndex].province || '',
-      accompanyingDocs: (order as any).accompanyingDocs || updated[lookupRowIndex].accompanyingDocs || '',
-      notes: order.notes || '',
+      accompanyingDocs:
+        (order as any).accompanyingDocs || updated[lookupRowIndex].accompanyingDocs || '',
+      notes: order.notes || ''
     };
     onChange(updated);
     setLookupRowIndex(null);
@@ -1497,9 +1591,7 @@ export function WarehouseEditableGrid({
       onChange(importedRows);
     } else {
       const currentIsDefaultOnly =
-        rows.length === 1 &&
-        !rows[0].goodsDescription &&
-        !rows[0].deliveryAddress;
+        rows.length === 1 && !rows[0].goodsDescription && !rows[0].deliveryAddress;
       if (currentIsDefaultOnly) {
         onChange(importedRows);
       } else {
@@ -1520,83 +1612,82 @@ export function WarehouseEditableGrid({
         id: 'stt',
         header: 'STT',
         size: 36,
-        cell: SttCell,
+        cell: SttCell
       },
       {
         id: 'orderCode',
         header: () => (
-          <span className="leading-tight block whitespace-nowrap">
-            MÃ VẬN ĐƠN{' '}
-            <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block whitespace-nowrap'>
+            MÃ VẬN ĐƠN <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 115,
-        cell: OrderCodeCell,
+        cell: OrderCodeCell
       },
       {
         accessorKey: 'pickupAddress',
         id: 'pickupAddress',
         header: () => (
-          <span className="leading-tight block">
-            ĐỊA CHỈ NHẬN <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block'>
+            ĐỊA CHỈ NHẬN <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 120,
-        cell: PickupAddressCell,
+        cell: PickupAddressCell
       },
       {
         accessorKey: 'goodsDescription',
         id: 'goodsDescription',
         header: () => (
-          <span className="leading-tight block">
-            TÊN HÀNG <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block'>
+            TÊN HÀNG <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 110,
-        cell: GoodsDescriptionCell,
+        cell: GoodsDescriptionCell
       },
       {
         accessorKey: 'totalQuantity',
         id: 'totalQuantity',
         header: () => (
-          <span className="leading-tight block text-right">
-            SỐ KIỆN <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block text-right'>
+            SỐ KIỆN <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 62,
-        cell: QuantityCell,
+        cell: QuantityCell
       },
       {
         accessorKey: 'totalWeight',
         id: 'totalWeight',
         header: () => (
-          <span className="leading-tight block text-right">
-            SỐ KG <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block text-right'>
+            SỐ KG <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 64,
-        cell: WeightCell,
+        cell: WeightCell
       },
       {
         accessorKey: 'totalVolume',
         id: 'totalVolume',
         header: () => (
-          <span className="leading-tight block text-right">
-            SỐ M³ <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block text-right'>
+            SỐ M³ <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 62,
-        cell: VolumeCell,
+        cell: VolumeCell
       },
       {
         id: 'deliveryAddress',
         header: () => (
-          <span className="leading-tight block">
-            ĐỊA CHỈ GIAO <span className="text-red-600 font-black">*</span>
+          <span className='leading-tight block'>
+            ĐỊA CHỈ GIAO <span className='text-red-600 font-black'>*</span>
           </span>
         ),
         size: 150,
-        cell: DeliveryAddressCell,
+        cell: DeliveryAddressCell
       },
       ...(isOutboundMode
         ? []
@@ -1606,41 +1697,41 @@ export function WarehouseEditableGrid({
               id: 'province',
               header: 'TỈNH / TP',
               size: 92,
-              cell: ProvinceCell,
-            },
+              cell: ProvinceCell
+            }
           ]),
       {
         accessorKey: 'accompanyingDocs',
         id: 'accompanyingDocs',
         header: () => (
-          <span title="Chứng từ đi kèm" className="cursor-help">
+          <span title='Chứng từ đi kèm' className='cursor-help'>
             CHỨNG TỪ
           </span>
         ),
         size: 85,
-        cell: AccompanyingDocsCell,
+        cell: AccompanyingDocsCell
       },
       {
         accessorKey: 'notes',
         id: 'notes',
         header: 'GHI CHÚ',
         size: 95,
-        cell: NotesCell,
+        cell: NotesCell
       },
       {
         id: 'actions',
         header: 'THAO TÁC',
         size: 76,
-        cell: ActionsCell,
-      },
+        cell: ActionsCell
+      }
     ],
-    [isOutboundMode],
+    [isOutboundMode]
   );
 
   // Column Pinning State (STT & Mã Đơn Pinned Left, Thao Tác Pinned Right)
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({
     left: ['stt', 'orderCode'],
-    right: ['actions'],
+    right: ['actions']
   });
 
   // TanStack Table Instance
@@ -1648,7 +1739,7 @@ export function WarehouseEditableGrid({
     data: rows,
     columns,
     state: {
-      columnPinning,
+      columnPinning
     },
     onColumnPinningChange: setColumnPinning,
     getCoreRowModel: getCoreRowModel(),
@@ -1664,12 +1755,15 @@ export function WarehouseEditableGrid({
       level2XeBoHubs,
       isOutboundMode,
       rowsCount: rows.length,
-      allRows: rows,
-    },
+      allRows: rows
+    }
   });
 
   // Precise Pinning Style Generator
-  const getPinningStyles = (column: Column<WarehouseRowItem, unknown>, isHeader = false): React.CSSProperties => {
+  const getPinningStyles = (
+    column: Column<WarehouseRowItem, unknown>,
+    isHeader = false
+  ): React.CSSProperties => {
     const isPinned = column.getIsPinned();
     const isLastLeft = isPinned === 'left' && column.getIsLastColumn('left');
     const isFirstRight = isPinned === 'right' && column.getIsFirstColumn('right');
@@ -1686,83 +1780,102 @@ export function WarehouseEditableGrid({
         ? '2px 0 5px -2px rgba(0, 0, 0, 0.1)'
         : isFirstRight
           ? '-2px 0 5px -2px rgba(0, 0, 0, 0.1)'
-          : undefined,
+          : undefined
     };
   };
 
   return (
-    <div className="space-y-3" onPaste={handlePaste}>
+    <div className='space-y-3' onPaste={handlePaste}>
       {/* ── Excel Input Toolbar (Frame S5y54b in WH_CASE_01) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2">
+      <div className='flex flex-wrap items-center justify-between gap-2.5'>
+        <div className='flex items-center gap-2'>
           <Button
-            type="button"
-            variant="outline"
-            size="sm"
+            type='button'
+            variant='outline'
+            size='sm'
             onClick={handleManualPaste}
-            className="hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
+            className='hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm'
           >
-            <IconFileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600" />
+            <IconFileSpreadsheet className='mr-1.5 h-4 w-4 text-emerald-600' />
             Dán từ Excel
           </Button>
           <Button
-            type="button"
-            variant="outline"
-            size="sm"
+            type='button'
+            variant='outline'
+            size='sm'
             onClick={() => setIsExcelImportModalOpen(true)}
-            className="hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm"
+            className='hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm'
           >
-            <IconFileSpreadsheet className="mr-1.5 h-4 w-4 text-blue-600" />
+            <IconFileSpreadsheet className='mr-1.5 h-4 w-4 text-blue-600' />
             Import Excel
           </Button>
           {onRefreshMetrics && (
             <Button
-              type="button"
-              variant="outline"
-              size="sm"
+              type='button'
+              variant='outline'
+              size='sm'
               onClick={onRefreshMetrics}
               disabled={isLoadingMetrics}
-              className="h-8 text-xs font-semibold border-slate-300 dark:border-slate-700"
+              className='h-8 text-xs font-semibold border-slate-300 dark:border-slate-700'
             >
-              <IconRefresh className={`mr-1.5 h-3.5 w-3.5 text-blue-600 ${isLoadingMetrics ? 'animate-spin' : ''}`} />
+              <IconRefresh
+                className={`mr-1.5 h-3.5 w-3.5 text-blue-600 ${isLoadingMetrics ? 'animate-spin' : ''}`}
+              />
               Cập nhật lại thông số
             </Button>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className='flex flex-wrap items-center gap-2.5'>
           {/* Summary Stat Pill placed at Top - Always Visible without horizontal scroll */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 dark:bg-blue-950/60 text-xs font-bold border border-blue-200 dark:border-blue-800 shadow-xs">
-            <span className="text-blue-950 dark:text-blue-200 font-bold">Tổng:</span>
-            <span className="text-blue-700 dark:text-blue-300 font-black">{totalPackages.toLocaleString('vi-VN')} kiện</span>
-            <span className="text-blue-300 dark:text-blue-700 font-normal">&bull;</span>
-            <span className="text-emerald-700 dark:text-emerald-400 font-black">{totalWeight.toLocaleString('vi-VN')} kg</span>
-            <span className="text-blue-300 dark:text-blue-700 font-normal">&bull;</span>
-            <span className="text-purple-700 dark:text-purple-300 font-black">{totalVolume.toFixed(1).replace('.', ',')} m³</span>
+          <div className='flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 dark:bg-blue-950/60 text-xs font-bold border border-blue-200 dark:border-blue-800 shadow-xs'>
+            <span className='text-blue-950 dark:text-blue-200 font-bold'>Tổng:</span>
+            <span className='text-blue-700 dark:text-blue-300 font-black'>
+              {totalPackages.toLocaleString('vi-VN')} kiện
+            </span>
+            <span className='text-blue-300 dark:text-blue-700 font-normal'>&bull;</span>
+            <span className='text-emerald-700 dark:text-emerald-400 font-black'>
+              {totalWeight.toLocaleString('vi-VN')} kg
+            </span>
+            <span className='text-blue-300 dark:text-blue-700 font-normal'>&bull;</span>
+            <span className='text-purple-700 dark:text-purple-300 font-black'>
+              {totalVolume.toFixed(1).replace('.', ',')} m³
+            </span>
           </div>
 
           <Button
-            type="button"
-            size="sm"
+            type='button'
+            size='sm'
             onClick={handleAddRow}
-            className="h-8 bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm shrink-0"
+            className='h-8 bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm shrink-0'
           >
-            <IconPlus className="mr-1.5 h-4 w-4" />
+            <IconPlus className='mr-1.5 h-4 w-4' />
             Thêm 1 dòng đơn mới
           </Button>
         </div>
       </div>
 
       {/* ── TanStack Table Container with Native Horizontal Scroll & Solid Sticky Columns ── */}
-      <div className="relative border rounded-xl overflow-x-auto shadow-sm bg-white dark:bg-slate-900">
-        <table className="w-full text-[10px] text-left border-collapse min-w-full">
-          <thead className="select-none font-bold text-[10px]">
+      <div className='relative border rounded-xl overflow-x-auto shadow-sm bg-white dark:bg-slate-900'>
+        <table className='w-full text-[10px] text-left border-collapse min-w-full'>
+          <thead className='select-none font-bold text-[10px]'>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b">
+              <tr
+                key={headerGroup.id}
+                className='bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b'
+              >
                 {headerGroup.headers.map((header) => {
                   const isPinned = header.column.getIsPinned();
                   const colId = header.column.id;
-                  const isRequired = ['orderCode', 'pickupAddress', 'goodsDescription', 'totalQuantity', 'totalWeight', 'totalVolume', 'deliveryAddress'].includes(colId);
+                  const isRequired = [
+                    'orderCode',
+                    'pickupAddress',
+                    'goodsDescription',
+                    'totalQuantity',
+                    'totalWeight',
+                    'totalVolume',
+                    'deliveryAddress'
+                  ].includes(colId);
 
                   return (
                     <th
@@ -1771,7 +1884,9 @@ export function WarehouseEditableGrid({
                       className={cn(
                         'py-1 px-1 text-[10px] font-bold whitespace-nowrap border-b border-slate-200 dark:border-slate-700',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
-                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
+                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId)
+                          ? 'text-right'
+                          : '',
                         isPinned === 'left' && colId === 'orderCode'
                           ? 'bg-[#FEE2E2] dark:bg-red-950 border-r border-red-300 dark:border-red-800 text-slate-700 dark:text-slate-300'
                           : isPinned === 'left' && colId === 'stt'
@@ -1780,7 +1895,7 @@ export function WarehouseEditableGrid({
                               ? 'bg-[#F1F5F9] dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                               : isRequired
                                 ? 'bg-[#FEF2F2] dark:bg-red-950 border-r border-red-200 dark:border-red-900 text-[#991B1B] dark:text-red-300'
-                                : 'bg-[#F1F5F9] dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300',
+                                : 'bg-[#F1F5F9] dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                       )}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -1791,11 +1906,11 @@ export function WarehouseEditableGrid({
             ))}
           </thead>
 
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+          <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group align-top"
+                className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group align-top'
               >
                 {row.getVisibleCells().map((cell) => {
                   const isPinned = cell.column.getIsPinned();
@@ -1808,7 +1923,9 @@ export function WarehouseEditableGrid({
                       className={cn(
                         'py-1 px-1 text-[10px]',
                         colId === 'stt' || colId === 'actions' ? 'text-center' : '',
-                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId) ? 'text-right' : '',
+                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId)
+                          ? 'text-right'
+                          : '',
                         isPinned
                           ? 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
                           : '',
@@ -1816,7 +1933,7 @@ export function WarehouseEditableGrid({
                           ? 'border-r border-slate-200 dark:border-slate-700'
                           : isPinned === 'right'
                             ? 'border-l border-slate-200 dark:border-slate-700'
-                            : 'border-r border-slate-100 dark:border-slate-800',
+                            : 'border-r border-slate-100 dark:border-slate-800'
                       )}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -1831,10 +1948,12 @@ export function WarehouseEditableGrid({
 
       {/* ── Delivery Address Logic Hint Banner (Frame mtoot in WH_CASE_01) ── */}
       {showAddressHint && (
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg text-xs text-blue-800 dark:text-blue-200">
-          <IconSearch className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+        <div className='flex items-center gap-2.5 px-3.5 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg text-xs text-blue-800 dark:text-blue-200'>
+          <IconSearch className='h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0' />
           <span>
-            Thêm hoặc chọn một dòng để chỉnh sửa. Hỗ trợ 3 chế độ giao hàng: <strong>Địa chỉ thường</strong> (khách nhận), <strong>Hub cấp 1</strong> (liên Hub), và <strong>Tuyến Xe bo</strong> (tuyến nội thành/vệ tinh).
+            Thêm hoặc chọn một dòng để chỉnh sửa. Hỗ trợ 3 chế độ giao hàng:{' '}
+            <strong>Địa chỉ thường</strong> (khách nhận), <strong>Hub cấp 1</strong> (liên Hub), và{' '}
+            <strong>Tuyến Xe bo</strong> (tuyến nội thành/vệ tinh).
           </span>
         </div>
       )}
@@ -1868,4 +1987,3 @@ export function WarehouseEditableGrid({
     </div>
   );
 }
-
