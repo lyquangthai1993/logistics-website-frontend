@@ -134,35 +134,22 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
   test('UI: Verify modal inputs, single append button, and zero raw ID 3', async ({
     page,
   }) => {
-    // Navigate to inbound warehouse page
-    await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`, {
-      waitUntil: 'domcontentloaded',
-    });
+    // 1. Log in as Da Nang warehouse manager
+    await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
+    await page.locator('input[name="email"]').waitFor({ state: 'visible', timeout: 25_000 });
+    await page.fill('input[name="email"]', 'lyquangthai1993+5@gmail.com');
+    await page.fill('input[name="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/dashboard\/.*/, { timeout: 30_000 });
 
-    // Check if redirect to login occurs
-    if (page.url().includes('/auth') || page.url().includes('/sign-in')) {
-      const emailInput = page.locator('input[type="email"], input[name="email"]');
-      const passInput = page.locator('input[type="password"], input[name="password"]');
-      await emailInput.fill(ADMIN_EMAIL);
-      await passInput.fill(PASSWORD);
-      await page.locator('button[type="submit"]').click();
-      await page.waitForURL('**/dashboard/**', { timeout: 15_000 });
-      await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`, {
-        waitUntil: 'domcontentloaded',
-      });
-    }
-
+    // 2. Navigate to inbound warehouse page
+    await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`);
+    await page.locator('h1:has-text("Nhập kho")').waitFor({ state: 'visible', timeout: 25_000 });
     await page.waitForTimeout(2000);
 
     // Look for a trip code button in table
-    const tripBtn = page.locator('button:has-text("SD"), [data-trip-code]').first();
-    const hasTrip = await tripBtn.isVisible().catch(() => false);
-
-    if (!hasTrip) {
-      console.log('No inbound trip found on UI table to test modal.');
-      return;
-    }
-
+    const tripBtn = page.locator('button[title*="xem chi tiết"], button:has-text("SD")').first();
+    await expect(tripBtn).toBeVisible({ timeout: 15_000 });
     await tripBtn.click();
     await page.waitForTimeout(1500);
 
@@ -180,8 +167,8 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
       await page.waitForTimeout(1000);
 
       // Verify modal is open
-      await expect(page.locator('text="Bốc thêm đơn dọc đường"').first()).toBeVisible({
-        timeout: 5000,
+      await expect(page.locator('text=/Bốc thêm đơn dọc đường/').first()).toBeVisible({
+        timeout: 8000,
       });
 
       // 2. Verify road-side pickup input exists
