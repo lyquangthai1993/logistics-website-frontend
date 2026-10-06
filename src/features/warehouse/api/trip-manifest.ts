@@ -91,6 +91,48 @@ export function useTripManifestQuery(tripCode: string | null | undefined, enable
     queryKey: tripManifestKeys.detail(tripCode ?? ''),
     queryFn: () => getTripManifest(tripCode as string),
     enabled: enabled && isManifestTripCode(tripCode),
-    staleTime: 0
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
+}
+
+export interface AvailableOutboundOrdersResponse {
+  tripCode: string;
+  currentHubId: number | null;
+  currentHubName: string;
+  downstreamHubs: Array<{ id: number; name: string }>;
+  orders: any[];
+}
+
+export async function getAvailableOutboundOrders(
+  tripCode: string
+): Promise<AvailableOutboundOrdersResponse> {
+  const res = await apiClient.get<ApiResponse<AvailableOutboundOrdersResponse>>(
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/available-outbound-orders`
+  );
+  return res.data.data;
+}
+
+export function useAvailableOutboundOrdersQuery(
+  tripCode: string | null | undefined,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ['warehouse', 'available-outbound-orders', tripCode],
+    queryFn: () => getAvailableOutboundOrders(tripCode as string),
+    enabled: enabled && isManifestTripCode(tripCode),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+export async function updateTransitStep(
+  tripCode: string,
+  payload: { step: 'INBOUND' | 'OUTBOUND'; action: 'CONFIRM' | 'SKIP' }
+) {
+  const res = await apiClient.post<ApiResponse<any>>(
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/transit-step`,
+    payload
+  );
+  return res.data.data;
 }
