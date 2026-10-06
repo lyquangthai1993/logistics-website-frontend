@@ -102,11 +102,19 @@ test.describe.serial('Suite 29: Verification & Evidence for Feedback 05/10', () 
     const emptyModalBuffer = await page.screenshot({ fullPage: false });
     saveEvidenceScreenshot('02_append_enroute_order_modal.png', emptyModalBuffer);
 
+    // Fill in roadside pickup location
+    const pickupInput = page
+      .locator('input[placeholder*="Hòa Cầm"], input[placeholder*="Điểm bốc"]')
+      .first();
+    if (await pickupInput.isVisible()) {
+      await pickupInput.fill('Cây xăng Hòa Cầm, QL1A');
+    }
+
     // Fill in en-route cargo details
     const goodsInput = page
-      .locator('input[placeholder*="Vải cuộn"], input[placeholder*="Tên mặt hàng"]')
+      .locator('input[placeholder*="Bạt cuộn"], input[placeholder*="Vải cuộn"], input[placeholder*="Tên mặt hàng"]')
       .first();
-    await goodsInput.fill('Hàng may mặc Đà Nẵng gửi Hưng Yên (Test En-route)');
+    await goodsInput.fill('Hàng may mặc Đà Nẵng (Test En-route)');
 
     const qtyInput = page.locator('input[type="number"]').first();
     await qtyInput.fill('20');

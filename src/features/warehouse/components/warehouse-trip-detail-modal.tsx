@@ -572,17 +572,6 @@ export function WarehouseTripDetailModal({
           </div>
 
           <div className='flex items-center gap-2'>
-            {mode === 'INBOUND' && !effectiveReadOnly && isManifestTripCode(tripGroup?.tripCode) && (
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() => setIsAppendModalOpen(true)}
-                className='h-8 text-xs text-[#0F3D62] border-[#0F3D62]/40 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-950 font-bold'
-                title='Bốc thêm đơn dọc đường vào chuyến xe này'
-              >
-                <IconPlus className='h-3.5 w-3.5 mr-1' /> Bốc thêm đơn
-              </Button>
-            )}
             {onOpenReceipt && (
               <Button
                 variant='outline'

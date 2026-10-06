@@ -12,13 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   IconTruck,
   IconPackage,
   IconX,
@@ -28,8 +21,6 @@ import {
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
 import { showApiErrorToast } from '@/lib/api-error';
-import { getActiveHubs } from '@/features/hubs/api/service';
-import type { Hub } from '@/features/hubs/api/types';
 import { useAuthStore } from '@/stores/use-auth-store';
 
 interface WarehouseAppendOrderModalProps {
@@ -51,53 +42,43 @@ export function WarehouseAppendOrderModal({
   const currentHubName = user?.hub?.name || 'Kho hiện tại';
   const currentHubId = user?.hub?.id;
 
-  const [hubs, setHubs] = useState<Hub[]>([]);
-  const [isLoadingHubs, setIsLoadingHubs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form fields
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [province, setProvince] = useState('');
   const [orderCode, setOrderCode] = useState('');
   const [goodsDescription, setGoodsDescription] = useState('');
   const [totalQuantity, setTotalQuantity] = useState<number>(1);
   const [totalWeight, setTotalWeight] = useState<number>(0);
   const [totalVolume, setTotalVolume] = useState<number>(0);
-  const [destinationHubId, setDestinationHubId] = useState<string>('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [province, setProvince] = useState('');
   const [accompanyingDocs, setAccompanyingDocs] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      setIsLoadingHubs(true);
-      getActiveHubs()
-        .then((data) => {
-          setHubs(data || []);
-          // Auto select first hub that is not current hub
-          const other = (data || []).find((h) => h.id !== currentHubId);
-          if (other) setDestinationHubId(other.id.toString());
-        })
-        .catch((err) => {
-          console.error('Lỗi khi tải danh sách Hub:', err);
-        })
-        .finally(() => setIsLoadingHubs(false));
-    } else {
+    if (!isOpen) {
       // Reset form
+      setPickupAddress('');
+      setDeliveryAddress('');
+      setProvince('');
       setOrderCode('');
       setGoodsDescription('');
       setTotalQuantity(1);
       setTotalWeight(0);
       setTotalVolume(0);
-      setDeliveryAddress('');
-      setProvince('');
       setAccompanyingDocs('');
       setNotes('');
     }
-  }, [isOpen, currentHubId]);
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!pickupAddress.trim()) {
+      toast.error('Vui lòng nhập điểm bốc hàng dọc đường');
+      return;
+    }
     if (!goodsDescription.trim()) {
       toast.error('Vui lòng nhập tên mặt hàng');
       return;
@@ -115,8 +96,8 @@ export function WarehouseAppendOrderModal({
         totalQuantity: Number(totalQuantity) || 1,
         totalWeight: Number(totalWeight) || 0,
         totalVolume: Number(totalVolume) || 0,
-        destinationHubId: destinationHubId ? Number(destinationHubId) : undefined,
-        pickupAddress: currentHubName,
+        destinationHubId: currentHubId ? Number(currentHubId) : undefined,
+        pickupAddress: pickupAddress.trim(),
         deliveryAddress: deliveryAddress.trim() || undefined,
         province: province.trim() || undefined,
         accompanyingDocs: accompanyingDocs.trim() || undefined,
@@ -135,7 +116,7 @@ export function WarehouseAppendOrderModal({
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       showApiErrorToast(err, 'Không thể bốc thêm đơn vào chuyến xe');
     } finally {
       setIsSubmitting(false);
@@ -151,40 +132,71 @@ export function WarehouseAppendOrderModal({
             <span>Bốc thêm đơn dọc đường lên chuyến xe {tripCode}</span>
           </DialogTitle>
           <div className='flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5'>
-            <span>Xe: <strong className='font-mono text-slate-800 dark:text-slate-200 uppercase'>{licensePlate}</strong></span>
+            <span>
+              Xe: <strong className='font-mono text-slate-800 dark:text-slate-200 uppercase'>{licensePlate}</strong>
+            </span>
             <span>•</span>
-            <span>Kho bốc: <strong className='text-emerald-700 dark:text-emerald-400 font-semibold'>{currentHubName}</strong></span>
+            <span>
+              Kho nhập: <strong className='text-emerald-700 dark:text-emerald-400 font-semibold'>{currentHubName}</strong>
+            </span>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className='space-y-2.5 text-xs py-1'>
-          {/* Lộ trình bốc hàng & đích dỡ */}
+          {/* Lộ trình: Điểm bốc dọc đường -> Kho nhập hàng */}
           <div className='p-2 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-2'>
             <div className='flex-1'>
-              <div className='text-[10px] text-slate-400 font-semibold uppercase'>1. Nơi bốc hàng (Kho hiện tại)</div>
-              <div className='font-bold text-slate-800 dark:text-slate-200 text-xs truncate'>{currentHubName}</div>
+              <div className='text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase'>
+                1. Điểm bốc dọc đường <span className='text-red-500'>*</span>
+              </div>
+              <Input
+                placeholder='VD: Cây xăng Hòa Cầm, Ngã 3 Trị An, Dọc QL1A...'
+                value={pickupAddress}
+                onChange={(e) => setPickupAddress(e.target.value)}
+                className='h-8 text-xs font-semibold mt-1 bg-white dark:bg-slate-900'
+                disabled={isSubmitting}
+                required
+              />
             </div>
-            <IconArrowRight className='w-4 h-4 text-blue-600 shrink-0' />
+            <IconArrowRight className='w-4 h-4 text-blue-600 shrink-0 mt-5' />
             <div className='flex-1'>
-              <div className='text-[10px] text-slate-400 font-semibold uppercase'>2. Đích dỡ hàng (Kho nhận) <span className='text-red-500'>*</span></div>
-              <Select
-                value={destinationHubId}
-                onValueChange={(val) => setDestinationHubId(val || '')}
-                disabled={isLoadingHubs || isSubmitting}
-              >
-                <SelectTrigger className='h-7.5 text-xs font-semibold mt-0.5'>
-                  <SelectValue placeholder='Chọn kho nhận' />
-                </SelectTrigger>
-                <SelectContent>
-                  {hubs
-                    .filter((h) => h.id !== currentHubId)
-                    .map((h) => (
-                      <SelectItem key={h.id} value={h.id.toString()} className='text-xs'>
-                        {h.name} {h.code ? `(${h.code})` : ''}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <div className='text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase flex items-center gap-1.5'>
+                <span>2. Kho nhập hàng</span>
+                <span className='text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold'>
+                  Kho hiện tại
+                </span>
+              </div>
+              <div className='h-8 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-800/90 flex items-center text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 truncate'>
+                {currentHubName}
+              </div>
+            </div>
+          </div>
+
+          {/* Điểm giao của khách & Tỉnh/TP nhận hàng */}
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+            <div>
+              <Label className='text-[11px] font-semibold text-slate-700 dark:text-slate-300'>
+                Điểm giao của khách (Địa chỉ giao hàng)
+              </Label>
+              <Input
+                placeholder='Số nhà, tên đường, KCN, Phường/Xã...'
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                className='h-8 text-xs mt-0.5'
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <Label className='text-[11px] font-semibold text-slate-700 dark:text-slate-300'>
+                Tỉnh / Thành phố đích
+              </Label>
+              <Input
+                placeholder='VD: Đà Nẵng, Quảng Nam, Huế...'
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                className='h-8 text-xs mt-0.5'
+                disabled={isSubmitting}
+              />
             </div>
           </div>
 
@@ -198,7 +210,7 @@ export function WarehouseAppendOrderModal({
                 placeholder='Để trống hệ thống tự cấp mã'
                 value={orderCode}
                 onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
-                className='h-8 text-xs font-mono'
+                className='h-8 text-xs font-mono mt-0.5'
                 disabled={isSubmitting}
               />
             </div>
@@ -207,10 +219,10 @@ export function WarehouseAppendOrderModal({
                 Tên mặt hàng <span className='text-red-500'>*</span>
               </Label>
               <Input
-                placeholder='VD: Vải cuộn, Hạt nhựa, May mặc...'
+                placeholder='VD: Bạt cuộn, Hạt nhựa, May mặc...'
                 value={goodsDescription}
                 onChange={(e) => setGoodsDescription(e.target.value)}
-                className='h-8 text-xs font-semibold'
+                className='h-8 text-xs font-semibold mt-0.5'
                 disabled={isSubmitting}
                 required
               />
@@ -228,7 +240,7 @@ export function WarehouseAppendOrderModal({
                 min={1}
                 value={totalQuantity || ''}
                 onChange={(e) => setTotalQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className='h-8 text-xs font-bold'
+                className='h-8 text-xs font-bold mt-0.5'
                 disabled={isSubmitting}
                 required
               />
@@ -243,7 +255,7 @@ export function WarehouseAppendOrderModal({
                 step='any'
                 value={totalWeight || ''}
                 onChange={(e) => setTotalWeight(parseFloat(e.target.value) || 0)}
-                className='h-8 text-xs font-mono'
+                className='h-8 text-xs font-mono mt-0.5'
                 disabled={isSubmitting}
               />
             </div>
@@ -257,35 +269,7 @@ export function WarehouseAppendOrderModal({
                 step='any'
                 value={totalVolume || ''}
                 onChange={(e) => setTotalVolume(parseFloat(e.target.value) || 0)}
-                className='h-8 text-xs font-mono'
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          {/* Địa chỉ giao & Tỉnh/TP */}
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-            <div>
-              <Label className='text-[11px] font-semibold text-slate-700 dark:text-slate-300'>
-                Địa chỉ giao hàng (Tùy chọn)
-              </Label>
-              <Input
-                placeholder='Số nhà, tên đường, KCN...'
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                className='h-8 text-xs'
-                disabled={isSubmitting}
-              />
-            </div>
-            <div>
-              <Label className='text-[11px] font-semibold text-slate-700 dark:text-slate-300'>
-                Tỉnh / Thành phố đích
-              </Label>
-              <Input
-                placeholder='VD: Hưng Yên, Hà Nội, Hải Phòng...'
-                value={province}
-                onChange={(e) => setProvince(e.target.value)}
-                className='h-8 text-xs'
+                className='h-8 text-xs font-mono mt-0.5'
                 disabled={isSubmitting}
               />
             </div>
@@ -301,7 +285,7 @@ export function WarehouseAppendOrderModal({
                 placeholder='VD: 1 Bộ chứng từ, Hóa đơn VAT...'
                 value={accompanyingDocs}
                 onChange={(e) => setAccompanyingDocs(e.target.value)}
-                className='h-8 text-xs'
+                className='h-8 text-xs mt-0.5'
                 disabled={isSubmitting}
               />
             </div>
@@ -310,10 +294,10 @@ export function WarehouseAppendOrderModal({
                 Ghi chú vận hành
               </Label>
               <Input
-                placeholder='VD: Bốc thêm tại kho Đà Nẵng'
+                placeholder='VD: Bốc thêm tại cây xăng Hòa Cầm'
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className='h-8 text-xs'
+                className='h-8 text-xs mt-0.5'
                 disabled={isSubmitting}
               />
             </div>
