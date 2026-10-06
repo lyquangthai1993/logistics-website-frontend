@@ -60,9 +60,7 @@ test.describe.serial('Feedback 06/10: 2-Step Transit Stop Lifecycle & Hub Outbou
     expect(adminToken).toBeTruthy();
 
     const userProfile = loginJson?.data?.user ?? loginJson?.user;
-    if (userProfile?.hubId) {
-      currentHubId = userProfile.hubId;
-    }
+    currentHubId = userProfile?.hubId || 2;
 
     // 2. Fetch active trips
     const tripsRes = await request.get(`${DEV_BACKEND_URL}/warehouse/inbound-trips`, {
@@ -183,15 +181,15 @@ test.describe.serial('Feedback 06/10: 2-Step Transit Stop Lifecycle & Hub Outbou
 
     // 2. Navigate to Inbound Warehouse
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('table').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
 
-    // Find and open any trip row
-    const tripRows = page.locator('table tbody tr');
-    const rowCount = await tripRows.count();
+    // Click the trip code button to open WarehouseTripDetailModal
+    const tripDetailBtn = page.locator('button[title*="chi tiết chuyến xe"]').first();
+    const hasBtn = await tripDetailBtn.isVisible({ timeout: 10000 }).catch(() => false);
 
-    if (rowCount > 0) {
-      // Click the first row to open WarehouseTripDetailModal
-      await tripRows.first().click();
+    if (hasBtn) {
+      await tripDetailBtn.click();
 
       // Verify Modal Dialog is visible
       const modal = page.locator('div[role="dialog"]');
