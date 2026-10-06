@@ -184,12 +184,10 @@ test.describe.serial('Feedback 06/10: 2-Step Transit Stop Lifecycle & Hub Outbou
     await page.waitForLoadState('domcontentloaded');
     await page.locator('table').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
 
-    // Click the trip code button to open WarehouseTripDetailModal
+    // Wait for the trip code button to appear in table
     const tripDetailBtn = page.locator('button[title*="chi tiết chuyến xe"]').first();
-    const hasBtn = await tripDetailBtn.isVisible({ timeout: 10000 }).catch(() => false);
-
-    if (hasBtn) {
-      await tripDetailBtn.click();
+    await tripDetailBtn.waitFor({ state: 'visible', timeout: 20000 });
+    await tripDetailBtn.click();
 
       // Verify Modal Dialog is visible
       const modal = page.locator('div[role="dialog"]');
@@ -237,6 +235,5 @@ test.describe.serial('Feedback 06/10: 2-Step Transit Stop Lifecycle & Hub Outbou
       // Take screenshot of HUB_OUTBOUND append modal
       const appendScreenshot = await appendModal.screenshot();
       saveEvidenceScreenshot('04_e2e_hub_outbound_append_modal.png', appendScreenshot);
-    }
   });
 });
