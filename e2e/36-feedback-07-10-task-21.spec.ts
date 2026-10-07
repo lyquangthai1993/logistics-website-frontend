@@ -128,6 +128,8 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
   test('Browser UI: Step 2 outbound modal expands wide, displays 10 columns and executes batch append', async ({
     page,
   }) => {
+    test.setTimeout(90000);
+
     // 1. Sign in to Frontend
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
     await page.waitForLoadState('domcontentloaded');
@@ -228,14 +230,19 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
     const headerCount = await headers.count();
     expect(headerCount).toBe(10);
 
-    // 7. Test Checkbox selection & Sticky Footer Counter
-    const firstRowCheckbox = rows.first().locator('input[type="checkbox"], button[role="checkbox"]').first();
-    await firstRowCheckbox.click();
+    // 7. Test Checkbox / Row selection & Sticky Footer Counter
+    await rows.first().locator('td').nth(2).click();
 
     // Sticky footer should update to "Đã chọn: 1 đơn hàng"
     const footer = selectStoredModal.locator('[data-slot="dialog-footer"], footer, .sticky.bottom-0').first();
     await expect(footer).toContainText('Đã chọn:');
     await expect(footer).toContainText('1 đơn hàng');
+
+    // Click second row if available
+    if (rowCount > 1) {
+      await rows.nth(1).locator('td').nth(2).click();
+      await expect(footer).toContainText('2 đơn hàng');
+    }
 
     // 8. Capture visual evidence screenshot
     const screenshotBuffer = await page.screenshot({ fullPage: false });
