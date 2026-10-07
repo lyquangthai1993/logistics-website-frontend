@@ -402,26 +402,46 @@ export default function WarehouseOutboundPage() {
     // Auto-detect transfer mode if any item has destinationHubId specified
     const hasTransferItem = validRows.some(
       (r) =>
-        r.destinationHubId && (!user?.hub?.id || Number(r.destinationHubId) !== Number(user.hub.id))
+        r.deliveryMode !== 'DIRECT_CUSTOMER' &&
+        r.destinationHubId &&
+        (!user?.hub?.id || Number(r.destinationHubId) !== Number(user.hub.id))
     );
     const effectiveMode: 'CUSTOMER' | 'TRANSFER' =
       mode === 'TRANSFER' || hasTransferItem ? 'TRANSFER' : 'CUSTOMER';
+
+    const transferRows = validRows.filter(
+      (r) =>
+        r.deliveryMode !== 'DIRECT_CUSTOMER' &&
+        r.destinationHubId &&
+        (!user?.hub?.id || Number(r.destinationHubId) !== Number(user.hub.id))
+    );
     const primaryDestHubId =
       mode === 'TRANSFER'
         ? parseInt(transferHubId, 10)
-        : validRows.find((r) => r.destinationHubId)?.destinationHubId || undefined;
+        : transferRows.length === validRows.length && transferRows.length > 0
+          ? Number(transferRows[0].destinationHubId)
+          : undefined;
 
     const items = validRows
       .filter((r) => r.id && !isNaN(Number(r.id)))
-      .map((r) => ({
-        orderId: Number(r.id),
-        quantityToExport: Number(r.totalQuantity) || 0,
-        weightToExport: Number(r.totalWeight) || 0,
-        volumeToExport: Number(r.totalVolume) || 0,
-        destinationHubId: r.destinationHubId ? Number(r.destinationHubId) : undefined,
-        deliveryMode: r.deliveryMode || undefined,
-        deliveryAddress: r.deliveryAddress || undefined
-      }));
+      .map((r) => {
+        const isDirect = r.deliveryMode === 'DIRECT_CUSTOMER';
+        return {
+          orderId: Number(r.id),
+          quantityToExport: Number(r.totalQuantity) || 0,
+          weightToExport: Number(r.totalWeight) || 0,
+          volumeToExport: Number(r.totalVolume) || 0,
+          destinationHubId: isDirect
+            ? undefined
+            : r.destinationHubId
+              ? Number(r.destinationHubId)
+              : undefined,
+          deliveryMode:
+            r.deliveryMode ||
+            (r.destinationHubId ? 'HUB_L1' : 'DIRECT_CUSTOMER'),
+          deliveryAddress: r.deliveryAddress || undefined
+        };
+      });
 
     const body = {
       orderIds: orderIds.length > 0 ? orderIds : undefined,

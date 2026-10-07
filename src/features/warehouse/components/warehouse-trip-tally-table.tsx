@@ -25,9 +25,11 @@ export function expectedForLine(line: TripManifestLine): number {
 export function buildInitialTallyState(lines: TripManifestLine[]): TallyState {
   const state: TallyState = {};
   for (const l of lines) {
+    const isTargetForThisHub =
+      l.isForCurrentHub && !l.isReceivedHere && l.deliveryMode !== 'DIRECT_CUSTOMER';
     state[l.id] = {
-      checked: l.isForCurrentHub && !l.isReceivedHere,
-      actualQuantity: expectedForLine(l),
+      checked: isTargetForThisHub,
+      actualQuantity: isTargetForThisHub ? expectedForLine(l) : '',
       discrepancyReason: ''
     };
   }
@@ -59,10 +61,10 @@ export function WarehouseTripTallyTable({
   currentHubName
 }: WarehouseTripTallyTableProps) {
   const visibleLines = useMemo(
-    () => (hideOtherHubs ? lines.filter((l) => l.isForCurrentHub) : lines),
+    () => (hideOtherHubs ? lines.filter((l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER') : lines),
     [lines, hideOtherHubs]
   );
-  const otherHubCount = lines.length - lines.filter((l) => l.isForCurrentHub).length;
+  const otherHubCount = lines.length - lines.filter((l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER').length;
 
   const selectable = visibleLines.filter((l) => !l.isReceivedHere);
   const allChecked = selectable.length > 0 && selectable.every((l) => state[l.id]?.checked);
@@ -88,7 +90,7 @@ export function WarehouseTripTallyTable({
           />
           Ẩn các dòng không thuộc kho này
           {otherHubCount > 0 && (
-            <span className='text-slate-400 font-normal'>({otherHubCount} dòng đi kho khác)</span>
+            <span className='text-slate-400 font-normal'>({otherHubCount} dòng không dỡ tại kho này)</span>
           )}
         </label>
         <span className='text-[10px] text-slate-500 flex items-center gap-1'>
@@ -112,7 +114,7 @@ export function WarehouseTripTallyTable({
               </th>
               <th className='py-1 px-1.5 w-[32px] text-center'>STT</th>
               <th className='py-1 px-1.5 min-w-[120px]'>MÃ VẬN ĐƠN</th>
-              <th className='py-1 px-1.5 min-w-[110px]'>KHO NHẬN</th>
+              <th className='py-1 px-1.5 min-w-[130px]'>KHO NHẬN / NƠI GIAO</th>
               <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
               <th className='py-1 px-1.5 text-right w-[60px]'>KIỆN HĐ</th>
               <th className='py-1 px-1.5 text-right w-[60px]'>KG HĐ</th>
@@ -149,7 +151,16 @@ export function WarehouseTripTallyTable({
                       {!rowLocked && (
                         <Checkbox
                           checked={!!s?.checked}
-                          onCheckedChange={(v) => patch(l.id, { checked: v === true })}
+                          onCheckedChange={(v) => {
+                            const isChecked = v === true;
+                            patch(l.id, {
+                              checked: isChecked,
+                              actualQuantity:
+                                isChecked && (s?.actualQuantity === '' || s?.actualQuantity === undefined)
+                                  ? expectedForLine(l)
+                                  : s?.actualQuantity
+                            });
+                          }}
                           aria-label={`Dỡ đơn ${l.orderCode} tại kho này`}
                         />
                       )}
@@ -171,20 +182,89 @@ export function WarehouseTripTallyTable({
                       )}
                     </td>
                     <td className='py-1 px-1.5'>
-                      <span className='text-slate-700 dark:text-slate-300'>
-                        {l.destinationHubEntity?.name ?? l.destinationHub ?? '—'}
-                      </span>
-                      {!l.isForCurrentHub && (
-                        <Badge
-                          variant='outline'
-                          className={`ml-1 text-[10px] h-4 px-1 ${
-                            s?.checked
-                              ? 'bg-amber-50 text-amber-700 border-amber-300'
-                              : 'text-slate-500'
-                          }`}
-                        >
-                          {s?.checked ? 'Dỡ ngoài kế hoạch' : 'Đi kho khác'}
-                        </Badge>
+                      {l.deliveryMode === 'DIRECT_CUSTOMER' ? (
+                        <div className='space-y-0.5'>
+                          <div className='flex items-center flex-wrap gap-1'>
+                            <Badge
+                              variant='outline'
+                              className='text-[9px] h-3.5 px-1 bg-cyan-50 dark:bg-cyan-950/60 text-cyan-800 dark:text-cyan-300 border-cyan-300 font-semibold'
+                            >
+                              Giao thẳng khách
+                            </Badge>
+                            {!l.isForCurrentHub && (
+                              <Badge
+                                variant='outline'
+                                className={`text-[9px] h-3.5 px-1 ${
+                                  s?.checked
+                                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300'
+                                }`}
+                              >
+                                {s?.checked
+                                  ? 'Dỡ ngoài kế hoạch'
+                                  : 'Hàng trên xe - Không dỡ'}
+                              </Badge>
+                            )}
+                          </div>
+                          <div
+                            className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]'
+                            title={l.deliveryAddress || l.destinationHub || ''}
+                          >
+                            {l.deliveryAddress || l.destinationHub || 'Giao tận nơi'}
+                          </div>
+                        </div>
+                      ) : l.deliveryMode === 'XE_BO' ? (
+                        <div className='space-y-0.5'>
+                          <div className='flex items-center flex-wrap gap-1'>
+                            <Badge
+                              variant='outline'
+                              className='text-[9px] h-3.5 px-1 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-300 font-semibold'
+                            >
+                              Tuyến Xe Bo
+                            </Badge>
+                            {!l.isForCurrentHub && (
+                              <Badge
+                                variant='outline'
+                                className={`text-[9px] h-3.5 px-1 ${
+                                  s?.checked
+                                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                    : 'text-slate-500'
+                                }`}
+                              >
+                                {s?.checked ? 'Dỡ ngoài kế hoạch' : 'Đi kho khác'}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]'>
+                            {l.destinationHubEntity?.name ?? l.destinationHub ?? '—'}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className='space-y-0.5'>
+                          <div className='flex items-center flex-wrap gap-1'>
+                            <Badge
+                              variant='outline'
+                              className='text-[9px] h-3.5 px-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-300 font-semibold'
+                            >
+                              Hub Cấp 1
+                            </Badge>
+                            {!l.isForCurrentHub && (
+                              <Badge
+                                variant='outline'
+                                className={`text-[9px] h-3.5 px-1 ${
+                                  s?.checked
+                                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                    : 'text-slate-500'
+                                }`}
+                              >
+                                {s?.checked ? 'Dỡ ngoài kế hoạch' : 'Đi kho khác'}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]'>
+                            {l.destinationHubEntity?.name ?? l.destinationHub ?? '—'}
+                          </div>
+                        </div>
                       )}
                     </td>
                     <td className='py-1 px-1.5 font-medium text-slate-900 dark:text-white'>

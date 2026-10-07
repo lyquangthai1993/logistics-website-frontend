@@ -214,11 +214,18 @@ export function WarehouseTripDetailModal({
         const isCompleted = manifest.currentHubStatus === 'COMPLETED';
         targetLines = manifest.lines.filter((l) =>
           isCompleted
-            ? l.isReceivedHere || Number(l.receivedQuantity) > 0
-            : l.isForCurrentHub
+            ? (l.isReceivedHere || Number(l.receivedQuantity) > 0) &&
+              l.deliveryMode !== 'DIRECT_CUSTOMER'
+            : l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
         );
         if (targetLines.length === 0) {
-          targetLines = manifest.lines.filter((l) => l.isForCurrentHub);
+          targetLines = manifest.lines.filter(
+            (l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
+          );
+        }
+        if (targetLines.length === 0) {
+          toast.info('Không có đơn hàng nào cần dỡ nhập kho tại trạm này để in.');
+          return;
         }
       } else {
         // Outbound print: only orders departing/loaded from this hub onto the truck
@@ -227,7 +234,7 @@ export function WarehouseTripDetailModal({
         );
       }
 
-      if (targetLines.length === 0) {
+      if (targetLines.length === 0 && printMode !== 'INBOUND') {
         targetLines = manifest.lines;
       }
 
@@ -365,6 +372,82 @@ export function WarehouseTripDetailModal({
     }
     return { selected, actual, discrepancyLines };
   }, [manifest, tally]);
+
+  // Inbound cargo breakdown for Step 1: separating cargo unloading here vs staying on truck
+  const inboundBreakdown = useMemo(() => {
+    if (!manifest || !manifest.lines) {
+      return {
+        unloadLines: [],
+        unloadOrdersCount: 0,
+        unloadQty: 0,
+        stayLines: [],
+        stayOrdersCount: 0,
+        stayQty: 0,
+        stayDetailsText: '',
+      };
+    }
+    const unloadLines = manifest.lines.filter(
+      (l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
+    );
+    const unloadOrdersCount = unloadLines.length;
+    const unloadQty = unloadLines.reduce(
+      (sum, l) => sum + expectedForLine(l),
+      0
+    );
+
+    const stayLines = manifest.lines.filter(
+      (l) => !l.isForCurrentHub || l.deliveryMode === 'DIRECT_CUSTOMER'
+    );
+    const stayOrdersCount = stayLines.length;
+    const stayQty = stayLines.reduce(
+      (sum, l) => sum + expectedForLine(l),
+      0
+    );
+
+    const stayDirectCustomerLines = stayLines.filter(
+      (l) => l.deliveryMode === 'DIRECT_CUSTOMER'
+    );
+    const stayOtherHubLines = stayLines.filter(
+      (l) => l.deliveryMode !== 'DIRECT_CUSTOMER'
+    );
+
+    const details: string[] = [];
+    if (stayDirectCustomerLines.length > 0) {
+      details.push(`${stayDirectCustomerLines.length} đơn giao khách`);
+    }
+    if (stayOtherHubLines.length > 0) {
+      const hubNames = Array.from(
+        new Set(
+          stayOtherHubLines
+            .map(
+              (l) =>
+                l.destinationHubEntity?.name ||
+                l.destinationHub ||
+                'kho khác'
+            )
+            .filter(Boolean)
+        )
+      );
+      if (hubNames.length <= 2) {
+        details.push(
+          `${stayOtherHubLines.length} đơn đi ${hubNames.join(', ')}`
+        );
+      } else {
+        details.push(`${stayOtherHubLines.length} đơn đi kho khác`);
+      }
+    }
+    const stayDetailsText = details.length > 0 ? details.join(' + ') : '';
+
+    return {
+      unloadLines,
+      unloadOrdersCount,
+      unloadQty,
+      stayLines,
+      stayOrdersCount,
+      stayQty,
+      stayDetailsText,
+    };
+  }, [manifest]);
 
   // Outbound cargo breakdown for Step 2
   const outboundBreakdown = useMemo(() => {
@@ -1058,15 +1141,34 @@ export function WarehouseTripDetailModal({
                     bảng kê chuyến xe...
                   </div>
                 ) : isTallyMode && manifest ? (
-                  <WarehouseTripTallyTable
-                    lines={manifest.lines}
-                    state={tally}
-                    onChange={setTally}
-                    hideOtherHubs={hideOtherHubs}
-                    onHideOtherHubsChange={setHideOtherHubs}
-                    readOnly={effectiveReadOnly}
-                    currentHubName={currentStopHubName}
-                  />
+                  <div className='space-y-1.5'>
+                    <div className='flex flex-wrap items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800/60 rounded-md border border-slate-200 dark:border-slate-700 text-[10px]'>
+                      <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
+                        <span>Dỡ tại kho này:</span>
+                        <span>
+                          {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty} kiện)
+                        </span>
+                      </div>
+                      <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
+                        <span className='font-bold text-amber-700 dark:text-amber-400'>
+                          Tiếp tục trên xe:
+                        </span>
+                        <span>
+                          {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
+                          {inboundBreakdown.stayDetailsText ? `: ${inboundBreakdown.stayDetailsText}` : ''})
+                        </span>
+                      </div>
+                    </div>
+                    <WarehouseTripTallyTable
+                      lines={manifest.lines}
+                      state={tally}
+                      onChange={setTally}
+                      hideOtherHubs={hideOtherHubs}
+                      onHideOtherHubsChange={setHideOtherHubs}
+                      readOnly={effectiveReadOnly}
+                      currentHubName={currentStopHubName}
+                    />
+                  </div>
                 ) : effectiveReadOnly ? (
                   <div className='border border-slate-200 dark:border-slate-700 rounded-lg overflow-x-auto'>
                     <table className='w-full text-[10px] text-left'>
