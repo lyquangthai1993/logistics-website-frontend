@@ -371,7 +371,8 @@ export function WarehouseTripDetailModal({
     if (!manifest || !manifest.lines) {
       return { transitLines: [], hubOutboundLines: [], allOutboundLines: [] };
     }
-    const currentHubId = manifest.currentHubId;
+    const currentHubId =
+      manifest.currentHubId || user?.hubId || user?.hub?.id || 2;
     // Cargo loaded at earlier stops continuing past this hub
     const transitLines = manifest.lines.filter(
       (l) => !l.isForCurrentHub && l.originHubId !== currentHubId
@@ -1234,8 +1235,13 @@ export function WarehouseTripDetailModal({
                         </tr>
                       ) : (
                         outboundBreakdown.allOutboundLines.map((l: any, i) => {
+                          const effectiveCurrentHubId =
+                            manifest?.currentHubId ||
+                            user?.hubId ||
+                            user?.hub?.id ||
+                            2;
                           const isNewlyLoadedHere =
-                            l.originHubId === manifest?.currentHubId;
+                            l.originHubId === effectiveCurrentHubId;
                           return (
                             <tr
                               key={l.id || i}

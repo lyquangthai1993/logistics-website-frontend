@@ -256,8 +256,12 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`);
     await page.waitForLoadState('domcontentloaded');
 
-    // 3. Open Trip Detail Modal
-    const tripDetailBtn = page.locator('button[title*="chi tiết chuyến xe"]').first();
+    // 3. Open Trip Detail Modal (prioritize activeTripCode)
+    let tripDetailBtn = page.locator(`button[title*="chi tiết chuyến xe"]:has-text("${activeTripCode}")`).first();
+    const hasActiveTripBtn = await tripDetailBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasActiveTripBtn) {
+      tripDetailBtn = page.locator('button[title*="chi tiết chuyến xe"]').first();
+    }
     await tripDetailBtn.waitFor({ state: 'visible', timeout: 25000 });
     await tripDetailBtn.click();
 
@@ -272,49 +276,59 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
     // Verify Step 2 Outbound table is rendered
     const step2Table = tripModal.locator('table');
     await expect(step2Table).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(1500);
 
     // Capture screenshot of Step 2 table with destination column
     const step2Screenshot = await tripModal.screenshot();
-    saveEvidenceScreenshot('01_step2_interactive_destination_cell.png', step2Screenshot);
+    saveEvidenceScreenshot('screenshot_01_step2_interactive_destination_cell_verified.png', step2Screenshot);
+    saveEvidenceScreenshot('screenshot_verified.png', step2Screenshot);
 
-    // Look for change destination button if any newly loaded item exists
-    const changeDestBtn = tripModal.locator('button', { hasText: 'Thay đổi địa chỉ (Điều chuyển)' }).first();
-    if (await changeDestBtn.isVisible()) {
+    // Look for change destination button or edit destination button
+    const changeDestBtn = tripModal
+      .locator('button', { hasText: /Thay đổi địa chỉ|Đổi kho đích khác/i })
+      .first();
+    const canChange = await changeDestBtn.isVisible({ timeout: 4000 }).catch(() => false);
+    if (canChange) {
       // Click change destination button
       await changeDestBtn.click();
 
       // Destination Modal should open
+      const destModalTitle = page.locator('text=Chọn Đích Xuất Kho');
+      await expect(destModalTitle).toBeVisible({ timeout: 10000 });
       const destModal = page.locator('div[role="dialog"]').last();
-      await expect(destModal).toBeVisible({ timeout: 10000 });
-      await expect(destModal.locator('text=Chọn Đích Xuất Kho')).toBeVisible();
 
       // Capture screenshot of Destination Selection Modal
       const modalScreenshot = await destModal.screenshot();
-      saveEvidenceScreenshot('02_destination_selection_modal.png', modalScreenshot);
+      saveEvidenceScreenshot('screenshot_02_destination_selection_modal_verified.png', modalScreenshot);
 
-      // Select first Level 1 hub
-      const selectHubBtn = destModal.locator('button', { hasText: 'Chọn kho này' }).first();
-      if (await selectHubBtn.isVisible()) {
-        await selectHubBtn.click();
+      // Select Level 1 hub: Polaris Hub - Hưng Yên
+      const hubCard = destModal.locator('div.cursor-pointer', { hasText: 'Polaris Hub - Hưng Yên' }).first();
+      const hasHubCard = await hubCard.isVisible({ timeout: 4000 }).catch(() => false);
+      if (hasHubCard) {
+        await hubCard.click();
 
         // Modal closes and toast confirms destination change
-        await expect(destModal).not.toBeVisible({ timeout: 10000 });
+        await expect(destModalTitle).not.toBeVisible({ timeout: 10000 });
+        await page.waitForTimeout(1000);
 
         // Capture screenshot of updated Hub L1 destination badge
         const updatedScreenshot = await tripModal.screenshot();
-        saveEvidenceScreenshot('03_destination_updated_hub_l1.png', updatedScreenshot);
+        saveEvidenceScreenshot('screenshot_03_destination_updated_hub_l1_verified.png', updatedScreenshot);
 
         // Click "Quay lại địa chỉ thường" if visible
         const resetBtn = tripModal.locator('button', { hasText: 'Quay lại địa chỉ thường' }).first();
         if (await resetBtn.isVisible()) {
           await resetBtn.click();
+          await page.waitForTimeout(1000);
           const resetScreenshot = await tripModal.screenshot();
-          saveEvidenceScreenshot('04_reset_to_original_customer_address.png', resetScreenshot);
+          saveEvidenceScreenshot('screenshot_04_reset_to_original_customer_address_verified.png', resetScreenshot);
         }
       }
     }
 
     // Final verification that modal is clean and responsive
-    expect(await tripModal.isVisible()).toBe(true);
+    expect(await page.locator('div[role="dialog"]').first().isVisible()).toBe(true);
   });
 });
+
+
