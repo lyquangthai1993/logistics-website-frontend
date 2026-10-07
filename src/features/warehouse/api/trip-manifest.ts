@@ -30,7 +30,15 @@ export interface TripManifestLine {
   originHubId?: number | null;
   destinationHub?: string | null;
   destinationHubId?: number | null;
-  destinationHubEntity?: { id: number; name: string; code?: string | null } | null;
+  destinationHubEntity?: {
+    id: number;
+    name: string;
+    code?: string | null;
+    level?: number;
+    city?: string | null;
+  } | null;
+  deliveryMode?: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' | string;
+  originalDeliveryAddress?: string;
   province?: string | null;
   accompanyingDocs?: string | null;
   notes?: string | null;
@@ -153,6 +161,25 @@ export async function appendStoredOrdersToTrip(
 ) {
   const res = await apiClient.post<ApiResponse<any>>(
     `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/append-stored-orders`,
+    payload
+  );
+  return res.data.data;
+}
+
+export interface UpdateTripOrderDestinationPayload {
+  deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
+  destinationHubId?: number | null;
+  deliveryAddress?: string | null;
+  notes?: string;
+}
+
+export async function updateTripOrderDestination(
+  tripCode: string,
+  orderId: number,
+  payload: UpdateTripOrderDestinationPayload
+) {
+  const res = await apiClient.patch<ApiResponse<any>>(
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/orders/${orderId}/destination`,
     payload
   );
   return res.data.data;

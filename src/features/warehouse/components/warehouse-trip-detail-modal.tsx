@@ -21,15 +21,22 @@ import {
   IconArrowRight,
   IconArrowLeft,
   IconCheck,
+  IconMapPin,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { tokenManager } from '@/lib/token-manager';
-import { formatApiError, showApiErrorToast } from '@/lib/api-error';
+import { apiClient } from '@/lib/api-client';
+import { ApiResponse, formatApiError, showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
-import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
+import {
+  WarehouseEditableGrid,
+  WarehouseRowItem,
+  HubOption,
+} from './warehouse-editable-grid';
 import { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 import { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
+import { WarehouseDestinationModal } from './warehouse-destination-modal';
 import { renderWarehouseOrderStatusBadge } from './warehouse-tables/columns';
 import { formatWeight, formatVolume } from '@/lib/format';
 import {
@@ -37,6 +44,8 @@ import {
   tripManifestKeys,
   isManifestTripCode,
   updateTransitStep,
+  updateTripOrderDestination,
+  TripManifestLine,
 } from '../api/trip-manifest';
 import {
   WarehouseTripTallyTable,
@@ -117,6 +126,77 @@ export function WarehouseTripDetailModal({
   const [appendModalMode, setAppendModalMode] = useState<
     'ROADSIDE_INBOUND' | 'HUB_OUTBOUND'
   >('ROADSIDE_INBOUND');
+
+  // Fetch active hubs for destination selection modal
+  const { data: allHubs = [] } = useQuery({
+    queryKey: ['hubs', 'active'],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<HubOption[]>>('/api/v1/hubs/active');
+      return res.data.data || [];
+    },
+    staleTime: 60 * 1000,
+    enabled: isOpen,
+  });
+
+  const level1Hubs = useMemo(
+    () => allHubs.filter((h) => h.level === 1 || !h.code.startsWith('HUB-BO-')),
+    [allHubs]
+  );
+  const level2XeBoHubs = useMemo(
+    () => allHubs.filter((h) => h.level === 2 || h.code.startsWith('HUB-BO-')),
+    [allHubs]
+  );
+
+  const [selectedOrderForDestModal, setSelectedOrderForDestModal] =
+    useState<TripManifestLine | null>(null);
+
+  const handleSelectDestination = async (hub: HubOption) => {
+    if (!selectedOrderForDestModal || !manifestTripCode) return;
+    const mode =
+      hub.level === 2 || hub.code.startsWith('HUB-BO-') ? 'XE_BO' : 'HUB_L1';
+    try {
+      await updateTripOrderDestination(manifestTripCode, selectedOrderForDestModal.id, {
+        deliveryMode: mode,
+        destinationHubId: hub.id,
+        deliveryAddress: hub.name,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripManifestKeys.detail(manifestTripCode),
+      });
+      toast.success(
+        `Đã chuyển đích đến đơn ${selectedOrderForDestModal.orderCode} sang ${hub.name}!`
+      );
+      setSelectedOrderForDestModal(null);
+    } catch (err) {
+      showApiErrorToast(err, 'Lỗi khi cập nhật đích đến');
+    }
+  };
+
+  const handleDirectReset = async (line: TripManifestLine) => {
+    if (!manifestTripCode) return;
+    const origAddress = line.originalDeliveryAddress || line.deliveryAddress || '';
+    try {
+      await updateTripOrderDestination(manifestTripCode, line.id, {
+        deliveryMode: 'DIRECT_CUSTOMER',
+        destinationHubId: null,
+        deliveryAddress: origAddress,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripManifestKeys.detail(manifestTripCode),
+      });
+      toast.success(
+        `Đã khôi phục địa chỉ giao khách ban đầu cho đơn ${line.orderCode}!`
+      );
+    } catch (err) {
+      showApiErrorToast(err, 'Lỗi khi khôi phục địa chỉ');
+    }
+  };
+
+  const handleResetToOriginal = async () => {
+    if (!selectedOrderForDestModal) return;
+    await handleDirectReset(selectedOrderForDestModal);
+    setSelectedOrderForDestModal(null);
+  };
 
   /**
    * Print receipt scoped strictly to current step & hub:
@@ -1204,10 +1284,120 @@ export function WarehouseTripDetailModal({
                                   l.totalVolume || l.volumeAllocated
                                 )}
                               </td>
-                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 font-semibold'>
-                                {l.destinationHub ||
-                                  l.deliveryAddress ||
-                                  'Chưa xác định'}
+                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 font-semibold min-w-[200px]'>
+                                {isNewlyLoadedHere ? (
+                                  (() => {
+                                    const effectiveMode =
+                                      l.deliveryMode ||
+                                      (l.destinationHubEntity?.level === 2 ||
+                                      l.destinationHubEntity?.code?.startsWith('HUB-BO-') ||
+                                      (l.destinationHub &&
+                                        (l.destinationHub.toLowerCase().includes('xe bo') ||
+                                          l.destinationHub.toLowerCase().includes('hub-bo')))
+                                        ? 'XE_BO'
+                                        : l.destinationHubId || l.destinationHubEntity?.level === 1
+                                          ? 'HUB_L1'
+                                          : 'DIRECT_CUSTOMER');
+
+                                    if (effectiveMode === 'HUB_L1') {
+                                      return (
+                                        <div className='p-1 rounded bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] space-y-0.5'>
+                                          <div className='flex items-center justify-between gap-1'>
+                                            <Badge className='bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
+                                              Hub Cấp 1
+                                            </Badge>
+                                            <button
+                                              type='button'
+                                              onClick={() => handleDirectReset(l)}
+                                              className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer'
+                                              title='Khôi phục lại địa chỉ giao ban đầu'
+                                            >
+                                              Quay lại địa chỉ thường
+                                            </button>
+                                          </div>
+                                          <div
+                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
+                                            title={l.destinationHub || l.deliveryAddress}
+                                          >
+                                            {l.destinationHub || l.deliveryAddress}
+                                          </div>
+                                          <button
+                                            type='button'
+                                            onClick={() => setSelectedOrderForDestModal(l)}
+                                            className='w-full text-center text-[9px] font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-0.5 border border-dashed border-blue-300 rounded hover:bg-blue-100/50 cursor-pointer'
+                                          >
+                                            Đổi kho đích khác...
+                                          </button>
+                                        </div>
+                                      );
+                                    }
+
+                                    if (effectiveMode === 'XE_BO') {
+                                      return (
+                                        <div className='p-1 rounded bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-[10px] space-y-0.5'>
+                                          <div className='flex items-center justify-between gap-1'>
+                                            <Badge className='bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
+                                              Tuyến Xe Bo
+                                            </Badge>
+                                            <button
+                                              type='button'
+                                              onClick={() => handleDirectReset(l)}
+                                              className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer'
+                                              title='Khôi phục lại địa chỉ giao ban đầu'
+                                            >
+                                              Quay lại địa chỉ thường
+                                            </button>
+                                          </div>
+                                          <div
+                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
+                                            title={l.destinationHub || l.deliveryAddress}
+                                          >
+                                            {l.destinationHub || l.deliveryAddress}
+                                          </div>
+                                          <button
+                                            type='button'
+                                            onClick={() => setSelectedOrderForDestModal(l)}
+                                            className='w-full text-center text-[9px] font-semibold text-purple-600 hover:text-purple-800 dark:text-purple-400 py-0.5 border border-dashed border-purple-300 rounded hover:bg-purple-100/50 cursor-pointer'
+                                          >
+                                            Đổi kho đích khác...
+                                          </button>
+                                        </div>
+                                      );
+                                    }
+
+                                    // DIRECT_CUSTOMER
+                                    return (
+                                      <div className='space-y-1 text-[10px]'>
+                                        <div
+                                          className='text-slate-800 dark:text-slate-200 font-semibold truncate'
+                                          title={
+                                            l.deliveryAddress ||
+                                            l.originalDeliveryAddress ||
+                                            'Chưa xác định'
+                                          }
+                                        >
+                                          {l.deliveryAddress ||
+                                            l.originalDeliveryAddress ||
+                                            'Chưa xác định'}
+                                        </div>
+                                        <button
+                                          type='button'
+                                          onClick={() => setSelectedOrderForDestModal(l)}
+                                          className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer'
+                                        >
+                                          <IconMapPin className='h-3 w-3 text-blue-600 shrink-0' />
+                                          <span className='truncate'>Thay đổi địa chỉ (Điều chuyển)</span>
+                                        </button>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <span className='text-[10px]'>
+                                    {l.destinationHub ||
+                                      l.deliveryAddress ||
+                                      'Chưa xác định'}
+                                  </span>
+                                )}
                               </td>
                               <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
                                 {l.notes || '—'}
@@ -1505,6 +1695,26 @@ export function WarehouseTripDetailModal({
             }}
           />
         )}
+
+        {/* Destination Selection Modal for Newly Loaded Orders */}
+        <WarehouseDestinationModal
+          isOpen={!!selectedOrderForDestModal}
+          onClose={() => setSelectedOrderForDestModal(null)}
+          onSelect={handleSelectDestination}
+          onResetToOriginal={handleResetToOriginal}
+          selectedHubId={selectedOrderForDestModal?.destinationHubId}
+          orderCode={selectedOrderForDestModal?.orderCode}
+          originalAddress={
+            selectedOrderForDestModal?.originalDeliveryAddress ||
+            selectedOrderForDestModal?.deliveryAddress
+          }
+          currentAddress={
+            selectedOrderForDestModal?.destinationHub ||
+            selectedOrderForDestModal?.deliveryAddress
+          }
+          level1Hubs={level1Hubs}
+          level2XeBoHubs={level2XeBoHubs}
+        />
       </DialogContent>
     </Dialog>
   );
