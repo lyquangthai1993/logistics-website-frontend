@@ -16,6 +16,7 @@ import {
   IconLoader2,
   IconTruckLoading,
   IconBuildingWarehouse,
+  IconX,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
@@ -30,6 +31,7 @@ interface WarehouseSelectStoredOrdersModalProps {
   onClose: () => void;
   tripCode: string;
   licensePlate: string;
+  hubId?: number | string | null;
   downstreamHubs?: Array<{ id: number; name: string }>;
   onSuccess?: () => void;
 }
@@ -39,16 +41,25 @@ export function WarehouseSelectStoredOrdersModal({
   onClose,
   tripCode,
   licensePlate,
+  hubId: propHubId,
   downstreamHubs: initialDownstreamHubs,
   onSuccess,
 }: WarehouseSelectStoredOrdersModalProps) {
   const user = useAuthStore((state) => state.user);
-  const currentHubName = user?.hub?.name || 'Kho hiện tại';
+  const effectiveHubId = propHubId
+    ? Number(propHubId)
+    : user?.hubId
+      ? Number(user.hubId)
+      : null;
 
   const { data: availableData, isLoading } = useAvailableOutboundOrdersQuery(
     tripCode,
+    effectiveHubId,
     isOpen
   );
+
+  const currentHubName =
+    availableData?.currentHubName || user?.hub?.name || 'Kho hiện tại';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDestHubId, setSelectedDestHubId] = useState<string>('ALL');
@@ -107,6 +118,16 @@ export function WarehouseSelectStoredOrdersModal({
     }
   };
 
+  const handleSelectAllFiltered = () => {
+    const set = new Set(selectedOrderIds);
+    filteredOrders.forEach((o) => set.add(o.id));
+    setSelectedOrderIds(Array.from(set));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedOrderIds([]);
+  };
+
   const handleToggleOrder = (orderId: number) => {
     setSelectedOrderIds((prev) =>
       prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
@@ -141,6 +162,8 @@ export function WarehouseSelectStoredOrdersModal({
     try {
       await appendStoredOrdersToTrip(tripCode, {
         orderIds: selectedOrderIds,
+        hubId: effectiveHubId ? Number(effectiveHubId) : undefined,
+        destinationHubId: selectedDestHubId !== 'ALL' ? Number(selectedDestHubId) : undefined,
       });
 
       toast.success(
@@ -158,7 +181,7 @@ export function WarehouseSelectStoredOrdersModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className='w-[95vw] sm:max-w-5xl xl:max-w-6xl p-2 max-h-[85vh] flex flex-col gap-2'>
+      <DialogContent className='sm:max-w-6xl xl:max-w-7xl max-w-[96vw] w-[95vw] max-h-[90vh] flex flex-col p-2 gap-2 overflow-hidden'>
         <DialogHeader className='p-1 border-b border-slate-100 dark:border-slate-800 pb-1.5'>
           <DialogTitle className='text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5'>
             <IconBuildingWarehouse className='h-4 w-4 text-blue-600' />
@@ -169,17 +192,27 @@ export function WarehouseSelectStoredOrdersModal({
           </p>
         </DialogHeader>
 
-        {/* Toolbar: Live Search & Destination Filter */}
+        {/* Toolbar: Live Search, Destination Filter & Quick Actions */}
         <div className='flex flex-wrap items-center justify-between gap-1.5 px-0.5'>
-          <div className='flex items-center gap-1.5 flex-1 min-w-[200px]'>
-            <div className='relative flex-1 max-w-xs'>
+          <div className='flex flex-wrap items-center gap-1.5 flex-1 min-w-[200px]'>
+            <div className='relative w-72 md:w-80'>
               <IconSearch className='absolute left-2 top-2 h-3.5 w-3.5 text-slate-400' />
               <Input
                 placeholder='Tìm mã vận đơn, tên hàng, nơi giao...'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className='h-7 pl-7 text-[10px] bg-slate-50 dark:bg-slate-800'
+                className='h-7 pl-7 pr-7 text-[10px] bg-slate-50 dark:bg-slate-800'
               />
+              {searchQuery.trim().length > 0 && (
+                <button
+                  type='button'
+                  onClick={() => setSearchQuery('')}
+                  className='absolute right-2 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  title='Xóa từ khóa'
+                >
+                  <IconX className='h-3.5 w-3.5' />
+                </button>
+              )}
             </div>
 
             {downstreamHubs.length > 0 && (
@@ -193,11 +226,36 @@ export function WarehouseSelectStoredOrdersModal({
                   const matchCount = rawOrders.filter((o) => Number(o.destinationHubId) === h.id).length;
                   return (
                     <option key={h.id} value={h.id}>
-                      {h.name} ({matchCount})
+                      {h.name} ({matchCount} đơn)
                     </option>
                   );
                 })}
               </select>
+            )}
+
+            {filteredOrders.length > 0 && (
+              <div className='flex items-center gap-1'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={handleSelectAllFiltered}
+                  className='h-7 text-[10px] px-2'
+                >
+                  Chọn tất cả ({filteredOrders.length})
+                </Button>
+                {selectedOrderIds.length > 0 && (
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='sm'
+                    onClick={handleClearSelection}
+                    className='h-7 text-[10px] px-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  >
+                    Bỏ chọn
+                  </Button>
+                )}
+              </div>
             )}
           </div>
 
@@ -206,10 +264,10 @@ export function WarehouseSelectStoredOrdersModal({
           </div>
         </div>
 
-        {/* Table: Compact Density (Zero Redundant Status Column per Task 11) */}
-        <div className='flex-1 border border-slate-200 dark:border-slate-700 rounded-lg overflow-y-auto max-h-[50vh]'>
+        {/* Table: Compact Density Viewport (Max Height 62vh, 10 Standard Columns) */}
+        <div className='flex-1 border border-slate-200 dark:border-slate-700 rounded-lg overflow-y-auto max-h-[62vh] min-h-[360px]'>
           <table className='w-full text-[10px] text-left border-collapse'>
-            <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10'>
+            <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 uppercase'>
               <tr>
                 <th className='py-1 px-1.5 w-9 text-center'>
                   <Checkbox
@@ -219,30 +277,30 @@ export function WarehouseSelectStoredOrdersModal({
                     className='h-3.5 w-3.5'
                   />
                 </th>
-                <th className='py-1 px-1.5 w-9 text-center'>STT</th>
-                <th className='py-1 px-1.5 w-[130px]'>MÃ VẬN ĐƠN</th>
-                <th className='py-1 px-1.5 min-w-[160px]'>TÊN HÀNG HÓA</th>
-                <th className='py-1 px-1.5 text-right w-[70px]'>SỐ KIỆN</th>
-                <th className='py-1 px-1.5 text-right w-[75px]'>SỐ KG</th>
-                <th className='py-1 px-1.5 text-right w-[70px]'>SỐ M³</th>
-                <th className='py-1 px-1.5 min-w-[180px]'>KHO ĐÍCH / NƠI GIAO</th>
-                <th className='py-1 px-1.5 w-[90px] text-center'>NGÀY NHẬP</th>
-                <th className='py-1 px-1.5 min-w-[120px]'>GHI CHÚ</th>
+                <th className='py-1 px-1.5 w-10 text-center font-bold text-slate-500'>STT</th>
+                <th className='py-1 px-1.5 w-[140px] whitespace-nowrap'>MÃ VẬN ĐƠN</th>
+                <th className='py-1 px-1.5 min-w-[180px] max-w-[260px]'>TÊN HÀNG HÓA</th>
+                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>SỐ KIỆN</th>
+                <th className='py-1 px-1.5 text-right w-[85px] whitespace-nowrap'>SỐ KG</th>
+                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>SỐ M³</th>
+                <th className='py-1 px-1.5 min-w-[200px] whitespace-nowrap'>KHO ĐÍCH / NƠI GIAO</th>
+                <th className='py-1 px-1.5 w-[100px] text-center whitespace-nowrap'>NGÀY NHẬP</th>
+                <th className='py-1 px-1.5 min-w-[150px]'>GHI CHÚ</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className='py-8 text-center text-slate-400'>
+                  <td colSpan={10} className='py-12 text-center text-slate-400'>
                     <IconLoader2 className='h-5 w-5 animate-spin mx-auto mb-1 text-blue-600' />
                     Đang tải danh sách đơn hàng lưu kho khả dụng...
                   </td>
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className='py-8 text-center text-slate-400'>
+                  <td colSpan={10} className='py-12 text-center text-slate-400'>
                     {rawOrders.length === 0
-                      ? 'Hiện không có đơn hàng nào đang lưu tại kho sẵn sàng xuất đi các trạm kế tiếp của chuyến xe này.'
+                      ? `Hiện không có đơn hàng nào đang lưu tại kho ${currentHubName} sẵn sàng xuất đi các trạm kế tiếp của chuyến xe này.`
                       : 'Không tìm thấy đơn hàng lưu kho nào phù hợp với bộ lọc.'}
                   </td>
                 </tr>
@@ -285,34 +343,34 @@ export function WarehouseSelectStoredOrdersModal({
                       <td className='py-1 px-1.5 text-center font-bold text-slate-500'>
                         {String(idx + 1).padStart(2, '0')}
                       </td>
-                      <td className='py-1 px-1.5 font-mono font-bold text-blue-600 dark:text-blue-400'>
+                      <td className='py-1 px-1.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap'>
                         {o.orderCode}
                       </td>
-                      <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200'>
+                      <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 min-w-[180px] max-w-[260px] truncate'>
                         {o.goodsDescription || 'Hàng lưu kho'}
                       </td>
-                      <td className='py-1 px-1.5 text-right font-bold text-slate-900 dark:text-white'>
+                      <td className='py-1 px-1.5 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap'>
                         {pkgQty.toLocaleString('vi-VN')}
                       </td>
-                      <td className='py-1 px-1.5 text-right font-mono text-slate-700 dark:text-slate-300'>
+                      <td className='py-1 px-1.5 text-right font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap'>
                         {Number(o.totalWeight || 0).toLocaleString('vi-VN', {
                           minimumFractionDigits: 1,
                           maximumFractionDigits: 1,
                         })}
                       </td>
-                      <td className='py-1 px-1.5 text-right font-mono text-slate-700 dark:text-slate-300'>
+                      <td className='py-1 px-1.5 text-right font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap'>
                         {Number(o.totalVolume || 0).toLocaleString('vi-VN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </td>
-                      <td className='py-1 px-1.5 font-semibold text-slate-700 dark:text-slate-300'>
+                      <td className='py-1 px-1.5 font-semibold text-slate-700 dark:text-slate-300 min-w-[200px] whitespace-nowrap'>
                         {destName}
                       </td>
-                      <td className='py-1 px-1.5 text-center text-slate-500'>
+                      <td className='py-1 px-1.5 text-center text-slate-500 whitespace-nowrap'>
                         {dateStr}
                       </td>
-                      <td className='py-1 px-1.5 text-slate-500 text-[10px] truncate max-w-[150px]'>
+                      <td className='py-1 px-1.5 text-slate-500 text-[10px] truncate min-w-[150px]'>
                         {o.notes || '—'}
                       </td>
                     </tr>
@@ -344,7 +402,7 @@ export function WarehouseSelectStoredOrdersModal({
               size='sm'
               onClick={onClose}
               disabled={isSubmitting}
-              className='h-7 text-xs px-2.5'
+              className='h-7.5 text-xs px-2.5'
             >
               Hủy
             </Button>
@@ -353,7 +411,7 @@ export function WarehouseSelectStoredOrdersModal({
               size='sm'
               onClick={handleSubmit}
               disabled={selectedOrderIds.length === 0 || isSubmitting}
-              className='h-7 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
+              className='h-7.5 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
             >
               {isSubmitting ? (
                 <>

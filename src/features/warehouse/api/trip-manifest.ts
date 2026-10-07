@@ -105,21 +105,24 @@ export interface AvailableOutboundOrdersResponse {
 }
 
 export async function getAvailableOutboundOrders(
-  tripCode: string
+  tripCode: string,
+  hubId?: number | null
 ): Promise<AvailableOutboundOrdersResponse> {
+  const queryParam = hubId ? `?hubId=${hubId}` : '';
   const res = await apiClient.get<ApiResponse<AvailableOutboundOrdersResponse>>(
-    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/available-outbound-orders`
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/available-outbound-orders${queryParam}`
   );
   return res.data.data;
 }
 
 export function useAvailableOutboundOrdersQuery(
   tripCode: string | null | undefined,
+  hubId?: number | null,
   enabled = true
 ) {
   return useQuery({
-    queryKey: ['warehouse', 'available-outbound-orders', tripCode],
-    queryFn: () => getAvailableOutboundOrders(tripCode as string),
+    queryKey: ['warehouse', 'available-outbound-orders', tripCode, hubId],
+    queryFn: () => getAvailableOutboundOrders(tripCode as string, hubId),
     enabled: enabled && isManifestTripCode(tripCode),
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
@@ -140,6 +143,7 @@ export async function updateTransitStep(
 export interface AppendStoredOrdersPayload {
   orderIds: number[];
   destinationHubId?: number;
+  hubId?: number;
   notes?: string;
 }
 

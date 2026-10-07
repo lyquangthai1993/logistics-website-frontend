@@ -1480,6 +1480,7 @@ export function WarehouseTripDetailModal({
             onClose={() => setIsSelectStoredModalOpen(false)}
             tripCode={tripGroup.tripCode}
             licensePlate={licensePlate || tripGroup.licensePlate}
+            hubId={manifest?.currentHubId || user?.hubId}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
               name: s.hubName,
@@ -1493,6 +1494,12 @@ export function WarehouseTripDetailModal({
               });
               queryClient.invalidateQueries({
                 queryKey: ['warehouse', 'available-outbound-orders'],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ['warehouse', 'orders'],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ['warehouse', 'kpi'],
               });
               onSuccess?.();
             }}
