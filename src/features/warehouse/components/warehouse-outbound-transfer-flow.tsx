@@ -860,21 +860,20 @@ export function WarehouseOutboundTransferFlow({
                       <th className='p-3 text-right w-[100px]'>SỐ KG</th>
                       <th className='p-3 text-right w-[90px]'>SỐ M³</th>
                       <th className='p-3 text-center w-[120px]'>NGÀY NHẬP KHO</th>
-                      <th className='p-3 text-center w-[120px]'>TRẠNG THÁI</th>
                       <th className='p-3 text-center w-[100px]'>HÀNH ĐỘNG</th>
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                     {isLoadingOrders ? (
                       <tr>
-                        <td colSpan={9} className='p-2 text-center text-slate-500'>
+                        <td colSpan={8} className='p-2 text-center text-slate-500'>
                           <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                           Đang tải danh sách hàng trong kho...
                         </td>
                       </tr>
                     ) : warehouseOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className='p-2 text-center text-slate-400'>
+                        <td colSpan={8} className='p-2 text-center text-slate-400'>
                           Không tìm thấy đơn hàng nào phù hợp với bộ lọc
                         </td>
                       </tr>
@@ -917,27 +916,6 @@ export function WarehouseOutboundTransferFlow({
                               {order.createdAt
                                 ? new Date(order.createdAt).toLocaleDateString('vi-VN')
                                 : '—'}
-                            </td>
-                            <td className='p-3 text-center'>
-                              <Badge
-                                variant='outline'
-                                className={cn(
-                                  'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                                  order.status === 'INBOUND'
-                                    ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
-                                    : 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]'
-                                )}
-                              >
-                                {order.status === 'INBOUND'
-                                  ? 'Lưu kho'
-                                  : order.status === 'DRAFT'
-                                    ? 'Nháp'
-                                    : order.status === 'PENDING_INBOUND'
-                                      ? 'Chờ nhập kho'
-                                      : order.status === 'COMPLETED_INBOUND'
-                                        ? 'Đã xuất kho'
-                                        : 'Đang xử lý'}
-                              </Badge>
                             </td>
                             <td className='p-3 text-center' onClick={(e) => e.stopPropagation()}>
                               <Button

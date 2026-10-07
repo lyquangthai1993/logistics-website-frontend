@@ -44,7 +44,14 @@ export default function WarehouseOrdersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [data, setData] = useState<any[]>([]);
-  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [meta, setMeta] = useState<{
+    total: number;
+    totalPages: number;
+    allCount?: number;
+    storedCount?: number;
+    draftCount?: number;
+    dispatchedCount?: number;
+  }>({ total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(false);
   const [printData, setPrintData] = useState<PalletLabelData | null>(null);
 
@@ -95,7 +102,11 @@ export default function WarehouseOrdersPage() {
         setData(resData?.data ?? []);
         setMeta({
           total: resData?.meta?.total ?? 0,
-          totalPages: resData?.meta?.totalPages || 1
+          totalPages: resData?.meta?.totalPages || 1,
+          allCount: resData?.meta?.allCount,
+          storedCount: resData?.meta?.storedCount,
+          draftCount: resData?.meta?.draftCount,
+          dispatchedCount: resData?.meta?.dispatchedCount
         });
       })
       .catch(() => {
@@ -134,6 +145,25 @@ export default function WarehouseOrdersPage() {
         <span className='text-slate-400'> / {total} kiện</span>
       </>
     );
+  };
+
+  /** Status display guard: Never display "LƯU KHO" when stock at this hub is 0. */
+  const resolveDisplayStatus = (r: any) => {
+    const rawStock = Number(r.hubStock ?? r.remainingQuantity ?? 0);
+    const rawTotal = Number(r.totalQuantity ?? 0);
+    const total = Math.max(rawTotal, rawStock, 0);
+    const stock = Math.max(0, Math.min(rawStock, total));
+    const rawStatus = (r.hubStatus ?? r.status ?? '').toUpperCase();
+    if (
+      stock === 0 &&
+      (rawStatus === 'INBOUND' ||
+        rawStatus === 'STORED' ||
+        rawStatus === 'LUU_KHO' ||
+        rawStatus === 'IN_WAREHOUSE')
+    ) {
+      return 'COMPLETED_INBOUND';
+    }
+    return r.hubStatus ?? r.status;
   };
 
   const renderTripCell = (r: any) => {
@@ -307,12 +337,12 @@ export default function WarehouseOrdersPage() {
                     }`}
                   >
                     {tab === 'ALL'
-                      ? 'Tất cả'
+                      ? `Tất cả${meta.allCount != null ? ` (${meta.allCount})` : ''}`
                       : tab === 'INBOUND'
-                        ? 'LƯU KHO'
+                        ? `LƯU KHO${meta.storedCount != null ? ` (${meta.storedCount})` : ''}`
                         : tab === 'DRAFT'
-                          ? 'ĐƠN NHÁP'
-                          : 'ĐÃ XUẤT KHO'}
+                          ? `ĐƠN NHÁP${meta.draftCount != null ? ` (${meta.draftCount})` : ''}`
+                          : `ĐÃ XUẤT KHO${meta.dispatchedCount != null ? ` (${meta.dispatchedCount})` : ''}`}
                   </button>
                 ))}
               </div>
@@ -419,7 +449,7 @@ export default function WarehouseOrdersPage() {
                               {row.destinationHub || row.route || 'Giao khách lẻ'}
                             </td>
                             <td className='py-1 px-1.5 text-center'>
-                              {renderWarehouseOrderStatusBadge(row.hubStatus ?? row.status)}
+                              {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
                             </td>
                             <td
                               className='py-1 px-1.5 text-center'
@@ -488,7 +518,7 @@ export default function WarehouseOrdersPage() {
                                     'Giao khách lẻ'}
                                 </td>
                                 <td className='py-1 px-1.5 text-center'>
-                                  {renderWarehouseOrderStatusBadge(m.hubStatus ?? m.status)}
+                                  {renderWarehouseOrderStatusBadge(resolveDisplayStatus(m))}
                                 </td>
                                 <td
                                   className='py-1 px-1.5 text-center'

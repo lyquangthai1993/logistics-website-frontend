@@ -868,12 +868,18 @@ export default function WarehouseOutboundPage() {
           : tripTx
             ? Number(tripTx.quantity || 0)
             : Number(o.outboundQuantity || o.totalQuantity || 1);
+      const itemDestination =
+        o.destinationHub ||
+        o.destinationHubEntity?.name ||
+        o.deliveryAddress ||
+        dest;
       return {
         orderCode: o.orderCode,
         goodsDescription: o.goodsDescription || 'Hàng hóa xuất kho',
         quantity: exportedQty,
         unit: 'Kiện',
-        deliveryAddress: o.deliveryAddress || o.destinationHub || dest,
+        destinationHub: itemDestination,
+        deliveryAddress: itemDestination,
         province: o.province || o.destinationHubEntity?.province || '—',
         accompanyingDocs: o.accompanyingDocs || '—',
         notes: o.notes || ''
@@ -949,6 +955,12 @@ export default function WarehouseOutboundPage() {
       user?.hub?.name ||
       '';
 
+    const dest =
+      o.destinationHub ||
+      o.destinationHubEntity?.name ||
+      o.deliveryAddress ||
+      '';
+
     const receiptData: OutboundReceiptData = {
       tripCode: tripCode && tripCode !== '—' ? tripCode : undefined,
       orderCode:
@@ -962,10 +974,10 @@ export default function WarehouseOutboundPage() {
       totalVolume: Math.round(exportedVolume * 1000) / 1000,
       driverName: tripRecord?.driverName || o.trips?.[0]?.driverName || o.driverName || '',
       licensePlate: tripRecord?.licensePlate || o.trips?.[0]?.licensePlate || o.vehicleLicensePlate || '',
-      deliveryAddress: o.deliveryAddress || o.destinationHub || '',
-      destinationHub: o.destinationHub || '',
+      deliveryAddress: dest,
+      destinationHub: dest,
       originHub: orig,
-      mode: o.destinationHub ? 'TRANSFER' : 'CUSTOMER',
+      mode: (o.destinationHub || o.destinationHubEntity?.name) ? 'TRANSFER' : 'CUSTOMER',
       dispatchDate: o.updatedAt
         ? new Date(o.updatedAt).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
@@ -977,7 +989,8 @@ export default function WarehouseOutboundPage() {
           goodsDescription: o.goodsDescription || 'Hàng tổng quan',
           quantity: exportedQty,
           unit: 'Kiện',
-          deliveryAddress: o.deliveryAddress || o.destinationHub || '',
+          destinationHub: dest,
+          deliveryAddress: dest,
           province: o.province || o.destinationHubEntity?.province || '—',
           accompanyingDocs: o.accompanyingDocs || '—',
           notes: o.notes || ''
@@ -1414,9 +1427,6 @@ export default function WarehouseOutboundPage() {
                                               SỐ KIỆN / TẢI TRỌNG
                                             </th>
                                             <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
-                                              TRẠNG THÁI
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
                                               CHỨNG TỪ
                                             </th>
                                             <th className='py-0.5 px-1.5 font-semibold min-w-[130px]'>
@@ -1475,9 +1485,6 @@ export default function WarehouseOutboundPage() {
                                                     {formatWeight(exportedWeight)} kg &bull;{' '}
                                                     {formatVolume(exportedVolume)} m³
                                                   </div>
-                                                </td>
-                                                <td className='py-1.5 px-2 text-center'>
-                                                  {renderWarehouseOrderStatusBadge(displayStatus)}
                                                 </td>
                                                 <td className='py-1.5 px-2 text-center'>
                                                   {subOrder.accompanyingDocs &&

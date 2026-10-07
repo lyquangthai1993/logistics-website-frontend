@@ -29,6 +29,7 @@ import { formatApiError, showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { WarehouseEditableGrid, WarehouseRowItem } from './warehouse-editable-grid';
 import { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
+import { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
 import { renderWarehouseOrderStatusBadge } from './warehouse-tables/columns';
 import { formatWeight, formatVolume } from '@/lib/format';
 import {
@@ -112,6 +113,7 @@ export function WarehouseTripDetailModal({
   const [tally, setTally] = useState<TallyState>({});
   const [hideOtherHubs, setHideOtherHubs] = useState(false);
   const [isAppendModalOpen, setIsAppendModalOpen] = useState(false);
+  const [isSelectStoredModalOpen, setIsSelectStoredModalOpen] = useState(false);
   const [appendModalMode, setAppendModalMode] = useState<
     'ROADSIDE_INBOUND' | 'HUB_OUTBOUND'
   >('ROADSIDE_INBOUND');
@@ -159,8 +161,12 @@ export function WarehouseTripDetailModal({
           l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
         totalWeight: l.totalWeight || l.weightAllocated || 0,
         totalVolume: l.totalVolume || l.volumeAllocated || 0,
-        deliveryAddress: l.deliveryAddress || l.destinationHub || '—',
-        destinationHub: l.destinationHub,
+        deliveryAddress:
+          l.destinationHub ||
+          l.destinationHubEntity?.name ||
+          l.deliveryAddress ||
+          '—',
+        destinationHub: l.destinationHub || l.destinationHubEntity?.name || '',
         destinationHubId: l.destinationHubId,
         destinationHubEntity: l.destinationHubEntity,
         accompanyingDocs: l.accompanyingDocs || 'KHÔNG CÓ',
@@ -1096,15 +1102,11 @@ export function WarehouseTripDetailModal({
                     <Button
                       type='button'
                       size='sm'
-                      onClick={() => {
-                        setAppendModalMode('HUB_OUTBOUND');
-                        setIsAppendModalOpen(true);
-                      }}
+                      onClick={() => setIsSelectStoredModalOpen(true)}
                       className='h-6 px-2 text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold'
-                      title='Chọn đơn lưu kho hoặc tạo đơn xuất từ kho này gửi đi trạm kế tiếp'
+                      title='Chọn các đơn hàng lưu kho sẵn có để bốc lên xe đi trạm kế tiếp'
                     >
-                      <IconPlus className='h-3 w-3 mr-1' /> Thêm đơn xuất từ kho
-                      lên xe
+                      <IconPlus className='h-3 w-3 mr-1' /> Thêm đơn xuất từ kho lên xe
                     </Button>
                   </div>
                 </div>
@@ -1444,7 +1446,7 @@ export function WarehouseTripDetailModal({
           </div>
         </div>
 
-        {/* Append Order Modal */}
+        {/* Append Order Modal (Roadside Inbound) */}
         {isAppendModalOpen && tripGroup && (
           <WarehouseAppendOrderModal
             isOpen={isAppendModalOpen}
@@ -1452,6 +1454,32 @@ export function WarehouseTripDetailModal({
             tripCode={tripGroup.tripCode}
             licensePlate={licensePlate || tripGroup.licensePlate}
             mode={appendModalMode}
+            downstreamHubs={manifest?.stops.map((s) => ({
+              id: s.hubId,
+              name: s.hubName,
+            }))}
+            onSuccess={() => {
+              queryClient.invalidateQueries({
+                queryKey: tripManifestKeys.all,
+              });
+              queryClient.invalidateQueries({
+                queryKey: ['warehouse', 'inbound-trips'],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ['warehouse', 'available-outbound-orders'],
+              });
+              onSuccess?.();
+            }}
+          />
+        )}
+
+        {/* Select Stored Orders Modal (Outbound from Warehouse) */}
+        {isSelectStoredModalOpen && tripGroup && (
+          <WarehouseSelectStoredOrdersModal
+            isOpen={isSelectStoredModalOpen}
+            onClose={() => setIsSelectStoredModalOpen(false)}
+            tripCode={tripGroup.tripCode}
+            licensePlate={licensePlate || tripGroup.licensePlate}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
               name: s.hubName,

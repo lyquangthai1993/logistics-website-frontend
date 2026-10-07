@@ -25,6 +25,7 @@ export interface OutboundReceiptItem {
   goodsDescription: string;
   quantity: number;
   unit?: string;
+  destinationHub?: string;
   deliveryAddress?: string;
   province?: string;
   accompanyingDocs?: string;
@@ -99,8 +100,9 @@ export function WarehouseOutboundReceiptModal({
   const isTransfer = data.mode === 'TRANSFER';
   const unit = data.unit || 'Kiện';
   const accompanyingDocs = data.accompanyingDocs || '—';
-  const deliveryAddress =
-    data.deliveryAddress || data.destinationHub || (isTransfer ? 'Kho luân chuyển' : '—');
+  const targetDestination =
+    data.destinationHub || data.deliveryAddress || (isTransfer ? 'Kho luân chuyển' : '—');
+  const deliveryAddress = targetDestination;
 
   const handlePrint = async () => {
     const isLandscape = orientation === 'landscape';
@@ -276,7 +278,7 @@ export function WarehouseOutboundReceiptModal({
                 <th style="width: ${isLandscape ? '22%' : '23%'};">Tên mặt hàng</th>
                 <th style="width: ${isLandscape ? '9%' : '10%'};">Số lượng xuất</th>
                 <th style="width: ${isLandscape ? '6%' : '7%'};">Đơn vị</th>
-                <th style="width: ${isLandscape ? '23%' : '18%'};">Địa chỉ giao hàng</th>
+                <th style="width: ${isLandscape ? '23%' : '18%'};">Kho đích / Nơi giao</th>
                 <th style="width: ${isLandscape ? '10%' : '10%'};">Chứng từ đi kèm</th>
                 <th style="width: ${isLandscape ? '12%' : '10%'};">Ghi chú</th>
               </tr>
@@ -293,7 +295,7 @@ export function WarehouseOutboundReceiptModal({
                   <td><strong>${it.goodsDescription || 'Hàng hóa xuất kho'}</strong></td>
                   <td class="text-center font-bold">${Number(it.quantity || 1).toLocaleString('vi-VN')}</td>
                   <td class="text-center">${it.unit || unit}</td>
-                  <td>${it.deliveryAddress || deliveryAddress}</td>
+                  <td>${it.destinationHub || it.deliveryAddress || targetDestination}</td>
                   <td class="text-center">${it.accompanyingDocs || accompanyingDocs}</td>
                   <td>${it.notes || ''}</td>
                 </tr>`,
@@ -306,7 +308,7 @@ export function WarehouseOutboundReceiptModal({
                   <td><strong>${data.goodsDescription || 'Hàng hóa xuất kho'}</strong></td>
                   <td class="text-center font-bold">${qty.toLocaleString('vi-VN')}</td>
                   <td class="text-center">${unit}</td>
-                  <td>${deliveryAddress}</td>
+                  <td>${targetDestination}</td>
                   <td class="text-center">${accompanyingDocs}</td>
                   <td>${data.notes || ''}</td>
                 </tr>`
@@ -535,7 +537,7 @@ export function WarehouseOutboundReceiptModal({
                   <th className='p-2'>Tên mặt hàng</th>
                   <th className='p-2 text-center'>Số lượng</th>
                   <th className='p-2 text-center'>Đơn vị</th>
-                  <th className='p-2'>Địa chỉ giao hàng</th>
+                  <th className='p-2'>Kho đích / Nơi giao</th>
                   <th className='p-2 text-center'>Chứng từ đi kèm</th>
                   <th className='p-2'>Ghi chú</th>
                 </tr>
@@ -555,7 +557,7 @@ export function WarehouseOutboundReceiptModal({
                         {Number(it.quantity || 1).toLocaleString('vi-VN')}
                       </td>
                       <td className='p-2 text-center text-slate-600 dark:text-slate-400'>{it.unit || unit}</td>
-                      <td className='p-2 text-slate-600 dark:text-slate-400'>{it.deliveryAddress || deliveryAddress}</td>
+                      <td className='p-2 text-slate-600 dark:text-slate-400'>{it.destinationHub || it.deliveryAddress || targetDestination}</td>
                       <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
                         {it.accompanyingDocs || accompanyingDocs}
                       </td>
@@ -575,7 +577,7 @@ export function WarehouseOutboundReceiptModal({
                       {qty.toLocaleString('vi-VN')}
                     </td>
                     <td className='p-2 text-center text-slate-600 dark:text-slate-400'>{unit}</td>
-                    <td className='p-2 text-slate-600 dark:text-slate-400'>{deliveryAddress}</td>
+                    <td className='p-2 text-slate-600 dark:text-slate-400'>{targetDestination}</td>
                     <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
                       {accompanyingDocs}
                     </td>

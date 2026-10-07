@@ -136,3 +136,21 @@ export async function updateTransitStep(
   );
   return res.data.data;
 }
+
+export interface AppendStoredOrdersPayload {
+  orderIds: number[];
+  destinationHubId?: number;
+  notes?: string;
+}
+
+export async function appendStoredOrdersToTrip(
+  tripCode: string,
+  payload: AppendStoredOrdersPayload
+) {
+  const res = await apiClient.post<ApiResponse<any>>(
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/append-stored-orders`,
+    payload
+  );
+  return res.data.data;
+}
+
