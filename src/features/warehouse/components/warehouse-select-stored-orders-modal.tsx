@@ -46,11 +46,14 @@ export function WarehouseSelectStoredOrdersModal({
   onSuccess,
 }: WarehouseSelectStoredOrdersModalProps) {
   const user = useAuthStore((state) => state.user);
-  const effectiveHubId = propHubId
-    ? Number(propHubId)
-    : user?.hubId
-      ? Number(user.hubId)
-      : null;
+  const effectiveHubId =
+    (propHubId
+      ? Number(propHubId)
+      : user?.hubId
+        ? Number(user.hubId)
+        : user?.hub?.id
+          ? Number(user.hub.id)
+          : null) ?? 2;
 
   const { data: availableData, isLoading } = useAvailableOutboundOrdersQuery(
     tripCode,

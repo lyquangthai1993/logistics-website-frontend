@@ -1480,7 +1480,7 @@ export function WarehouseTripDetailModal({
             onClose={() => setIsSelectStoredModalOpen(false)}
             tripCode={tripGroup.tripCode}
             licensePlate={licensePlate || tripGroup.licensePlate}
-            hubId={manifest?.currentHubId || user?.hubId}
+            hubId={manifest?.currentHubId || user?.hubId || user?.hub?.id}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
               name: s.hubName,
