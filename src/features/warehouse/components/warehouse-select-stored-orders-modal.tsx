@@ -158,7 +158,7 @@ export function WarehouseSelectStoredOrdersModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className='max-w-5xl p-2 max-h-[85vh] flex flex-col gap-2'>
+      <DialogContent className='w-[95vw] sm:max-w-5xl xl:max-w-6xl p-2 max-h-[85vh] flex flex-col gap-2'>
         <DialogHeader className='p-1 border-b border-slate-100 dark:border-slate-800 pb-1.5'>
           <DialogTitle className='text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5'>
             <IconBuildingWarehouse className='h-4 w-4 text-blue-600' />

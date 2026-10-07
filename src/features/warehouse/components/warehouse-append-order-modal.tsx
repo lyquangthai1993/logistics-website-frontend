@@ -130,7 +130,7 @@ export function WarehouseAppendOrderModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className='max-w-2xl p-2.5 max-h-[90vh] overflow-y-auto'>
+      <DialogContent className='w-[95vw] sm:max-w-3xl max-h-[90vh] p-2.5 overflow-y-auto'>
         <DialogHeader className='p-1 border-b border-slate-100 dark:border-slate-800 pb-1.5'>
           <DialogTitle className='text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5'>
             <IconMapPin className='h-4 w-4 text-amber-600' />

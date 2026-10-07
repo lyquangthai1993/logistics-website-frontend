@@ -91,7 +91,7 @@ export function NoVehicleDialog({ open, onOpenChange, order, onSuccess }: NoVehi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-xl max-h-[90vh] overflow-y-auto'>
+      <DialogContent className='w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <div className='flex items-center gap-3'>
             <div className='p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'>
