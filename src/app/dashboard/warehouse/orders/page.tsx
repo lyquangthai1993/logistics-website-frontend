@@ -95,19 +95,54 @@ export default function WarehouseOrdersPage() {
       .replace(/^_|_$/g, '');
   };
 
-  /** Xử lý xuất toàn bộ danh sách đơn hàng lưu kho ra file Excel */
+  /** Xử lý xuất danh sách đơn hàng theo trạng thái Tab đang chọn ra file Excel */
   const handleExportStoredOrdersExcel = async () => {
     if (isExporting) return;
     setIsExporting(true);
-    const toastId = toast.loading('Đang khởi tạo dữ liệu báo cáo lưu kho...');
+
+    const getTabReportConfig = () => {
+      switch (statusFilter) {
+        case 'INBOUND':
+          return {
+            titleSuffix: 'LƯU KHO',
+            fileSlug: 'luu_kho',
+            sheetName: 'Đơn Hàng Lưu Kho',
+            toastDesc: 'lưu kho'
+          };
+        case 'COMPLETED_INBOUND':
+          return {
+            titleSuffix: 'ĐÃ XUẤT KHO',
+            fileSlug: 'da_xuat_kho',
+            sheetName: 'Đơn Hàng Đã Xuất',
+            toastDesc: 'đã xuất kho'
+          };
+        case 'DRAFT':
+          return {
+            titleSuffix: 'ĐƠN NHÁP',
+            fileSlug: 'don_nhap',
+            sheetName: 'Đơn Hàng Nháp',
+            toastDesc: 'đơn nháp'
+          };
+        default:
+          return {
+            titleSuffix: 'TỔNG HỢP TẤT CẢ',
+            fileSlug: 'tat_ca',
+            sheetName: 'Tất Cả Đơn Hàng',
+            toastDesc: 'tổng hợp'
+          };
+      }
+    };
+
+    const tabConfig = getTabReportConfig();
+    const toastId = toast.loading(`Đang khởi tạo dữ liệu báo cáo ${tabConfig.toastDesc}...`);
 
     try {
       const token = tokenManager.getAccessToken();
       const query = new URLSearchParams({
-        status: 'INBOUND',
         groupBy: 'orderCode',
         isExport: 'true',
         limit: '5000',
+        ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
         ...(search.trim() ? { search: search.trim() } : {})
       });
 
@@ -128,7 +163,7 @@ export default function WarehouseOrdersPage() {
 
       if (!orders || orders.length === 0) {
         toast.dismiss(toastId);
-        toast.warning('Kho hiện tại không có đơn hàng nào ở trạng thái lưu kho.');
+        toast.warning(`Kho hiện tại không có đơn hàng nào ở trạng thái ${tabConfig.toastDesc}.`);
         return;
       }
 
@@ -158,7 +193,7 @@ export default function WarehouseOrdersPage() {
           const total = Math.max(rawTotal, rawStock, 0);
           const stock = Math.max(0, Math.min(rawStock, total));
 
-          if (stock <= 0 && itemsToExport.length > 1) {
+          if (stock <= 0 && itemsToExport.length > 1 && statusFilter === 'INBOUND') {
             continue;
           }
 
@@ -230,6 +265,18 @@ export default function WarehouseOrdersPage() {
             order.notes ||
             '—';
 
+          const resolvedStatus = resolveDisplayStatus(item) || resolveDisplayStatus(order);
+          let statusText = 'LƯU KHO';
+          if (resolvedStatus === 'COMPLETED_INBOUND') {
+            statusText = 'ĐÃ XUẤT KHO';
+          } else if (resolvedStatus === 'DRAFT') {
+            statusText = 'ĐƠN NHÁP';
+          } else if (resolvedStatus === 'PENDING_INBOUND' || resolvedStatus === 'WAITING') {
+            statusText = 'CHỜ NHẬP KHO';
+          } else if (resolvedStatus === 'IN_TRANSIT') {
+            statusText = 'ĐANG VẬN CHUYỂN';
+          }
+
           rows.push([
             stt++,
             order.orderCode,
@@ -243,7 +290,7 @@ export default function WarehouseOrdersPage() {
             destHubStr,
             provinceStr,
             tripDisplay,
-            'LƯU KHO',
+            statusText,
             notesStr
           ]);
         }
@@ -252,7 +299,7 @@ export default function WarehouseOrdersPage() {
       const totalOrdersCount = orders.length;
 
       const wsData: any[][] = [
-        ['SPIDER EXPRESS LOGISTICS TMS - BÁO CÁO ĐƠN HÀNG LƯU KHO'],
+        [`SPIDER EXPRESS LOGISTICS TMS - BÁO CÁO ĐƠN HÀNG ${tabConfig.titleSuffix}`],
         [`Kho / Trạm Hub: ${hubTitle}`],
         [`Thời điểm xuất: ${nowFormatted} | Người lập báo cáo: ${reporterName}`],
         [
@@ -313,10 +360,10 @@ export default function WarehouseOrdersPage() {
       ];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Đơn Hàng Lưu Kho');
+      XLSX.utils.book_append_sheet(wb, ws, tabConfig.sheetName);
 
       const hubFileSlug = normalizeNoDiacritics(hubTitle);
-      const fileName = `Bao_cao_don_hang_luu_kho_${hubFileSlug}_${dateStr}.xlsx`;
+      const fileName = `Bao_cao_don_hang_${tabConfig.fileSlug}_${hubFileSlug}_${dateStr}.xlsx`;
 
       // Xuất file tương thích đa nền tảng và kích hoạt sự kiện browser download
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -335,10 +382,12 @@ export default function WarehouseOrdersPage() {
       }, 1000);
 
       toast.dismiss(toastId);
-      toast.success(`Đã xuất thành công báo cáo lưu kho (${totalOrdersCount} đơn hàng)!`);
+      toast.success(
+        `Đã xuất thành công báo cáo ${tabConfig.toastDesc} (${totalOrdersCount} đơn hàng)!`
+      );
     } catch (err: any) {
       toast.dismiss(toastId);
-      showApiErrorToast(err, 'Lỗi xuất báo cáo Excel lưu kho');
+      showApiErrorToast(err, `Lỗi xuất báo cáo Excel ${tabConfig.toastDesc}`);
     } finally {
       setIsExporting(false);
     }
@@ -611,7 +660,15 @@ export default function WarehouseOrdersPage() {
               onClick={handleExportStoredOrdersExcel}
               disabled={isExporting}
               className='h-8 text-xs font-bold border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-400 dark:hover:bg-emerald-950/40 shadow-sm'
-              title='Tải về file Excel danh sách tất cả các đơn hàng đang lưu kho để làm báo cáo'
+              title={
+                statusFilter === 'INBOUND'
+                  ? 'Tải về file Excel danh sách đơn hàng đang lưu kho'
+                  : statusFilter === 'COMPLETED_INBOUND'
+                    ? 'Tải về file Excel danh sách đơn hàng đã xuất kho'
+                    : statusFilter === 'DRAFT'
+                      ? 'Tải về file Excel danh sách đơn hàng nháp'
+                      : 'Tải về file Excel danh sách tất cả các đơn hàng'
+              }
               data-testid='export-stored-orders-excel-btn'
             >
               {isExporting ? (
@@ -619,7 +676,15 @@ export default function WarehouseOrdersPage() {
               ) : (
                 <IconFileSpreadsheet className='mr-1.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400' />
               )}
-              <span>Xuất Excel lưu kho</span>
+              <span>
+                {statusFilter === 'INBOUND'
+                  ? 'Xuất Excel lưu kho'
+                  : statusFilter === 'COMPLETED_INBOUND'
+                    ? 'Xuất Excel đã xuất'
+                    : statusFilter === 'DRAFT'
+                      ? 'Xuất Excel đơn nháp'
+                      : 'Xuất Excel tất cả'}
+              </span>
             </Button>
 
             <Button

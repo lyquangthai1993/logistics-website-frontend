@@ -110,6 +110,13 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await page.screenshot({ path: screenshot01Path, fullPage: false });
     expect(fs.existsSync(screenshot01Path)).toBeTruthy();
 
+    // Switch to LƯU KHO tab to verify stored orders export specifically
+    const storedTabBtn = page.getByRole('button', { name: /^LƯU KHO/i });
+    if (await storedTabBtn.isVisible()) {
+      await storedTabBtn.click();
+      await page.waitForTimeout(500);
+    }
+
     // 5. Trigger Excel export & listen for download event
     await expect(exportBtn).toBeEnabled({ timeout: 15_000 });
     const [download] = await Promise.all([
@@ -118,8 +125,8 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     ]);
     const filename = download.suggestedFilename();
 
-    // Verify filename format: Bao_cao_don_hang_luu_kho_...xlsx
-    expect(filename).toMatch(/^Bao_cao_don_hang_luu_kho_.*\.xlsx$/);
+    // Verify filename format: Bao_cao_don_hang_...xlsx
+    expect(filename).toMatch(/^Bao_cao_don_hang_.*\.xlsx$/);
     expect(filename).toContain('Polaris_Hub');
 
     // Save downloaded file for inspection in subsequent scenario
@@ -268,7 +275,7 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     const filename = download.suggestedFilename();
 
     // Verify filename contains Da Nang slug
-    expect(filename).toMatch(/^Bao_cao_don_hang_luu_kho_.*\.xlsx$/);
+    expect(filename).toMatch(/^Bao_cao_don_hang_.*\.xlsx$/);
     expect(filename).toContain('Da_Nang');
 
     // Read workbook and verify hub isolation
