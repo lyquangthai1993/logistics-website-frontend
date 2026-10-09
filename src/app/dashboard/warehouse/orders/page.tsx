@@ -130,7 +130,7 @@ export default function WarehouseOrdersPage() {
       return next;
     });
 
-  const COLUMN_COUNT = 7;
+  const COLUMN_COUNT = 11;
 
   /** Date/time formatting helper */
   const formatDateTime = (dateStr?: string | null) => {
@@ -188,7 +188,7 @@ export default function WarehouseOrdersPage() {
     return (
       <>
         <span className='font-bold text-emerald-600 dark:text-emerald-400'>{stock}</span>
-        <span className='text-slate-400'> / {total} kiện</span>
+        <span className='text-slate-400'> / {total}</span>
       </>
     );
   };
@@ -396,21 +396,25 @@ export default function WarehouseOrdersPage() {
 
             {/* Table */}
             <div className='border rounded-lg overflow-x-auto'>
-              <table className='w-full text-[11px] text-left min-w-[900px]'>
-                <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px] sticky top-0 z-10'>
+              <table className='w-full text-[11px] text-left min-w-[1050px]'>
+                <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px] sticky top-0 z-10 uppercase'>
                   <tr>
                     <th className='py-1 px-1.5 w-[40px] text-center'>STT</th>
-                    <th className='py-1 px-1.5 w-[120px]'>NGÀY NHẬP</th>
-                    <th className='py-1 px-1.5 min-w-[200px]'>MÃ VẬN ĐƠN</th>
+                    <th className='py-1 px-1.5 w-[110px] font-mono'>NGÀY NHẬP</th>
+                    <th className='py-1 px-1.5 w-[110px] font-mono'>MÃ VẬN ĐƠN</th>
+                    <th className='py-1 px-1.5 min-w-[160px]'>TÊN HÀNG HÓA</th>
                     <th
-                      className='py-1 px-1.5 w-[110px] text-right'
-                      title='Số kiện đang nằm tại kho / tổng số kiện của đơn'
+                      className='py-1 px-1.5 w-[95px] text-right font-mono'
+                      title='Số lượng đang nằm tại kho / tổng số lượng của đơn'
                     >
-                      SỐ LƯỢNG TỒN KHO
+                      SỐ LƯỢNG
                     </th>
+                    <th className='py-1 px-1.5 w-[85px] text-right font-mono'>SỐ KG</th>
+                    <th className='py-1 px-1.5 w-[80px] text-right font-mono'>CBM</th>
+                    <th className='py-1 px-1.5 min-w-[140px]'>ĐÍCH ĐẾN</th>
                     <th className='py-1 px-1.5 w-[100px] text-center'>TRẠNG THÁI</th>
-                    <th className='py-1 px-1.5 w-[120px] text-center'>NGÀY XUẤT</th>
-                    <th className='py-1 px-1.5 w-[90px] text-center'>THAO TÁC</th>
+                    <th className='py-1 px-1.5 w-[110px] text-center font-mono'>NGÀY XUẤT</th>
+                    <th className='py-1 px-1.5 w-[80px] text-center'>THAO TÁC</th>
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
@@ -470,25 +474,35 @@ export default function WarehouseOrdersPage() {
                                     variant='outline'
                                     className='text-[9px] px-1 py-0 h-3.5 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                                   >
-                                    {members.length} dòng hàng
+                                    {members.length} dòng
                                   </Badge>
                                 )}
                               </div>
-                              <div
-                                className='text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 space-x-1 truncate max-w-[340px]'
-                                title={`${row.goodsDescription || 'Hàng tổng hợp'} | ${(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg | ${(Number(row.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³ | ${row.destinationHub || row.route || 'Giao khách lẻ'}`}
-                              >
-                                <span className='font-medium text-slate-700 dark:text-slate-200'>{row.goodsDescription || 'Hàng tổng hợp'}</span>
-                                <span>•</span>
-                                <span>{(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg</span>
-                                <span>•</span>
-                                <span>{(Number(row.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³</span>
-                                <span>•</span>
-                                <span className='text-indigo-600 dark:text-indigo-400 font-medium'>{row.destinationHub || row.route || 'Giao khách lẻ'}</span>
-                              </div>
                             </td>
-                            <td className='py-1 px-1.5 text-right text-[10px] whitespace-nowrap'>
+                            <td
+                              className='py-1 px-1.5 text-[10px] font-medium text-slate-800 dark:text-slate-200 max-w-[220px] truncate'
+                              title={row.goodsDescription || 'Hàng tổng hợp'}
+                            >
+                              {row.goodsDescription || 'Hàng tổng hợp'}
+                            </td>
+                            <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
                               {renderStock(row)}
+                            </td>
+                            <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
+                              {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')}
+                            </td>
+                            <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
+                              {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
+                                maximumFractionDigits: 3,
+                              })}
+                            </td>
+                            <td
+                              className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 max-w-[180px] truncate'
+                              title={row.destinationHub || row.route || 'Giao khách lẻ'}
+                            >
+                              <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
+                                {row.destinationHub || row.route || 'Giao khách lẻ'}
+                              </span>
                             </td>
                             <td className='py-1 px-1.5 text-center'>
                               {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
@@ -538,27 +552,47 @@ export default function WarehouseOrdersPage() {
                                   {mIdx + 1}
                                 </td>
                                 <td className='py-1 px-1.5 font-mono text-slate-500 text-[10px]'>
-                                  {formatDateTime(m.inboundDate || m.createdAt || row.inboundDate || row.createdAt)}
+                                  {formatDateTime(
+                                    m.inboundDate || m.createdAt || row.inboundDate || row.createdAt
+                                  )}
                                 </td>
-                                <td className='py-1 px-1.5 pl-4'>
-                                  <div className='font-mono text-slate-700 dark:text-slate-300 text-[10px] font-semibold'>
+                                <td className='py-1 px-1.5 pl-3'>
+                                  <span className='font-mono text-slate-700 dark:text-slate-300 text-[10px] font-semibold'>
                                     Dòng {mIdx + 1}
-                                  </div>
-                                  <div
-                                    className='text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 space-x-1 truncate max-w-[320px]'
-                                    title={`${m.goodsDescription || '—'} | ${(Number(m.totalWeight) || 0).toLocaleString('vi-VN')} kg | ${(Number(m.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³ | ${m.destinationHub || m.destinationHubEntity?.name || m.route || 'Giao khách lẻ'}`}
-                                  >
-                                    <span className='font-medium text-slate-700 dark:text-slate-200'>{m.goodsDescription || '—'}</span>
-                                    <span>•</span>
-                                    <span>{(Number(m.totalWeight) || 0).toLocaleString('vi-VN')} kg</span>
-                                    <span>•</span>
-                                    <span>{(Number(m.totalVolume) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m³</span>
-                                    <span>•</span>
-                                    <span className='text-indigo-600 dark:text-indigo-400 font-medium'>{m.destinationHub || m.destinationHubEntity?.name || m.route || 'Giao khách lẻ'}</span>
-                                  </div>
+                                  </span>
                                 </td>
-                                <td className='py-1 px-1.5 text-right text-[10px] whitespace-nowrap'>
+                                <td
+                                  className='py-1 px-1.5 text-[10px] font-medium text-slate-700 dark:text-slate-300 max-w-[220px] truncate'
+                                  title={m.goodsDescription || '—'}
+                                >
+                                  {m.goodsDescription || '—'}
+                                </td>
+                                <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
                                   {renderStock(m)}
+                                </td>
+                                <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
+                                  {(Number(m.totalWeight) || 0).toLocaleString('vi-VN')}
+                                </td>
+                                <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
+                                  {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', {
+                                    maximumFractionDigits: 3,
+                                  })}
+                                </td>
+                                <td
+                                  className='py-1 px-1.5 text-[10px] text-slate-600 dark:text-slate-400 max-w-[180px] truncate'
+                                  title={
+                                    m.destinationHub ||
+                                    m.destinationHubEntity?.name ||
+                                    m.route ||
+                                    'Giao khách lẻ'
+                                  }
+                                >
+                                  <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
+                                    {m.destinationHub ||
+                                      m.destinationHubEntity?.name ||
+                                      m.route ||
+                                      'Giao khách lẻ'}
+                                  </span>
                                 </td>
                                 <td className='py-1 px-1.5 text-center'>
                                   {renderWarehouseOrderStatusBadge(resolveDisplayStatus(m))}

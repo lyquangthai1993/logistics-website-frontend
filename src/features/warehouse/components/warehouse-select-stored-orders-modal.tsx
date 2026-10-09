@@ -283,9 +283,9 @@ export function WarehouseSelectStoredOrdersModal({
                 <th className='py-1 px-1.5 w-10 text-center font-bold text-slate-500'>STT</th>
                 <th className='py-1 px-1.5 w-[140px] whitespace-nowrap'>MÃ VẬN ĐƠN</th>
                 <th className='py-1 px-1.5 min-w-[180px] max-w-[260px]'>TÊN HÀNG HÓA</th>
-                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>SỐ KIỆN</th>
+                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>SỐ LƯỢNG</th>
                 <th className='py-1 px-1.5 text-right w-[85px] whitespace-nowrap'>SỐ KG</th>
-                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>SỐ M³</th>
+                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>CBM</th>
                 <th className='py-1 px-1.5 min-w-[200px] whitespace-nowrap'>KHO ĐÍCH / NƠI GIAO</th>
                 <th className='py-1 px-1.5 w-[100px] text-center whitespace-nowrap'>NGÀY NHẬP</th>
                 <th className='py-1 px-1.5 min-w-[150px]'>GHI CHÚ</th>
@@ -393,7 +393,7 @@ export function WarehouseSelectStoredOrdersModal({
             </span>
             {selectedSummary.count > 0 && (
               <span className='text-slate-500'>
-                {' '}(Tổng cộng: <strong className='text-slate-800 dark:text-slate-200'>{selectedSummary.packages} kiện</strong> • {selectedSummary.weight} kg • {selectedSummary.volume} m³)
+                {' '}(Tổng cộng: <strong className='text-slate-800 dark:text-slate-200'>{selectedSummary.packages} kiện</strong> • {selectedSummary.weight} kg • {selectedSummary.volume} CBM)
               </span>
             )}
           </div>
