@@ -18,8 +18,10 @@ import {
   IconRefresh,
   IconTrash,
   IconEye,
-  IconTruck
+  IconTruck,
+  IconFileSpreadsheet
 } from '@tabler/icons-react';
+import * as XLSX from 'xlsx';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import {
@@ -53,6 +55,7 @@ export default function WarehouseOrdersPage() {
     dispatchedCount?: number;
   }>({ total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [printData, setPrintData] = useState<PalletLabelData | null>(null);
 
   // Waybill Detail Modal State
@@ -76,6 +79,249 @@ export default function WarehouseOrdersPage() {
       fetchOrders();
     } catch (err: any) {
       showApiErrorToast(err, 'Không thể xóa đơn hàng');
+    }
+  };
+
+  /** Chuyển đổi tên có dấu thành không dấu và định dạng slug cho tên file */
+  const normalizeNoDiacritics = (str: string) => {
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+  };
+
+  /** Xử lý xuất toàn bộ danh sách đơn hàng lưu kho ra file Excel */
+  const handleExportStoredOrdersExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    const toastId = toast.loading('Đang khởi tạo dữ liệu báo cáo lưu kho...');
+
+    try {
+      const token = tokenManager.getAccessToken();
+      const query = new URLSearchParams({
+        status: 'INBOUND',
+        groupBy: 'orderCode',
+        isExport: 'true',
+        limit: '5000',
+        ...(search.trim() ? { search: search.trim() } : {})
+      });
+
+      const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw { response: { data: errJson, status: res.status } };
+      }
+
+      const resData = await res.json();
+      const orders: any[] = resData?.data ?? [];
+
+      if (!orders || orders.length === 0) {
+        toast.dismiss(toastId);
+        toast.warning('Kho hiện tại không có đơn hàng nào ở trạng thái lưu kho.');
+        return;
+      }
+
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const now = new Date();
+      const nowFormatted = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+
+      const hubTitle = currentHubName || user?.hub?.name || 'Tất cả các Hub';
+      const reporterName = user?.name || user?.email || 'Thủ kho';
+
+      let totalStock = 0;
+      let totalOriginalQty = 0;
+      let totalWeight = 0;
+      let totalVolume = 0;
+
+      let stt = 1;
+      const rows: any[][] = [];
+
+      for (const order of orders) {
+        const itemsToExport =
+          Array.isArray(order.items) && order.items.length > 0 ? order.items : [order];
+
+        for (const item of itemsToExport) {
+          const rawStock = Number(item.hubStock ?? item.remainingQuantity ?? 0);
+          const rawTotal = Number(item.totalQuantity ?? 0);
+          const total = Math.max(rawTotal, rawStock, 0);
+          const stock = Math.max(0, Math.min(rawStock, total));
+
+          if (stock <= 0 && itemsToExport.length > 1) {
+            continue;
+          }
+
+          const itemWeight = Number(item.totalWeight ?? 0);
+          const itemVolume = Number(item.totalVolume ?? 0);
+
+          totalStock += stock;
+          totalOriginalQty += total;
+          totalWeight += itemWeight;
+          totalVolume += itemVolume;
+
+          const trips =
+            Array.isArray(order.trips) && order.trips.length > 0
+              ? order.trips
+              : Array.isArray(item.trips)
+                ? item.trips
+                : [];
+          const tripCodes = trips.map((t: any) => t.tripCode).filter(Boolean).join(', ');
+          const licensePlates = Array.from(
+            new Set(
+              [
+                ...trips.map((t: any) => t.licensePlate),
+                order.vehicleLicensePlate,
+                item.vehicleLicensePlate
+              ].filter(Boolean)
+            )
+          ).join(', ');
+
+          let tripDisplay = '—';
+          if (tripCodes && licensePlates) {
+            tripDisplay = `${tripCodes} (${licensePlates})`;
+          } else if (tripCodes) {
+            tripDisplay = tripCodes;
+          } else if (licensePlates) {
+            tripDisplay = licensePlates;
+          }
+
+          const inboundDateStr =
+            item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
+          const originHubStr =
+            item.originHubEntity?.name ||
+            order.originHubEntity?.name ||
+            item.originHub ||
+            order.originHub ||
+            '—';
+          const destHubStr =
+            item.destinationHubEntity?.name ||
+            order.destinationHubEntity?.name ||
+            item.destinationHub ||
+            order.destinationHub ||
+            item.deliveryAddress ||
+            order.deliveryAddress ||
+            '—';
+          const provinceStr =
+            item.destinationHubEntity?.city ||
+            order.destinationHubEntity?.city ||
+            item.province ||
+            order.province ||
+            '—';
+          const notesStr =
+            item.operationalNotes ||
+            order.operationalNotes ||
+            item.accompanyingDocs ||
+            order.accompanyingDocs ||
+            item.notes ||
+            order.notes ||
+            '—';
+
+          rows.push([
+            stt++,
+            order.orderCode,
+            formatDateTime(inboundDateStr),
+            originHubStr,
+            item.goodsDescription || order.goodsDescription || 'Hàng hóa tổng hợp',
+            stock,
+            total,
+            itemWeight,
+            itemVolume,
+            destHubStr,
+            provinceStr,
+            tripDisplay,
+            'LƯU KHO',
+            notesStr
+          ]);
+        }
+      }
+
+      const totalOrdersCount = orders.length;
+
+      const wsData: any[][] = [
+        ['SPIDER EXPRESS LOGISTICS TMS - BÁO CÁO ĐƠN HÀNG LƯU KHO'],
+        [`Kho / Trạm Hub: ${hubTitle}`],
+        [`Thời điểm xuất: ${nowFormatted} | Người lập báo cáo: ${reporterName}`],
+        [
+          `Thống kê tổng quan: Tổng số đơn: ${totalOrdersCount} đơn | Tổng số kiện tồn: ${totalStock} kiện | Tổng khối lượng: ${totalWeight.toFixed(1)} kg | Tổng thể tích: ${totalVolume.toFixed(3)} m³`
+        ],
+        [], // Dòng 5 trống ngăn cách Header và Bảng kê
+        [
+          'STT',
+          'MÃ VẬN ĐƠN',
+          'NGÀY NHẬP KHO',
+          'NƠI GỬI / HUB GỬI',
+          'TÊN HÀNG HÓA',
+          'SỐ KIỆN TỒN KHO',
+          'TỔNG KIỆN ĐƠN',
+          'KHỐI LƯỢNG (KG)',
+          'THỂ TÍCH (M³)',
+          'ĐÍCH ĐẾN / ĐỊA CHỈ GIAO',
+          'TỈNH / THÀNH PHỐ',
+          'CHUYẾN XE / BIỂN SỐ ĐẾN',
+          'TRẠNG THÁI',
+          'GHI CHÚ / CHỨNG TỪ'
+        ],
+        ...rows,
+        [
+          '',
+          '',
+          '',
+          '',
+          'TỔNG CỘNG',
+          totalStock,
+          totalOriginalQty,
+          Math.round(totalWeight * 10) / 10,
+          Math.round(totalVolume * 1000) / 1000,
+          '',
+          '',
+          '',
+          '',
+          ''
+        ]
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 26 },
+        { wch: 30 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 35 },
+        { wch: 18 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 30 }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Đơn Hàng Lưu Kho');
+
+      const hubFileSlug = normalizeNoDiacritics(hubTitle);
+      const fileName = `Bao_cao_don_hang_luu_kho_${hubFileSlug}_${dateStr}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      toast.dismiss(toastId);
+      toast.success(`Đã xuất thành công báo cáo lưu kho (${totalOrdersCount} đơn hàng)!`);
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      showApiErrorToast(err, 'Lỗi xuất báo cáo Excel lưu kho');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -340,16 +586,35 @@ export default function WarehouseOrdersPage() {
             </p>
           </div>
 
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={fetchOrders}
-            disabled={isLoading}
-            className='h-8 text-xs font-bold border-slate-300'
-          >
-            <IconRefresh className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Làm mới
-          </Button>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={handleExportStoredOrdersExcel}
+              disabled={isExporting || isLoading}
+              className='h-8 text-xs font-bold border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-400 dark:hover:bg-emerald-950/40 shadow-sm'
+              title='Tải về file Excel danh sách tất cả các đơn hàng đang lưu kho để làm báo cáo'
+              data-testid='export-stored-orders-excel-btn'
+            >
+              {isExporting ? (
+                <IconLoader2 className='mr-1.5 h-3.5 w-3.5 animate-spin text-emerald-600' />
+              ) : (
+                <IconFileSpreadsheet className='mr-1.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400' />
+              )}
+              <span>Xuất Excel lưu kho</span>
+            </Button>
+
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={fetchOrders}
+              disabled={isLoading || isExporting}
+              className='h-8 text-xs font-bold border-slate-300'
+            >
+              <IconRefresh className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
+            </Button>
+          </div>
         </div>
 
         {/* Main Filter & Data Table Card */}
