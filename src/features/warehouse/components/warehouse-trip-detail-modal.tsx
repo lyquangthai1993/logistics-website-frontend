@@ -449,6 +449,8 @@ export function WarehouseTripDetailModal({
     };
   }, [manifest]);
 
+  const isTransferTrip = Boolean(manifest?.isTransfer ?? tripGroup?.isTransfer);
+
   // Outbound cargo breakdown for Step 2
   const outboundBreakdown = useMemo(() => {
     if (!manifest || !manifest.lines) {
@@ -460,14 +462,23 @@ export function WarehouseTripDetailModal({
     const transitLines = manifest.lines.filter(
       (l) => !l.isForCurrentHub && l.originHubId !== currentHubId
     );
-    // Cargo loaded directly from this hub
+    // Cargo loaded directly from this hub to go to another hub
     const hubOutboundLines = manifest.lines.filter(
-      (l) => l.originHubId === currentHubId
+      (l) =>
+        l.originHubId === currentHubId &&
+        !l.isForCurrentHub &&
+        l.destinationHubId !== currentHubId
     );
     const allOutboundLines = [...transitLines, ...hubOutboundLines];
 
     return { transitLines, hubOutboundLines, allOutboundLines };
-  }, [manifest]);
+  }, [manifest, user]);
+
+  useEffect(() => {
+    if (!isTransferTrip && currentStep !== 1) {
+      setCurrentStep(1);
+    }
+  }, [isTransferTrip, currentStep]);
 
   // Sync state when tripGroup opens
   useEffect(() => {
@@ -886,9 +897,11 @@ export function WarehouseTripDetailModal({
             <h2 className='text-sm font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
               <IconBuildingWarehouse className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
               <span>
-                {currentStep === 1
-                  ? 'Bước 1: Kiểm đếm dỡ hàng & Nhập kho'
-                  : 'Bước 2: Xuất hàng mới lên xe đi trạm kế tiếp'}
+                {isTransferTrip
+                  ? currentStep === 1
+                    ? 'Bước 1: Kiểm đếm dỡ hàng & Nhập kho'
+                    : 'Bước 2: Xuất hàng mới lên xe đi trạm kế tiếp'
+                  : 'Kiểm đếm dỡ hàng & Nhập kho'}
               </span>
             </h2>
           </div>
@@ -919,69 +932,71 @@ export function WarehouseTripDetailModal({
           </div>
         </div>
 
-        {/* 2-Step Stepper Bar */}
-        <div className='bg-slate-100 dark:bg-slate-800 px-2.5 py-1 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs shrink-0'>
-          <div className='flex items-center gap-1.5'>
-            {/* Step 1 Button */}
-            <button
-              type='button'
-              onClick={() => setCurrentStep(1)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[11px] transition-colors ${
-                currentStep === 1
-                  ? 'bg-[#0F3D62] text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span className='w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]'>
-                1
-              </span>
-              <span>1. Nhập hàng & Dỡ kho</span>
-              {manifest?.currentHubStatus === 'COMPLETED' && (
-                <Badge
-                  variant='outline'
-                  className='bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px] px-1 py-0 h-3.5'
-                >
-                  <IconCheck className='h-2.5 w-2.5 mr-0.5' /> Đã xong
-                </Badge>
-              )}
-            </button>
+        {/* 2-Step Stepper Bar (Chỉ hiển thị cho chuyến xe luân chuyển liên Hub) */}
+        {isTransferTrip && (
+          <div className='bg-slate-100 dark:bg-slate-800 px-2.5 py-1 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs shrink-0'>
+            <div className='flex items-center gap-1.5'>
+              {/* Step 1 Button */}
+              <button
+                type='button'
+                onClick={() => setCurrentStep(1)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[11px] transition-colors ${
+                  currentStep === 1
+                    ? 'bg-[#0F3D62] text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className='w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]'>
+                  1
+                </span>
+                <span>1. Nhập hàng & Dỡ kho</span>
+                {manifest?.currentHubStatus === 'COMPLETED' && (
+                  <Badge
+                    variant='outline'
+                    className='bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px] px-1 py-0 h-3.5'
+                  >
+                    <IconCheck className='h-2.5 w-2.5 mr-0.5' /> Đã xong
+                  </Badge>
+                )}
+              </button>
 
-            <IconChevronRight className='w-3.5 h-3.5 text-slate-400' />
+              <IconChevronRight className='w-3.5 h-3.5 text-slate-400' />
 
-            {/* Step 2 Button */}
-            <button
-              type='button'
-              onClick={() => setCurrentStep(2)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[11px] transition-colors ${
-                currentStep === 2
-                  ? 'bg-[#0F3D62] text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span className='w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]'>
-                2
+              {/* Step 2 Button */}
+              <button
+                type='button'
+                onClick={() => setCurrentStep(2)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[11px] transition-colors ${
+                  currentStep === 2
+                    ? 'bg-[#0F3D62] text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className='w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]'>
+                  2
+                </span>
+                <span>2. Xuất hàng mới lên xe</span>
+                <span className='text-[10px] text-slate-400 font-normal'>
+                  (Tùy chọn)
+                </span>
+                {outboundBreakdown.hubOutboundLines.length > 0 && (
+                  <Badge className='bg-blue-600 text-white text-[9px] px-1 py-0 h-3.5'>
+                    +{outboundBreakdown.hubOutboundLines.length}
+                  </Badge>
+                )}
+              </button>
+            </div>
+
+            <div className='text-[10px] text-slate-500 hidden sm:flex items-center gap-1.5'>
+              <span>
+                Trạm hiện tại:{' '}
+                <strong className='text-emerald-700 dark:text-emerald-400 font-bold'>
+                  {currentStopHubName ?? 'Kho này'}
+                </strong>
               </span>
-              <span>2. Xuất hàng mới lên xe</span>
-              <span className='text-[10px] text-slate-400 font-normal'>
-                (Tùy chọn)
-              </span>
-              {outboundBreakdown.hubOutboundLines.length > 0 && (
-                <Badge className='bg-blue-600 text-white text-[9px] px-1 py-0 h-3.5'>
-                  +{outboundBreakdown.hubOutboundLines.length}
-                </Badge>
-              )}
-            </button>
+            </div>
           </div>
-
-          <div className='text-[10px] text-slate-500 hidden sm:flex items-center gap-1.5'>
-            <span>
-              Trạm hiện tại:{' '}
-              <strong className='text-emerald-700 dark:text-emerald-400 font-bold'>
-                {currentStopHubName ?? 'Kho này'}
-              </strong>
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Scrollable Body Content */}
         <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
@@ -1686,27 +1701,31 @@ export function WarehouseTripDetailModal({
                   </>
                 )}
 
-                {/* Primary forward transition to Step 2 */}
-                <Button
-                  type='button'
-                  onClick={() => setCurrentStep(2)}
-                  className='h-7 bg-blue-600 hover:bg-blue-700 text-white px-2.5 font-bold shadow-xs text-xs'
-                >
-                  <IconArrowRight className='mr-1 h-3.5 w-3.5' /> Tiếp theo: Xuất
-                  hàng mới vào trip
-                </Button>
+                {/* Primary forward transition to Step 2 (Chỉ dành cho chuyến xe luân chuyển liên Hub) */}
+                {isTransferTrip && (
+                  <>
+                    <Button
+                      type='button'
+                      onClick={() => setCurrentStep(2)}
+                      className='h-7 bg-blue-600 hover:bg-blue-700 text-white px-2.5 font-bold shadow-xs text-xs'
+                    >
+                      <IconArrowRight className='mr-1 h-3.5 w-3.5' /> Tiếp theo: Xuất
+                      hàng mới vào trip
+                    </Button>
 
-                {/* Skip option */}
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={handleSkipAndFinish}
-                  className='h-7 text-xs font-semibold border-slate-300 text-slate-600 hover:text-slate-900'
-                  title='Hoàn tất trạm và cho xe tiếp tục hành trình mà không xuất thêm hàng'
-                >
-                  Bỏ qua xuất mới & Hoàn tất
-                </Button>
+                    {/* Skip option */}
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={handleSkipAndFinish}
+                      className='h-7 text-xs font-semibold border-slate-300 text-slate-600 hover:text-slate-900'
+                      title='Hoàn tất trạm và cho xe tiếp tục hành trình mà không xuất thêm hàng'
+                    >
+                      Bỏ qua xuất mới & Hoàn tất
+                    </Button>
+                  </>
+                )}
               </>
             ) : (
               /* STEP 2 ACTIONS */
