@@ -742,25 +742,26 @@ export default function WarehouseInboundPage() {
         {/* ── Page Header (Frame sq2P6 parity) ── */}
         <div className='flex flex-wrap items-center justify-between gap-2 border-b pb-2'>
           <div>
-            <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
-              <IconBuildingWarehouse className='h-6 w-6' />
-              <span>Nhập kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
-            </h1>
+            <div className='flex flex-wrap items-center gap-2.5'>
+              <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
+                <IconBuildingWarehouse className='h-6 w-6 shrink-0' />
+                <span>Nhập kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
+              </h1>
+              {activeView === 'BOARD' && (
+                <Button
+                  onClick={() => setActiveView('MODE1_CUSTOMER')}
+                  className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm h-8 px-2.5'
+                >
+                  <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
+                </Button>
+              )}
+            </div>
             <p className='text-xs text-slate-500 mt-0.5'>
               Quản lý luồng hàng nhập kho (Khách gửi trực tiếp hoặc Luân chuyển liên Hub).
             </p>
           </div>
 
-          {activeView === 'BOARD' ? (
-            <div className='flex items-center gap-2'>
-              <Button
-                onClick={() => setActiveView('MODE1_CUSTOMER')}
-                className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm'
-              >
-                <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
-              </Button>
-            </div>
-          ) : (
+          {activeView !== 'BOARD' && (
             <Button
               variant='outline'
               size='sm'
