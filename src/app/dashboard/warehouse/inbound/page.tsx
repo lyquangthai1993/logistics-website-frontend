@@ -1114,19 +1114,16 @@ export default function WarehouseInboundPage() {
                                             <th className='py-0.5 px-1.5 font-semibold w-[130px]'>
                                               MÃ VẬN ĐƠN
                                             </th>
-                                            <th className='py-0.5 px-1.5 font-semibold min-w-[150px]'>
+                                            <th className='py-0.5 px-1.5 font-semibold min-w-[160px]'>
                                               HÀNG HÓA
                                             </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-right w-[130px]'>
+                                            <th className='py-0.5 px-1.5 font-semibold text-right w-[140px]'>
                                               SỐ KIỆN / TẢI TRỌNG
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
-                                              TRẠNG THÁI
                                             </th>
                                             <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
                                               CHỨNG TỪ
                                             </th>
-                                            <th className='py-0.5 px-1.5 font-semibold min-w-[130px]'>
+                                            <th className='py-0.5 px-1.5 font-semibold min-w-[180px]'>
                                               GHI CHÚ
                                             </th>
                                             <th className='py-0.5 px-1.5 font-semibold text-center w-[150px]'>
@@ -1167,11 +1164,6 @@ export default function WarehouseInboundPage() {
                                                   {formatWeight(subOrder.totalWeight)} kg &bull;{' '}
                                                   {formatVolume(subOrder.totalVolume)} m³
                                                 </div>
-                                              </td>
-                                              <td className='py-1.5 px-2 text-center'>
-                                                {renderWarehouseOrderStatusBadge(
-                                                  subOrder.hubStatus ?? subOrder.status
-                                                )}
                                               </td>
                                               <td className='py-1.5 px-2 text-center'>
                                                 {subOrder.accompanyingDocs &&

@@ -149,19 +149,35 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
     }
   };
 
+  const generateUsernameSuggestion = () => {
+    if (email && email.includes('@')) {
+      const prefix = email.split('@')[0].trim().toLowerCase();
+      if (prefix) return prefix;
+    }
+    const combined = `${lastName} ${firstName}`.trim().toLowerCase();
+    if (combined) {
+      return combined
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/[^a-z0-9]/g, '');
+    }
+    return '';
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[520px]' id='user-form-dialog'>
-        <DialogHeader>
-          <DialogTitle className='flex items-center gap-2 text-lg font-bold'>
-            <Icons.user className='h-5 w-5 text-primary' />
+      <DialogContent className='sm:max-w-[480px] p-2' id='user-form-dialog'>
+        <DialogHeader className='px-1 pt-1'>
+          <DialogTitle className='flex items-center gap-2 text-base font-bold text-[#0F3D62] dark:text-blue-400'>
+            <Icons.user className='h-4 w-4' />
             {isEdit ? 'Chỉnh Sửa Người Dùng' : 'Thêm Người Dùng Mới'}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className='space-y-4 py-2'>
-          <div className='grid grid-cols-2 gap-4'>
-            <div className='space-y-1.5'>
+        <form onSubmit={handleSubmit} className='space-y-2 px-1 py-1' autoComplete='off'>
+          <div className='grid grid-cols-2 gap-2'>
+            <div className='space-y-1'>
               <label
                 htmlFor='input-user-first-name'
                 className='text-xs font-semibold text-muted-foreground'
@@ -171,12 +187,14 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               <Input
                 id='input-user-first-name'
                 required
+                autoComplete='off'
+                className='h-8.5 text-xs'
                 placeholder='VD: Nguyễn Văn'
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
               />
             </div>
-            <div className='space-y-1.5'>
+            <div className='space-y-1'>
               <label
                 htmlFor='input-user-last-name'
                 className='text-xs font-semibold text-muted-foreground'
@@ -186,6 +204,8 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               <Input
                 id='input-user-last-name'
                 required
+                autoComplete='off'
+                className='h-8.5 text-xs'
                 placeholder='VD: An'
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
@@ -193,7 +213,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
             </div>
           </div>
 
-          <div className='space-y-1.5'>
+          <div className='space-y-1'>
             <label
               htmlFor='input-user-email'
               className='text-xs font-semibold text-muted-foreground'
@@ -204,28 +224,51 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               id='input-user-email'
               type='email'
               required
+              autoComplete='off'
+              className='h-8.5 text-xs'
               placeholder='VD: user@logistics.vn'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => {
+                if (!username && !isEdit && email.includes('@')) {
+                  setUsername(email.split('@')[0].trim().toLowerCase());
+                }
+              }}
             />
           </div>
 
-          <div className='space-y-1.5'>
-            <label
-              htmlFor='input-user-username'
-              className='text-xs font-semibold text-muted-foreground'
-            >
-              Tên đăng nhập (Username)
-            </label>
+          <div className='space-y-1'>
+            <div className='flex items-center justify-between'>
+              <label
+                htmlFor='input-user-username'
+                className='text-xs font-semibold text-muted-foreground'
+              >
+                Tên đăng nhập (Username)
+              </label>
+              {!isEdit && (
+                <button
+                  type='button'
+                  onClick={() => {
+                    const sug = generateUsernameSuggestion();
+                    if (sug) setUsername(sug);
+                  }}
+                  className='text-[10px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer'
+                >
+                  Gợi ý từ tên/email
+                </button>
+              )}
+            </div>
             <Input
               id='input-user-username'
+              autoComplete='off'
+              className='h-8.5 text-xs'
               placeholder='VD: quanlikho1'
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
-          <div className='space-y-1.5'>
+          <div className='space-y-1'>
             <label
               htmlFor='input-user-password'
               className='text-xs font-semibold text-muted-foreground'
@@ -236,14 +279,16 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               id='input-user-password'
               type='password'
               required={!isEdit}
+              autoComplete='new-password'
+              className='h-8.5 text-xs'
               placeholder={isEdit ? 'Để trống nếu không muốn đổi' : 'Tối thiểu 6 ký tự'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
-          <div className='grid grid-cols-2 gap-4'>
-            <div className='space-y-1.5'>
+          <div className='grid grid-cols-2 gap-2'>
+            <div className='space-y-1'>
               <label
                 htmlFor='select-user-role'
                 className='text-xs font-semibold text-muted-foreground'
@@ -254,7 +299,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                 id='select-user-role'
                 value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
-                className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer'
+                className='w-full h-8.5 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer'
               >
                 {ROLE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -264,7 +309,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
               </select>
             </div>
 
-            <div className='space-y-1.5'>
+            <div className='space-y-1'>
               <label
                 htmlFor='select-user-status'
                 className='text-xs font-semibold text-muted-foreground'
@@ -275,7 +320,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                 id='select-user-status'
                 value={statusId}
                 onChange={(e) => setStatusId(e.target.value)}
-                className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer'
+                className='w-full h-8.5 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer'
               >
                 {STATUS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -288,7 +333,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
 
           {/* Hub — chỉ hiện khi role = WAREHOUSE_MANAGER */}
           {isWarehouseManager && (
-            <div className='space-y-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 p-3'>
+            <div className='space-y-1 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2'>
               <label
                 htmlFor='select-user-hub'
                 className='text-xs font-semibold text-primary flex items-center gap-1.5'
@@ -301,7 +346,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                 value={hubId}
                 onChange={(e) => setHubId(e.target.value)}
                 disabled={hubsLoading}
-                className='w-full h-9 px-3 text-sm bg-background border border-input rounded-md cursor-pointer disabled:opacity-50'
+                className='w-full h-8.5 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer disabled:opacity-50'
               >
                 <option value=''>{hubsLoading ? 'Đang tải...' : '— Chưa gán kho —'}</option>
                 {activeHubs.map((hub) => (
@@ -310,25 +355,27 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
                   </option>
                 ))}
               </select>
-              <p className='text-[11px] text-muted-foreground'>
+              <p className='text-[10px] text-muted-foreground'>
                 Mỗi tài khoản Quản lý kho được gán vào một Hub cụ thể.
               </p>
             </div>
           )}
 
-          <DialogFooter className='pt-2'>
+          <DialogFooter className='pt-1 gap-1.5'>
             <Button
               type='button'
               variant='outline'
+              size='sm'
               onClick={() => onOpenChange(false)}
-              className='cursor-pointer'
+              className='h-8 text-xs cursor-pointer'
             >
               Hủy Bỏ
             </Button>
             <Button
               type='submit'
+              size='sm'
               disabled={isPending}
-              className='bg-primary text-primary-foreground cursor-pointer'
+              className='h-8 text-xs bg-primary text-primary-foreground cursor-pointer'
             >
               {isPending ? 'Đang lưu...' : isEdit ? 'Lưu Thay Đổi' : 'Thêm Người Dùng'}
             </Button>

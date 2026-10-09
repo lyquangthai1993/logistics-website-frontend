@@ -423,7 +423,7 @@ export function WarehouseWaybillDetailModal({
                                   <span className="text-slate-500 ml-1.5 font-mono text-[11px]">
                                     ({tx.weight ? `${Number(tx.weight).toLocaleString('vi-VN')} kg` : ''}
                                     {tx.weight && tx.volume ? ' · ' : ''}
-                                    {tx.volume ? `${tx.volume} m³` : ''})
+                                    {tx.volume ? `${tx.volume} CBM` : ''})
                                   </span>
                                 ) : null}
                               </div>
@@ -588,7 +588,7 @@ export function WarehouseWaybillDetailModal({
                   <span>Danh mục hàng hóa vận đơn</span>
                 </h4>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Tổng kiện: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{waybill.totalQuantity ?? 1}</span> kiện · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> m³
+                  Tổng số lượng: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{waybill.totalQuantity ?? 1}</span> · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> CBM
                 </span>
               </div>
 
@@ -600,9 +600,9 @@ export function WarehouseWaybillDetailModal({
                       <th className="py-2.5 px-3 w-[150px]">MÃ VẬN ĐƠN</th>
                       <th className="py-2.5 px-3">ĐỊA CHỈ NHẬN HÀNG</th>
                       <th className="py-2.5 px-3">TÊN HÀNG HÓA</th>
-                      <th className="py-2.5 px-3 text-right w-[90px]">SỐ KIỆN</th>
+                      <th className="py-2.5 px-3 text-right w-[90px]">SỐ LƯỢNG</th>
                       <th className="py-2.5 px-3 text-right w-[100px]">SỐ KG</th>
-                      <th className="py-2.5 px-3 text-right w-[90px]">SỐ M³</th>
+                      <th className="py-2.5 px-3 text-right w-[90px]">CBM</th>
                       <th className="py-2.5 px-3">ĐỊA CHỈ GIAO HÀNG</th>
                       <th className="py-2.5 px-3">TỈNH / TP</th>
                       <th className="py-2.5 px-3 text-center w-[120px]">CHỨNG TỪ</th>
@@ -628,7 +628,7 @@ export function WarehouseWaybillDetailModal({
                         {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')} kg
                       </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
-                        {waybill.totalVolume ?? 0} m³
+                        {waybill.totalVolume ?? 0} CBM
                       </td>
                       <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">
                         {waybill.destinationHub || waybill.deliveryAddress || 'Điểm đích'}

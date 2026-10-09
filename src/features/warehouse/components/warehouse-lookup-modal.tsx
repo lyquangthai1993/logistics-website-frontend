@@ -277,7 +277,7 @@ export function WarehouseLookupModal({
                   Tồn khả dụng
                 </th>
                 <th className="w-[90px] px-1.5 py-1 text-right">Số kg</th>
-                <th className="w-[80px] px-1.5 py-1 text-right">Số m³</th>
+                <th className="w-[80px] px-1.5 py-1 text-right">CBM</th>
                 <th className="w-[100px] px-1.5 py-1 text-center">Trạng thái</th>
                 <th className="w-[140px] px-1.5 py-1 text-center">Thao tác</th>
               </tr>

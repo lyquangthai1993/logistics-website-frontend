@@ -130,7 +130,53 @@ export default function WarehouseOrdersPage() {
       return next;
     });
 
-  const COLUMN_COUNT = 10;
+  const COLUMN_COUNT = 11;
+
+  /** Date/time formatting helper */
+  const formatDateTime = (dateStr?: string | null) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '—';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes} ${day}/${month}/${year}`;
+    } catch {
+      return '—';
+    }
+  };
+
+  /** Outbound date render guard: strictly empty (—) if stored, draft, or has stock */
+  const renderOutboundDate = (r: any) => {
+    const rawStock = Number(r.hubStock ?? r.remainingQuantity ?? 0);
+    const rawTotal = Number(r.totalQuantity ?? 0);
+    const total = Math.max(rawTotal, rawStock, 0);
+    const stock = Math.max(0, Math.min(rawStock, total));
+    const status = (resolveDisplayStatus(r) || '').toUpperCase();
+    const storedStatuses = [
+      'INBOUND',
+      'STORED',
+      'LUU_KHO',
+      'IN_WAREHOUSE',
+      'DRAFT',
+      'PENDING',
+      'PENDING_INBOUND',
+      'WAITING'
+    ];
+
+    if (stock > 0 || storedStatuses.includes(status) || !r.outboundDate) {
+      return <span className='text-slate-400 font-semibold text-[10px]'>—</span>;
+    }
+
+    return (
+      <span className='font-mono text-slate-700 dark:text-slate-300 text-[10px]'>
+        {formatDateTime(r.outboundDate)}
+      </span>
+    );
+  };
   const currentHubName = user?.hub?.name;
 
   /** Stock held at the viewer's hub (ledger) — falls back to remainingQuantity without hub scope. */
@@ -142,7 +188,7 @@ export default function WarehouseOrdersPage() {
     return (
       <>
         <span className='font-bold text-emerald-600 dark:text-emerald-400'>{stock}</span>
-        <span className='text-slate-400'> / {total} kiện</span>
+        <span className='text-slate-400'> / {total}</span>
       </>
     );
   };
@@ -350,24 +396,25 @@ export default function WarehouseOrdersPage() {
 
             {/* Table */}
             <div className='border rounded-lg overflow-x-auto'>
-              <table className='w-full text-[11px] text-left min-w-[900px]'>
-                <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px] sticky top-0 z-10'>
+              <table className='w-full text-[11px] text-left min-w-[1050px]'>
+                <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px] sticky top-0 z-10 uppercase'>
                   <tr>
                     <th className='py-1 px-1.5 w-[40px] text-center'>STT</th>
-                    <th className='py-1 px-1.5 w-[170px]'>MÃ ĐƠN HÀNG</th>
-                    <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
-                    <th className='py-1 px-1.5 w-[130px]'>CHUYẾN XE / TRIP</th>
+                    <th className='py-1 px-1.5 w-[110px] font-mono'>NGÀY NHẬP</th>
+                    <th className='py-1 px-1.5 w-[110px] font-mono'>MÃ VẬN ĐƠN</th>
+                    <th className='py-1 px-1.5 min-w-[160px]'>TÊN HÀNG HÓA</th>
                     <th
-                      className='py-1 px-1.5 w-[90px] text-right'
-                      title='Số kiện đang nằm tại kho / tổng số kiện của đơn'
+                      className='py-1 px-1.5 w-[95px] text-right font-mono'
+                      title='Số lượng đang nằm tại kho / tổng số lượng của đơn'
                     >
-                      TỒN KHO
+                      SỐ LƯỢNG
                     </th>
-                    <th className='py-1 px-1.5 w-[80px] text-right'>SỐ KG</th>
-                    <th className='py-1 px-1.5 w-[70px] text-right'>SỐ M³</th>
-                    <th className='py-1 px-1.5 min-w-[150px]'>ĐÍCH ĐẾN</th>
+                    <th className='py-1 px-1.5 w-[85px] text-right font-mono'>SỐ KG</th>
+                    <th className='py-1 px-1.5 w-[80px] text-right font-mono'>CBM</th>
+                    <th className='py-1 px-1.5 min-w-[140px]'>ĐÍCH ĐẾN</th>
                     <th className='py-1 px-1.5 w-[100px] text-center'>TRẠNG THÁI</th>
-                    <th className='py-1 px-1.5 w-[90px] text-center'>THAO TÁC</th>
+                    <th className='py-1 px-1.5 w-[110px] text-center font-mono'>NGÀY XUẤT</th>
+                    <th className='py-1 px-1.5 w-[80px] text-center'>THAO TÁC</th>
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
@@ -408,6 +455,9 @@ export default function WarehouseOrdersPage() {
                             <td className='py-1 px-1.5 text-center font-mono text-gray-400 text-[10px]'>
                               {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
                             </td>
+                            <td className='py-1 px-1.5 font-mono text-slate-600 dark:text-slate-400 text-[10px]'>
+                              {formatDateTime(row.inboundDate || row.createdAt)}
+                            </td>
                             <td className='py-1 px-1.5'>
                               <div className='flex items-center gap-1'>
                                 {isMulti &&
@@ -419,37 +469,46 @@ export default function WarehouseOrdersPage() {
                                 <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
                                   {row.orderCode}
                                 </span>
+                                {isMulti && (
+                                  <Badge
+                                    variant='outline'
+                                    className='text-[9px] px-1 py-0 h-3.5 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                  >
+                                    {members.length} dòng
+                                  </Badge>
+                                )}
                               </div>
-                              {isMulti && (
-                                <Badge
-                                  variant='outline'
-                                  className='mt-0.5 text-[9px] px-1 py-0 h-3.5 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                >
-                                  {members.length} dòng hàng
-                                </Badge>
-                              )}
                             </td>
-                            <td className='py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200 text-[10px]'>
-                              {row.goodsDescription || '—'}
+                            <td
+                              className='py-1 px-1.5 text-[10px] font-medium text-slate-800 dark:text-slate-200 max-w-[220px] truncate'
+                              title={row.goodsDescription || 'Hàng tổng hợp'}
+                            >
+                              {row.goodsDescription || 'Hàng tổng hợp'}
                             </td>
-                            <td className='py-1 px-1.5'>{renderTripCell(row)}</td>
-                            <td className='py-1 px-1.5 text-right text-[10px] whitespace-nowrap'>
+                            <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
                               {renderStock(row)}
                             </td>
-                            <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                              {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg
+                            <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
+                              {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')}
                             </td>
-                            <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
+                            <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
                               {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
-                                maximumFractionDigits: 3
-                              })}{' '}
-                              m³
+                                maximumFractionDigits: 3,
+                              })}
                             </td>
-                            <td className='py-1 px-1.5 text-slate-600 dark:text-slate-300 text-[10px]'>
-                              {row.destinationHub || row.route || 'Giao khách lẻ'}
+                            <td
+                              className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 max-w-[180px] truncate'
+                              title={row.destinationHub || row.route || 'Giao khách lẻ'}
+                            >
+                              <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
+                                {row.destinationHub || row.route || 'Giao khách lẻ'}
+                              </span>
                             </td>
                             <td className='py-1 px-1.5 text-center'>
                               {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
+                            </td>
+                            <td className='py-1 px-1.5 text-center'>
+                              {renderOutboundDate(row)}
                             </td>
                             <td
                               className='py-1 px-1.5 text-center'
@@ -492,33 +551,54 @@ export default function WarehouseOrdersPage() {
                                 <td className='py-1 px-1.5 text-center font-mono text-gray-300 text-[10px]'>
                                   {mIdx + 1}
                                 </td>
-                                <td className='py-1 px-1.5 pl-5 font-mono text-slate-500 text-[10px]'>
-                                  Dòng {mIdx + 1}
+                                <td className='py-1 px-1.5 font-mono text-slate-500 text-[10px]'>
+                                  {formatDateTime(
+                                    m.inboundDate || m.createdAt || row.inboundDate || row.createdAt
+                                  )}
                                 </td>
-                                <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 text-[10px]'>
+                                <td className='py-1 px-1.5 pl-3'>
+                                  <span className='font-mono text-slate-700 dark:text-slate-300 text-[10px] font-semibold'>
+                                    Dòng {mIdx + 1}
+                                  </span>
+                                </td>
+                                <td
+                                  className='py-1 px-1.5 text-[10px] font-medium text-slate-700 dark:text-slate-300 max-w-[220px] truncate'
+                                  title={m.goodsDescription || '—'}
+                                >
                                   {m.goodsDescription || '—'}
                                 </td>
-                                <td className='py-1 px-1.5'>{renderTripCell(m)}</td>
-                                <td className='py-1 px-1.5 text-right text-[10px] whitespace-nowrap'>
+                                <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
                                   {renderStock(m)}
                                 </td>
-                                <td className='py-1 px-1.5 text-right text-slate-600 dark:text-slate-300 text-[10px]'>
-                                  {(Number(m.totalWeight) || 0).toLocaleString('vi-VN')} kg
+                                <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
+                                  {(Number(m.totalWeight) || 0).toLocaleString('vi-VN')}
                                 </td>
-                                <td className='py-1 px-1.5 text-right text-slate-600 dark:text-slate-300 text-[10px]'>
+                                <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
                                   {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', {
-                                    maximumFractionDigits: 3
-                                  })}{' '}
-                                  m³
+                                    maximumFractionDigits: 3,
+                                  })}
                                 </td>
-                                <td className='py-1 px-1.5 text-slate-500 dark:text-slate-400 text-[10px]'>
-                                  {m.destinationHub ||
+                                <td
+                                  className='py-1 px-1.5 text-[10px] text-slate-600 dark:text-slate-400 max-w-[180px] truncate'
+                                  title={
+                                    m.destinationHub ||
                                     m.destinationHubEntity?.name ||
                                     m.route ||
-                                    'Giao khách lẻ'}
+                                    'Giao khách lẻ'
+                                  }
+                                >
+                                  <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
+                                    {m.destinationHub ||
+                                      m.destinationHubEntity?.name ||
+                                      m.route ||
+                                      'Giao khách lẻ'}
+                                  </span>
                                 </td>
                                 <td className='py-1 px-1.5 text-center'>
                                   {renderWarehouseOrderStatusBadge(resolveDisplayStatus(m))}
+                                </td>
+                                <td className='py-1 px-1.5 text-center'>
+                                  {renderOutboundDate(m)}
                                 </td>
                                 <td
                                   className='py-1 px-1.5 text-center'
