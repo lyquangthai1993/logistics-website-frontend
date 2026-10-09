@@ -221,9 +221,11 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await expect(page.locator('h1')).toContainText('Polaris Hub', { timeout: 15_000 });
     await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
-    // 2. Locate stored orders tab: LƯU KHO
+    // 2. Locate stored orders tab: LƯU KHO and click
     const storedTab = page.getByRole('button', { name: /^LƯU KHO/i });
     await expect(storedTab).toBeVisible();
+    await storedTab.click();
+    await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
     // 3. Click export button and verify downloaded records
     const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
@@ -238,7 +240,7 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await download.saveAs(tempPath);
 
     const wb = XLSX.readFile(tempPath);
-    const sheet = wb.Sheets['Đơn Hàng Lưu Kho'];
+    const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
     const dataRows = rows.slice(6, rows.length - 1);
 
@@ -283,7 +285,7 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await download.saveAs(dadFilePath);
 
     const wb = XLSX.readFile(dadFilePath);
-    const sheet = wb.Sheets['Đơn Hàng Lưu Kho'];
+    const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
 
     const row2 = String(rows[1]?.[0] || '');
