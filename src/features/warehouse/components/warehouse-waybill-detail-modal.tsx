@@ -49,7 +49,7 @@ export interface WaybillDetailData {
   deliveryMode?: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' | string;
   destinationHub?: string;
   destinationHubId?: number | null;
-  destinationHubEntity?: { id?: number; name?: string; code?: string; level?: number };
+  destinationHubEntity?: { id?: number; name?: string; code?: string; level?: number; city?: string | null };
   originHub?: string;
   originHubId?: number | null;
   originHubEntity?: { id?: number; name?: string; code?: string };
@@ -247,6 +247,8 @@ export function WarehouseWaybillDetailModal({
         totalPallets: 1,
         originHub: waybill.pickupAddress || waybill.originHub,
         destinationHub: waybill.deliveryAddress || waybill.destinationHub,
+        province: waybill.province || waybill.destinationHubEntity?.city || waybill.destinationHub,
+        destinationHubEntity: waybill.destinationHubEntity,
         warehouseName: waybill.currentHubEntity?.name,
         createdAt: waybill.createdAt,
       });

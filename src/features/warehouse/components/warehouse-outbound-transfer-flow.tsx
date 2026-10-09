@@ -53,6 +53,8 @@ export interface StoredOrderItem {
   destinationHub?: string;
   deliveryAddress?: string;
   originHub?: string;
+  province?: string | null;
+  destinationHubEntity?: { id?: number; name?: string; code?: string; city?: string | null } | null;
 }
 
 interface WarehouseOutboundTransferFlowProps {
@@ -929,6 +931,13 @@ export function WarehouseOutboundTransferFlow({
                                     totalQuantity: order.totalQuantity,
                                     originHub: currentHubName,
                                     destinationHub: selectedDestHub.name,
+                                    province: order.province || selectedDestHub.city || selectedDestHub.name,
+                                    destinationHubEntity: {
+                                      id: selectedDestHub.id,
+                                      name: selectedDestHub.name,
+                                      code: selectedDestHub.code,
+                                      city: selectedDestHub.city,
+                                    },
                                     createdAt: order.createdAt
                                   })
                                 }
@@ -1157,6 +1166,13 @@ export function WarehouseOutboundTransferFlow({
                             totalQuantity: order.totalQuantity,
                             originHub: currentHubName,
                             destinationHub: selectedDestHub.name,
+                            province: order.province || selectedDestHub.city || selectedDestHub.name,
+                            destinationHubEntity: {
+                              id: selectedDestHub.id,
+                              name: selectedDestHub.name,
+                              code: selectedDestHub.code,
+                              city: selectedDestHub.city,
+                            },
                             createdAt: order.createdAt
                           })
                         }

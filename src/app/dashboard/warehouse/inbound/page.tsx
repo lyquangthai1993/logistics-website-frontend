@@ -1241,6 +1241,8 @@ export default function WarehouseInboundPage() {
                                                         totalQuantity: subOrder.totalQuantity || 1,
                                                         originHub: orig,
                                                         destinationHub: dest,
+                                                        province: subOrder.province || subOrder.destinationHubEntity?.city || dest,
+                                                        destinationHubEntity: subOrder.destinationHubEntity,
                                                         warehouseName:
                                                           subOrder.currentHubEntity?.name,
                                                         createdAt: new Date()
@@ -1419,6 +1421,7 @@ export default function WarehouseInboundPage() {
                             totalPallets: 1,
                             originHub: r.pickupAddress,
                             destinationHub: r.deliveryAddress,
+                            province: r.province || r.deliveryAddress,
                             createdAt: new Date()
                           });
                           setIsLabelModalOpen(true);
@@ -1495,6 +1498,8 @@ export default function WarehouseInboundPage() {
               totalQuantity: waybill.totalQuantity || 1,
               originHub: orig,
               destinationHub: dest,
+              province: waybill.province || waybill.destinationHubEntity?.city || dest,
+              destinationHubEntity: waybill.destinationHubEntity,
               warehouseName: waybill.currentHubEntity?.name,
               createdAt: new Date()
             });
@@ -1532,6 +1537,8 @@ export default function WarehouseInboundPage() {
               totalQuantity: waybill.totalQuantity || 1,
               originHub: orig,
               destinationHub: dest,
+              province: waybill.province || waybill.destinationHubEntity?.city || dest,
+              destinationHubEntity: waybill.destinationHubEntity,
               warehouseName: waybill.currentHubEntity?.name,
               createdAt: new Date()
             });

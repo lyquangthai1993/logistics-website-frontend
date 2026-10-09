@@ -22,6 +22,8 @@ export interface PalletLabelData {
   originHub?: string;
   destinationHub?: string;
   deliveryAddress?: string;
+  province?: string | null;
+  destinationHubEntity?: { id?: number; name?: string; code?: string; city?: string | null } | null;
   createdAt?: string | Date;
   receiverOrDriverName?: string;
   /**
@@ -56,6 +58,13 @@ export function PalletLabelA4Modal({
   const palletIndex = '';
   const totalPallets = '';
   const goodsDescription = (data?.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
+  const destinationDisplay = (
+    data?.province?.trim() ||
+    data?.destinationHubEntity?.city?.trim() ||
+    data?.destinationHub?.trim() ||
+    data?.deliveryAddress?.trim() ||
+    '—'
+  ).toUpperCase();
 
   const handlePrint = () => {
     if (!data) return;
@@ -247,7 +256,7 @@ export function PalletLabelA4Modal({
                 <!-- Row 5: GIAO ĐẾN -->
                 <tr>
                   <td class="col-label">GIAO ĐẾN :</td>
-                  <td colspan="3" class="val-dest"></td>
+                  <td colspan="3" class="val-dest">${destinationDisplay}</td>
                 </tr>
               </tbody>
             </table>
@@ -287,7 +296,7 @@ export function PalletLabelA4Modal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, data, currentHubName, formattedDate, quantityDisplay, palletIndex, totalPallets, goodsDescription]);
+  }, [isOpen, data, currentHubName, formattedDate, quantityDisplay, palletIndex, totalPallets, goodsDescription, destinationDisplay]);
 
   if (!data) return null;
 
@@ -391,6 +400,7 @@ export function PalletLabelA4Modal({
                     GIAO ĐẾN :
                   </td>
                   <td colSpan={3} className="px-4 py-5 text-center align-middle text-2xl sm:text-4xl font-black uppercase tracking-wide text-black h-20 sm:h-24">
+                    {destinationDisplay}
                   </td>
                 </tr>
               </tbody>
