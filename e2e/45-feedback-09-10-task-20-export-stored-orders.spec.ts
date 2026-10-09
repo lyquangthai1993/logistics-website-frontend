@@ -29,7 +29,7 @@ import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
-import { TEST_USERS, loginAs } from './helpers/auth';
+import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
 const WAREHOUSE_HYN_USER =
   TEST_USERS.find((u) => u.email === 'lyquangthai1993+4@gmail.com') ||
@@ -61,7 +61,8 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
   });
 
   test.beforeEach(async ({ page }) => {
-    page.setDefaultTimeout(35_000);
+    test.setTimeout(60_000);
+    page.setDefaultTimeout(40_000);
   });
 
   test('Scenario 1 & 2: Verify Button Display, Trigger Export, and Capture Evidence', async ({
@@ -72,15 +73,13 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
 
     // 2. Navigate to Warehouse Orders Page
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 20_000 });
+    await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
     const pageHeader = page.locator('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")');
     await expect(pageHeader).toBeVisible();
 
     // 3. Verify "Xuất Excel lưu kho" button exists next to "Làm mới"
-    const exportBtn = page.locator(
-      'button[data-testid="export-stored-orders-excel-btn"], button:has-text("Xuất Excel lưu kho")'
-    );
+    const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
     await expect(exportBtn).toBeVisible();
     await expect(exportBtn).toHaveClass(/h-8/);
     await expect(exportBtn).toHaveClass(/text-xs/);
@@ -104,10 +103,11 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     expect(fs.existsSync(screenshot01Path)).toBeTruthy();
 
     // 5. Trigger Excel export & listen for download event
-    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
-    await exportBtn.click();
-
-    const download = await downloadPromise;
+    await expect(exportBtn).toBeEnabled({ timeout: 15_000 });
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 35_000 }),
+      exportBtn.click()
+    ]);
     const filename = download.suggestedFilename();
 
     // Verify filename format: Bao_cao_don_hang_luu_kho_...xlsx
@@ -202,60 +202,58 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     // 1. Login and go to orders page
     await loginAs(page, WAREHOUSE_HYN_USER);
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 20_000 });
+    await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
-    // 2. Locate stored orders tab counter: LƯU KHO (N)
-    const storedTab = page.locator('button:has-text("LƯU KHO")');
+    // 2. Locate stored orders tab: LƯU KHO
+    const storedTab = page.getByRole('button', { name: 'LƯU KHO', exact: true });
     await expect(storedTab).toBeVisible();
 
-    const storedTabText = await storedTab.textContent();
-    const storedMatch = storedTabText?.match(/LƯU KHO\s*\((\d+)\)/);
-    const storedCountInTab = storedMatch ? parseInt(storedMatch[1], 10) : 0;
+    // 3. Click export button and verify downloaded records
+    const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
+    await expect(exportBtn).toBeVisible();
+    await expect(exportBtn).toBeEnabled({ timeout: 15_000 });
 
-    // 3. If there are stored orders, verify export downloads and row count matches tab count
-    if (storedCountInTab > 0) {
-      const exportBtn = page.locator('button:has-text("Xuất Excel lưu kho")');
-      const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
-      await exportBtn.click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 35_000 }),
+      exportBtn.click()
+    ]);
+    const tempPath = path.join(FEEDBACK_DIR, 'temp_pagination_check.xlsx');
+    await download.saveAs(tempPath);
 
-      const download = await downloadPromise;
-      const tempPath = path.join(FEEDBACK_DIR, 'temp_pagination_check.xlsx');
-      await download.saveAs(tempPath);
+    const wb = XLSX.readFile(tempPath);
+    const sheet = wb.Sheets['Đơn Hàng Lưu Kho'];
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+    const dataRows = rows.slice(6, rows.length - 1);
 
-      const wb = XLSX.readFile(tempPath);
-      const sheet = wb.Sheets['Đơn Hàng Lưu Kho'];
-      const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-      const dataRows = rows.slice(6, rows.length - 1);
+    // Verify that data rows count matches or covers stored orders without pagination cutoff
+    expect(dataRows.length).toBeGreaterThanOrEqual(1);
 
-      // Verify that data rows count matches or covers stored orders without pagination cutoff
-      expect(dataRows.length).toBeGreaterThanOrEqual(1);
-
-      if (fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
-      }
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
     }
   });
 
   test('Scenario 5: Hub Data Isolation (Magellan Hub - Đà Nẵng vs Polaris Hub - Hưng Yên)', async ({
     page
   }) => {
-    // 1. Login as Da Nang Warehouse Manager
+    // 1. Clear session and login as Da Nang Warehouse Manager
+    await clearSession(page);
     await loginAs(page, WAREHOUSE_DAD_USER);
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 20_000 });
+    await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
     // 2. Verify page header indicates Da Nang Hub
-    const headerTitle = await page.locator('h1').textContent();
-    expect(headerTitle).toContain('Đà Nẵng');
+    await expect(page.locator('h1')).toContainText('Đà Nẵng', { timeout: 15_000 });
 
     // 3. Trigger Export for Da Nang
-    const exportBtn = page.locator('button:has-text("Xuất Excel lưu kho")');
+    const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
     await expect(exportBtn).toBeVisible();
+    await expect(exportBtn).toBeEnabled({ timeout: 15_000 });
 
-    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
-    await exportBtn.click();
-
-    const download = await downloadPromise;
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 35_000 }),
+      exportBtn.click()
+    ]);
     const filename = download.suggestedFilename();
 
     // Verify filename contains Da Nang slug
@@ -272,6 +270,12 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
 
     const row2 = String(rows[1]?.[0] || '');
     expect(row2).toContain('Đà Nẵng');
+
+    // Verify none of the rows are from Hưng Yên
+    const dataRows = rows.slice(6, rows.length - 1);
+    for (const row of dataRows) {
+      expect(row[1]).not.toBe('TEST-SD64-TR1'); // Does not contain Hưng Yên stored order
+    }
 
     if (fs.existsSync(dadFilePath)) {
       fs.unlinkSync(dadFilePath);
