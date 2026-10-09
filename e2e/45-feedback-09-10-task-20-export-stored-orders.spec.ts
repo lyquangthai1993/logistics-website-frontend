@@ -265,6 +265,12 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await expect(page.locator('h1')).toContainText('Đà Nẵng', { timeout: 15_000 });
     await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
+    // 2b. Switch to LƯU KHO tab
+    const storedTab = page.getByRole('button', { name: /^LƯU KHO/i });
+    await expect(storedTab).toBeVisible();
+    await storedTab.click();
+    await page.waitForTimeout(1000);
+
     // 3. Trigger Export for Da Nang
     const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
     await expect(exportBtn).toBeVisible();
