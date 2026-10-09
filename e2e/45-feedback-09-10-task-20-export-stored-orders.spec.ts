@@ -31,8 +31,7 @@ import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
-const WAREHOUSE_HYN_USER =
-  TEST_USERS.find((u) => u.email === 'lyquangthai1993+4@gmail.com') ||
+const WAREHOUSE_HYN_USER = TEST_USERS.find((u) => u.email === 'lyquangthai1993+4@gmail.com') ||
   TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER') || {
     email: 'lyquangthai1993+4@gmail.com',
     password: 'secret',
@@ -74,6 +73,15 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     // 2. Navigate to Warehouse Orders Page
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
+
+    // Wait for user hub context to be fully hydrated in header
+    await expect(page.locator('h1')).toContainText('Polaris Hub', { timeout: 15_000 });
+
+    // Wait for initial order data to render in table and loading indicator to disappear
+    await expect(page.locator('text=Đang tải dữ liệu đơn hàng...')).not.toBeVisible({
+      timeout: 20_000
+    });
+    await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 20_000 });
 
     const pageHeader = page.locator('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")');
     await expect(pageHeader).toBeVisible();
@@ -203,9 +211,11 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await loginAs(page, WAREHOUSE_HYN_USER);
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
+    await expect(page.locator('h1')).toContainText('Polaris Hub', { timeout: 15_000 });
+    await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
     // 2. Locate stored orders tab: LƯU KHO
-    const storedTab = page.getByRole('button', { name: 'LƯU KHO', exact: true });
+    const storedTab = page.getByRole('button', { name: /^LƯU KHO/i });
     await expect(storedTab).toBeVisible();
 
     // 3. Click export button and verify downloaded records
@@ -244,6 +254,7 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
 
     // 2. Verify page header indicates Da Nang Hub
     await expect(page.locator('h1')).toContainText('Đà Nẵng', { timeout: 15_000 });
+    await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
     // 3. Trigger Export for Da Nang
     const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');

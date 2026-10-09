@@ -40,6 +40,7 @@ import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
+  const currentHubName = user?.hub?.name;
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -175,7 +176,10 @@ export default function WarehouseOrdersPage() {
               : Array.isArray(item.trips)
                 ? item.trips
                 : [];
-          const tripCodes = trips.map((t: any) => t.tripCode).filter(Boolean).join(', ');
+          const tripCodes = trips
+            .map((t: any) => t.tripCode)
+            .filter(Boolean)
+            .join(', ');
           const licensePlates = Array.from(
             new Set(
               [
@@ -313,7 +317,22 @@ export default function WarehouseOrdersPage() {
 
       const hubFileSlug = normalizeNoDiacritics(hubTitle);
       const fileName = `Bao_cao_don_hang_luu_kho_${hubFileSlug}_${dateStr}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+
+      // Xuất file tương thích đa nền tảng và kích hoạt sự kiện browser download
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      setTimeout(() => {
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(downloadUrl);
+      }, 1000);
 
       toast.dismiss(toastId);
       toast.success(`Đã xuất thành công báo cáo lưu kho (${totalOrdersCount} đơn hàng)!`);
@@ -423,7 +442,6 @@ export default function WarehouseOrdersPage() {
       </span>
     );
   };
-  const currentHubName = user?.hub?.name;
 
   /** Stock held at the viewer's hub (ledger) — falls back to remainingQuantity without hub scope. */
   const renderStock = (r: any) => {
@@ -591,7 +609,7 @@ export default function WarehouseOrdersPage() {
               variant='outline'
               size='sm'
               onClick={handleExportStoredOrdersExcel}
-              disabled={isExporting || isLoading}
+              disabled={isExporting}
               className='h-8 text-xs font-bold border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-400 dark:hover:bg-emerald-950/40 shadow-sm'
               title='Tải về file Excel danh sách tất cả các đơn hàng đang lưu kho để làm báo cáo'
               data-testid='export-stored-orders-excel-btn'
@@ -760,7 +778,7 @@ export default function WarehouseOrdersPage() {
                             </td>
                             <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
                               {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
-                                maximumFractionDigits: 3,
+                                maximumFractionDigits: 3
                               })}
                             </td>
                             <td
@@ -774,9 +792,7 @@ export default function WarehouseOrdersPage() {
                             <td className='py-1 px-1.5 text-center'>
                               {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
                             </td>
-                            <td className='py-1 px-1.5 text-center'>
-                              {renderOutboundDate(row)}
-                            </td>
+                            <td className='py-1 px-1.5 text-center'>{renderOutboundDate(row)}</td>
                             <td
                               className='py-1 px-1.5 text-center'
                               onClick={(e) => e.stopPropagation()}
@@ -842,7 +858,7 @@ export default function WarehouseOrdersPage() {
                                 </td>
                                 <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
                                   {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', {
-                                    maximumFractionDigits: 3,
+                                    maximumFractionDigits: 3
                                   })}
                                 </td>
                                 <td
@@ -864,9 +880,7 @@ export default function WarehouseOrdersPage() {
                                 <td className='py-1 px-1.5 text-center'>
                                   {renderWarehouseOrderStatusBadge(resolveDisplayStatus(m))}
                                 </td>
-                                <td className='py-1 px-1.5 text-center'>
-                                  {renderOutboundDate(m)}
-                                </td>
+                                <td className='py-1 px-1.5 text-center'>{renderOutboundDate(m)}</td>
                                 <td
                                   className='py-1 px-1.5 text-center'
                                   onClick={(e) => e.stopPropagation()}
