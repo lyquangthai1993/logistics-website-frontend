@@ -2,6 +2,21 @@ import type { NextConfig } from 'next';
 import path from 'path';
 import { withSentryConfig } from '@sentry/nextjs';
 
+// Fail-fast validation: Ensure API URL is provided when building for production
+if (process.env.NODE_ENV === 'production') {
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || '').trim();
+  if (!apiUrl) {
+    throw new Error(
+      '\n\n❌ [BUILD FAILED - MISSING ENVIRONMENT VARIABLE]\n' +
+      '   NEXT_PUBLIC_API_URL or API_URL must be explicitly provided for production builds!\n' +
+      '   Hardcoded fallbacks have been removed for safety.\n' +
+      '   Please set NEXT_PUBLIC_API_URL in your Railway environment variables:\n' +
+      '   - Dev:        NEXT_PUBLIC_API_URL=https://backend-tms-core-dev.up.railway.app\n' +
+      '   - Production: NEXT_PUBLIC_API_URL=https://backend-tms-core-production.up.railway.app\n'
+    );
+  }
+}
+
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
   outputFileTracingRoot: path.resolve(__dirname),

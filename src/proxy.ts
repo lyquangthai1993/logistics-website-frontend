@@ -49,16 +49,17 @@ function parseJwt(token: string) {
   }
 }
 
-const DEFAULT_API_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'https://logistics-website-backend-1.onrender.com'
-    : 'http://127.0.0.1:4001';
-
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.API_URL ||
-  DEFAULT_API_URL
+  (process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:4001' : '')
 ).replace(/\/+$/, '');
+
+if (process.env.NODE_ENV === 'production' && !API_BASE_URL) {
+  throw new Error(
+    '❌ [FATAL CONFIG ERROR] NEXT_PUBLIC_API_URL or API_URL environment variable is required in production! Hardcoded fallbacks are disabled.'
+  );
+}
 
 async function refreshAccessToken(
   refreshToken: string

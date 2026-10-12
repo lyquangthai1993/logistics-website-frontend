@@ -3,14 +3,19 @@
 import { useAuthStore, type User } from '@/stores/use-auth-store';
 import axios from 'axios';
 
-const DEFAULT_API_URL =
-  process.env.NODE_ENV === 'production' ? 'https://logistics-website-backend-1.onrender.com' : '';
-
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.API_URL ||
-  DEFAULT_API_URL
+  (process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:4001' : '')
 ).replace(/\/+$/, '');
+
+if (process.env.NODE_ENV === 'production' && !API_BASE_URL) {
+  if (typeof window !== 'undefined') {
+    console.error(
+      '❌ [FATAL CONFIG ERROR] NEXT_PUBLIC_API_URL is missing in production environment! Hardcoded fallbacks are disabled.'
+    );
+  }
+}
 
 const AUTH_CHANNEL_NAME = 'tms_auth_sync_channel';
 
