@@ -34,10 +34,14 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
     TEST_USERS[0];
 
   const FEEDBACK_DIR = path.resolve(__dirname, '../../feedback_12_10');
+  const TASK_33_DIR = path.resolve(__dirname, '../../feedback_12_10_task_33');
 
   test.beforeAll(async () => {
     if (!fs.existsSync(FEEDBACK_DIR)) {
       fs.mkdirSync(FEEDBACK_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(TASK_33_DIR)) {
+      fs.mkdirSync(TASK_33_DIR, { recursive: true });
     }
   });
 
@@ -48,21 +52,28 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
     console.log(`[TEST] Navigating to ${targetUrl}/auth/sign-in...`);
     await page.goto(`${targetUrl}/auth/sign-in`, { waitUntil: 'domcontentloaded' });
 
-    // Assert Left Visual Hero Banner is visible
+    // Assert Left Visual Hero Banner is visible with enhanced brightness classes
     const heroImage = page.locator('img[alt="Spider Express Logistics TMS"]').first();
     await expect(heroImage).toBeVisible({ timeout: 15_000 });
 
-    // Verify image source points to optimized WebP asset
+    // Verify image source points to optimized WebP asset and has lightened opacity (opacity-95)
     const imageSrc = await heroImage.getAttribute('src');
     expect(imageSrc).toBeTruthy();
     expect(imageSrc).toMatch(/auth-hero\.webp/i);
+    const imageClass = await heroImage.getAttribute('class');
+    expect(imageClass).toContain('opacity-95');
+
+    // Verify hero container and gradient overlay classes are lightened
+    const heroContainer = page.locator('.hidden.lg\\:flex').first();
+    const heroContainerClass = await heroContainer.getAttribute('class');
+    expect(heroContainerClass).toContain('bg-slate-900');
 
     // Verify Brand Identity texts
     await expect(page.locator('text=Spider Express').first()).toBeVisible();
     await expect(page.locator('text=Logistics TMS').first()).toBeVisible();
     await expect(page.locator('text=Anytime Anywhere').first()).toBeVisible();
 
-    // Verify Feature Card & System Description
+    // Verify Feature Card & System Description with glassmorphism
     await expect(page.locator('text=Hệ thống Quản trị Vận tải Số hóa').first()).toBeVisible();
 
     // Verify Right Form components
@@ -71,21 +82,23 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
     await expect(page.locator('input[name="password"]')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Đăng nhập' })).toBeVisible();
 
-    // Capture visual evidence screenshots into feedback_12_10/
+    // Capture visual evidence screenshots into feedback_12_10/ and feedback_12_10_task_33/
     const screenshot1 = path.join(FEEDBACK_DIR, 'screenshot_verified_login.png');
     const screenshot2 = path.join(FEEDBACK_DIR, 'screenshot_01_verified.png');
+    const screenshotTask33 = path.join(TASK_33_DIR, 'screenshot_01_verified.png');
     await page.screenshot({ path: screenshot1, fullPage: true });
     fs.copyFileSync(screenshot1, screenshot2);
-    console.log(`[EVIDENCE] Saved verified screenshot to ${screenshot1}`);
+    fs.copyFileSync(screenshot1, screenshotTask33);
+    console.log(`[EVIDENCE] Saved verified screenshot to ${screenshot1} and ${screenshotTask33}`);
   });
 
-  test('Scenario 2: Secondary Auth Views Brand Synchronization (Forgot Password)', async ({ page }) => {
+  test('Scenario 2: Secondary Auth Views Brand Synchronization (Forgot & Reset Password)', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
 
     const targetUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000';
     await page.goto(`${targetUrl}/auth/forgot-password`, { waitUntil: 'domcontentloaded' });
 
-    // Assert Left Visual Banner is present with synchronized branding
+    // Assert Left Visual Banner is present with synchronized branding on forgot password view
     const heroImage = page.locator('img[alt="Spider Express Logistics TMS"]').first();
     await expect(heroImage).toBeVisible({ timeout: 15_000 });
 
@@ -95,6 +108,12 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
     // Assert Form heading
     await expect(page.getByRole('heading', { name: 'Quên mật khẩu?' })).toBeVisible();
     await expect(page.locator('input[name="email"]')).toBeVisible();
+
+    // Also assert reset-password view brand alignment
+    await page.goto(`${targetUrl}/auth/reset-password`, { waitUntil: 'domcontentloaded' });
+    const resetHeroImage = page.locator('img[alt="Spider Express Logistics TMS"]').first();
+    await expect(resetHeroImage).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Đặt lại mật khẩu' })).toBeVisible();
   });
 
   test('Scenario 3: Mobile Viewport (390x844) Responsive & Zero Overflow', async ({ page }) => {

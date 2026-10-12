@@ -18,7 +18,7 @@ export function AuthHeroBanner({
   quoteFooter = AUTH_BRAND.platformFooter
 }: AuthHeroBannerProps) {
   return (
-    <div className='relative hidden h-full flex-col justify-between p-10 lg:flex dark:border-r bg-slate-950 text-white overflow-hidden select-none'>
+    <div className='relative hidden h-full flex-col justify-between p-10 lg:flex dark:border-r bg-slate-900 text-white overflow-hidden select-none'>
       {/* Background Image with Atmospheric Overlays */}
       <div className='absolute inset-0 z-0'>
         <Image
@@ -28,11 +28,11 @@ export function AuthHeroBanner({
           priority
           sizes='50vw'
           quality={85}
-          className='object-cover opacity-75 scale-100 transition-transform duration-700'
+          className='object-cover opacity-95 scale-100 transition-transform duration-700'
         />
-        {/* Gradients for text readability & tech atmosphere */}
-        <div className='absolute inset-0 bg-gradient-to-b from-slate-950/90 via-slate-950/50 to-slate-950/95' />
-        <div className='absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/40 to-transparent' />
+        {/* Gradients for text readability & tech atmosphere - lightened for visual clarity */}
+        <div className='absolute inset-0 bg-gradient-to-b from-slate-950/50 via-slate-950/15 to-slate-950/70' />
+        <div className='absolute inset-0 bg-gradient-to-r from-slate-950/30 via-transparent to-transparent' />
       </div>
 
       {/* Top Brand Logo */}
@@ -57,20 +57,20 @@ export function AuthHeroBanner({
 
       {/* Center Floating Tech Badge */}
       <div className='relative z-20 my-auto flex flex-col items-start'>
-        <div className='max-w-md rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/15 backdrop-blur-xl shadow-2xl space-y-2'>
+        <div className='max-w-md rounded-2xl bg-slate-900/40 p-5 ring-1 ring-white/25 backdrop-blur-md shadow-2xl space-y-2'>
           <div className='flex items-center gap-2 text-xs font-semibold text-cyan-300'>
             <span className='h-2 w-2 rounded-full bg-emerald-400 animate-ping' />
             <span>{cardTitle}</span>
           </div>
-          <p className='text-sm text-slate-200 leading-relaxed'>{cardDescription}</p>
+          <p className='text-sm text-slate-100 leading-relaxed drop-shadow-sm'>{cardDescription}</p>
         </div>
       </div>
 
       {/* Bottom Testimonial / System Info */}
       <div className='relative z-20 mt-auto'>
-        <blockquote className='space-y-2 rounded-xl bg-slate-950/60 p-4 ring-1 ring-white/10 backdrop-blur-md'>
-          <p className='text-sm text-slate-200 italic'>&ldquo;{quoteText}&rdquo;</p>
-          <footer className='text-xs font-medium text-slate-400'>{quoteFooter}</footer>
+        <blockquote className='space-y-2 rounded-xl bg-slate-900/40 p-4 ring-1 ring-white/20 backdrop-blur-md'>
+          <p className='text-sm text-slate-100 italic drop-shadow-sm'>&ldquo;{quoteText}&rdquo;</p>
+          <footer className='text-xs font-medium text-slate-300'>{quoteFooter}</footer>
         </blockquote>
       </div>
     </div>

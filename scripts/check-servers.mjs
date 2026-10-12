@@ -3,8 +3,8 @@ import http from 'node:http';
 /**
  * Pre-flight server check for Playwright E2E tests
  * Verifies that:
- * 1. Next.js Frontend is running on http://localhost:3000
- * 2. NestJS Backend is running on http://localhost:3001
+ * 1. Next.js Frontend is running on http://localhost:4000
+ * 2. NestJS Backend is running on http://localhost:4001
  */
 
 async function checkUrl(url, timeoutMs = 3000) {
