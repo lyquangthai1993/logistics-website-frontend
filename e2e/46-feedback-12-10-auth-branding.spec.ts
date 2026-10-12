@@ -120,6 +120,7 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
   });
 
   test('Scenario 4: Real Database Authentication Flow & Redirection', async ({ page }) => {
+    test.setTimeout(60_000);
     await clearSession(page);
     await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -137,10 +138,16 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
     await emailInput.fill(adminUser.email);
     await passwordInput.fill(adminUser.password);
 
-    await submitBtn.click();
+    // Track API login request/response to eliminate race conditions
+    const authResponsePromise = page.waitForResponse(
+      (res) => res.url().includes('/api/v1/auth/email/login') && res.status() === 200,
+      { timeout: 30_000 }
+    );
+
+    await Promise.all([authResponsePromise, submitBtn.click()]);
 
     // Wait for successful redirection to dashboard
-    await page.waitForURL(/\/dashboard/, { timeout: 35_000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
     expect(page.url()).toContain('/dashboard');
     console.log(`[AUTH] Successfully authenticated as ${adminUser.email} and redirected to ${page.url()}`);
   });

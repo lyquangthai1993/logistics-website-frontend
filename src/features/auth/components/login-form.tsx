@@ -25,6 +25,7 @@ export function LoginForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    e.stopPropagation();
     setIsLoading(true);
     setError(null);
 
@@ -102,6 +103,7 @@ export function LoginForm() {
   return (
     <div className='w-full space-y-4'>
       <form
+        method='post'
         action='javascript:void(0);'
         onSubmit={onSubmit}
         className='w-full space-y-4'
