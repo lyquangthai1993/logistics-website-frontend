@@ -99,11 +99,13 @@ export function BrandLogoIcon({ className, size = 24, glow = false, ...props }: 
 export function BrandLogo({
   className,
   showBadge = true,
-  subtitle = 'Transport Management',
+  title = 'Spider Express',
+  subtitle = 'Logistics TMS',
   iconSize = 32
 }: {
   className?: string;
   showBadge?: boolean;
+  title?: string;
   subtitle?: string;
   iconSize?: number;
 }) {
@@ -115,7 +117,7 @@ export function BrandLogo({
       <div className='flex flex-col text-left'>
         <div className='flex items-center gap-2'>
           <span className='font-bold tracking-tight text-foreground text-lg leading-none'>
-            Logistics TMS
+            {title}
           </span>
           {showBadge && (
             <span className='rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-500 ring-1 ring-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30'>

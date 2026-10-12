@@ -28,8 +28,8 @@ export function CompanyBranding() {
                 : 'visible max-w-full opacity-100'
             }`}
           >
-            <span className='truncate font-medium'>Logistics TMS</span>
-            <span className='text-muted-foreground truncate text-xs'>Transport Management</span>
+            <span className='truncate font-semibold'>Spider Express</span>
+            <span className='text-muted-foreground truncate text-xs'>Logistics TMS</span>
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>
