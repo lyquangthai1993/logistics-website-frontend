@@ -24,7 +24,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { TEST_USERS } from './helpers/auth';
+import { TEST_USERS, clearSession } from './helpers/auth';
 import path from 'path';
 import fs from 'fs';
 
@@ -120,15 +120,24 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
   });
 
   test('Scenario 4: Real Database Authentication Flow & Redirection', async ({ page }) => {
+    await clearSession(page);
     await page.setViewportSize({ width: 1440, height: 900 });
 
     const targetUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000';
     await page.goto(`${targetUrl}/auth/sign-in`, { waitUntil: 'domcontentloaded' });
 
-    await page.locator('input[name="email"]').fill(adminUser.email);
-    await page.locator('input[name="password"]').fill(adminUser.password);
+    // Ensure form is hydrated and interactive
+    const emailInput = page.locator('input[name="email"]');
+    const passwordInput = page.locator('input[name="password"]');
+    const submitBtn = page.getByRole('button', { name: 'Đăng nhập' });
 
-    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+    await expect(emailInput).toBeVisible({ timeout: 15_000 });
+    await expect(submitBtn).toBeEnabled({ timeout: 15_000 });
+
+    await emailInput.fill(adminUser.email);
+    await passwordInput.fill(adminUser.password);
+
+    await submitBtn.click();
 
     // Wait for successful redirection to dashboard
     await page.waitForURL(/\/dashboard/, { timeout: 35_000 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,11 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -96,7 +101,12 @@ export function LoginForm() {
 
   return (
     <div className='w-full space-y-4'>
-      <form onSubmit={onSubmit} className='w-full space-y-4'>
+      <form
+        action='javascript:void(0);'
+        onSubmit={onSubmit}
+        className='w-full space-y-4'
+        data-hydrated={mounted ? 'true' : 'false'}
+      >
         <div className='space-y-2'>
           <Label htmlFor='email'>Email hoặc Tên đăng nhập</Label>
           <Input
@@ -106,7 +116,7 @@ export function LoginForm() {
             placeholder='Nhập email hoặc tên đăng nhập...'
             required
             autoComplete='username'
-            disabled={isLoading}
+            disabled={isLoading || !mounted}
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
@@ -124,7 +134,7 @@ export function LoginForm() {
               placeholder='••••••••'
               required
               autoComplete='current-password'
-              disabled={isLoading}
+              disabled={isLoading || !mounted}
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
@@ -158,7 +168,12 @@ export function LoginForm() {
             </Link>
           </div>
         </div>
-        <Button type='submit' className='w-full' disabled={isLoading}>
+        <Button
+          type='submit'
+          className='w-full'
+          disabled={isLoading || !mounted}
+          data-testid='login-submit-btn'
+        >
           {isLoading && <Icons.spinner className='mr-2 h-4 w-4 animate-spin' />}
           Đăng nhập
         </Button>
