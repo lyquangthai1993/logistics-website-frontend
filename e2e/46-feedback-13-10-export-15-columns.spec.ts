@@ -93,10 +93,10 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
     expect(fs.existsSync(screenshot01Path)).toBeTruthy();
 
     // 3. Switch to LƯU KHO tab
-    const storedTabBtn = page.getByRole('button', { name: /^LƯU KHO/i });
+    const storedTabBtn = page.locator('button[data-testid="warehouse-tab-inbound"]');
     if (await storedTabBtn.isVisible()) {
       await storedTabBtn.click();
-      await page.waitForTimeout(600);
+      await expect(page.locator('button[data-testid="export-stored-orders-excel-btn"]')).toContainText('Xuất Excel lưu kho', { timeout: 10_000 });
     }
 
     // 4. Click Export Excel button
@@ -183,10 +183,10 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
     // Switch to ĐÃ XUẤT KHO tab
-    const dispatchedTabBtn = page.getByRole('button', { name: /^ĐÃ XUẤT KHO/i });
+    const dispatchedTabBtn = page.locator('button[data-testid="warehouse-tab-completed_inbound"]');
     await expect(dispatchedTabBtn).toBeVisible({ timeout: 15_000 });
     await dispatchedTabBtn.click();
-    await page.waitForTimeout(600);
+    await expect(page.locator('button[data-testid="export-stored-orders-excel-btn"]')).toContainText('Xuất Excel đã xuất', { timeout: 10_000 });
 
     const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
     await expect(exportBtn).toBeVisible();
@@ -238,10 +238,10 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
     // Switch to TẤT CẢ tab
-    const allTabBtn = page.getByRole('button', { name: /^TẤT CẢ/i });
+    const allTabBtn = page.locator('button[data-testid="warehouse-tab-all"]');
     await expect(allTabBtn).toBeVisible({ timeout: 15_000 });
     await allTabBtn.click();
-    await page.waitForTimeout(600);
+    await expect(page.locator('button[data-testid="export-stored-orders-excel-btn"]')).toContainText('Xuất Excel tất cả', { timeout: 10_000 });
 
     const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');
     const [download] = await Promise.all([

@@ -799,6 +799,7 @@ export default function WarehouseOrdersPage() {
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
                   <button
                     key={tab}
+                    data-testid={`warehouse-tab-${tab.toLowerCase()}`}
                     onClick={() => {
                       setStatusFilter(tab);
                       setPage(1);
