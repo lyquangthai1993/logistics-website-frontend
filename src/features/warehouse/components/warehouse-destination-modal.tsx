@@ -231,10 +231,20 @@ export function WarehouseDestinationModal({
                       return (
                         <div
                           key={hub.id}
+                          role="button"
+                          tabIndex={disabled ? -1 : 0}
                           onClick={() => {
                             if (disabled) return;
                             onSelect(hub);
                             onClose();
+                          }}
+                          onKeyDown={(e) => {
+                            if (disabled) return;
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSelect(hub);
+                              onClose();
+                            }
                           }}
                           className={cn(
                             'p-2 rounded-md border text-left transition-all space-y-1 bg-white dark:bg-slate-900',
@@ -295,10 +305,20 @@ export function WarehouseDestinationModal({
                       return (
                         <div
                           key={hub.id}
+                          role="button"
+                          tabIndex={disabled ? -1 : 0}
                           onClick={() => {
                             if (disabled) return;
                             onSelect(hub);
                             onClose();
+                          }}
+                          onKeyDown={(e) => {
+                            if (disabled) return;
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSelect(hub);
+                              onClose();
+                            }
                           }}
                           className={cn(
                             'p-2 rounded-md border text-left transition-all space-y-1 bg-white dark:bg-slate-900',
