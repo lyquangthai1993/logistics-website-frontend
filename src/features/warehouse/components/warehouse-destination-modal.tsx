@@ -13,6 +13,7 @@ import {
   IconX,
   IconMapPin,
   IconArrowBackUp,
+  IconLock,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import type { HubOption } from './warehouse-editable-grid';
@@ -26,6 +27,7 @@ export interface WarehouseDestinationModalProps {
   orderCode?: string;
   originalAddress?: string;
   currentAddress?: string;
+  disabled?: boolean;
   level1Hubs: HubOption[];
   level2XeBoHubs: HubOption[];
 }
@@ -39,6 +41,7 @@ export function WarehouseDestinationModal({
   orderCode,
   originalAddress,
   currentAddress,
+  disabled = false,
   level1Hubs = [],
   level2XeBoHubs = [],
 }: WarehouseDestinationModalProps) {
@@ -184,6 +187,15 @@ export function WarehouseDestinationModal({
           </div>
         </div>
 
+        {disabled && (
+          <div className="flex items-center gap-1.5 p-1.5 mx-2 mt-1.5 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-[10px]">
+            <IconLock className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <span>
+              <strong>Đã khóa thao tác:</strong> Chuyến xe này đã hoàn tất tác nghiệp tại kho. Thao tác điều chuyển đích đến đã bị khóa (chỉ xem).
+            </span>
+          </div>
+        )}
+
         {/* Modal Scrollable Body */}
         <div className="p-2.5 max-h-[60vh] overflow-y-auto space-y-3 bg-slate-50/50 dark:bg-slate-900/40">
           {totalResults === 0 ? (
@@ -220,11 +232,13 @@ export function WarehouseDestinationModal({
                         <div
                           key={hub.id}
                           onClick={() => {
+                            if (disabled) return;
                             onSelect(hub);
                             onClose();
                           }}
                           className={cn(
-                            'p-2 rounded-md border text-left cursor-pointer transition-all space-y-1 bg-white dark:bg-slate-900',
+                            'p-2 rounded-md border text-left transition-all space-y-1 bg-white dark:bg-slate-900',
+                            disabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer',
                             isSelected
                               ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/40 ring-1 ring-blue-500 shadow-xs'
                               : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-slate-800/80'
@@ -282,11 +296,13 @@ export function WarehouseDestinationModal({
                         <div
                           key={hub.id}
                           onClick={() => {
+                            if (disabled) return;
                             onSelect(hub);
                             onClose();
                           }}
                           className={cn(
-                            'p-2 rounded-md border text-left cursor-pointer transition-all space-y-1 bg-white dark:bg-slate-900',
+                            'p-2 rounded-md border text-left transition-all space-y-1 bg-white dark:bg-slate-900',
+                            disabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer',
                             isSelected
                               ? 'border-purple-600 bg-purple-50/80 dark:bg-purple-950/40 ring-1 ring-purple-500 shadow-xs'
                               : 'border-slate-200 dark:border-slate-800 hover:border-purple-400 hover:bg-purple-50/40 dark:hover:bg-slate-800/80'
@@ -331,6 +347,7 @@ export function WarehouseDestinationModal({
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={disabled}
                 onClick={() => {
                   onResetToOriginal();
                   onClose();

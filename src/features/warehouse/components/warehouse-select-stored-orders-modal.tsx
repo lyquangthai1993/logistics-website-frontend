@@ -17,6 +17,7 @@ import {
   IconTruckLoading,
   IconBuildingWarehouse,
   IconX,
+  IconLock,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
@@ -33,6 +34,7 @@ interface WarehouseSelectStoredOrdersModalProps {
   licensePlate: string;
   hubId?: number | string | null;
   downstreamHubs?: Array<{ id: number; name: string }>;
+  disabled?: boolean;
   onSuccess?: () => void;
 }
 
@@ -43,6 +45,7 @@ export function WarehouseSelectStoredOrdersModal({
   licensePlate,
   hubId: propHubId,
   downstreamHubs: initialDownstreamHubs,
+  disabled = false,
   onSuccess,
 }: WarehouseSelectStoredOrdersModalProps) {
   const user = useAuthStore((state) => state.user);
@@ -156,6 +159,11 @@ export function WarehouseSelectStoredOrdersModal({
   }, [rawOrders, selectedOrderIds]);
 
   const handleSubmit = async () => {
+    if (disabled) {
+      toast.error('Chuyến xe đã hoàn tất tác nghiệp tại trạm này. Thao tác bốc hàng lưu kho bị khóa.');
+      return;
+    }
+
     if (selectedOrderIds.length === 0) {
       toast.error('Vui lòng chọn ít nhất 1 đơn hàng lưu kho để xuất lên xe');
       return;
@@ -194,6 +202,15 @@ export function WarehouseSelectStoredOrdersModal({
             Xe: <span className='font-bold text-slate-700 dark:text-slate-300'>{licensePlate}</span> • Chuyến: <span className='font-mono font-bold text-blue-600'>{tripCode}</span> • Kho xuất: <span className='font-bold text-slate-700 dark:text-slate-300'>{currentHubName}</span>
           </p>
         </DialogHeader>
+
+        {disabled && (
+          <div className='flex items-center gap-1.5 p-1.5 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-[10px]'>
+            <IconLock className='h-3.5 w-3.5 shrink-0 text-amber-600' />
+            <span>
+              <strong>Đã khóa thao tác:</strong> Chuyến xe này đã hoàn tất tác nghiệp tại kho. Thao tác chọn xuất đơn lưu kho bị vô hiệu hóa.
+            </span>
+          </div>
+        )}
 
         {/* Toolbar: Live Search, Destination Filter & Quick Actions */}
         <div className='flex flex-wrap items-center justify-between gap-1.5 px-0.5'>
@@ -242,6 +259,7 @@ export function WarehouseSelectStoredOrdersModal({
                   type='button'
                   variant='outline'
                   size='sm'
+                  disabled={disabled}
                   onClick={handleSelectAllFiltered}
                   className='h-7 text-[10px] px-2'
                 >
@@ -252,6 +270,7 @@ export function WarehouseSelectStoredOrdersModal({
                     type='button'
                     variant='ghost'
                     size='sm'
+                    disabled={disabled}
                     onClick={handleClearSelection}
                     className='h-7 text-[10px] px-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   >
@@ -276,7 +295,7 @@ export function WarehouseSelectStoredOrdersModal({
                   <Checkbox
                     checked={allFilteredSelected}
                     onCheckedChange={handleToggleSelectAll}
-                    disabled={filteredOrders.length === 0}
+                    disabled={disabled || filteredOrders.length === 0}
                     className='h-3.5 w-3.5'
                   />
                 </th>
@@ -326,11 +345,15 @@ export function WarehouseSelectStoredOrdersModal({
                   return (
                     <tr
                       key={o.id}
-                      onClick={() => handleToggleOrder(o.id)}
-                      className={`cursor-pointer transition-colors ${
+                      onClick={() => !disabled && handleToggleOrder(o.id)}
+                      className={`transition-colors ${
+                        disabled
+                          ? 'opacity-70 cursor-not-allowed'
+                          : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      } ${
                         isChecked
-                          ? 'bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-50 dark:hover:bg-blue-950/50'
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                          ? 'bg-blue-50/60 dark:bg-blue-950/30'
+                          : ''
                       }`}
                     >
                       <td
@@ -339,7 +362,8 @@ export function WarehouseSelectStoredOrdersModal({
                       >
                         <Checkbox
                           checked={isChecked}
-                          onCheckedChange={() => handleToggleOrder(o.id)}
+                          onCheckedChange={() => !disabled && handleToggleOrder(o.id)}
+                          disabled={disabled}
                           className='h-3.5 w-3.5'
                         />
                       </td>
@@ -413,7 +437,7 @@ export function WarehouseSelectStoredOrdersModal({
               type='button'
               size='sm'
               onClick={handleSubmit}
-              disabled={selectedOrderIds.length === 0 || isSubmitting}
+              disabled={disabled || selectedOrderIds.length === 0 || isSubmitting}
               className='h-7.5 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
             >
               {isSubmitting ? (

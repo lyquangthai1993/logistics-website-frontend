@@ -69,6 +69,11 @@ export interface TripManifest {
   stops: TripStop[];
   currentHubId: number | null;
   currentHubStatus: TripStopStatus | null;
+  isCurrentHubCompleted?: boolean;
+  canModifyOrders?: boolean;
+  canAddOrders?: boolean;
+  isReadOnlyForHub?: boolean;
+  userRole?: string;
   lines: TripManifestLine[];
 }
 

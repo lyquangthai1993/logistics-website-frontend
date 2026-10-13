@@ -107,6 +107,24 @@ export function WarehouseTripDetailModal({
     error: manifestError,
   } = useTripManifestQuery(manifestTripCode, isOpen);
 
+  // 1. Kiểm tra vai trò Quản trị viên
+  const isAdmin =
+    user?.role === 'SUPER_ADMIN' ||
+    (user?.role as any)?.id === 1 ||
+    (user?.role as any)?.name === 'SUPER_ADMIN' ||
+    manifest?.userRole === 'SUPER_ADMIN';
+
+  // 2. Kiểm tra trạng thái xử lý của Hub hiện tại
+  const isCurrentHubCompleted =
+    manifest?.currentHubStatus === 'COMPLETED' ||
+    manifest?.isCurrentHubCompleted === true;
+
+  // 3. Cờ khóa toàn bộ quyền của tài khoản thuộc Hub đã xử lý
+  const isHubAccountLocked = isCurrentHubCompleted && !isAdmin;
+
+  // 4. Quyền chỉnh sửa thông tin đơn hàng (Chỉ mở khi trạm chưa xong HOẶC là Admin)
+  const canEditOrderInfo = !isCurrentHubCompleted || isAdmin;
+
   /**
    * Tally mode: the trip carries at least one locked Master Contract (cargo coming from another hub
    * or already submitted). Contract columns become read-only and the operator records actual quantities.
@@ -314,9 +332,12 @@ export function WarehouseTripDetailModal({
     if (readOnly) return true;
     if (!tripGroup) return true;
 
+    // Khi trạm dừng tại kho này đã COMPLETED và tài khoản không phải Admin:
+    if (isHubAccountLocked) return true;
+
     if (isTallyMode && manifest) {
       if (!manifest.currentHubId) return true;
-      if (manifest.currentHubStatus === 'COMPLETED') return true;
+      if (manifest.currentHubStatus === 'COMPLETED' && !isAdmin) return true;
       return !manifest.lines.some((l) => !l.isReceivedHere);
     }
 
@@ -339,7 +360,7 @@ export function WarehouseTripDetailModal({
     ].includes(tripGroup.status?.toUpperCase());
 
     return !hasWaiting || isStoredOrFinalized;
-  }, [readOnly, tripGroup, isTallyMode, manifest]);
+  }, [readOnly, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
 
   const [receiveDate, setReceiveDate] = useState<string>(
     () => new Date().toISOString().split('T')[0]
@@ -1000,7 +1021,23 @@ export function WarehouseTripDetailModal({
 
         {/* Scrollable Body Content */}
         <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
-          {effectiveReadOnly && currentStep === 1 && (
+          {isHubAccountLocked && (
+            <div className='bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-[10px] px-2.5 py-1.5 rounded flex items-start gap-1.5 border border-amber-300 dark:border-amber-800'>
+              <IconCircleCheck className='h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
+              <span>
+                <strong>🔒 Chuyến xe đã hoàn tất tác nghiệp tại kho này.</strong> Toàn bộ thông tin đơn hàng đã được chốt sổ cái và khóa chỉnh sửa đối với tài khoản chi nhánh. Vui lòng liên hệ Quản trị viên hệ thống (Admin) nếu có yêu cầu điều chỉnh ngoại lệ.
+              </span>
+            </div>
+          )}
+
+          {isAdmin && isCurrentHubCompleted && (
+            <div className='bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 text-[10px] px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-blue-300 dark:border-blue-800'>
+              <span className='font-bold'>🛡️ Chế độ Quản trị viên:</span>
+              <span>Chuyến xe đã xử lý tại trạm này. Bạn có đặc quyền chỉnh sửa thông tin đơn hàng trong chuyến xe.</span>
+            </div>
+          )}
+
+          {!isHubAccountLocked && !(isAdmin && isCurrentHubCompleted) && effectiveReadOnly && currentStep === 1 && (
             <div className='bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] px-2.5 py-1 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700'>
               <IconCircleCheck className='h-3.5 w-3.5 text-emerald-500 shrink-0' />
               {isTallyMode ? (
@@ -1067,7 +1104,7 @@ export function WarehouseTripDetailModal({
                     type='date'
                     value={receiveDate}
                     onChange={(e) => setReceiveDate(e.target.value)}
-                    disabled={effectiveReadOnly && currentStep === 1}
+                    disabled={(effectiveReadOnly && currentStep === 1) || isHubAccountLocked}
                     className='h-7 pl-8 text-xs font-medium border-slate-300 bg-slate-50 dark:bg-slate-800'
                   />
                 </div>
@@ -1084,7 +1121,7 @@ export function WarehouseTripDetailModal({
                     value={licensePlate}
                     onChange={(e) => setLicensePlate(e.target.value)}
                     placeholder='VD: 29C-123.45'
-                    disabled={effectiveReadOnly && currentStep === 1}
+                    disabled={(effectiveReadOnly && currentStep === 1) || isHubAccountLocked}
                     className='h-7 pl-8 text-xs font-bold uppercase border-slate-300 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white'
                   />
                 </div>
@@ -1101,7 +1138,7 @@ export function WarehouseTripDetailModal({
                     value={driverName}
                     onChange={(e) => setDriverName(e.target.value)}
                     placeholder='VD: Nguyễn Văn A'
-                    disabled={effectiveReadOnly && currentStep === 1}
+                    disabled={(effectiveReadOnly && currentStep === 1) || isHubAccountLocked}
                     className='h-7 pl-8 text-xs font-medium border-slate-300 bg-slate-50 dark:bg-slate-800'
                   />
                 </div>
@@ -1131,7 +1168,7 @@ export function WarehouseTripDetailModal({
                       dòng hàng
                     </span>
                     {/* Nút duy nhất bốc thêm đơn dọc đường về Hub */}
-                    {isManifestTripCode(tripGroup?.tripCode) && (
+                    {isManifestTripCode(tripGroup?.tripCode) && !isHubAccountLocked && (
                       <Button
                         type='button'
                         variant='outline'
@@ -1143,8 +1180,15 @@ export function WarehouseTripDetailModal({
                         className='h-6 px-2 text-[10px] text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950 font-bold'
                         title='Tài xế bốc thêm hàng ngoài đường chở về dỡ tại kho hiện tại'
                       >
-                        <IconPlus className='h-3 w-3 mr-1' /> Bốc thêm đơn dọc
-                        đường về Hub
+                        {isAdmin && isCurrentHubCompleted && (
+                          <Badge
+                            variant='outline'
+                            className='text-[9px] mr-1 bg-amber-100 text-amber-900 border-amber-300 px-1 py-0 h-3.5'
+                          >
+                            Admin
+                          </Badge>
+                        )}
+                        <IconPlus className='h-3 w-3 mr-1' /> Bốc thêm đơn dọc đường về Hub
                       </Button>
                     )}
                   </div>
@@ -1297,15 +1341,25 @@ export function WarehouseTripDetailModal({
 
                   <div className='flex items-center gap-2'>
                     {/* Nút thêm đơn xuất từ kho lên xe */}
-                    <Button
-                      type='button'
-                      size='sm'
-                      onClick={() => setIsSelectStoredModalOpen(true)}
-                      className='h-6 px-2 text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold'
-                      title='Chọn các đơn hàng lưu kho sẵn có để bốc lên xe đi trạm kế tiếp'
-                    >
-                      <IconPlus className='h-3 w-3 mr-1' /> Thêm đơn xuất từ kho lên xe
-                    </Button>
+                    {!isHubAccountLocked && (
+                      <Button
+                        type='button'
+                        size='sm'
+                        onClick={() => setIsSelectStoredModalOpen(true)}
+                        className='h-6 px-2 text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold'
+                        title='Chọn các đơn hàng lưu kho sẵn có để bốc lên xe đi trạm kế tiếp'
+                      >
+                        {isAdmin && isCurrentHubCompleted && (
+                          <Badge
+                            variant='outline'
+                            className='text-[9px] mr-1 bg-amber-100 text-amber-900 border-amber-300 px-1 py-0 h-3.5'
+                          >
+                            Admin
+                          </Badge>
+                        )}
+                        <IconPlus className='h-3 w-3 mr-1' /> Thêm đơn xuất từ kho lên xe
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -1421,6 +1475,36 @@ export function WarehouseTripDetailModal({
                                         : l.destinationHubId || l.destinationHubEntity?.level === 1
                                           ? 'HUB_L1'
                                           : 'DIRECT_CUSTOMER');
+
+                                    if (isHubAccountLocked) {
+                                      return (
+                                        <div className='text-[10px] py-0.5 space-y-0.5'>
+                                          <div className='flex items-center gap-1'>
+                                            {effectiveMode === 'HUB_L1' && (
+                                              <Badge className='bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
+                                                Hub Cấp 1
+                                              </Badge>
+                                            )}
+                                            {effectiveMode === 'XE_BO' && (
+                                              <Badge className='bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
+                                                Tuyến Xe Bo
+                                              </Badge>
+                                            )}
+                                            {effectiveMode === 'DIRECT_CUSTOMER' && (
+                                              <Badge variant='outline' className='text-slate-600 text-[9px] px-1 py-0 h-4'>
+                                                Giao khách
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <div
+                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
+                                            title={l.destinationHub || l.deliveryAddress || l.originalDeliveryAddress}
+                                          >
+                                            {l.destinationHub || l.deliveryAddress || l.originalDeliveryAddress || 'Chưa xác định'}
+                                          </div>
+                                        </div>
+                                      );
+                                    }
 
                                     if (effectiveMode === 'HUB_L1') {
                                       return (
@@ -1709,21 +1793,25 @@ export function WarehouseTripDetailModal({
                       onClick={() => setCurrentStep(2)}
                       className='h-7 bg-blue-600 hover:bg-blue-700 text-white px-2.5 font-bold shadow-xs text-xs'
                     >
-                      <IconArrowRight className='mr-1 h-3.5 w-3.5' /> Tiếp theo: Xuất
-                      hàng mới vào trip
+                      <IconArrowRight className='mr-1 h-3.5 w-3.5' />{' '}
+                      {isHubAccountLocked
+                        ? 'Xem hàng xuất tiếp trên xe'
+                        : 'Tiếp theo: Xuất hàng mới vào trip'}
                     </Button>
 
                     {/* Skip option */}
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      onClick={handleSkipAndFinish}
-                      className='h-7 text-xs font-semibold border-slate-300 text-slate-600 hover:text-slate-900'
-                      title='Hoàn tất trạm và cho xe tiếp tục hành trình mà không xuất thêm hàng'
-                    >
-                      Bỏ qua xuất mới & Hoàn tất
-                    </Button>
+                    {!isHubAccountLocked && (
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        onClick={handleSkipAndFinish}
+                        className='h-7 text-xs font-semibold border-slate-300 text-slate-600 hover:text-slate-900'
+                        title='Hoàn tất trạm và cho xe tiếp tục hành trình mà không xuất thêm hàng'
+                      >
+                        Bỏ qua xuất mới & Hoàn tất
+                      </Button>
+                    )}
                   </>
                 )}
               </>
@@ -1740,24 +1828,38 @@ export function WarehouseTripDetailModal({
                   <IconArrowLeft className='mr-1 h-3.5 w-3.5' /> Quay lại Bước 1
                 </Button>
 
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='sm'
-                  onClick={handleSkipOutboundAndFinish}
-                  className='h-7 text-xs text-slate-600 hover:text-slate-900'
-                >
-                  Bỏ qua bước này (Không xuất thêm)
-                </Button>
+                {isHubAccountLocked ? (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={onClose}
+                    className='h-7 text-xs font-semibold border-slate-300'
+                  >
+                    Đóng
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      onClick={handleSkipOutboundAndFinish}
+                      className='h-7 text-xs text-slate-600 hover:text-slate-900'
+                    >
+                      Bỏ qua bước này (Không xuất thêm)
+                    </Button>
 
-                <Button
-                  type='button'
-                  onClick={handleConfirmOutboundStep}
-                  className='h-7 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
-                >
-                  <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-blue-400' />{' '}
-                  Xác nhận xuất hàng lên trip
-                </Button>
+                    <Button
+                      type='button'
+                      onClick={handleConfirmOutboundStep}
+                      className='h-7 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
+                    >
+                      <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-blue-400' />{' '}
+                      Xác nhận xuất hàng lên trip
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1771,6 +1873,7 @@ export function WarehouseTripDetailModal({
             tripCode={tripGroup.tripCode}
             licensePlate={licensePlate || tripGroup.licensePlate}
             mode={appendModalMode}
+            disabled={isHubAccountLocked}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
               name: s.hubName,
@@ -1798,6 +1901,7 @@ export function WarehouseTripDetailModal({
             tripCode={tripGroup.tripCode}
             licensePlate={licensePlate || tripGroup.licensePlate}
             hubId={manifest?.currentHubId || user?.hubId || user?.hub?.id}
+            disabled={isHubAccountLocked}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
               name: s.hubName,
@@ -1827,6 +1931,7 @@ export function WarehouseTripDetailModal({
         <WarehouseDestinationModal
           isOpen={!!selectedOrderForDestModal}
           onClose={() => setSelectedOrderForDestModal(null)}
+          disabled={!canEditOrderInfo}
           onSelect={handleSelectDestination}
           onResetToOriginal={handleResetToOriginal}
           selectedHubId={selectedOrderForDestModal?.destinationHubId}

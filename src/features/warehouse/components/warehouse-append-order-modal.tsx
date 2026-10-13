@@ -31,6 +31,7 @@ interface WarehouseAppendOrderModalProps {
   licensePlate: string;
   mode?: AppendOrderModalMode;
   downstreamHubs?: Array<{ id: number; name: string }>;
+  disabled?: boolean;
   onSuccess?: () => void;
 }
 
@@ -39,6 +40,7 @@ export function WarehouseAppendOrderModal({
   onClose,
   tripCode,
   licensePlate,
+  disabled = false,
   onSuccess,
 }: WarehouseAppendOrderModalProps) {
   const user = useAuthStore((state) => state.user);
@@ -76,6 +78,13 @@ export function WarehouseAppendOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (disabled) {
+      toast.error(
+        'Chuyến xe đã ở trạng thái Đã xử lý tại kho này. Bạn không có quyền bốc thêm đơn hàng.'
+      );
+      return;
+    }
 
     if (!pickupAddress.trim()) {
       toast.error('Vui lòng nhập địa chỉ bốc hàng dọc đường');
@@ -155,6 +164,11 @@ export function WarehouseAppendOrderModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className='space-y-2 text-xs py-0.5'>
+          {disabled && (
+            <div className='p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded text-amber-800 dark:text-amber-200 text-xs'>
+              🔒 Chuyến xe đã ở trạng thái <strong>Đã xử lý</strong> tại kho này. Bạn không có quyền bốc thêm đơn hàng.
+            </div>
+          )}
           {/* Lộ trình bốc hàng */}
           <div className='p-2 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-2'>
             <div className='flex-1'>
@@ -331,7 +345,7 @@ export function WarehouseAppendOrderModal({
             <Button
               type='submit'
               size='sm'
-              disabled={isSubmitting}
+              disabled={disabled || isSubmitting}
               className='h-7 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
             >
               {isSubmitting ? (
