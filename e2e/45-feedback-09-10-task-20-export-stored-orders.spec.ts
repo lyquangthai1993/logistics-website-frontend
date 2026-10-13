@@ -111,10 +111,10 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     expect(fs.existsSync(screenshot01Path)).toBeTruthy();
 
     // Switch to LƯU KHO tab to verify stored orders export specifically
-    const storedTabBtn = page.getByRole('button', { name: /^LƯU KHO/i });
+    const storedTabBtn = page.locator('button[data-testid="warehouse-tab-inbound"]').or(page.getByRole('button', { name: /^LƯU KHO/i }));
     if (await storedTabBtn.isVisible()) {
       await storedTabBtn.click();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(600);
     }
 
     // 5. Trigger Excel export & listen for download event
@@ -223,9 +223,10 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
     // 2. Locate stored orders tab: LƯU KHO and click
-    const storedTab = page.getByRole('button', { name: /^LƯU KHO/i });
+    const storedTab = page.locator('button[data-testid="warehouse-tab-inbound"]').or(page.getByRole('button', { name: /^LƯU KHO/i }));
     await expect(storedTab).toBeVisible();
     await storedTab.click();
+    await page.waitForTimeout(600);
     await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
     // 3. Click export button and verify downloaded records
@@ -245,8 +246,11 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
     const dataRows = rows.slice(6, rows.length - 1);
 
-    // Verify that data rows count matches or covers stored orders without pagination cutoff
-    expect(dataRows.length).toBeGreaterThanOrEqual(1);
+    // Verify that data rows count matches stored orders without pagination cutoff
+    const badgeText = await storedTab.textContent();
+    const countMatch = badgeText?.match(/\((\d+)\)/);
+    const expectedCount = countMatch ? parseInt(countMatch[1], 10) : 0;
+    expect(dataRows.length).toBe(expectedCount);
 
     if (fs.existsSync(tempPath)) {
       fs.unlinkSync(tempPath);
@@ -267,10 +271,10 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     await page.waitForSelector('table tbody tr', { timeout: 20_000 });
 
     // 2b. Switch to LƯU KHO tab
-    const storedTab = page.getByRole('button', { name: /^LƯU KHO/i });
+    const storedTab = page.locator('button[data-testid="warehouse-tab-inbound"]').or(page.getByRole('button', { name: /^LƯU KHO/i }));
     await expect(storedTab).toBeVisible();
     await storedTab.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(600);
 
     // 3. Trigger Export for Da Nang
     const exportBtn = page.locator('button[data-testid="export-stored-orders-excel-btn"]');

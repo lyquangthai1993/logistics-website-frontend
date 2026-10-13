@@ -161,12 +161,6 @@ export default function WarehouseOrdersPage() {
       const resData = await res.json();
       const orders: any[] = resData?.data ?? [];
 
-      if (!orders || orders.length === 0) {
-        toast.dismiss(toastId);
-        toast.warning(`Kho hiện tại không có đơn hàng nào ở trạng thái ${tabConfig.toastDesc}.`);
-        return;
-      }
-
       const pad = (n: number) => String(n).padStart(2, '0');
       const now = new Date();
       const nowFormatted = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
