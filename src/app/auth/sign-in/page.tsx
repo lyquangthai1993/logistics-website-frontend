@@ -6,7 +6,7 @@ import { isTokenValid, parseJwtServer } from '@/lib/server-auth';
 
 export const metadata: Metadata = {
   title: 'Đăng nhập',
-  description: 'Trang đăng nhập hệ thống Quản lý Vận tải Logistics TMS.'
+  description: 'Trang đăng nhập hệ thống Quản lý Vận tải S-Hub.'
 };
 
 export default async function Page() {

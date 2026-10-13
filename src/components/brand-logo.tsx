@@ -100,7 +100,7 @@ export function BrandLogo({
   className,
   showBadge = true,
   title = 'Spider Express',
-  subtitle = 'Logistics TMS',
+  subtitle = 'S-Hub',
   iconSize = 32
 }: {
   className?: string;

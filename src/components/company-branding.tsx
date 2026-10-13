@@ -1,6 +1,6 @@
 'use client';
 
-import { Icons } from '@/components/icons';
+import Image from 'next/image';
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -10,28 +10,52 @@ import {
 
 export function CompanyBranding() {
   const { state } = useSidebar();
+  const isCollapsed = state === 'collapsed';
+
+  if (isCollapsed) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size='lg'
+            tooltip='S-Hub'
+            className='data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground cursor-default hover:bg-transparent justify-center p-0!'
+          >
+            <div className='relative flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/40 bg-slate-950 shadow-xs'>
+              <Image
+                src='/images/logo_phieu_xuat_nhap_kho.jpg'
+                alt='S-Hub'
+                width={32}
+                height={32}
+                className='h-full w-full object-cover object-left scale-150'
+              />
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          size='lg'
-          className='data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground cursor-default hover:bg-transparent'
-        >
-          <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg'>
-            <Icons.logo className='size-4' />
+        <div className='flex flex-col items-center w-full px-1 py-1'>
+          <div className='relative w-full max-w-[200px] overflow-hidden rounded-lg border border-border/40 bg-slate-950 shadow-xs transition-all hover:border-primary/40'>
+            <Image
+              src='/images/logo_phieu_xuat_nhap_kho.jpg'
+              alt='Spider Express'
+              width={220}
+              height={60}
+              priority
+              className='w-full h-auto object-contain block'
+            />
           </div>
-          <div
-            className={`grid flex-1 text-left text-sm leading-tight transition-all duration-200 ease-in-out ${
-              state === 'collapsed'
-                ? 'invisible max-w-0 overflow-hidden opacity-0'
-                : 'visible max-w-full opacity-100'
-            }`}
-          >
-            <span className='truncate font-semibold'>Spider Express</span>
-            <span className='text-muted-foreground truncate text-xs'>Logistics TMS</span>
+          <div className='flex items-center justify-center pt-1.5 pb-0.5'>
+            <span className='text-xs font-bold tracking-widest uppercase text-muted-foreground font-mono'>
+              S-Hub
+            </span>
           </div>
-        </SidebarMenuButton>
+        </div>
       </SidebarMenuItem>
     </SidebarMenu>
   );

@@ -9,7 +9,7 @@ export default function ForgotPasswordViewPage() {
         tagBadge='Security & Auth'
         cardTitle='Hệ thống Quản trị Vận tải Số hóa'
         cardDescription='Tối ưu hóa quy trình vận tải, kết nối chuỗi cung ứng và nâng tầm hiệu suất logistics toàn diện.'
-        quoteText='Bảo mật thông tin và bảo đảm tính sẵn sàng cao là ưu tiên hàng đầu trong vận hành Logistics TMS.'
+        quoteText='Bảo mật thông tin và bảo đảm tính sẵn sàng cao là ưu tiên hàng đầu trong vận hành S-Hub.'
       />
 
       {/* Right Form Column */}

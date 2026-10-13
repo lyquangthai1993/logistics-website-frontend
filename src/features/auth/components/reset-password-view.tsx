@@ -9,7 +9,7 @@ export default function ResetPasswordViewPage() {
         tagBadge='Security & Auth'
         cardTitle='Đặt lại mật khẩu tài khoản'
         cardDescription='Tạo mật khẩu mới có độ bảo mật cao để bảo vệ tài khoản và duy trì truy cập an toàn vào hệ thống.'
-        quoteText='Bảo mật thông tin và bảo đảm tính sẵn sàng cao là ưu tiên hàng đầu trong vận hành Logistics TMS.'
+        quoteText='Bảo mật thông tin và bảo đảm tính sẵn sàng cao là ưu tiên hàng đầu trong vận hành S-Hub.'
       />
 
       {/* Right Form Column */}

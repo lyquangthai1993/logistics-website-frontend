@@ -42,6 +42,8 @@ export interface WarehouseLookupItem {
   notes?: string | null;
   originHub?: string | null;
   destinationHub?: string | null;
+  destinationHubId?: number | null;
+  destinationHubEntity?: any;
   route?: string | null;
 }
 

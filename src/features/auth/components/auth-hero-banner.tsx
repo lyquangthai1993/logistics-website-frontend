@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import { BrandLogoIcon } from '@/components/brand-logo';
 import { AUTH_BRAND, AUTH_HERO_IMAGE } from '../constants/auth-assets';
 
 export interface AuthHeroBannerProps {
@@ -36,20 +35,24 @@ export function AuthHeroBanner({
       </div>
 
       {/* Top Brand Logo */}
-      <div className='relative z-20 flex items-center justify-between'>
-        <div className='flex items-center gap-2.5 text-lg font-semibold tracking-tight text-white'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/20 text-cyan-400 ring-1 ring-white/20 shadow-lg shadow-cyan-500/20 backdrop-blur-md'>
-            <BrandLogoIcon size={22} glow />
+      <div className='relative z-20 flex items-start justify-between'>
+        <div className='flex flex-col items-start'>
+          <div className='relative overflow-hidden rounded-xl border border-white/20 shadow-xl bg-slate-950/80 backdrop-blur-md p-1.5'>
+            <Image
+              src='/images/logo_phieu_xuat_nhap_kho.jpg'
+              alt={AUTH_BRAND.name}
+              width={200}
+              height={55}
+              priority
+              className='h-11 w-auto object-contain rounded-md'
+            />
           </div>
-          <div className='flex flex-col'>
-            <span className='font-bold leading-none tracking-tight'>{AUTH_BRAND.name}</span>
-            <span className='text-[10px] text-cyan-400 font-mono tracking-wider uppercase mt-0.5'>
-              Logistics TMS
-            </span>
-          </div>
+          <span className='text-xs text-cyan-400 font-mono tracking-widest uppercase mt-2 font-bold pl-1 drop-shadow-sm'>
+            S-Hub
+          </span>
         </div>
 
-        <div className='rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-300 ring-1 ring-cyan-400/30 backdrop-blur-md flex items-center gap-1.5'>
+        <div className='rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-300 ring-1 ring-cyan-400/30 backdrop-blur-md flex items-center gap-1.5 mt-1'>
           <span className='h-1.5 w-1.5 rounded-full bg-amber-400' />
           <span>{tagBadge}</span>
         </div>

@@ -14,4 +14,4 @@ export { CargoImageLightboxModal } from './cargo-image-lightbox-modal';
 export { WarehouseTripDetailModal, type InboundVehicleGroup } from './warehouse-trip-detail-modal';
 export { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 export { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
-
+export { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';

@@ -622,7 +622,23 @@ export default function WarehouseOutboundPage() {
   // "Tiếp tục": reopen a draft trip on the outbound note to edit or confirm it
   const handleResumeDraft = (grp: InboundVehicleGroup) => {
     const rows: WarehouseRowItem[] = grp.orders.map((o: any) => {
-      const plannedDest = o.plannedDestinationHubId ? Number(o.plannedDestinationHubId) : null;
+      const plannedDest = o.plannedDestinationHubId
+        ? Number(o.plannedDestinationHubId)
+        : o.destinationHubId
+          ? Number(o.destinationHubId)
+          : null;
+      const isXeBo =
+        o.destinationHubEntity?.level === 2 ||
+        o.destinationHubEntity?.code?.startsWith('XB-') ||
+        o.destinationHubEntity?.code?.startsWith('HUB-BO-') ||
+        (o.destinationHub && o.destinationHub.toLowerCase().includes('xe bo')) ||
+        o.deliveryMode === 'XE_BO';
+      const resolvedDeliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' = isXeBo
+        ? 'XE_BO'
+        : plannedDest
+          ? 'HUB_L1'
+          : o.deliveryMode || 'DIRECT_CUSTOMER';
+
       return {
         id: o.id,
         orderCode: o.orderCode,
@@ -634,10 +650,11 @@ export default function WarehouseOutboundPage() {
         remainingQuantity: availableOutboundStock(o),
         totalWeight: Number(o.exportedWeight) || 0,
         totalVolume: Number(o.exportedVolume) || 0,
-        deliveryMode: plannedDest ? 'HUB_L1' : 'DIRECT_CUSTOMER',
-        deliveryAddress: plannedDest ? '' : o.deliveryAddress || '',
-        originalDeliveryAddress: o.deliveryAddress || '',
+        deliveryMode: resolvedDeliveryMode,
+        deliveryAddress: o.deliveryAddress || o.destinationHub || '',
+        originalDeliveryAddress: o.originalDeliveryAddress || o.deliveryAddress || o.destinationHub || '',
         destinationHubId: plannedDest,
+        destinationHub: o.destinationHubEntity || o.destinationHub || null,
         province: o.province || '',
         accompanyingDocs: o.accompanyingDocs || '',
         notes: o.notes || '',

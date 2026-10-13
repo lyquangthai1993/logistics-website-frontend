@@ -44,6 +44,7 @@ import {
 } from '@/features/warehouse/lib/outbound-stock';
 import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 import { WarehouseDestinationModal } from './warehouse-destination-modal';
+import { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';
 
 export interface HubOption {
   id: number;
@@ -1091,7 +1092,11 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
   };
 
   const handleSelectDestination = (hub: HubOption) => {
-    const isL1 = hub.level === 1;
+    const isL1 =
+      hub.level === 1 &&
+      !hub.code?.startsWith('XB-') &&
+      !hub.code?.startsWith('HUB-BO-') &&
+      !hub.name?.toLowerCase().includes('xe bo');
     const mode = isL1 ? 'HUB_L1' : 'XE_BO';
     const label = `${hub.name} · ${isL1 ? 'nhận trung chuyển' : 'gom hàng tuyến nội thành'}`;
 
@@ -1132,44 +1137,33 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     );
   }
 
-  const isChangedHub = r.deliveryMode === 'HUB_L1' || r.deliveryMode === 'XE_BO';
+  const isChangedHub =
+    r.deliveryMode === 'HUB_L1' ||
+    r.deliveryMode === 'XE_BO' ||
+    (r.destinationHubId !== undefined && r.destinationHubId !== null && Number(r.destinationHubId) > 0);
 
   return (
     <div className='space-y-1'>
       {isChangedHub ? (
-        <div className='p-1 rounded-md bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] space-y-1'>
-          <div className='flex items-center justify-between gap-1'>
-            <span
-              className={cn(
-                'font-bold text-[9px] px-1.5 py-0.5 rounded',
-                r.deliveryMode === 'HUB_L1' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
-              )}
-            >
-              {r.deliveryMode === 'HUB_L1' ? 'Hub Cấp 1' : 'Tuyến Xe Bo'}
-            </span>
-            <button
-              type='button'
-              onClick={handleResetToOriginal}
-              className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer'
-              title='Khôi phục lại địa chỉ giao ban đầu'
-            >
-              Quay lại địa chỉ thường
-            </button>
-          </div>
-          <div
-            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
-            title={r.deliveryAddress}
-          >
-            {r.deliveryAddress}
-          </div>
-          <button
-            type='button'
-            onClick={() => setModalOpen(true)}
-            className='w-full text-center text-[9px] font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-0.5 border border-dashed border-blue-300 rounded hover:bg-blue-100/50'
-          >
-            Đổi kho đích khác...
-          </button>
-        </div>
+        (() => {
+          const { hub, isXeBo } = resolveHubOption(
+            r.destinationHub,
+            r.destinationHubId,
+            r.deliveryAddress,
+            level1Hubs,
+            level2XeBoHubs,
+            r.deliveryMode
+          );
+
+          return (
+            <DestinationHubInfoCard
+              hub={hub}
+              isXeBo={isXeBo}
+              onResetToOriginal={handleResetToOriginal}
+              onChangeDestination={() => setModalOpen(true)}
+            />
+          );
+        })()
       ) : (
         <div className='space-y-1'>
           <textarea
@@ -1182,7 +1176,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
           <button
             type='button'
             onClick={() => setModalOpen(true)}
-            className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors'
+            className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer'
           >
             <IconMapPin className='h-3 w-3 text-blue-600' />
             <span>Thay đổi địa chỉ (Điều chuyển)</span>
@@ -1402,8 +1396,14 @@ export function WarehouseEditableGrid({
       });
   }, []);
 
-  const level1Hubs = hubs.filter((h) => h.level === 1 || !h.code.startsWith('HUB-BO-'));
-  const level2XeBoHubs = hubs.filter((h) => h.level === 2 || h.code.startsWith('HUB-BO-'));
+  const isXeBoHub = (h: HubOption) =>
+    h.level === 2 ||
+    h.code?.startsWith('XB-') ||
+    h.code?.startsWith('HUB-BO-') ||
+    h.name?.toLowerCase().includes('xe bo');
+
+  const level1Hubs = hubs.filter((h) => !isXeBoHub(h));
+  const level2XeBoHubs = hubs.filter(isXeBoHub);
 
   // Update a single field in a specific row
   const updateData = useCallback(
@@ -1562,6 +1562,24 @@ export function WarehouseEditableGrid({
     if (lookupRowIndex === null) return;
     const updated = [...rows];
     const availStock = availableOutboundStock(order);
+    const destHubEntity = (order as any).destinationHubEntity;
+    const destHubId =
+      (order as any).destinationHubId ??
+      (destHubEntity ? destHubEntity.id : null) ??
+      null;
+    const isXeBo =
+      destHubEntity?.level === 2 ||
+      destHubEntity?.code?.startsWith('XB-') ||
+      destHubEntity?.code?.startsWith('HUB-BO-') ||
+      (order.destinationHub && order.destinationHub.toLowerCase().includes('xe bo')) ||
+      order.deliveryMode === 'XE_BO';
+    const resolvedMode =
+      isXeBo
+        ? 'XE_BO'
+        : destHubId || (destHubEntity && destHubEntity.level === 1)
+          ? 'HUB_L1'
+          : order.deliveryMode || 'DIRECT_CUSTOMER';
+
     updated[lookupRowIndex] = {
       ...updated[lookupRowIndex],
       id: order.id,
@@ -1577,6 +1595,9 @@ export function WarehouseEditableGrid({
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
       originalDeliveryAddress: order.destinationHub || order.deliveryAddress || '',
+      deliveryMode: resolvedMode,
+      destinationHubId: destHubId,
+      destinationHub: destHubEntity || order.destinationHub || null,
       province: (order as any).province || updated[lookupRowIndex].province || '',
       accompanyingDocs:
         (order as any).accompanyingDocs || updated[lookupRowIndex].accompanyingDocs || '',
@@ -1687,7 +1708,7 @@ export function WarehouseEditableGrid({
             ĐỊA CHỈ GIAO <span className='text-red-600 font-black'>*</span>
           </span>
         ),
-        size: 150,
+        size: isOutboundMode ? 210 : 150,
         cell: DeliveryAddressCell
       },
       ...(isOutboundMode

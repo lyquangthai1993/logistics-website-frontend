@@ -38,6 +38,7 @@ import {
 import { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 import { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
 import { WarehouseDestinationModal } from './warehouse-destination-modal';
+import { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';
 import { renderWarehouseOrderStatusBadge } from './warehouse-tables/columns';
 import { formatWeight, formatVolume } from '@/lib/format';
 import {
@@ -158,12 +159,18 @@ export function WarehouseTripDetailModal({
     enabled: isOpen,
   });
 
+  const isXeBoHub = (h: HubOption) =>
+    h.level === 2 ||
+    h.code?.startsWith('XB-') ||
+    h.code?.startsWith('HUB-BO-') ||
+    h.name?.toLowerCase().includes('xe bo');
+
   const level1Hubs = useMemo(
-    () => allHubs.filter((h) => h.level === 1 || !h.code.startsWith('HUB-BO-')),
+    () => allHubs.filter((h) => !isXeBoHub(h)),
     [allHubs]
   );
   const level2XeBoHubs = useMemo(
-    () => allHubs.filter((h) => h.level === 2 || h.code.startsWith('HUB-BO-')),
+    () => allHubs.filter(isXeBoHub),
     [allHubs]
   );
 
@@ -172,8 +179,7 @@ export function WarehouseTripDetailModal({
 
   const handleSelectDestination = async (hub: HubOption) => {
     if (!selectedOrderForDestModal || !manifestTripCode) return;
-    const mode =
-      hub.level === 2 || hub.code.startsWith('HUB-BO-') ? 'XE_BO' : 'HUB_L1';
+    const mode = isXeBoHub(hub) ? 'XE_BO' : 'HUB_L1';
     try {
       await updateTripOrderDestination(manifestTripCode, selectedOrderForDestModal.id, {
         deliveryMode: mode,
@@ -1477,6 +1483,7 @@ export function WarehouseTripDetailModal({
                                     const effectiveMode =
                                       l.deliveryMode ||
                                       (l.destinationHubEntity?.level === 2 ||
+                                      l.destinationHubEntity?.code?.startsWith('XB-') ||
                                       l.destinationHubEntity?.code?.startsWith('HUB-BO-') ||
                                       (l.destinationHub &&
                                         (l.destinationHub.toLowerCase().includes('xe bo') ||
@@ -1486,103 +1493,44 @@ export function WarehouseTripDetailModal({
                                           ? 'HUB_L1'
                                           : 'DIRECT_CUSTOMER');
 
-                                    if (isHubAccountLocked) {
-                                      return (
-                                        <div className='text-[10px] py-0.5 space-y-0.5'>
-                                          <div className='flex items-center gap-1'>
-                                            {effectiveMode === 'HUB_L1' && (
-                                              <Badge className='bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
-                                                Hub Cấp 1
-                                              </Badge>
-                                            )}
-                                            {effectiveMode === 'XE_BO' && (
-                                              <Badge className='bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
-                                                Tuyến Xe Bo
-                                              </Badge>
-                                            )}
-                                            {effectiveMode === 'DIRECT_CUSTOMER' && (
-                                              <Badge variant='outline' className='text-slate-600 text-[9px] px-1 py-0 h-4'>
-                                                Giao khách
-                                              </Badge>
-                                            )}
-                                          </div>
-                                          <div
-                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
-                                            title={l.destinationHub || l.deliveryAddress || l.originalDeliveryAddress}
-                                          >
-                                            {l.destinationHub || l.deliveryAddress || l.originalDeliveryAddress || 'Chưa xác định'}
-                                          </div>
-                                        </div>
+                                    if (effectiveMode === 'HUB_L1' || effectiveMode === 'XE_BO') {
+                                      const { hub, isXeBo } = resolveHubOption(
+                                        l.destinationHubEntity || l.destinationHub,
+                                        l.destinationHubId,
+                                        l.deliveryAddress || l.destinationHub,
+                                        level1Hubs,
+                                        level2XeBoHubs,
+                                        effectiveMode
                                       );
-                                    }
 
-                                    if (effectiveMode === 'HUB_L1') {
                                       return (
-                                        <div className='p-1 rounded bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] space-y-0.5'>
-                                          <div className='flex items-center justify-between gap-1'>
-                                            <Badge className='bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
-                                              Hub Cấp 1
-                                            </Badge>
-                                            <button
-                                              type='button'
-                                              onClick={() => handleDirectReset(l)}
-                                              className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer'
-                                              title='Khôi phục lại địa chỉ giao ban đầu'
-                                            >
-                                              Quay lại địa chỉ thường
-                                            </button>
-                                          </div>
-                                          <div
-                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
-                                            title={l.destinationHub || l.deliveryAddress}
-                                          >
-                                            {l.destinationHub || l.deliveryAddress}
-                                          </div>
-                                          <button
-                                            type='button'
-                                            onClick={() => setSelectedOrderForDestModal(l)}
-                                            className='w-full text-center text-[9px] font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-0.5 border border-dashed border-blue-300 rounded hover:bg-blue-100/50 cursor-pointer'
-                                          >
-                                            Đổi kho đích khác...
-                                          </button>
-                                        </div>
-                                      );
-                                    }
-
-                                    if (effectiveMode === 'XE_BO') {
-                                      return (
-                                        <div className='p-1 rounded bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-[10px] space-y-0.5'>
-                                          <div className='flex items-center justify-between gap-1'>
-                                            <Badge className='bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0 h-4 rounded'>
-                                              Tuyến Xe Bo
-                                            </Badge>
-                                            <button
-                                              type='button'
-                                              onClick={() => handleDirectReset(l)}
-                                              className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer'
-                                              title='Khôi phục lại địa chỉ giao ban đầu'
-                                            >
-                                              Quay lại địa chỉ thường
-                                            </button>
-                                          </div>
-                                          <div
-                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
-                                            title={l.destinationHub || l.deliveryAddress}
-                                          >
-                                            {l.destinationHub || l.deliveryAddress}
-                                          </div>
-                                          <button
-                                            type='button'
-                                            onClick={() => setSelectedOrderForDestModal(l)}
-                                            className='w-full text-center text-[9px] font-semibold text-purple-600 hover:text-purple-800 dark:text-purple-400 py-0.5 border border-dashed border-purple-300 rounded hover:bg-purple-100/50 cursor-pointer'
-                                          >
-                                            Đổi kho đích khác...
-                                          </button>
-                                        </div>
+                                        <DestinationHubInfoCard
+                                          hub={hub}
+                                          isXeBo={isXeBo}
+                                          disabled={isHubAccountLocked || !canEditOrderInfo}
+                                          onResetToOriginal={() => handleDirectReset(l)}
+                                          onChangeDestination={() => setSelectedOrderForDestModal(l)}
+                                        />
                                       );
                                     }
 
                                     // DIRECT_CUSTOMER
+                                    if (isHubAccountLocked || !canEditOrderInfo) {
+                                      return (
+                                        <div className='text-[10px] py-0.5 space-y-0.5'>
+                                          <Badge variant='outline' className='text-slate-600 text-[9px] px-1 py-0 h-4'>
+                                            Giao khách
+                                          </Badge>
+                                          <div
+                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
+                                            title={l.deliveryAddress || l.originalDeliveryAddress || 'Chưa xác định'}
+                                          >
+                                            {l.deliveryAddress || l.originalDeliveryAddress || 'Chưa xác định'}
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+
                                     return (
                                       <div className='space-y-1 text-[10px]'>
                                         <div
@@ -1609,11 +1557,38 @@ export function WarehouseTripDetailModal({
                                     );
                                   })()
                                 ) : (
-                                  <span className='text-[10px]'>
-                                    {l.destinationHub ||
-                                      l.deliveryAddress ||
-                                      'Chưa xác định'}
-                                  </span>
+                                  (() => {
+                                    const isTransitHub =
+                                      l.destinationHubEntity?.level === 1 ||
+                                      l.destinationHubEntity?.level === 2 ||
+                                      (l.destinationHubId !== undefined && l.destinationHubId !== null && Number(l.destinationHubId) > 0);
+
+                                    if (isTransitHub) {
+                                      const { hub, isXeBo } = resolveHubOption(
+                                        l.destinationHubEntity || l.destinationHub,
+                                        l.destinationHubId,
+                                        l.deliveryAddress || l.destinationHub,
+                                        level1Hubs,
+                                        level2XeBoHubs,
+                                        l.deliveryMode
+                                      );
+                                      return (
+                                        <DestinationHubInfoCard
+                                          hub={hub}
+                                          isXeBo={isXeBo}
+                                          disabled={true}
+                                        />
+                                      );
+                                    }
+
+                                    return (
+                                      <span className='text-[10px]'>
+                                        {l.destinationHub ||
+                                          l.deliveryAddress ||
+                                          'Chưa xác định'}
+                                      </span>
+                                    );
+                                  })()
                                 )}
                               </td>
                               <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
