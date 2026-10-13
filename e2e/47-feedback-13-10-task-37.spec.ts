@@ -182,7 +182,9 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     await expect(modal).toBeVisible({ timeout: 15000 });
 
     // 4. Verify Locked Banner is visible
-    const lockBanner = modal.locator('text=Chuyến xe đã hoàn tất tác nghiệp tại kho này');
+    const lockBanner = modal
+      .locator('[data-testid="hub-locked-banner"]')
+      .or(modal.locator('text=Chuyến xe đã hoàn tất tác nghiệp tại kho này'));
     await expect(lockBanner).toBeVisible({ timeout: 10000 });
 
     // 5. Verify '+ Bốc thêm đơn dọc đường về Hub' button is NOT visible
@@ -254,8 +256,15 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     await expect(modal).toBeVisible({ timeout: 15000 });
 
     // 4. Verify Admin Override Banner is visible
-    const adminBanner = modal.locator('text=Chế độ Quản trị viên: Chuyến xe đã xử lý tại trạm này');
+    const adminBanner = modal
+      .locator('[data-testid="admin-override-banner"]')
+      .or(modal.locator('text=Chế độ Quản trị viên'));
     await expect(adminBanner).toBeVisible({ timeout: 10000 });
+    await expect(modal.locator('text=Chuyến xe đã xử lý tại trạm này')).toBeVisible({ timeout: 5000 });
+
+    // Verify Admin roadside append button is visible
+    const adminAppendBtn = modal.locator('button:has-text("Bốc thêm đơn dọc đường")');
+    await expect(adminAppendBtn).toBeVisible({ timeout: 5000 });
 
     // 5. Capture verified screenshot of Admin Override mode
     const adminScreenshot = await modal.screenshot();

@@ -13,6 +13,7 @@ import {
   IconUser,
   IconPrinter,
   IconCircleCheck,
+  IconShieldCheck,
   IconLoader2,
   IconX,
   IconDeviceFloppy,
@@ -1023,18 +1024,26 @@ export function WarehouseTripDetailModal({
         {/* Scrollable Body Content */}
         <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
           {isHubAccountLocked && (
-            <div className='bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-[10px] px-2.5 py-1.5 rounded flex items-start gap-1.5 border border-amber-300 dark:border-amber-800'>
+            <div
+              data-testid='hub-locked-banner'
+              className='bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-[10px] px-2.5 py-1.5 rounded flex items-start gap-1.5 border border-amber-300 dark:border-amber-800'
+            >
               <IconCircleCheck className='h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
               <span>
-                <strong>🔒 Chuyến xe đã hoàn tất tác nghiệp tại kho này.</strong> Toàn bộ thông tin đơn hàng đã được chốt sổ cái và khóa chỉnh sửa đối với tài khoản chi nhánh. Vui lòng liên hệ Quản trị viên hệ thống (Admin) nếu có yêu cầu điều chỉnh ngoại lệ.
+                <strong>Chuyến xe đã hoàn tất tác nghiệp tại kho này.</strong> Toàn bộ thông tin đơn hàng đã được chốt sổ cái và khóa chỉnh sửa đối với tài khoản chi nhánh. Vui lòng liên hệ Quản trị viên hệ thống (Admin) nếu có yêu cầu điều chỉnh ngoại lệ.
               </span>
             </div>
           )}
 
           {isAdmin && isCurrentHubCompleted && (
-            <div className='bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 text-[10px] px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-blue-300 dark:border-blue-800'>
-              <span className='font-bold'>🛡️ Chế độ Quản trị viên:</span>
-              <span>Chuyến xe đã xử lý tại trạm này. Bạn có đặc quyền chỉnh sửa thông tin đơn hàng trong chuyến xe.</span>
+            <div
+              data-testid='admin-override-banner'
+              className='bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 text-[10px] px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-blue-300 dark:border-blue-800'
+            >
+              <IconShieldCheck className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0' />
+              <span>
+                <strong className='font-bold'>Chế độ Quản trị viên: </strong>Chuyến xe đã xử lý tại trạm này. Bạn có đặc quyền chỉnh sửa thông tin đơn hàng trong chuyến xe.
+              </span>
             </div>
           )}
 
