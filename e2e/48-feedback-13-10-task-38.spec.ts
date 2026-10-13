@@ -93,7 +93,7 @@ test.describe.serial('Feedback 13/10 (Task 38) — Chuẩn hóa Hiển thị Th�
     await newOutboundBtn.click();
 
     // Verify Outbound Form is opened
-    await expect(page.locator('text=Tạo Phiếu Xuất Kho').or(page.locator('text=Phiếu xuất kho'))).toBeVisible({
+    await expect(page.locator('text=Tạo Phiếu Xuất Kho').or(page.locator('text=Phiếu xuất kho')).first()).toBeVisible({
       timeout: 10000,
     });
 
@@ -206,8 +206,9 @@ test.describe.serial('Feedback 13/10 (Task 38) — Chuẩn hóa Hiển thị Th�
     await expect(revertBtn2).toBeVisible();
     await revertBtn2.click();
 
-    // Assert card is gone
-    await expect(l2Badge).not.toBeVisible({ timeout: 5000 });
+    // Assert DestinationHubInfoCard is gone (Change button and Revert button no longer visible)
+    await expect(page.getByRole('button', { name: /Đổi kho đích khác\.\.\./i })).not.toBeVisible({ timeout: 5000 });
+    await expect(revertBtn2).not.toBeVisible({ timeout: 5000 });
 
     // Assert textarea and transfer button return
     const directTextarea = page.locator('textarea[placeholder="Địa chỉ giao khách..."]').first();

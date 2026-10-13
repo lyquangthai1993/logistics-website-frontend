@@ -47,7 +47,7 @@ export function AuthHeroBanner({
               className='h-11 w-auto object-contain rounded-md'
             />
           </div>
-          <span className='text-xs text-cyan-400 font-mono tracking-widest uppercase mt-2 font-bold pl-1 drop-shadow-sm'>
+          <span className='text-xs text-cyan-400 font-semibold tracking-wider mt-2 pl-1 drop-shadow-sm'>
             S-Hub
           </span>
         </div>

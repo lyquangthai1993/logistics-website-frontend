@@ -56,10 +56,10 @@ test.describe('Verify S-Hub Branding & Logo on Localhost', () => {
     }
 
     // 3. Inspect Sidebar Branding (Expanded)
-    const sidebarLogoImg = page.locator('[data-sidebar="header"] img[src*="logo_phieu_xuat_nhap_kho"]').first();
+    const sidebarLogoImg = page.locator('[data-sidebar="header"]').locator('img[src*="logo_phieu_xuat_nhap_kho"]').first();
     await expect(sidebarLogoImg).toBeVisible({ timeout: 10_000 });
 
-    const sHubSidebar = page.locator('[data-sidebar="header"] text=S-Hub').first();
+    const sHubSidebar = page.locator('[data-sidebar="header"]').getByText('S-Hub').first();
     await expect(sHubSidebar).toBeVisible();
 
     // Ensure "Logistics TMS" is NOT in the sidebar header

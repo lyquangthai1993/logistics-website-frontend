@@ -70,7 +70,7 @@ test.describe('Feedback 12/10: Spider Express Branding & Login Hero Banner Verif
 
     // Verify Brand Identity texts
     await expect(page.locator('text=Spider Express').first()).toBeVisible();
-    await expect(page.locator('text=Logistics TMS').first()).toBeVisible();
+    await expect(page.locator('text=S-Hub').first()).toBeVisible();
     await expect(page.locator('text=Anytime Anywhere').first()).toBeVisible();
 
     // Verify Feature Card & System Description with glassmorphism

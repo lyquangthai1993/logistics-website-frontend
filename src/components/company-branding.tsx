@@ -51,7 +51,7 @@ export function CompanyBranding() {
             />
           </div>
           <div className='flex items-center justify-center pt-1.5 pb-0.5'>
-            <span className='text-xs font-bold tracking-widest uppercase text-muted-foreground font-mono'>
+            <span className='text-xs font-semibold tracking-wider text-muted-foreground'>
               S-Hub
             </span>
           </div>
