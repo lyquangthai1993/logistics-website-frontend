@@ -174,13 +174,13 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     expect(row4).toContain('Tổng số đơn:');
     expect(row4).toContain('Tổng số kiện tồn:');
 
-    // 3. Verify Table Header Row (Row 6 / index 5) with 14 Columns
+    // 3. Verify Table Header Row (Row 6 / index 5) with 15 Columns
     const tableHeaders = rows[5] || [];
-    expect(tableHeaders.length).toBe(14);
+    expect(tableHeaders.length).toBe(15);
     expect(tableHeaders[0]).toBe('STT');
     expect(tableHeaders[1]).toBe('MÃ VẬN ĐƠN');
     expect(tableHeaders[2]).toBe('NGÀY NHẬP KHO');
-    expect(tableHeaders[3]).toBe('NƠI GỬI / HUB GỬI');
+    expect(tableHeaders[3]).toBe('CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG');
     expect(tableHeaders[4]).toBe('TÊN HÀNG HÓA');
     expect(tableHeaders[5]).toBe('SỐ KIỆN TỒN KHO');
     expect(tableHeaders[6]).toBe('TỔNG KIỆN ĐƠN');
@@ -188,9 +188,10 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
     expect(tableHeaders[8]).toBe('THỂ TÍCH (M³)');
     expect(tableHeaders[9]).toBe('ĐÍCH ĐẾN / ĐỊA CHỈ GIAO');
     expect(tableHeaders[10]).toBe('TỈNH / THÀNH PHỐ');
-    expect(tableHeaders[11]).toBe('CHUYẾN XE / BIỂN SỐ ĐẾN');
-    expect(tableHeaders[12]).toBe('TRẠNG THÁI');
-    expect(tableHeaders[13]).toBe('GHI CHÚ / CHỨNG TỪ');
+    expect(tableHeaders[11]).toBe('TRẠNG THÁI');
+    expect(tableHeaders[12]).toBe('NGÀY XUẤT KHO');
+    expect(tableHeaders[13]).toBe('CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG');
+    expect(tableHeaders[14]).toBe('SỐ NGÀY LƯU KHO');
 
     // 4. Verify Summary Row at the bottom
     const lastRow = rows[rows.length - 1];
@@ -202,7 +203,7 @@ test.describe.serial('Feedback 09/10 Task 20: Stored Orders Excel Export', () =>
       let computedTotalStock = 0;
       for (const row of dataRows) {
         expect(row[1]).toBeTruthy(); // Order code
-        expect(row[12]).toBe('LƯU KHO'); // Status is strictly LƯU KHO
+        expect(row[11]).toBe('LƯU KHO'); // Status is strictly LƯU KHO (Col L / index 11)
         const stock = Number(row[5]) || 0;
         expect(stock).toBeGreaterThan(0); // Stored stock is strictly positive
         computedTotalStock += stock;

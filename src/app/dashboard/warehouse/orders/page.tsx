@@ -205,43 +205,33 @@ export default function WarehouseOrdersPage() {
           totalWeight += itemWeight;
           totalVolume += itemVolume;
 
-          const trips =
-            Array.isArray(order.trips) && order.trips.length > 0
-              ? order.trips
-              : Array.isArray(item.trips)
-                ? item.trips
-                : [];
-          const tripCodes = trips
-            .map((t: any) => t.tripCode)
-            .filter(Boolean)
-            .join(', ');
-          const licensePlates = Array.from(
-            new Set(
-              [
-                ...trips.map((t: any) => t.licensePlate),
-                order.vehicleLicensePlate,
-                item.vehicleLicensePlate
-              ].filter(Boolean)
-            )
-          ).join(', ');
-
-          let tripDisplay = '—';
-          if (tripCodes && licensePlates) {
-            tripDisplay = `${tripCodes} (${licensePlates})`;
-          } else if (tripCodes) {
-            tripDisplay = tripCodes;
-          } else if (licensePlates) {
-            tripDisplay = licensePlates;
-          }
+          // Inbound Vehicle (Cột D)
+          const inboundTripDisplay =
+            item.inboundTripDisplay ||
+            order.inboundTripDisplay ||
+            (() => {
+              const txs =
+                ((item.inventoryTransactions || order.inventoryTransactions) as any[]) || [];
+              const inTxs = txs
+                .filter((t: any) => t.type === 'INBOUND')
+                .sort(
+                  (a: any, b: any) =>
+                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+              const code = inTxs[0]?.tripCode || null;
+              const plate =
+                inTxs[0]?.licensePlate ||
+                item.vehicleLicensePlate ||
+                order.vehicleLicensePlate ||
+                null;
+              if (code && plate) return `${code} (${plate})`;
+              if (code) return code;
+              if (plate) return plate;
+              return '—';
+            })();
 
           const inboundDateStr =
             item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
-          const originHubStr =
-            item.originHubEntity?.name ||
-            order.originHubEntity?.name ||
-            item.originHub ||
-            order.originHub ||
-            '—';
           const destHubStr =
             item.destinationHubEntity?.name ||
             order.destinationHubEntity?.name ||
@@ -256,14 +246,6 @@ export default function WarehouseOrdersPage() {
             item.province ||
             order.province ||
             '—';
-          const notesStr =
-            item.operationalNotes ||
-            order.operationalNotes ||
-            item.accompanyingDocs ||
-            order.accompanyingDocs ||
-            item.notes ||
-            order.notes ||
-            '—';
 
           const resolvedStatus = resolveDisplayStatus(item) || resolveDisplayStatus(order);
           let statusText = 'LƯU KHO';
@@ -277,21 +259,91 @@ export default function WarehouseOrdersPage() {
             statusText = 'ĐANG VẬN CHUYỂN';
           }
 
+          // RÀNG BUỘC SỐNG CÒN: Khi đơn ở trạng thái Lưu kho / Đơn nháp hoặc còn tồn kho > 0,
+          // Cột M (Ngày xuất) và Cột N (Xe xuất) BẮT BUỘC ĐỂ TRỐNG ("")
+          const isStored =
+            stock > 0 ||
+            resolvedStatus === 'STORED' ||
+            resolvedStatus === 'INBOUND' ||
+            resolvedStatus === 'LUU_KHO' ||
+            resolvedStatus === 'IN_WAREHOUSE' ||
+            statusText === 'LƯU KHO' ||
+            statusText === 'ĐƠN NHÁP' ||
+            statusText === 'CHỜ NHẬP KHO';
+
+          let outboundDateVal = '';
+          let outboundTripVal = '';
+
+          if (!isStored) {
+            const rawOutboundDate = item.outboundDate || order.outboundDate;
+            if (rawOutboundDate) {
+              outboundDateVal = formatDateTime(rawOutboundDate);
+            }
+
+            const rawOutboundTrip =
+              item.outboundTripDisplay ||
+              order.outboundTripDisplay ||
+              (() => {
+                const txs =
+                  ((item.inventoryTransactions || order.inventoryTransactions) as any[]) || [];
+                const outTxs = txs
+                  .filter((t: any) => t.type === 'OUTBOUND' || t.type === 'TRANSFER')
+                  .sort(
+                    (a: any, b: any) =>
+                      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                  );
+                const code = outTxs[0]?.tripCode || null;
+                const plate = outTxs[0]?.licensePlate || null;
+                if (code && plate) return `${code} (${plate})`;
+                if (code) return code;
+                if (plate) return plate;
+                return '';
+              })();
+            outboundTripVal = rawOutboundTrip || '';
+          }
+
+          let storageDaysVal = 0;
+          if (item.storageDays !== undefined && item.storageDays !== null) {
+            storageDaysVal = Number(item.storageDays);
+          } else if (order.storageDays !== undefined && order.storageDays !== null) {
+            storageDaysVal = Number(order.storageDays);
+          } else {
+            const inboundTime = inboundDateStr
+              ? new Date(inboundDateStr).getTime()
+              : new Date().getTime();
+            if (!isStored && (item.outboundDate || order.outboundDate)) {
+              const outTime = new Date(item.outboundDate || order.outboundDate).getTime();
+              storageDaysVal = Math.max(
+                0,
+                Math.floor((outTime - inboundTime) / (1000 * 60 * 60 * 24))
+              );
+            } else {
+              storageDaysVal = Math.max(
+                0,
+                Math.floor((Date.now() - inboundTime) / (1000 * 60 * 60 * 24))
+              );
+            }
+          }
+          if (isNaN(storageDaysVal) || storageDaysVal < 0) {
+            storageDaysVal = 0;
+          }
+
           rows.push([
-            stt++,
-            order.orderCode,
-            formatDateTime(inboundDateStr),
-            originHubStr,
-            item.goodsDescription || order.goodsDescription || 'Hàng hóa tổng hợp',
-            stock,
-            total,
-            itemWeight,
-            itemVolume,
-            destHubStr,
-            provinceStr,
-            tripDisplay,
-            statusText,
-            notesStr
+            stt++, // Cột A: STT
+            order.orderCode, // Cột B: MÃ VẬN ĐƠN
+            formatDateTime(inboundDateStr), // Cột C: NGÀY NHẬP KHO
+            inboundTripDisplay || '—', // Cột D: CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG
+            item.goodsDescription || order.goodsDescription || 'Hàng hóa tổng hợp', // Cột E: TÊN HÀNG HÓA
+            stock, // Cột F: SỐ KIỆN TỒN KHO
+            total, // Cột G: TỔNG KIỆN ĐƠN
+            itemWeight, // Cột H: KHỐI LƯỢNG (KG)
+            itemVolume, // Cột I: THỂ TÍCH (M³)
+            destHubStr, // Cột J: ĐÍCH ĐẾN / ĐỊA CHỈ GIAO
+            provinceStr, // Cột K: TỈNH / THÀNH PHỐ
+            statusText, // Cột L: TRẠNG THÁI
+            outboundDateVal, // Cột M: NGÀY XUẤT KHO
+            outboundTripVal, // Cột N: CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG
+            storageDaysVal // Cột O: SỐ NGÀY LƯU KHO
           ]);
         }
       }
@@ -307,20 +359,21 @@ export default function WarehouseOrdersPage() {
         ],
         [], // Dòng 5 trống ngăn cách Header và Bảng kê
         [
-          'STT',
-          'MÃ VẬN ĐƠN',
-          'NGÀY NHẬP KHO',
-          'NƠI GỬI / HUB GỬI',
-          'TÊN HÀNG HÓA',
-          'SỐ KIỆN TỒN KHO',
-          'TỔNG KIỆN ĐƠN',
-          'KHỐI LƯỢNG (KG)',
-          'THỂ TÍCH (M³)',
-          'ĐÍCH ĐẾN / ĐỊA CHỈ GIAO',
-          'TỈNH / THÀNH PHỐ',
-          'CHUYẾN XE / BIỂN SỐ ĐẾN',
-          'TRẠNG THÁI',
-          'GHI CHÚ / CHỨNG TỪ'
+          'STT', // Cột A
+          'MÃ VẬN ĐƠN', // Cột B
+          'NGÀY NHẬP KHO', // Cột C
+          'CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG', // Cột D
+          'TÊN HÀNG HÓA', // Cột E
+          'SỐ KIỆN TỒN KHO', // Cột F
+          'TỔNG KIỆN ĐƠN', // Cột G
+          'KHỐI LƯỢNG (KG)', // Cột H
+          'THỂ TÍCH (M³)', // Cột I
+          'ĐÍCH ĐẾN / ĐỊA CHỈ GIAO', // Cột J
+          'TỈNH / THÀNH PHỐ', // Cột K
+          'TRẠNG THÁI', // Cột L
+          'NGÀY XUẤT KHO', // Cột M
+          'CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG', // Cột N
+          'SỐ NGÀY LƯU KHO' // Cột O
         ],
         ...rows,
         [
@@ -337,26 +390,28 @@ export default function WarehouseOrdersPage() {
           '',
           '',
           '',
+          '',
           ''
         ]
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       ws['!cols'] = [
-        { wch: 6 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 26 },
-        { wch: 30 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 35 },
-        { wch: 18 },
-        { wch: 22 },
-        { wch: 14 },
-        { wch: 30 }
+        { wch: 6 }, // A: STT
+        { wch: 18 }, // B: MÃ VẬN ĐƠN
+        { wch: 18 }, // C: NGÀY NHẬP KHO
+        { wch: 24 }, // D: CHUYẾN XE / BKS NHẬP HÀNG
+        { wch: 28 }, // E: TÊN HÀNG HÓA
+        { wch: 14 }, // F: SỐ KIỆN TỒN KHO
+        { wch: 14 }, // G: TỔNG KIỆN ĐƠN
+        { wch: 15 }, // H: KHỐI LƯỢNG (KG)
+        { wch: 15 }, // I: THỂ TÍCH (M³)
+        { wch: 32 }, // J: ĐÍCH ĐẾN / ĐỊA CHỈ GIAO
+        { wch: 18 }, // K: TỈNH / THÀNH PHỐ
+        { wch: 16 }, // L: TRẠNG THÁI
+        { wch: 18 }, // M: NGÀY XUẤT KHO
+        { wch: 24 }, // N: CHUYẾN XE / BKS XUẤT HÀNG
+        { wch: 16 } // O: SỐ NGÀY LƯU KHO
       ];
 
       const wb = XLSX.utils.book_new();
