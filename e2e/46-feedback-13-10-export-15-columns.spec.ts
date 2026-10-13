@@ -25,13 +25,12 @@ import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { TEST_USERS, loginAs } from './helpers/auth';
 
-const WAREHOUSE_HYN_USER = TEST_USERS.find((u) => u.email === 'lyquangthai1993+4@gmail.com') ||
-  TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER') || {
-    email: 'lyquangthai1993+4@gmail.com',
-    password: 'secret',
-    role: 'WAREHOUSE_MANAGER' as const,
-    expectedLandingPath: '/dashboard/overview'
-  };
+const WAREHOUSE_USER = {
+  email: 'lyquangthai1993+6@gmail.com',
+  password: 'secret',
+  role: 'WAREHOUSE_MANAGER' as const,
+  expectedLandingPath: '/dashboard/overview'
+};
 
 const FEEDBACK_DIR = fs.existsSync(path.resolve(__dirname, '../../feedback_13_10'))
   ? path.resolve(__dirname, '../../feedback_13_10')
@@ -72,15 +71,15 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
   test('Scenario 1: Tab "LƯU KHO" - 15 Columns, Inbound Vehicle, Empty Outbound, Aging Days', async ({
     page
   }) => {
-    // 1. Login as Warehouse Manager (Polaris Hub - Hưng Yên)
-    await loginAs(page, WAREHOUSE_HYN_USER);
+    // 1. Login as Warehouse Manager (Andromeda Hub - HCM)
+    await loginAs(page, WAREHOUSE_USER);
 
     // 2. Navigate to Warehouse Orders Page
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
     // Wait for user hub context
-    await expect(page.locator('h1')).toContainText('Polaris Hub', { timeout: 15_000 });
+    await expect(page.locator('h1')).toContainText('Andromeda Hub', { timeout: 15_000 });
 
     // Wait for table to render
     await expect(page.locator('text=Đang tải dữ liệu đơn hàng...')).not.toBeVisible({
@@ -112,7 +111,7 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
 
     const filename = download.suggestedFilename();
     expect(filename).toMatch(/^Bao_cao_don_hang_.*\.xlsx$/);
-    expect(filename).toContain('Polaris_Hub');
+    expect(filename).toContain('Andromeda_Hub');
 
     storedDownloadPath = path.join(FEEDBACK_DIR, filename);
     await download.saveAs(storedDownloadPath);
@@ -179,7 +178,7 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
   test('Scenario 2: Tab "ĐÃ XUẤT KHO" - Outbound Date & Outbound Vehicle Verification', async ({
     page
   }) => {
-    await loginAs(page, WAREHOUSE_HYN_USER);
+    await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 
@@ -234,7 +233,7 @@ test.describe.serial('Feedback 13/10: 15-Column Warehouse Orders Excel Export & 
   test('Scenario 3: Tab "TẤT CẢ" - End-to-End 15 Columns Consistency Check', async ({
     page
   }) => {
-    await loginAs(page, WAREHOUSE_HYN_USER);
+    await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('h1:has-text("Tổng Hợp Đơn Hàng Tại Kho")', { timeout: 25_000 });
 

@@ -247,13 +247,34 @@ export default function WarehouseOrdersPage() {
             order.province ||
             '—';
 
-          const resolvedStatus = resolveDisplayStatus(item) || resolveDisplayStatus(order);
+          const resolvedStatus = (
+            resolveDisplayStatus(item) ||
+            resolveDisplayStatus(order) ||
+            item.hubStatus ||
+            order.hubStatus ||
+            item.status ||
+            order.status ||
+            ''
+          ).toUpperCase();
+
+          const isDispatched =
+            resolvedStatus === 'COMPLETED_INBOUND' ||
+            resolvedStatus === 'DISPATCHED' ||
+            resolvedStatus === 'OUT_FOR_DELIVERY' ||
+            resolvedStatus === 'DELIVERED' ||
+            resolvedStatus === 'COMPLETED_OUTBOUND' ||
+            (stock === 0 && (statusFilter === 'COMPLETED_INBOUND' || Boolean(item.outboundDate || order.outboundDate)));
+
           let statusText = 'LƯU KHO';
-          if (resolvedStatus === 'COMPLETED_INBOUND') {
+          if (isDispatched) {
             statusText = 'ĐÃ XUẤT KHO';
           } else if (resolvedStatus === 'DRAFT') {
             statusText = 'ĐƠN NHÁP';
-          } else if (resolvedStatus === 'PENDING_INBOUND' || resolvedStatus === 'WAITING') {
+          } else if (
+            resolvedStatus === 'PENDING_INBOUND' ||
+            resolvedStatus === 'WAITING' ||
+            resolvedStatus === 'PENDING'
+          ) {
             statusText = 'CHỜ NHẬP KHO';
           } else if (resolvedStatus === 'IN_TRANSIT') {
             statusText = 'ĐANG VẬN CHUYỂN';
@@ -261,7 +282,7 @@ export default function WarehouseOrdersPage() {
 
           // RÀNG BUỘC SỐNG CÒN: Khi đơn ở trạng thái Lưu kho / Đơn nháp hoặc còn tồn kho > 0,
           // Cột M (Ngày xuất) và Cột N (Xe xuất) BẮT BUỘC ĐỂ TRỐNG ("")
-          const isStored =
+          const isStored = !isDispatched && (
             stock > 0 ||
             resolvedStatus === 'STORED' ||
             resolvedStatus === 'INBOUND' ||
@@ -269,7 +290,8 @@ export default function WarehouseOrdersPage() {
             resolvedStatus === 'IN_WAREHOUSE' ||
             statusText === 'LƯU KHO' ||
             statusText === 'ĐƠN NHÁP' ||
-            statusText === 'CHỜ NHẬP KHO';
+            statusText === 'CHỜ NHẬP KHO'
+          );
 
           let outboundDateVal = '';
           let outboundTripVal = '';
