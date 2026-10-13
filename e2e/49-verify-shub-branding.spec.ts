@@ -1,9 +1,31 @@
+/**
+ * frontend/e2e/49-verify-shub-branding.spec.ts
+ *
+ * Automated Playwright E2E Verification Suite:
+ * - Dynamic domain support (Localhost, Dev Domain, Production Domain)
+ * - Verifies S-Hub Branding & Logo replacement across Auth (Login) & Dashboard Sidebar
+ *
+ * Run against any environment:
+ * - Localhost:   PLAYWRIGHT_BASE_URL=http://localhost:4000 npx playwright test e2e/49-verify-shub-branding.spec.ts
+ * - Domain Dev:  PLAYWRIGHT_BASE_URL=https://frontend-tms-core-dev.up.railway.app npx playwright test e2e/49-verify-shub-branding.spec.ts
+ * - Domain Prod: PLAYWRIGHT_BASE_URL=https://frontend-tms-core-production.up.railway.app npx playwright test e2e/49-verify-shub-branding.spec.ts
+ */
+
 import { test, expect } from '@playwright/test';
+import { TEST_USERS } from './helpers/auth';
 import path from 'path';
 import fs from 'fs';
 
-test.describe('Verify S-Hub Branding & Logo on Localhost', () => {
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL ??
+  process.env.BASE_URL ??
+  'http://localhost:4000';
+
+test.describe('Verify S-Hub Branding & Logo (Multi-Environment)', () => {
   const screenshotsDir = path.resolve(__dirname, 'screenshots');
+  const adminUser =
+    TEST_USERS.find((u) => u.role === 'SUPER_ADMIN') ||
+    TEST_USERS[0];
 
   test.beforeAll(() => {
     if (!fs.existsSync(screenshotsDir)) {
@@ -12,19 +34,20 @@ test.describe('Verify S-Hub Branding & Logo on Localhost', () => {
   });
 
   test('Login Page & Sidebar S-Hub Branding Verification', async ({ page, context }) => {
-    // Set sidebar cookie so it defaults to expanded
+    // 0. Set sidebar cookie dynamically based on target BASE_URL (no hardcoded domain)
     await context.addCookies([
       {
         name: 'sidebar_state',
         value: 'true',
-        domain: 'localhost',
-        path: '/'
+        url: BASE_URL
       }
     ]);
 
-    // 1. Visit Login page
+    // 1. Visit Login page on the resolved environment domain
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('http://localhost:4000/auth/sign-in', { waitUntil: 'networkidle' });
+    const targetSignInUrl = `${BASE_URL.replace(/\/$/, '')}/auth/sign-in`;
+    console.log(`[E2E] Navigating to target sign-in: ${targetSignInUrl}`);
+    await page.goto(targetSignInUrl, { waitUntil: 'networkidle' });
 
     // Assert Logo Image is visible on AuthHeroBanner
     const loginLogoImg = page.locator('img[src*="logo_phieu_xuat_nhap_kho"]').first();
@@ -39,9 +62,9 @@ test.describe('Verify S-Hub Branding & Logo on Localhost', () => {
     await page.screenshot({ path: loginScreenshotPath });
     console.log(`[VERIFY] Saved login screenshot: ${loginScreenshotPath}`);
 
-    // 2. Perform Login to reach Dashboard
-    await page.fill('input[name="email"]', 'lyquangthai1993+1@gmail.com');
-    await page.fill('input[name="password"]', 'secret');
+    // 2. Perform Login with configured credentials
+    await page.fill('input[name="email"]', adminUser.email);
+    await page.fill('input[name="password"]', adminUser.password);
     await page.click('button[type="submit"]');
 
     // Wait for redirect to dashboard
@@ -59,13 +82,13 @@ test.describe('Verify S-Hub Branding & Logo on Localhost', () => {
     const sidebarLogoImg = page.locator('[data-sidebar="header"]').locator('img[src*="logo_phieu_xuat_nhap_kho"]').first();
     await expect(sidebarLogoImg).toBeVisible({ timeout: 10_000 });
 
-    const sHubSidebar = page.locator('[data-sidebar="header"]').getByText('S-Hub').first();
+    const sHubSidebar = page.locator('[data-sidebar="header"]').getByText(/S-Hub/i).first();
     await expect(sHubSidebar).toBeVisible();
 
     // Ensure "Logistics TMS" is NOT in the sidebar header
     const sidebarHeader = page.locator('[data-sidebar="header"]').first();
     const headerText = await sidebarHeader.innerText();
-    expect(headerText).toContain('S-Hub');
+    expect(headerText.toUpperCase()).toContain('S-HUB');
     expect(headerText).not.toContain('Logistics TMS');
 
     // Take screenshot of Dashboard with Sidebar Expanded
@@ -84,5 +107,9 @@ test.describe('Verify S-Hub Branding & Logo on Localhost', () => {
     const collapsedScreenshotPath = path.join(screenshotsDir, 'screenshot_localhost_sidebar_collapsed_shub.png');
     await page.screenshot({ path: collapsedScreenshotPath });
     console.log(`[VERIFY] Saved collapsed sidebar screenshot: ${collapsedScreenshotPath}`);
+
+    const collapsedCropPath = path.join(screenshotsDir, 'screenshot_localhost_sidebar_collapsed_crop.png');
+    await sidebar.locator('[data-sidebar="header"]').screenshot({ path: collapsedCropPath });
+    console.log(`[VERIFY] Saved collapsed brand crop: ${collapsedCropPath}`);
   });
 });
