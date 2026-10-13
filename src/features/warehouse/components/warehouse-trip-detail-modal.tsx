@@ -69,6 +69,7 @@ export interface InboundVehicleGroup {
   totalVolume: number;
   goodsDescription: string;
   notes?: string;
+  hubId?: number;
 }
 
 interface WarehouseTripDetailModalProps {
@@ -105,7 +106,7 @@ export function WarehouseTripDetailModal({
     isLoading: isManifestLoading,
     isError: isManifestError,
     error: manifestError,
-  } = useTripManifestQuery(manifestTripCode, isOpen);
+  } = useTripManifestQuery(manifestTripCode, isOpen, tripGroup?.hubId);
 
   // 1. Kiểm tra vai trò Quản trị viên
   const isAdmin =
@@ -329,7 +330,7 @@ export function WarehouseTripDetailModal({
 
   // Auto-resolve read-only mode based on business status
   const effectiveReadOnly = useMemo(() => {
-    if (readOnly) return true;
+    if (readOnly && !isAdmin) return true;
     if (!tripGroup) return true;
 
     // Khi trạm dừng tại kho này đã COMPLETED và tài khoản không phải Admin:

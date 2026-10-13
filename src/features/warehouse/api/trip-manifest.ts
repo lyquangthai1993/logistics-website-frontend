@@ -87,22 +87,31 @@ export function isManifestTripCode(code?: string | null): code is string {
   return !!code && code !== '—' && code.trim().length > 0;
 }
 
-export async function getTripManifest(tripCode: string): Promise<TripManifest> {
-  const res = await apiClient.get<ApiResponse<TripManifest>>(
-    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/manifest`
-  );
+export async function getTripManifest(tripCode: string, hubId?: number): Promise<TripManifest> {
+  const url =
+    hubId != null
+      ? `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/manifest?hubId=${hubId}`
+      : `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/manifest`;
+  const res = await apiClient.get<ApiResponse<TripManifest>>(url);
   return res.data.data;
 }
 
 export const tripManifestKeys = {
   all: ['warehouse', 'trip-manifest'] as const,
-  detail: (tripCode: string) => [...tripManifestKeys.all, tripCode] as const
+  detail: (tripCode: string, hubId?: number) =>
+    hubId != null
+      ? ([...tripManifestKeys.all, tripCode, hubId] as const)
+      : ([...tripManifestKeys.all, tripCode] as const),
 };
 
-export function useTripManifestQuery(tripCode: string | null | undefined, enabled = true) {
+export function useTripManifestQuery(
+  tripCode: string | null | undefined,
+  enabled = true,
+  hubId?: number,
+) {
   return useQuery({
-    queryKey: tripManifestKeys.detail(tripCode ?? ''),
-    queryFn: () => getTripManifest(tripCode as string),
+    queryKey: tripManifestKeys.detail(tripCode ?? '', hubId),
+    queryFn: () => getTripManifest(tripCode as string, hubId),
     enabled: enabled && isManifestTripCode(tripCode),
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,

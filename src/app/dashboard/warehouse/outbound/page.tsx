@@ -712,7 +712,8 @@ export default function WarehouseOutboundPage() {
               : descs.length === 1
                 ? descs[0]
                 : `${descs[0]} (+${descs.length - 1} loại hàng)`,
-          notes: g.notes || ''
+          notes: g.notes || '',
+          hubId: g.hubId ? Number(g.hubId) : undefined
         };
       }),
     [tripGroups]

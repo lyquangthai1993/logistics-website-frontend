@@ -161,9 +161,16 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     // 1. Sign in as HCM Warehouse Manager
     await loginAs(page, WH_HCM_USER);
 
-    // 2. Navigate to Warehouse Inbound
-    await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`, { waitUntil: 'domcontentloaded' });
+    // 2. Navigate to Warehouse Outbound (SD44 is an outbound origin trip at Andromeda Hub - HCM)
+    await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
+
+    // Search for TARGET_TRIP_CODE to immediately focus the target row
+    const searchInput = page.getByPlaceholder(/Tìm mã chuyến, xe, tài xế, mã đơn/i).first();
+    if (await searchInput.isVisible()) {
+      await searchInput.fill(TARGET_TRIP_CODE);
+      await page.waitForTimeout(1000);
+    }
 
     // 3. Find and click trip SD44
     const tripRowOrCard = page.locator(`text=${TARGET_TRIP_CODE}`).first();
@@ -226,9 +233,16 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     // 1. Sign in as Super Admin
     await loginAs(page, SUPER_ADMIN_USER);
 
-    // 2. Navigate to Warehouse Inbound
-    await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`, { waitUntil: 'domcontentloaded' });
+    // 2. Navigate to Warehouse Outbound
+    await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
+
+    // Search for TARGET_TRIP_CODE to immediately focus the target row
+    const searchInput = page.getByPlaceholder(/Tìm mã chuyến, xe, tài xế, mã đơn/i).first();
+    if (await searchInput.isVisible()) {
+      await searchInput.fill(TARGET_TRIP_CODE);
+      await page.waitForTimeout(1000);
+    }
 
     // 3. Find and click trip SD44
     const tripRowOrCard = page.locator(`text=${TARGET_TRIP_CODE}`).first();
