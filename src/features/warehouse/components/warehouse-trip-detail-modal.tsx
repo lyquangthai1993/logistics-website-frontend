@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  IconLock,
   IconBuildingWarehouse,
   IconTruck,
   IconCalendar,
@@ -22,7 +23,7 @@ import {
   IconArrowRight,
   IconArrowLeft,
   IconCheck,
-  IconMapPin,
+  IconMapPin
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -30,11 +31,8 @@ import { tokenManager } from '@/lib/token-manager';
 import { apiClient } from '@/lib/api-client';
 import { ApiResponse, formatApiError, showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
-import {
-  WarehouseEditableGrid,
-  WarehouseRowItem,
-  HubOption,
-} from './warehouse-editable-grid';
+import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
+import { WarehouseEditableGrid, WarehouseRowItem, HubOption } from './warehouse-editable-grid';
 import { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 import { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
 import { WarehouseDestinationModal } from './warehouse-destination-modal';
@@ -47,13 +45,13 @@ import {
   isManifestTripCode,
   updateTransitStep,
   updateTripOrderDestination,
-  TripManifestLine,
+  TripManifestLine
 } from '../api/trip-manifest';
 import {
   WarehouseTripTallyTable,
   buildInitialTallyState,
   expectedForLine,
-  type TallyState,
+  type TallyState
 } from './warehouse-trip-tally-table';
 import { TripStopStatusBadge } from './trip-stop-status-badge';
 
@@ -91,7 +89,7 @@ export function WarehouseTripDetailModal({
   onSuccess,
   onOpenReceipt,
   readOnly = false,
-  mode = 'INBOUND',
+  mode = 'INBOUND'
 }: WarehouseTripDetailModalProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -100,14 +98,12 @@ export function WarehouseTripDetailModal({
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   // Full trip manifest as seen by the current hub (per-hub stop status, lines for this hub)
-  const manifestTripCode = isManifestTripCode(tripGroup?.tripCode)
-    ? tripGroup?.tripCode
-    : null;
+  const manifestTripCode = isManifestTripCode(tripGroup?.tripCode) ? tripGroup?.tripCode : null;
   const {
     data: manifest,
     isLoading: isManifestLoading,
     isError: isManifestError,
-    error: manifestError,
+    error: manifestError
   } = useTripManifestQuery(manifestTripCode, isOpen, tripGroup?.hubId);
 
   // 1. Kiểm tra vai trò Quản trị viên
@@ -119,8 +115,7 @@ export function WarehouseTripDetailModal({
 
   // 2. Kiểm tra trạng thái xử lý của Hub hiện tại
   const isCurrentHubCompleted =
-    manifest?.currentHubStatus === 'COMPLETED' ||
-    manifest?.isCurrentHubCompleted === true;
+    manifest?.currentHubStatus === 'COMPLETED' || manifest?.isCurrentHubCompleted === true;
 
   // 3. Cờ khóa toàn bộ quyền của tài khoản thuộc Hub đã xử lý
   const isHubAccountLocked = isCurrentHubCompleted && !isAdmin;
@@ -133,20 +128,17 @@ export function WarehouseTripDetailModal({
    * or already submitted). Contract columns become read-only and the operator records actual quantities.
    */
   const isTallyMode =
-    mode === 'INBOUND' &&
-    !!manifest &&
-    manifest.lines.some((l) => l.isContractLocked);
+    mode === 'INBOUND' && !!manifest && manifest.lines.some((l) => l.isContractLocked);
   /** Block every action until we know whether the trip must be tallied (prevents contract overwrite) */
-  const manifestPending =
-    mode === 'INBOUND' && !!manifestTripCode && isManifestLoading;
+  const manifestPending = mode === 'INBOUND' && !!manifestTripCode && isManifestLoading;
 
   const [tally, setTally] = useState<TallyState>({});
   const [hideOtherHubs, setHideOtherHubs] = useState(false);
   const [isAppendModalOpen, setIsAppendModalOpen] = useState(false);
   const [isSelectStoredModalOpen, setIsSelectStoredModalOpen] = useState(false);
-  const [appendModalMode, setAppendModalMode] = useState<
-    'ROADSIDE_INBOUND' | 'HUB_OUTBOUND'
-  >('ROADSIDE_INBOUND');
+  const [appendModalMode, setAppendModalMode] = useState<'ROADSIDE_INBOUND' | 'HUB_OUTBOUND'>(
+    'ROADSIDE_INBOUND'
+  );
 
   // Fetch active hubs for destination selection modal
   const { data: allHubs = [] } = useQuery({
@@ -156,7 +148,7 @@ export function WarehouseTripDetailModal({
       return res.data.data || [];
     },
     staleTime: 60 * 1000,
-    enabled: isOpen,
+    enabled: isOpen
   });
 
   const isXeBoHub = (h: HubOption) =>
@@ -165,14 +157,8 @@ export function WarehouseTripDetailModal({
     h.code?.startsWith('HUB-BO-') ||
     h.name?.toLowerCase().includes('xe bo');
 
-  const level1Hubs = useMemo(
-    () => allHubs.filter((h) => !isXeBoHub(h)),
-    [allHubs]
-  );
-  const level2XeBoHubs = useMemo(
-    () => allHubs.filter(isXeBoHub),
-    [allHubs]
-  );
+  const level1Hubs = useMemo(() => allHubs.filter((h) => !isXeBoHub(h)), [allHubs]);
+  const level2XeBoHubs = useMemo(() => allHubs.filter(isXeBoHub), [allHubs]);
 
   const [selectedOrderForDestModal, setSelectedOrderForDestModal] =
     useState<TripManifestLine | null>(null);
@@ -184,10 +170,10 @@ export function WarehouseTripDetailModal({
       await updateTripOrderDestination(manifestTripCode, selectedOrderForDestModal.id, {
         deliveryMode: mode,
         destinationHubId: hub.id,
-        deliveryAddress: hub.name,
+        deliveryAddress: hub.name
       });
       await queryClient.invalidateQueries({
-        queryKey: tripManifestKeys.detail(manifestTripCode),
+        queryKey: tripManifestKeys.detail(manifestTripCode)
       });
       toast.success(
         `Đã chuyển đích đến đơn ${selectedOrderForDestModal.orderCode} sang ${hub.name}!`
@@ -205,14 +191,12 @@ export function WarehouseTripDetailModal({
       await updateTripOrderDestination(manifestTripCode, line.id, {
         deliveryMode: 'DIRECT_CUSTOMER',
         destinationHubId: null,
-        deliveryAddress: origAddress,
+        deliveryAddress: origAddress
       });
       await queryClient.invalidateQueries({
-        queryKey: tripManifestKeys.detail(manifestTripCode),
+        queryKey: tripManifestKeys.detail(manifestTripCode)
       });
-      toast.success(
-        `Đã khôi phục địa chỉ giao khách ban đầu cho đơn ${line.orderCode}!`
-      );
+      toast.success(`Đã khôi phục địa chỉ giao khách ban đầu cho đơn ${line.orderCode}!`);
     } catch (err) {
       showApiErrorToast(err, 'Lỗi khi khôi phục địa chỉ');
     }
@@ -231,8 +215,7 @@ export function WarehouseTripDetailModal({
    */
   const handlePrintReceipt = (overrideMode?: 'INBOUND' | 'OUTBOUND') => {
     if (!onOpenReceipt || !tripGroup) return;
-    const printMode =
-      overrideMode || (currentStep === 1 ? 'INBOUND' : 'OUTBOUND');
+    const printMode = overrideMode || (currentStep === 1 ? 'INBOUND' : 'OUTBOUND');
 
     if (manifest && manifest.lines && manifest.lines.length > 0) {
       let targetLines: any[] = [];
@@ -255,9 +238,7 @@ export function WarehouseTripDetailModal({
         }
       } else {
         // Outbound print: only orders departing/loaded from this hub onto the truck
-        targetLines = manifest.lines.filter(
-          (l) => l.originHubId === manifest.currentHubId
-        );
+        targetLines = manifest.lines.filter((l) => l.originHubId === manifest.currentHubId);
       }
 
       if (targetLines.length === 0 && printMode !== 'INBOUND') {
@@ -268,44 +249,30 @@ export function WarehouseTripDetailModal({
         id: l.id,
         orderCode: l.orderCode,
         goodsDescription: l.goodsDescription || 'Hàng hóa vận chuyển',
-        totalQuantity:
-          l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
-        inboundQuantity:
-          l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+        totalQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+        inboundQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
         totalWeight: l.totalWeight || l.weightAllocated || 0,
         totalVolume: l.totalVolume || l.volumeAllocated || 0,
         deliveryAddress:
-          l.destinationHub ||
-          l.destinationHubEntity?.name ||
-          l.deliveryAddress ||
-          '—',
+          l.destinationHub || l.destinationHubEntity?.name || l.deliveryAddress || '—',
         destinationHub: l.destinationHub || l.destinationHubEntity?.name || '',
         destinationHubId: l.destinationHubId,
         destinationHubEntity: l.destinationHubEntity,
         accompanyingDocs: l.accompanyingDocs || 'KHÔNG CÓ',
         notes: l.notes || '',
-        pickupAddress: l.pickupAddress,
+        pickupAddress: l.pickupAddress
       }));
 
-      const totalQty = filteredOrders.reduce(
-        (sum, o) => sum + (Number(o.inboundQuantity) || 1),
-        0
-      );
-      const totalWeight = filteredOrders.reduce(
-        (sum, o) => sum + (Number(o.totalWeight) || 0),
-        0
-      );
-      const totalVolume = filteredOrders.reduce(
-        (sum, o) => sum + (Number(o.totalVolume) || 0),
-        0
-      );
+      const totalQty = filteredOrders.reduce((sum, o) => sum + (Number(o.inboundQuantity) || 1), 0);
+      const totalWeight = filteredOrders.reduce((sum, o) => sum + (Number(o.totalWeight) || 0), 0);
+      const totalVolume = filteredOrders.reduce((sum, o) => sum + (Number(o.totalVolume) || 0), 0);
 
       onOpenReceipt({
         ...tripGroup,
         orders: filteredOrders,
         totalQuantity: totalQty,
         totalWeight,
-        totalVolume,
+        totalVolume
       });
       return;
     }
@@ -337,7 +304,7 @@ export function WarehouseTripDetailModal({
 
   // Auto-resolve read-only mode based on business status
   const effectiveReadOnly = useMemo(() => {
-    if (readOnly && !isAdmin) return true;
+    if (readOnly) return true;
     if (!tripGroup) return true;
 
     // Khi trạm dừng tại kho này đã COMPLETED và tài khoản không phải Admin:
@@ -364,11 +331,67 @@ export function WarehouseTripDetailModal({
       'DISPATCHED',
       'COMPLETED',
       'DELIVERED',
-      'CANCELLED',
+      'CANCELLED'
     ].includes(tripGroup.status?.toUpperCase());
 
     return !hasWaiting || isStoredOrFinalized;
   }, [readOnly, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
+
+  const [selectedLabelData, setSelectedLabelData] = useState<
+    PalletLabelData | PalletLabelData[] | null
+  >(null);
+
+  const handlePrintLabelForOrder = (orderOrRow: any) => {
+    const label: PalletLabelData = {
+      orderCode: orderOrRow.orderCode,
+      goodsDescription: orderOrRow.goodsDescription || 'Hàng hóa tổng quan',
+      totalQuantity: Number(orderOrRow.totalQuantity ?? orderOrRow.expectedQuantity ?? 1),
+      originHub:
+        orderOrRow.pickupAddress || orderOrRow.originHub || orderOrRow.originHubEntity?.name,
+      destinationHub: orderOrRow.destinationHub || orderOrRow.destinationHubEntity?.name,
+      originalDestination:
+        orderOrRow.originalDestination ||
+        orderOrRow.destinationHubEntity?.name ||
+        orderOrRow.deliveryAddress,
+      deliveryAddress: orderOrRow.deliveryAddress,
+      province: orderOrRow.province || orderOrRow.destinationHubEntity?.city,
+      destinationHubEntity: orderOrRow.destinationHubEntity,
+      createdAt: orderOrRow.createdAt,
+      warehouseName: user?.hub?.name || tripGroup?.licensePlate
+    };
+    setSelectedLabelData(label);
+  };
+
+  const handlePrintAllLabels = () => {
+    const targetList =
+      manifest?.lines && manifest.lines.length > 0
+        ? manifest.lines
+        : rows.length > 0
+          ? rows
+          : (tripGroup?.orders ?? []);
+
+    if (targetList.length === 0) {
+      toast.info('Không có đơn hàng nào trong chuyến xe để in tem');
+      return;
+    }
+
+    const allLabels: PalletLabelData[] = targetList.map((o: any) => ({
+      orderCode: o.orderCode,
+      goodsDescription: o.goodsDescription || 'Hàng hóa tổng quan',
+      totalQuantity: Number(o.totalQuantity ?? o.expectedQuantity ?? 1),
+      originHub: o.pickupAddress || o.originHub || o.originHubEntity?.name,
+      destinationHub: o.destinationHub || o.destinationHubEntity?.name,
+      originalDestination:
+        o.originalDestination || o.destinationHubEntity?.name || o.deliveryAddress,
+      deliveryAddress: o.deliveryAddress,
+      province: o.province || o.destinationHubEntity?.city,
+      destinationHubEntity: o.destinationHubEntity,
+      createdAt: o.createdAt,
+      warehouseName: user?.hub?.name || tripGroup?.licensePlate
+    }));
+
+    setSelectedLabelData(allLabels);
+  };
 
   const [receiveDate, setReceiveDate] = useState<string>(
     () => new Date().toISOString().split('T')[0]
@@ -412,33 +435,23 @@ export function WarehouseTripDetailModal({
         stayLines: [],
         stayOrdersCount: 0,
         stayQty: 0,
-        stayDetailsText: '',
+        stayDetailsText: ''
       };
     }
     const unloadLines = manifest.lines.filter(
       (l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
     );
     const unloadOrdersCount = unloadLines.length;
-    const unloadQty = unloadLines.reduce(
-      (sum, l) => sum + expectedForLine(l),
-      0
-    );
+    const unloadQty = unloadLines.reduce((sum, l) => sum + expectedForLine(l), 0);
 
     const stayLines = manifest.lines.filter(
       (l) => !l.isForCurrentHub || l.deliveryMode === 'DIRECT_CUSTOMER'
     );
     const stayOrdersCount = stayLines.length;
-    const stayQty = stayLines.reduce(
-      (sum, l) => sum + expectedForLine(l),
-      0
-    );
+    const stayQty = stayLines.reduce((sum, l) => sum + expectedForLine(l), 0);
 
-    const stayDirectCustomerLines = stayLines.filter(
-      (l) => l.deliveryMode === 'DIRECT_CUSTOMER'
-    );
-    const stayOtherHubLines = stayLines.filter(
-      (l) => l.deliveryMode !== 'DIRECT_CUSTOMER'
-    );
+    const stayDirectCustomerLines = stayLines.filter((l) => l.deliveryMode === 'DIRECT_CUSTOMER');
+    const stayOtherHubLines = stayLines.filter((l) => l.deliveryMode !== 'DIRECT_CUSTOMER');
 
     const details: string[] = [];
     if (stayDirectCustomerLines.length > 0) {
@@ -448,19 +461,12 @@ export function WarehouseTripDetailModal({
       const hubNames = Array.from(
         new Set(
           stayOtherHubLines
-            .map(
-              (l) =>
-                l.destinationHubEntity?.name ||
-                l.destinationHub ||
-                'kho khác'
-            )
+            .map((l) => l.destinationHubEntity?.name || l.destinationHub || 'kho khác')
             .filter(Boolean)
         )
       );
       if (hubNames.length <= 2) {
-        details.push(
-          `${stayOtherHubLines.length} đơn đi ${hubNames.join(', ')}`
-        );
+        details.push(`${stayOtherHubLines.length} đơn đi ${hubNames.join(', ')}`);
       } else {
         details.push(`${stayOtherHubLines.length} đơn đi kho khác`);
       }
@@ -474,7 +480,7 @@ export function WarehouseTripDetailModal({
       stayLines,
       stayOrdersCount,
       stayQty,
-      stayDetailsText,
+      stayDetailsText
     };
   }, [manifest]);
 
@@ -485,8 +491,7 @@ export function WarehouseTripDetailModal({
     if (!manifest || !manifest.lines) {
       return { transitLines: [], hubOutboundLines: [], allOutboundLines: [] };
     }
-    const currentHubId =
-      manifest.currentHubId || user?.hubId || user?.hub?.id || 2;
+    const currentHubId = manifest.currentHubId || user?.hubId || user?.hub?.id || 2;
     // Cargo loaded at earlier stops continuing past this hub
     const transitLines = manifest.lines.filter(
       (l) => !l.isForCurrentHub && l.originHubId !== currentHubId
@@ -494,9 +499,7 @@ export function WarehouseTripDetailModal({
     // Cargo loaded directly from this hub to go to another hub
     const hubOutboundLines = manifest.lines.filter(
       (l) =>
-        l.originHubId === currentHubId &&
-        !l.isForCurrentHub &&
-        l.destinationHubId !== currentHubId
+        l.originHubId === currentHubId && !l.isForCurrentHub && l.destinationHubId !== currentHubId
     );
     const allOutboundLines = [...transitLines, ...hubOutboundLines];
 
@@ -512,13 +515,9 @@ export function WarehouseTripDetailModal({
   // Sync state when tripGroup opens
   useEffect(() => {
     if (tripGroup && isOpen) {
-      setLicensePlate(
-        tripGroup.licensePlate !== 'CHƯA GÁN' ? tripGroup.licensePlate : ''
-      );
+      setLicensePlate(tripGroup.licensePlate !== 'CHƯA GÁN' ? tripGroup.licensePlate : '');
       setDriverName(tripGroup.driverName || '');
-      setReceiveDate(
-        tripGroup.receiveDate || new Date().toISOString().split('T')[0]
-      );
+      setReceiveDate(tripGroup.receiveDate || new Date().toISOString().split('T')[0]);
 
       if (tripGroup.orders && tripGroup.orders.length > 0) {
         const mappedRows: WarehouseRowItem[] = tripGroup.orders.map((o) => {
@@ -557,7 +556,7 @@ export function WarehouseTripDetailModal({
               (o.destinationHub
                 ? { id: o.destinationHubId, name: o.destinationHub, code: '' }
                 : null),
-            status: o.status,
+            status: o.status
           };
         });
         setRows(mappedRows);
@@ -574,8 +573,8 @@ export function WarehouseTripDetailModal({
             deliveryAddress: '',
             province: '',
             accompanyingDocs: '',
-            notes: '',
-          },
+            notes: ''
+          }
         ]);
       }
     }
@@ -609,15 +608,11 @@ export function WarehouseTripDetailModal({
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       if (!r.orderCode || !r.orderCode.trim()) {
-        toast.error(
-          `Dòng số ${i + 1} chưa có mã vận đơn! Vui lòng nhập mã vận đơn.`
-        );
+        toast.error(`Dòng số ${i + 1} chưa có mã vận đơn! Vui lòng nhập mã vận đơn.`);
         return false;
       }
       if (!r.totalQuantity || Number(r.totalQuantity) <= 0) {
-        toast.error(
-          `Dòng số ${i + 1} (${r.orderCode}): Số lượng kiện phải lớn hơn 0!`
-        );
+        toast.error(`Dòng số ${i + 1} (${r.orderCode}): Số lượng kiện phải lớn hơn 0!`);
         return false;
       }
     }
@@ -642,8 +637,7 @@ export function WarehouseTripDetailModal({
           id: r.id,
           orderCode: r.orderCode.trim().toUpperCase(),
           goodsDescription: r.goodsDescription?.trim() || 'Hàng tiếp nhận kho',
-          totalQuantity:
-            Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
+          totalQuantity: Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
           totalWeight: Number(r.totalWeight) >= 0 ? Number(r.totalWeight) : 0,
           totalVolume: Number(r.totalVolume) >= 0 ? Number(r.totalVolume) : 0,
           pickupAddress: r.pickupAddress?.trim() || user?.hub?.name || '',
@@ -652,29 +646,25 @@ export function WarehouseTripDetailModal({
           accompanyingDocs: r.accompanyingDocs?.trim() || undefined,
           destinationHubId: r.destinationHubId || null,
           notes: r.notes?.trim() || undefined,
-          status: r.status,
-        })),
+          status: r.status
+        }))
       };
 
       const res = await fetch('/api/v1/warehouse/inbound/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        const errData = await res
-          .json()
-          .catch(() => ({ message: res.statusText }));
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
         throw { response: { data: errData, status: res.status } };
       }
 
-      toast.success(
-        `Đã lưu thay đổi cho chuyến xe ${tripGroup.tripCode} thành công!`
-      );
+      toast.success(`Đã lưu thay đổi cho chuyến xe ${tripGroup.tripCode} thành công!`);
       onSuccess?.();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi lưu thay đổi chuyến xe');
@@ -701,8 +691,7 @@ export function WarehouseTripDetailModal({
           id: r.id,
           orderCode: r.orderCode.trim().toUpperCase(),
           goodsDescription: r.goodsDescription?.trim() || 'Hàng tiếp nhận kho',
-          totalQuantity:
-            Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
+          totalQuantity: Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
           totalWeight: Number(r.totalWeight) >= 0 ? Number(r.totalWeight) : 0,
           totalVolume: Number(r.totalVolume) >= 0 ? Number(r.totalVolume) : 0,
           pickupAddress: r.pickupAddress?.trim() || user?.hub?.name || '',
@@ -710,23 +699,21 @@ export function WarehouseTripDetailModal({
           province: r.province?.trim() || undefined,
           accompanyingDocs: r.accompanyingDocs?.trim() || undefined,
           destinationHubId: r.destinationHubId || null,
-          notes: r.notes?.trim() || undefined,
-        })),
+          notes: r.notes?.trim() || undefined
+        }))
       };
 
       const res = await fetch('/api/v1/warehouse/inbound/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        const errData = await res
-          .json()
-          .catch(() => ({ message: res.statusText }));
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
         throw { response: { data: errData, status: res.status } };
       }
 
@@ -744,9 +731,7 @@ export function WarehouseTripDetailModal({
   // 3. Kiểm đếm chọn lọc theo kho (chuyến nhiều điểm dỡ / hợp đồng đã khóa)
   const handleConfirmTally = async () => {
     if (!manifest) return;
-    const selectedLines = manifest.lines.filter(
-      (l) => tally[l.id]?.checked && !l.isReceivedHere
-    );
+    const selectedLines = manifest.lines.filter((l) => tally[l.id]?.checked && !l.isReceivedHere);
 
     if (selectedLines.length === 0) {
       toast.error('Vui lòng chọn ít nhất 1 dòng hàng dỡ xuống tại kho này!');
@@ -787,30 +772,27 @@ export function WarehouseTripDetailModal({
             actualQuantity: qty,
             expectedQuantity: expectedForLine(l),
             discrepancyReason: s.discrepancyReason.trim() || undefined,
-            ...(l.isContractLocked ? {} : { totalQuantity: qty }),
+            ...(l.isContractLocked ? {} : { totalQuantity: qty })
           };
-        }),
+        })
       };
 
       const res = await fetch('/api/v1/warehouse/inbound/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        const errData = await res
-          .json()
-          .catch(() => ({ message: res.statusText }));
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
         throw { response: { data: errData, status: res.status } };
       }
 
       const body = await res.json().catch(() => null);
-      const invoiceCode: string | undefined =
-        body?.data?.invoiceCode ?? body?.invoiceCode;
+      const invoiceCode: string | undefined = body?.data?.invoiceCode ?? body?.invoiceCode;
       toast.success(
         `Đã nhập kho ${selectedLines.length} dòng hàng từ chuyến ${manifest.tripCode}${
           invoiceCode ? ` (phiếu ${invoiceCode})` : ''
@@ -831,7 +813,7 @@ export function WarehouseTripDetailModal({
       try {
         await updateTransitStep(manifest.tripCode, {
           step: 'INBOUND',
-          action: 'CONFIRM',
+          action: 'CONFIRM'
         });
       } catch {
         // non-blocking
@@ -842,7 +824,7 @@ export function WarehouseTripDetailModal({
     );
     await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
     await queryClient.invalidateQueries({
-      queryKey: ['warehouse', 'inbound-trips'],
+      queryKey: ['warehouse', 'inbound-trips']
     });
     onSuccess?.();
     onClose();
@@ -853,18 +835,16 @@ export function WarehouseTripDetailModal({
       try {
         await updateTransitStep(manifest.tripCode, {
           step: 'OUTBOUND',
-          action: 'SKIP',
+          action: 'SKIP'
         });
       } catch {
         // non-blocking
       }
     }
-    toast.success(
-      `Đã bỏ qua xuất thêm hàng. Chuyến xe ${tripGroup.tripCode} sẵn sàng rời trạm.`
-    );
+    toast.success(`Đã bỏ qua xuất thêm hàng. Chuyến xe ${tripGroup.tripCode} sẵn sàng rời trạm.`);
     await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
     await queryClient.invalidateQueries({
-      queryKey: ['warehouse', 'inbound-trips'],
+      queryKey: ['warehouse', 'inbound-trips']
     });
     onSuccess?.();
     onClose();
@@ -875,7 +855,7 @@ export function WarehouseTripDetailModal({
       try {
         await updateTransitStep(manifest.tripCode, {
           step: 'OUTBOUND',
-          action: 'CONFIRM',
+          action: 'CONFIRM'
         });
       } catch {
         // non-blocking
@@ -886,7 +866,7 @@ export function WarehouseTripDetailModal({
     );
     await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
     await queryClient.invalidateQueries({
-      queryKey: ['warehouse', 'inbound-trips'],
+      queryKey: ['warehouse', 'inbound-trips']
     });
     onSuccess?.();
     onClose();
@@ -942,9 +922,7 @@ export function WarehouseTripDetailModal({
                 size='sm'
                 onClick={() => handlePrintReceipt()}
                 className='h-7 px-2 text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 font-semibold'
-                title={
-                  currentStep === 1 ? 'In phiếu nhập kho' : 'In phiếu xuất kho'
-                }
+                title={currentStep === 1 ? 'In phiếu nhập kho' : 'In phiếu xuất kho'}
               >
                 <IconPrinter className='h-3.5 w-3.5 mr-1' />
                 {currentStep === 1 ? 'In phiếu nhập' : 'In phiếu xuất'}
@@ -1005,9 +983,7 @@ export function WarehouseTripDetailModal({
                   2
                 </span>
                 <span>2. Xuất hàng mới lên xe</span>
-                <span className='text-[10px] text-slate-400 font-normal'>
-                  (Tùy chọn)
-                </span>
+                <span className='text-[10px] text-slate-400 font-normal'>(Tùy chọn)</span>
                 {outboundBreakdown.hubOutboundLines.length > 0 && (
                   <Badge className='bg-blue-600 text-white text-[9px] px-1 py-0 h-3.5'>
                     +{outboundBreakdown.hubOutboundLines.length}
@@ -1036,7 +1012,9 @@ export function WarehouseTripDetailModal({
             >
               <IconCircleCheck className='h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
               <span>
-                <strong>Chuyến xe đã hoàn tất tác nghiệp tại kho này.</strong> Toàn bộ thông tin đơn hàng đã được chốt sổ cái và khóa chỉnh sửa đối với tài khoản chi nhánh. Vui lòng liên hệ Quản trị viên hệ thống (Admin) nếu có yêu cầu điều chỉnh ngoại lệ.
+                <strong>Chuyến xe đã hoàn tất tác nghiệp tại kho này.</strong> Toàn bộ thông tin đơn
+                hàng đã được chốt sổ cái và khóa chỉnh sửa đối với tài khoản chi nhánh. Vui lòng
+                liên hệ Quản trị viên hệ thống (Admin) nếu có yêu cầu điều chỉnh ngoại lệ.
               </span>
             </div>
           )}
@@ -1048,28 +1026,29 @@ export function WarehouseTripDetailModal({
             >
               <IconShieldCheck className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0' />
               <span>
-                <strong className='font-bold'>Chế độ Quản trị viên: </strong>Chuyến xe đã xử lý tại trạm này. Bạn có đặc quyền chỉnh sửa thông tin đơn hàng trong chuyến xe.
+                <strong className='font-bold'>Chế độ Quản trị viên: </strong>Chuyến xe đã xử lý tại
+                trạm này. Bạn có đặc quyền chỉnh sửa thông tin đơn hàng trong chuyến xe.
               </span>
             </div>
           )}
 
-          {!isHubAccountLocked && !(isAdmin && isCurrentHubCompleted) && effectiveReadOnly && currentStep === 1 && (
-            <div className='bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] px-2.5 py-1 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700'>
-              <IconCircleCheck className='h-3.5 w-3.5 text-emerald-500 shrink-0' />
-              {isTallyMode ? (
-                <span>
-                  Chuyến xe <strong>Đã xử lý dỡ hàng</strong> tại{' '}
-                  {currentStopHubName ?? 'kho này'}. Bạn có thể bấm sang{' '}
-                  <strong>Bước 2: Xuất hàng mới lên xe</strong> để bốc thêm hàng
-                  gửi tiếp.
-                </span>
-              ) : (
-                <span>
-                  Chuyến xe đã chốt sổ cái tồn kho nhập tại kho này.
-                </span>
-              )}
-            </div>
-          )}
+          {!isHubAccountLocked &&
+            !(isAdmin && isCurrentHubCompleted) &&
+            effectiveReadOnly &&
+            currentStep === 1 && (
+              <div className='bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] px-2.5 py-1 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700'>
+                <IconCircleCheck className='h-3.5 w-3.5 text-emerald-500 shrink-0' />
+                {isTallyMode ? (
+                  <span>
+                    Chuyến xe <strong>Đã xử lý dỡ hàng</strong> tại{' '}
+                    {currentStopHubName ?? 'kho này'}. Bạn có thể bấm sang{' '}
+                    <strong>Bước 2: Xuất hàng mới lên xe</strong> để bốc thêm hàng gửi tiếp.
+                  </span>
+                ) : (
+                  <span>Chuyến xe đã chốt sổ cái tồn kho nhập tại kho này.</span>
+                )}
+              </div>
+            )}
 
           {isManifestError && (
             <div className='text-[10px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded px-2 py-1'>
@@ -1080,14 +1059,10 @@ export function WarehouseTripDetailModal({
           {/* Route stops: per-hub processing status */}
           {manifest && manifest.stops.length > 0 && (
             <div className='flex flex-wrap items-center gap-1 text-[10px]'>
-              <span className='font-semibold text-slate-600 dark:text-slate-300'>
-                Lộ trình xe:
-              </span>
+              <span className='font-semibold text-slate-600 dark:text-slate-300'>Lộ trình xe:</span>
               {manifest.stops.map((s, idx) => (
                 <React.Fragment key={s.hubId}>
-                  {idx > 0 && (
-                    <IconChevronRight className='h-3 w-3 text-slate-400' />
-                  )}
+                  {idx > 0 && <IconChevronRight className='h-3 w-3 text-slate-400' />}
                   <span
                     className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 ${
                       s.hubId === manifest.currentHubId
@@ -1096,10 +1071,7 @@ export function WarehouseTripDetailModal({
                     }`}
                   >
                     {s.hubName}
-                    <TripStopStatusBadge
-                      status={s.status}
-                      className='h-3.5 px-1 text-[9px]'
-                    />
+                    <TripStopStatusBadge status={s.status} className='h-3.5 px-1 text-[9px]' />
                   </span>
                 </React.Fragment>
               ))}
@@ -1114,16 +1086,25 @@ export function WarehouseTripDetailModal({
                 <label className='text-[10px] font-bold block mb-0.5 text-slate-700 dark:text-slate-300'>
                   1. {currentStep === 1 ? 'Ngày nhập kho' : 'Ngày xuất kho'}
                 </label>
-                <div className='relative'>
-                  <IconCalendar className='absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400' />
-                  <Input
-                    type='date'
-                    value={receiveDate}
-                    onChange={(e) => setReceiveDate(e.target.value)}
-                    disabled={(effectiveReadOnly && currentStep === 1) || isHubAccountLocked}
-                    className='h-7 pl-8 text-xs font-medium border-slate-300 bg-slate-50 dark:bg-slate-800'
-                  />
-                </div>
+                {effectiveReadOnly ? (
+                  <div className='h-7 px-2.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between text-xs'>
+                    <span className='font-bold text-slate-800 dark:text-slate-200'>
+                      {receiveDate || '—'}
+                    </span>
+                    <IconLock className='h-3 w-3 text-slate-400' />
+                  </div>
+                ) : (
+                  <div className='relative'>
+                    <IconCalendar className='absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400' />
+                    <Input
+                      type='date'
+                      value={receiveDate}
+                      onChange={(e) => setReceiveDate(e.target.value)}
+                      disabled={isHubAccountLocked}
+                      className='h-7 pl-8 text-xs font-medium border-slate-300 bg-slate-50 dark:bg-slate-800'
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 2. Biển số xe */}
@@ -1131,16 +1112,25 @@ export function WarehouseTripDetailModal({
                 <label className='text-[10px] font-bold block mb-0.5 text-slate-700 dark:text-slate-300'>
                   2. Biển số xe
                 </label>
-                <div className='relative'>
-                  <IconTruck className='absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400' />
-                  <Input
-                    value={licensePlate}
-                    onChange={(e) => setLicensePlate(e.target.value)}
-                    placeholder='VD: 29C-123.45'
-                    disabled={(effectiveReadOnly && currentStep === 1) || isHubAccountLocked}
-                    className='h-7 pl-8 text-xs font-bold uppercase border-slate-300 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white'
-                  />
-                </div>
+                {effectiveReadOnly ? (
+                  <div className='h-7 px-2.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between text-xs'>
+                    <span className='font-mono font-bold text-slate-900 dark:text-white uppercase'>
+                      {licensePlate || 'CHƯA GÁN XE'}
+                    </span>
+                    <IconLock className='h-3 w-3 text-slate-400' />
+                  </div>
+                ) : (
+                  <div className='relative'>
+                    <IconTruck className='absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400' />
+                    <Input
+                      value={licensePlate}
+                      onChange={(e) => setLicensePlate(e.target.value)}
+                      placeholder='VD: 29C-123.45'
+                      disabled={isHubAccountLocked}
+                      className='h-7 pl-8 text-xs font-bold uppercase border-slate-300 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white'
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 3. Tài xế */}
@@ -1148,16 +1138,25 @@ export function WarehouseTripDetailModal({
                 <label className='text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-0.5'>
                   3. Tài xế phụ trách
                 </label>
-                <div className='relative'>
-                  <IconUser className='absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400' />
-                  <Input
-                    value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    placeholder='VD: Nguyễn Văn A'
-                    disabled={(effectiveReadOnly && currentStep === 1) || isHubAccountLocked}
-                    className='h-7 pl-8 text-xs font-medium border-slate-300 bg-slate-50 dark:bg-slate-800'
-                  />
-                </div>
+                {effectiveReadOnly ? (
+                  <div className='h-7 px-2.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between text-xs'>
+                    <span className='font-medium text-slate-800 dark:text-slate-200'>
+                      {driverName || 'Chưa gán tài xế'}
+                    </span>
+                    <IconLock className='h-3 w-3 text-slate-400' />
+                  </div>
+                ) : (
+                  <div className='relative'>
+                    <IconUser className='absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400' />
+                    <Input
+                      value={driverName}
+                      onChange={(e) => setDriverName(e.target.value)}
+                      placeholder='VD: Nguyễn Văn A'
+                      disabled={isHubAccountLocked}
+                      className='h-7 pl-8 text-xs font-medium border-slate-300 bg-slate-50 dark:bg-slate-800'
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1179,9 +1178,7 @@ export function WarehouseTripDetailModal({
 
                   <div className='flex items-center gap-2'>
                     <span className='text-[11px] text-gray-500'>
-                      {(isTallyMode ? manifest?.lines.length : rows.length) ??
-                        0}{' '}
-                      dòng hàng
+                      {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} dòng hàng
                     </span>
                     {/* Nút duy nhất bốc thêm đơn dọc đường về Hub */}
                     {isManifestTripCode(tripGroup?.tripCode) && !isHubAccountLocked && (
@@ -1212,8 +1209,7 @@ export function WarehouseTripDetailModal({
 
                 {manifestPending ? (
                   <div className='py-3 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5'>
-                    <IconLoader2 className='h-4 w-4 animate-spin' /> Đang tải
-                    bảng kê chuyến xe...
+                    <IconLoader2 className='h-4 w-4 animate-spin' /> Đang tải bảng kê chuyến xe...
                   </div>
                 ) : isTallyMode && manifest ? (
                   <div className='space-y-1.5'>
@@ -1221,7 +1217,8 @@ export function WarehouseTripDetailModal({
                       <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
                         <span>Dỡ tại kho này:</span>
                         <span>
-                          {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty} kiện)
+                          {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty}{' '}
+                          kiện)
                         </span>
                       </div>
                       <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
@@ -1230,7 +1227,10 @@ export function WarehouseTripDetailModal({
                         </span>
                         <span>
                           {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
-                          {inboundBreakdown.stayDetailsText ? `: ${inboundBreakdown.stayDetailsText}` : ''})
+                          {inboundBreakdown.stayDetailsText
+                            ? `: ${inboundBreakdown.stayDetailsText}`
+                            : ''}
+                          )
                         </span>
                       </div>
                     </div>
@@ -1242,6 +1242,7 @@ export function WarehouseTripDetailModal({
                       onHideOtherHubsChange={setHideOtherHubs}
                       readOnly={effectiveReadOnly}
                       currentHubName={currentStopHubName}
+                      onPrintLabel={handlePrintLabelForOrder}
                     />
                   </div>
                 ) : effectiveReadOnly ? (
@@ -1249,33 +1250,18 @@ export function WarehouseTripDetailModal({
                     <table className='w-full text-[10px] text-left'>
                       <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                         <tr>
-                          <th className='py-1 px-1.5 w-[36px] text-center'>
-                            STT
-                          </th>
+                          <th className='py-1 px-1.5 w-[36px] text-center'>STT</th>
                           <th className='py-1 px-1.5 w-[130px]'>MÃ VẬN ĐƠN</th>
-                          <th className='py-1 px-1.5 min-w-[130px]'>
-                            ĐIỂM BỐC HÀNG
-                          </th>
-                          <th className='py-1 px-1.5 min-w-[140px]'>
-                            TÊN HÀNG HÓA
-                          </th>
-                          <th className='py-1 px-1.5 text-right w-[65px]'>
-                            SỐ KIỆN
-                          </th>
-                          <th className='py-1 px-1.5 text-right w-[65px]'>
-                            SỐ KG
-                          </th>
-                          <th className='py-1 px-1.5 text-right w-[65px]'>
-                            SỐ M³
-                          </th>
-                          <th className='py-1 px-1.5 min-w-[150px]'>
-                            ĐỊA CHỈ GIAO
-                          </th>
+                          <th className='py-1 px-1.5 min-w-[130px]'>ĐIỂM BỐC HÀNG</th>
+                          <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
+                          <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
+                          <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KG</th>
+                          <th className='py-1 px-1.5 text-right w-[65px]'>SỐ M³</th>
+                          <th className='py-1 px-1.5 min-w-[150px]'>ĐỊA CHỈ GIAO</th>
                           <th className='py-1 px-1.5 w-[90px]'>TỈNH / TP</th>
-                          <th className='py-1 px-1.5 w-[85px] text-center'>
-                            CHỨNG TỪ
-                          </th>
+                          <th className='py-1 px-1.5 w-[85px] text-center'>CHỨNG TỪ</th>
                           <th className='py-1 px-1.5 min-w-[110px]'>GHI CHÚ</th>
+                          <th className='py-1 px-1.5 w-[80px] text-center'>THAO TÁC</th>
                         </tr>
                       </thead>
                       <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
@@ -1312,15 +1298,24 @@ export function WarehouseTripDetailModal({
                               {r.province || '—'}
                             </td>
                             <td className='py-1 px-1.5 text-center'>
-                              <Badge
-                                variant='outline'
-                                className='text-[9px] px-1 py-0 h-4'
-                              >
+                              <Badge variant='outline' className='text-[9px] px-1 py-0 h-4'>
                                 {r.accompanyingDocs || 'Không có'}
                               </Badge>
                             </td>
                             <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
                               {r.notes || '—'}
+                            </td>
+                            <td className='py-1 px-1.5 text-center'>
+                              <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={() => handlePrintLabelForOrder(r)}
+                                className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 px-1.5 font-semibold'
+                                title='In tem nhận diện hàng hóa A4'
+                              >
+                                <IconPrinter className='h-3 w-3 mr-1' /> In tem
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -1328,11 +1323,7 @@ export function WarehouseTripDetailModal({
                     </table>
                   </div>
                 ) : (
-                  <WarehouseEditableGrid
-                    rows={rows}
-                    onChange={setRows}
-                    isOutboundMode={false}
-                  />
+                  <WarehouseEditableGrid rows={rows} onChange={setRows} isOutboundMode={false} />
                 )}
               </CardContent>
             </Card>
@@ -1345,19 +1336,19 @@ export function WarehouseTripDetailModal({
                     <span className='text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5'>
                       <IconTruck className='h-3.5 w-3.5 text-blue-600' />
                       <span>
-                        Hàng hóa tiếp tục hành trình trên xe {tripGroup.tripCode}{' '}
-                        (Xuất từ {currentStopHubName ?? 'kho này'})
+                        Hàng hóa tiếp tục hành trình trên xe {tripGroup.tripCode} (Xuất từ{' '}
+                        {currentStopHubName ?? 'kho này'})
                       </span>
                     </span>
                     <p className='text-[10px] text-slate-500 mt-0.5'>
-                      Gồm các kiện hàng trung chuyển từ trạm trước và các kiện
-                      hàng mới bốc từ Hub lên xe
+                      Gồm các kiện hàng trung chuyển từ trạm trước và các kiện hàng mới bốc từ Hub
+                      lên xe
                     </p>
                   </div>
 
                   <div className='flex items-center gap-2'>
                     {/* Nút thêm đơn xuất từ kho lên xe */}
-                    {!isHubAccountLocked && (
+                    {!effectiveReadOnly && !isHubAccountLocked && (
                       <Button
                         type='button'
                         size='sm'
@@ -1384,51 +1375,30 @@ export function WarehouseTripDetailModal({
                   <table className='w-full text-[10px] text-left'>
                     <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                       <tr>
-                        <th className='py-1 px-1.5 w-[36px] text-center'>
-                          STT
-                        </th>
+                        <th className='py-1 px-1.5 w-[36px] text-center'>STT</th>
                         <th className='py-1 px-1.5 w-[130px]'>MÃ VẬN ĐƠN</th>
                         <th className='py-1 px-1.5 w-[110px]'>NGUỒN HÀNG</th>
-                        <th className='py-1 px-1.5 min-w-[140px]'>
-                          TÊN HÀNG HÓA
-                        </th>
-                        <th className='py-1 px-1.5 text-right w-[65px]'>
-                          SỐ KIỆN
-                        </th>
-                        <th className='py-1 px-1.5 text-right w-[65px]'>
-                          SỐ KG
-                        </th>
-                        <th className='py-1 px-1.5 text-right w-[65px]'>
-                          SỐ M³
-                        </th>
-                        <th className='py-1 px-1.5 min-w-[140px]'>
-                          KHO ĐÍCH / NƠI GIAO
-                        </th>
+                        <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
+                        <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
+                        <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KG</th>
+                        <th className='py-1 px-1.5 text-right w-[65px]'>SỐ M³</th>
+                        <th className='py-1 px-1.5 min-w-[140px]'>KHO ĐÍCH / NƠI GIAO</th>
                         <th className='py-1 px-1.5 min-w-[120px]'>GHI CHÚ</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
                       {outboundBreakdown.allOutboundLines.length === 0 ? (
                         <tr>
-                          <td
-                            colSpan={9}
-                            className='py-3 text-center text-slate-400'
-                          >
-                            Chưa có đơn hàng nào xuất tiếp trên chuyến xe này.
-                            Bấm{' '}
-                            <strong>"Thêm đơn xuất từ kho lên xe"</strong> để
-                            bốc thêm hàng.
+                          <td colSpan={9} className='py-3 text-center text-slate-400'>
+                            Chưa có đơn hàng nào xuất tiếp trên chuyến xe này. Bấm{' '}
+                            <strong>"Thêm đơn xuất từ kho lên xe"</strong> để bốc thêm hàng.
                           </td>
                         </tr>
                       ) : (
                         outboundBreakdown.allOutboundLines.map((l: any, i) => {
                           const effectiveCurrentHubId =
-                            manifest?.currentHubId ||
-                            user?.hubId ||
-                            user?.hub?.id ||
-                            2;
-                          const isNewlyLoadedHere =
-                            l.originHubId === effectiveCurrentHubId;
+                            manifest?.currentHubId || user?.hubId || user?.hub?.id || 2;
+                          const isNewlyLoadedHere = l.originHubId === effectiveCurrentHubId;
                           return (
                             <tr
                               key={l.id || i}
@@ -1462,134 +1432,139 @@ export function WarehouseTripDetailModal({
                                 {l.goodsDescription || '—'}
                               </td>
                               <td className='py-1 px-1.5 text-right font-bold text-slate-800 dark:text-slate-200'>
-                                {l.inTransitQuantity ||
-                                  l.expectedQuantity ||
-                                  l.totalQuantity ||
-                                  1}
+                                {l.inTransitQuantity || l.expectedQuantity || l.totalQuantity || 1}
                               </td>
                               <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
-                                {formatWeight(
-                                  l.totalWeight || l.weightAllocated
-                                )}
+                                {formatWeight(l.totalWeight || l.weightAllocated)}
                               </td>
                               <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
-                                {formatVolume(
-                                  l.totalVolume || l.volumeAllocated
-                                )}
+                                {formatVolume(l.totalVolume || l.volumeAllocated)}
                               </td>
                               <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 font-semibold min-w-[200px]'>
-                                {isNewlyLoadedHere ? (
-                                  (() => {
-                                    const effectiveMode =
-                                      l.deliveryMode ||
-                                      (l.destinationHubEntity?.level === 2 ||
-                                      l.destinationHubEntity?.code?.startsWith('XB-') ||
-                                      l.destinationHubEntity?.code?.startsWith('HUB-BO-') ||
-                                      (l.destinationHub &&
-                                        (l.destinationHub.toLowerCase().includes('xe bo') ||
-                                          l.destinationHub.toLowerCase().includes('hub-bo')))
-                                        ? 'XE_BO'
-                                        : l.destinationHubId || l.destinationHubEntity?.level === 1
-                                          ? 'HUB_L1'
-                                          : 'DIRECT_CUSTOMER');
+                                {isNewlyLoadedHere
+                                  ? (() => {
+                                      const effectiveMode =
+                                        l.deliveryMode ||
+                                        (l.destinationHubEntity?.level === 2 ||
+                                        l.destinationHubEntity?.code?.startsWith('XB-') ||
+                                        l.destinationHubEntity?.code?.startsWith('HUB-BO-') ||
+                                        (l.destinationHub &&
+                                          (l.destinationHub.toLowerCase().includes('xe bo') ||
+                                            l.destinationHub.toLowerCase().includes('hub-bo')))
+                                          ? 'XE_BO'
+                                          : l.destinationHubId ||
+                                              l.destinationHubEntity?.level === 1
+                                            ? 'HUB_L1'
+                                            : 'DIRECT_CUSTOMER');
 
-                                    if (effectiveMode === 'HUB_L1' || effectiveMode === 'XE_BO') {
-                                      const { hub, isXeBo } = resolveHubOption(
-                                        l.destinationHubEntity || l.destinationHub,
-                                        l.destinationHubId,
-                                        l.deliveryAddress || l.destinationHub,
-                                        level1Hubs,
-                                        level2XeBoHubs,
-                                        effectiveMode
-                                      );
+                                      if (effectiveMode === 'HUB_L1' || effectiveMode === 'XE_BO') {
+                                        const { hub, isXeBo } = resolveHubOption(
+                                          l.destinationHubEntity || l.destinationHub,
+                                          l.destinationHubId,
+                                          l.deliveryAddress || l.destinationHub,
+                                          level1Hubs,
+                                          level2XeBoHubs,
+                                          effectiveMode
+                                        );
 
-                                      return (
-                                        <DestinationHubInfoCard
-                                          hub={hub}
-                                          isXeBo={isXeBo}
-                                          disabled={isHubAccountLocked || !canEditOrderInfo}
-                                          onResetToOriginal={() => handleDirectReset(l)}
-                                          onChangeDestination={() => setSelectedOrderForDestModal(l)}
-                                        />
-                                      );
-                                    }
+                                        return (
+                                          <DestinationHubInfoCard
+                                            hub={hub}
+                                            isXeBo={isXeBo}
+                                            disabled={isHubAccountLocked || !canEditOrderInfo}
+                                            onResetToOriginal={() => handleDirectReset(l)}
+                                            onChangeDestination={() =>
+                                              setSelectedOrderForDestModal(l)
+                                            }
+                                          />
+                                        );
+                                      }
 
-                                    // DIRECT_CUSTOMER
-                                    if (isHubAccountLocked || !canEditOrderInfo) {
-                                      return (
-                                        <div className='text-[10px] py-0.5 space-y-0.5'>
-                                          <Badge variant='outline' className='text-slate-600 text-[9px] px-1 py-0 h-4'>
-                                            Giao khách
-                                          </Badge>
-                                          <div
-                                            className='font-semibold text-slate-800 dark:text-slate-200 truncate'
-                                            title={l.deliveryAddress || l.originalDeliveryAddress || 'Chưa xác định'}
-                                          >
-                                            {l.deliveryAddress || l.originalDeliveryAddress || 'Chưa xác định'}
+                                      // DIRECT_CUSTOMER
+                                      if (isHubAccountLocked || !canEditOrderInfo) {
+                                        return (
+                                          <div className='text-[10px] py-0.5 space-y-0.5'>
+                                            <Badge
+                                              variant='outline'
+                                              className='text-slate-600 text-[9px] px-1 py-0 h-4'
+                                            >
+                                              Giao khách
+                                            </Badge>
+                                            <div
+                                              className='font-semibold text-slate-800 dark:text-slate-200 truncate'
+                                              title={
+                                                l.deliveryAddress ||
+                                                l.originalDeliveryAddress ||
+                                                'Chưa xác định'
+                                              }
+                                            >
+                                              {l.deliveryAddress ||
+                                                l.originalDeliveryAddress ||
+                                                'Chưa xác định'}
+                                            </div>
                                           </div>
-                                        </div>
-                                      );
-                                    }
+                                        );
+                                      }
 
-                                    return (
-                                      <div className='space-y-1 text-[10px]'>
-                                        <div
-                                          className='text-slate-800 dark:text-slate-200 font-semibold truncate'
-                                          title={
-                                            l.deliveryAddress ||
-                                            l.originalDeliveryAddress ||
-                                            'Chưa xác định'
-                                          }
-                                        >
-                                          {l.deliveryAddress ||
-                                            l.originalDeliveryAddress ||
-                                            'Chưa xác định'}
-                                        </div>
-                                        <button
-                                          type='button'
-                                          onClick={() => setSelectedOrderForDestModal(l)}
-                                          className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer'
-                                        >
-                                          <IconMapPin className='h-3 w-3 text-blue-600 shrink-0' />
-                                          <span className='truncate'>Thay đổi địa chỉ (Điều chuyển)</span>
-                                        </button>
-                                      </div>
-                                    );
-                                  })()
-                                ) : (
-                                  (() => {
-                                    const isTransitHub =
-                                      l.destinationHubEntity?.level === 1 ||
-                                      l.destinationHubEntity?.level === 2 ||
-                                      (l.destinationHubId !== undefined && l.destinationHubId !== null && Number(l.destinationHubId) > 0);
-
-                                    if (isTransitHub) {
-                                      const { hub, isXeBo } = resolveHubOption(
-                                        l.destinationHubEntity || l.destinationHub,
-                                        l.destinationHubId,
-                                        l.deliveryAddress || l.destinationHub,
-                                        level1Hubs,
-                                        level2XeBoHubs,
-                                        l.deliveryMode
-                                      );
                                       return (
-                                        <DestinationHubInfoCard
-                                          hub={hub}
-                                          isXeBo={isXeBo}
-                                          disabled={true}
-                                        />
+                                        <div className='space-y-1 text-[10px]'>
+                                          <div
+                                            className='text-slate-800 dark:text-slate-200 font-semibold truncate'
+                                            title={
+                                              l.deliveryAddress ||
+                                              l.originalDeliveryAddress ||
+                                              'Chưa xác định'
+                                            }
+                                          >
+                                            {l.deliveryAddress ||
+                                              l.originalDeliveryAddress ||
+                                              'Chưa xác định'}
+                                          </div>
+                                          <button
+                                            type='button'
+                                            onClick={() => setSelectedOrderForDestModal(l)}
+                                            className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer'
+                                          >
+                                            <IconMapPin className='h-3 w-3 text-blue-600 shrink-0' />
+                                            <span className='truncate'>
+                                              Thay đổi địa chỉ (Điều chuyển)
+                                            </span>
+                                          </button>
+                                        </div>
                                       );
-                                    }
+                                    })()
+                                  : (() => {
+                                      const isTransitHub =
+                                        l.destinationHubEntity?.level === 1 ||
+                                        l.destinationHubEntity?.level === 2 ||
+                                        (l.destinationHubId !== undefined &&
+                                          l.destinationHubId !== null &&
+                                          Number(l.destinationHubId) > 0);
 
-                                    return (
-                                      <span className='text-[10px]'>
-                                        {l.destinationHub ||
-                                          l.deliveryAddress ||
-                                          'Chưa xác định'}
-                                      </span>
-                                    );
-                                  })()
-                                )}
+                                      if (isTransitHub) {
+                                        const { hub, isXeBo } = resolveHubOption(
+                                          l.destinationHubEntity || l.destinationHub,
+                                          l.destinationHubId,
+                                          l.deliveryAddress || l.destinationHub,
+                                          level1Hubs,
+                                          level2XeBoHubs,
+                                          l.deliveryMode
+                                        );
+                                        return (
+                                          <DestinationHubInfoCard
+                                            hub={hub}
+                                            isXeBo={isXeBo}
+                                            disabled={true}
+                                          />
+                                        );
+                                      }
+
+                                      return (
+                                        <span className='text-[10px]'>
+                                          {l.destinationHub || l.deliveryAddress || 'Chưa xác định'}
+                                        </span>
+                                      );
+                                    })()}
                               </td>
                               <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
                                 {l.notes || '—'}
@@ -1622,10 +1597,7 @@ export function WarehouseTripDetailModal({
                 <span>&bull;</span>
                 <span>
                   Thực nhận:{' '}
-                  <strong className='text-blue-600 font-bold'>
-                    {tallySummary.actual}
-                  </strong>{' '}
-                  kiện
+                  <strong className='text-blue-600 font-bold'>{tallySummary.actual}</strong> kiện
                 </span>
                 {tallySummary.discrepancyLines > 0 && (
                   <>
@@ -1640,16 +1612,11 @@ export function WarehouseTripDetailModal({
               <div className='flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300'>
                 <span>
                   Tổng số đơn:{' '}
-                  <strong className='text-slate-900 dark:text-white'>
-                    {rows.length}
-                  </strong>
+                  <strong className='text-slate-900 dark:text-white'>{rows.length}</strong>
                 </span>
                 <span>&bull;</span>
                 <span>
-                  Tổng kiện:{' '}
-                  <strong className='text-blue-600 font-bold'>
-                    {totals.totalQty}
-                  </strong>{' '}
+                  Tổng kiện: <strong className='text-blue-600 font-bold'>{totals.totalQty}</strong>{' '}
                   kiện
                 </span>
                 <span>&bull;</span>
@@ -1691,7 +1658,30 @@ export function WarehouseTripDetailModal({
 
           {/* Action Buttons */}
           <div className='flex items-center gap-2'>
-            {currentStep === 1 ? (
+            {effectiveReadOnly ? (
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={onClose}
+                  className='h-7 text-xs font-semibold border-slate-300'
+                >
+                  Đóng
+                </Button>
+                {tripGroup?.status === 'COMPLETED' && onOpenReceipt && (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() => handlePrintReceipt()}
+                    className='h-7 text-xs font-semibold text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2'
+                  >
+                    <IconPrinter className='mr-1.5 h-3.5 w-3.5' /> In phiếu xe
+                  </Button>
+                )}
+              </>
+            ) : currentStep === 1 ? (
               <>
                 <Button
                   type='button'
@@ -1714,13 +1704,12 @@ export function WarehouseTripDetailModal({
                   >
                     {isConfirming ? (
                       <>
-                        <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' />{' '}
-                        Đang nhập kho...
+                        <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> Đang nhập kho...
                       </>
                     ) : (
                       <>
-                        <IconCircleCheck className='mr-1 h-3.5 w-3.5 text-emerald-400' />{' '}
-                        Xác nhận nhập kho ({tallySummary.selected} dòng)
+                        <IconCircleCheck className='mr-1 h-3.5 w-3.5 text-emerald-400' /> Xác nhận
+                        nhập kho ({tallySummary.selected} dòng)
                       </>
                     )}
                   </Button>
@@ -1738,13 +1727,12 @@ export function WarehouseTripDetailModal({
                     >
                       {isSaving ? (
                         <>
-                          <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' />{' '}
-                          Đang lưu...
+                          <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> Đang lưu...
                         </>
                       ) : (
                         <>
-                          <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-blue-600' />{' '}
-                          Lưu thay đổi
+                          <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-blue-600' /> Lưu thay
+                          đổi
                         </>
                       )}
                     </Button>
@@ -1757,13 +1745,12 @@ export function WarehouseTripDetailModal({
                     >
                       {isConfirming ? (
                         <>
-                          <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' />{' '}
-                          Đang nhập kho...
+                          <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> Đang nhập kho...
                         </>
                       ) : (
                         <>
-                          <IconCircleCheck className='mr-1 h-3.5 w-3.5 text-emerald-400' />{' '}
-                          Xác nhận nhập kho
+                          <IconCircleCheck className='mr-1 h-3.5 w-3.5 text-emerald-400' /> Xác nhận
+                          nhập kho
                         </>
                       )}
                     </Button>
@@ -1840,8 +1827,8 @@ export function WarehouseTripDetailModal({
                       onClick={handleConfirmOutboundStep}
                       className='h-7 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
                     >
-                      <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-blue-400' />{' '}
-                      Xác nhận xuất hàng lên trip
+                      <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-blue-400' /> Xác nhận xuất
+                      hàng lên trip
                     </Button>
                   </>
                 )}
@@ -1861,17 +1848,17 @@ export function WarehouseTripDetailModal({
             disabled={isHubAccountLocked}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
-              name: s.hubName,
+              name: s.hubName
             }))}
             onSuccess={() => {
               queryClient.invalidateQueries({
-                queryKey: tripManifestKeys.all,
+                queryKey: tripManifestKeys.all
               });
               queryClient.invalidateQueries({
-                queryKey: ['warehouse', 'inbound-trips'],
+                queryKey: ['warehouse', 'inbound-trips']
               });
               queryClient.invalidateQueries({
-                queryKey: ['warehouse', 'available-outbound-orders'],
+                queryKey: ['warehouse', 'available-outbound-orders']
               });
               onSuccess?.();
             }}
@@ -1889,28 +1876,35 @@ export function WarehouseTripDetailModal({
             disabled={isHubAccountLocked}
             downstreamHubs={manifest?.stops.map((s) => ({
               id: s.hubId,
-              name: s.hubName,
+              name: s.hubName
             }))}
             onSuccess={() => {
               queryClient.invalidateQueries({
-                queryKey: tripManifestKeys.all,
+                queryKey: tripManifestKeys.all
               });
               queryClient.invalidateQueries({
-                queryKey: ['warehouse', 'inbound-trips'],
+                queryKey: ['warehouse', 'inbound-trips']
               });
               queryClient.invalidateQueries({
-                queryKey: ['warehouse', 'available-outbound-orders'],
+                queryKey: ['warehouse', 'available-outbound-orders']
               });
               queryClient.invalidateQueries({
-                queryKey: ['warehouse', 'orders'],
+                queryKey: ['warehouse', 'orders']
               });
               queryClient.invalidateQueries({
-                queryKey: ['warehouse', 'kpi'],
+                queryKey: ['warehouse', 'kpi']
               });
               onSuccess?.();
             }}
           />
         )}
+
+        {/* Pallet Label A4 Modal for Identification Stamp */}
+        <PalletLabelA4Modal
+          isOpen={Boolean(selectedLabelData)}
+          onClose={() => setSelectedLabelData(null)}
+          data={selectedLabelData}
+        />
 
         {/* Destination Selection Modal for Newly Loaded Orders */}
         <WarehouseDestinationModal
@@ -1926,8 +1920,7 @@ export function WarehouseTripDetailModal({
             selectedOrderForDestModal?.deliveryAddress
           }
           currentAddress={
-            selectedOrderForDestModal?.destinationHub ||
-            selectedOrderForDestModal?.deliveryAddress
+            selectedOrderForDestModal?.destinationHub || selectedOrderForDestModal?.deliveryAddress
           }
           level1Hubs={level1Hubs}
           level2XeBoHubs={level2XeBoHubs}

@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { IconLock, IconAlertTriangle } from '@tabler/icons-react';
+import { IconLock, IconAlertTriangle, IconPrinter } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
 import { formatWeight, formatVolume } from '@/lib/format';
 import type { TripManifestLine } from '../api/trip-manifest';
 
@@ -44,6 +45,7 @@ interface WarehouseTripTallyTableProps {
   onHideOtherHubsChange: (value: boolean) => void;
   readOnly: boolean;
   currentHubName?: string | null;
+  onPrintLabel?: (line: TripManifestLine) => void;
 }
 
 /**
@@ -58,13 +60,19 @@ export function WarehouseTripTallyTable({
   hideOtherHubs,
   onHideOtherHubsChange,
   readOnly,
-  currentHubName
+  currentHubName,
+  onPrintLabel
 }: WarehouseTripTallyTableProps) {
   const visibleLines = useMemo(
-    () => (hideOtherHubs ? lines.filter((l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER') : lines),
+    () =>
+      hideOtherHubs
+        ? lines.filter((l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER')
+        : lines,
     [lines, hideOtherHubs]
   );
-  const otherHubCount = lines.length - lines.filter((l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER').length;
+  const otherHubCount =
+    lines.length -
+    lines.filter((l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER').length;
 
   const selectable = visibleLines.filter((l) => !l.isReceivedHere);
   const allChecked = selectable.length > 0 && selectable.every((l) => state[l.id]?.checked);
@@ -90,7 +98,9 @@ export function WarehouseTripTallyTable({
           />
           Ẩn các dòng không thuộc kho này
           {otherHubCount > 0 && (
-            <span className='text-slate-400 font-normal'>({otherHubCount} dòng không dỡ tại kho này)</span>
+            <span className='text-slate-400 font-normal'>
+              ({otherHubCount} dòng không dỡ tại kho này)
+            </span>
           )}
         </label>
         <span className='text-[10px] text-slate-500 flex items-center gap-1'>
@@ -123,12 +133,13 @@ export function WarehouseTripTallyTable({
               <th className='py-1 px-1.5 text-right w-[80px]'>THỰC NHẬN</th>
               <th className='py-1 px-1.5 text-right w-[56px]'>CHÊNH</th>
               <th className='py-1 px-1.5 min-w-[160px]'>LÝ DO CHÊNH LỆCH</th>
+              {onPrintLabel && <th className='py-1 px-1.5 w-[75px] text-center'>THAO TÁC</th>}
             </tr>
           </thead>
           <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
             {visibleLines.length === 0 ? (
               <tr>
-                <td colSpan={12} className='py-1.5 text-center text-slate-400'>
+                <td colSpan={onPrintLabel ? 13 : 12} className='py-1.5 text-center text-slate-400'>
                   Không có dòng hàng nào cần dỡ tại {currentHubName ?? 'kho này'}
                 </td>
               </tr>
@@ -156,7 +167,8 @@ export function WarehouseTripTallyTable({
                             patch(l.id, {
                               checked: isChecked,
                               actualQuantity:
-                                isChecked && (s?.actualQuantity === '' || s?.actualQuantity === undefined)
+                                isChecked &&
+                                (s?.actualQuantity === '' || s?.actualQuantity === undefined)
                                   ? expectedForLine(l)
                                   : s?.actualQuantity
                             });
@@ -200,9 +212,7 @@ export function WarehouseTripTallyTable({
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300'
                                 }`}
                               >
-                                {s?.checked
-                                  ? 'Dỡ ngoài kế hoạch'
-                                  : 'Hàng trên xe - Không dỡ'}
+                                {s?.checked ? 'Dỡ ngoài kế hoạch' : 'Hàng trên xe - Không dỡ'}
                               </Badge>
                             )}
                           </div>
@@ -326,6 +336,20 @@ export function WarehouseTripTallyTable({
                         <span className='text-slate-400'>—</span>
                       )}
                     </td>
+                    {onPrintLabel && (
+                      <td className='py-1 px-1.5 text-center'>
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          onClick={() => onPrintLabel(l)}
+                          className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 px-1.5 font-semibold'
+                          title='In tem nhận diện hàng hóa A4'
+                        >
+                          <IconPrinter className='h-3 w-3 mr-1' /> In tem
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 );
               })

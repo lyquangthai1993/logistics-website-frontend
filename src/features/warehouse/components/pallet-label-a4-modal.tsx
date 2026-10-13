@@ -6,7 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { IconPrinter, IconX } from '@tabler/icons-react';
@@ -37,39 +37,47 @@ export interface PalletLabelData {
 interface PalletLabelA4ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  data: PalletLabelData | null;
+  data: PalletLabelData | PalletLabelData[] | null;
 }
 
-export function PalletLabelA4Modal({
-  isOpen,
-  onClose,
-  data,
-}: PalletLabelA4ModalProps) {
+export function PalletLabelA4Modal({ isOpen, onClose, data }: PalletLabelA4ModalProps) {
   const user = useAuthStore((state) => state.user);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+
+  const items = React.useMemo(() => {
+    if (!data) return [];
+    return Array.isArray(data) ? data : [data];
+  }, [data]);
+
+  React.useEffect(() => {
+    setCurrentIndex(0);
+  }, [data, isOpen]);
+
+  const currentItem = items[currentIndex] || items[0] || null;
 
   // "KHO" = warehouse labelling / holding the goods: the printing user's hub, then the order's
   // current hub. `originHub` is NOT used — callers fill it with the customer pickup address.
-  const currentHubName = (user?.hub?.name || data?.warehouseName || '—').toUpperCase();
+  const currentHubName = (user?.hub?.name || currentItem?.warehouseName || '—').toUpperCase();
 
-  const formattedDate = data?.createdAt
-    ? new Date(data.createdAt).toLocaleDateString('vi-VN')
+  const formattedDate = currentItem?.createdAt
+    ? new Date(currentItem.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
 
   const quantityDisplay = '';
   const palletIndex = '';
   const totalPallets = '';
-  const goodsDescription = (data?.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
+  const goodsDescription = (currentItem?.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
   const destinationDisplay = (
-    data?.originalDestination?.trim() ||
-    data?.province?.trim() ||
-    data?.destinationHubEntity?.city?.trim() ||
-    data?.destinationHub?.trim() ||
-    data?.deliveryAddress?.trim() ||
+    currentItem?.originalDestination?.trim() ||
+    currentItem?.province?.trim() ||
+    currentItem?.destinationHubEntity?.city?.trim() ||
+    currentItem?.destinationHub?.trim() ||
+    currentItem?.deliveryAddress?.trim() ||
     '—'
   ).toUpperCase();
 
   const handlePrint = () => {
-    if (!data) return;
+    if (items.length === 0) return;
     // ── Isolated High-Fidelity A4 Landscape Print Routine via Hidden Iframe ──
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'fixed';
@@ -86,12 +94,85 @@ export function PalletLabelA4Modal({
       return;
     }
 
+    const pagesHtml = items
+      .map((item, idx) => {
+        const itemHubName = (user?.hub?.name || item.warehouseName || '—').toUpperCase();
+        const itemFormattedDate = item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString('vi-VN')
+          : new Date().toLocaleDateString('vi-VN');
+        const itemGoodsDesc = (item.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
+        const itemDestDisplay = (
+          item.originalDestination?.trim() ||
+          item.province?.trim() ||
+          item.destinationHubEntity?.city?.trim() ||
+          item.destinationHub?.trim() ||
+          item.deliveryAddress?.trim() ||
+          '—'
+        ).toUpperCase();
+        const isLast = idx === items.length - 1;
+
+        return `
+          <div class="page-container" style="${!isLast ? 'page-break-after: always;' : ''}">
+            <!-- Row 1: QR Code & Header Title -->
+            <div class="header-bar">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(item.orderCode)}" class="qr-code" alt="QR" />
+              <div class="header-title">TEM NHẬN DIỆN HÀNG HÓA</div>
+              <div style="width: 26mm;"></div>
+            </div>
+
+            <!-- Row 2: Sub Header -->
+            <div class="sub-header">
+              <div>KHO : ${itemHubName}</div>
+              <div>TÊN HÀNG: ${itemGoodsDesc}</div>
+            </div>
+
+            <!-- Main Grid -->
+            <table class="table-grid">
+              <tbody>
+                <!-- Row 1: MÃ ĐƠN HÀNG -->
+                <tr>
+                  <td class="col-label" style="width: 22%;">MÃ ĐƠN HÀNG :</td>
+                  <td colspan="3" class="val-order">${item.orderCode}</td>
+                </tr>
+
+                <!-- Row 2: NGÀY NHẬP -->
+                <tr>
+                  <td class="col-label">NGÀY NHẬP :</td>
+                  <td colspan="3" class="val-date">${itemFormattedDate}</td>
+                </tr>
+
+                <!-- Row 3: SỐ LƯỢNG (Viết tay kiện trên pallet) -->
+                <tr>
+                  <td class="col-label">SỐ LƯỢNG :</td>
+                  <td colspan="3" class="val-qty"></td>
+                </tr>
+
+                <!-- Row 4: PALET SỐ & TỔNG SỐ PALET (Viết tay) -->
+                <tr>
+                  <td class="col-label" style="width: 22%;">PALET SỐ :</td>
+                  <td class="val-pallet" style="width: 28%;"></td>
+                  <td class="col-label" style="width: 25%; text-align: center;">TỔNG SỐ PALET :</td>
+                  <td class="val-pallet" style="width: 25%;"></td>
+                </tr>
+
+                <!-- Row 5: GIAO ĐẾN -->
+                <tr>
+                  <td class="col-label" style="width: 22%;">GIAO ĐẾN :</td>
+                  <td colspan="3" class="val-dest">${itemDestDisplay}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      })
+      .join('\n');
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Tem Nhận Diện Hàng Hóa - ${data.orderCode}</title>
+          <title>Tem Nhận Diện Hàng Hóa - ${currentItem.orderCode}</title>
           <style>
             @page {
               size: A4 landscape;
@@ -212,57 +293,7 @@ export function PalletLabelA4Modal({
           </style>
         </head>
         <body>
-          <div class="page-container">
-            <!-- Row 1: QR Code & Header Title -->
-            <div class="header-bar">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data.orderCode)}" class="qr-code" alt="QR" />
-              <div class="header-title">TEM NHẬN DIỆN HÀNG HÓA</div>
-              <div style="width: 26mm;"></div>
-            </div>
-
-            <!-- Row 2: Sub Header -->
-            <div class="sub-header">
-              <div>KHO : ${currentHubName}</div>
-              <div>TÊN HÀNG: ${goodsDescription}</div>
-            </div>
-
-            <!-- Main Grid -->
-            <table class="table-grid">
-              <tbody>
-                <!-- Row 1: MÃ ĐƠN HÀNG -->
-                <tr>
-                  <td class="col-label" style="width: 22%;">MÃ ĐƠN HÀNG :</td>
-                  <td colspan="3" class="val-order">${data.orderCode}</td>
-                </tr>
-
-                <!-- Row 2: NGÀY NHẬP -->
-                <tr>
-                  <td class="col-label">NGÀY NHẬP :</td>
-                  <td colspan="3" class="val-date">${formattedDate}</td>
-                </tr>
-
-                <!-- Row 3: SỐ LƯỢNG (Viết tay kiện trên pallet) -->
-                <tr>
-                  <td class="col-label">SỐ LƯỢNG :</td>
-                  <td colspan="3" class="val-qty">${quantityDisplay}</td>
-                </tr>
-
-                <!-- Row 4: PALET SỐ & TỔNG SỐ PALET (Viết tay) -->
-                <tr>
-                  <td class="col-label" style="width: 22%;">PALET SỐ :</td>
-                  <td class="val-pallet" style="width: 28%;">${palletIndex}</td>
-                  <td class="col-label" style="width: 25%; text-align: center;">TỔNG SỐ PALET :</td>
-                  <td class="val-pallet" style="width: 25%;">${totalPallets}</td>
-                </tr>
-
-                <!-- Row 5: GIAO ĐẾN -->
-                <tr>
-                  <td class="col-label">GIAO ĐẾN :</td>
-                  <td colspan="3" class="val-dest">${destinationDisplay}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+${pagesHtml}
         </body>
       </html>
     `;
@@ -289,7 +320,7 @@ export function PalletLabelA4Modal({
 
   // Keyboard shortcut Ctrl+P / Cmd+P
   useEffect(() => {
-    if (!isOpen || !data) return;
+    if (!isOpen || items.length === 0) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
@@ -298,110 +329,173 @@ export function PalletLabelA4Modal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, data, currentHubName, formattedDate, quantityDisplay, palletIndex, totalPallets, goodsDescription, destinationDisplay]);
+  }, [
+    isOpen,
+    data,
+    currentHubName,
+    formattedDate,
+    quantityDisplay,
+    palletIndex,
+    totalPallets,
+    goodsDescription,
+    destinationDisplay
+  ]);
 
-  if (!data) return null;
+  if (!isOpen || items.length === 0 || !currentItem) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-4xl max-w-[96vw] bg-slate-50 dark:bg-slate-900 p-5 sm:p-6 overflow-y-auto max-h-[95vh] border-slate-200 dark:border-slate-800">
+      <DialogContent className='sm:max-w-4xl max-w-[96vw] bg-slate-50 dark:bg-slate-900 p-5 sm:p-6 overflow-y-auto max-h-[95vh] border-slate-200 dark:border-slate-800'>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
-            <IconPrinter className="w-5 h-5 text-blue-600" />
-            <span>Xem & In Tem Nhận Diện Hàng Hóa A4</span>
-          </DialogTitle>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Khổ in tiêu chuẩn A4 Nằm ngang (Landscape) dành cho dán Pallet & Kiện hàng vận tải liên Hub.
-          </p>
+          <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2'>
+            <div>
+              <DialogTitle className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white'>
+                <IconPrinter className='w-5 h-5 text-blue-600' />
+                <span>Xem & In Tem Nhận Diện Hàng Hóa A4</span>
+              </DialogTitle>
+              <p className='text-xs text-slate-500 dark:text-slate-400'>
+                Khổ in tiêu chuẩn A4 Nằm ngang (Landscape) dành cho dán Pallet & Kiện hàng vận tải
+                liên Hub.
+              </p>
+            </div>
+            {items.length > 1 && (
+              <div className='flex items-center gap-2 bg-slate-200/70 dark:bg-slate-800 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-300'>
+                <span>
+                  Tem {currentIndex + 1} / {items.length} đơn
+                </span>
+                <div className='flex items-center gap-1'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    disabled={currentIndex === 0}
+                    onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                    className='h-6 px-1.5 text-[11px]'
+                  >
+                    &larr; Trước
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    disabled={currentIndex >= items.length - 1}
+                    onClick={() => setCurrentIndex((prev) => Math.min(items.length - 1, prev + 1))}
+                    className='h-6 px-1.5 text-[11px]'
+                  >
+                    Sau &rarr;
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogHeader>
 
         {/* ── Realistic A4 Landscape Paper Preview Container ── */}
-        <div className="w-full my-2 flex justify-center items-center bg-slate-200/80 dark:bg-slate-950 p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-slate-800 shadow-inner overflow-x-auto">
+        <div className='w-full my-2 flex justify-center items-center bg-slate-200/80 dark:bg-slate-950 p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-slate-800 shadow-inner overflow-x-auto'>
           <div
-            id="pallet-label-print-area"
-            className="w-full max-w-[850px] bg-white text-black p-6 sm:p-8 rounded shadow-2xl border border-slate-300 font-sans select-none"
+            id='pallet-label-print-area'
+            className='w-full max-w-[850px] bg-white text-black p-6 sm:p-8 rounded shadow-2xl border border-slate-300 font-sans select-none'
             style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
           >
             {/* Row 1: Header Bar with QR Code */}
-            <div className="flex items-center justify-between mb-3 relative">
+            <div className='flex items-center justify-between mb-3 relative'>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {/* oxlint-disable-next-line next/no-img-element */}
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data.orderCode)}`}
-                alt="QR Code"
-                className="w-14 h-14 sm:w-16 sm:h-16 object-contain"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(currentItem.orderCode)}`}
+                alt='QR Code'
+                className='w-14 h-14 sm:w-16 sm:h-16 object-contain'
               />
-              <h1 className="flex-1 text-center text-xl sm:text-3xl font-black tracking-wide uppercase text-black" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
+              <h1
+                className='flex-1 text-center text-xl sm:text-3xl font-black tracking-wide uppercase text-black'
+                style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+              >
                 TEM NHẬN DIỆN HÀNG HÓA
               </h1>
-              <div className="w-14 sm:w-16" />
+              <div className='w-14 sm:w-16' />
             </div>
 
             {/* Row 2: Sub Header (Kho & Tên hàng) */}
-            <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-black mb-4 px-1" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
+            <div
+              className='flex justify-between items-center text-xs sm:text-sm font-bold text-black mb-4 px-1'
+              style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+            >
               <div>
-                KHO : <span className="font-black">{currentHubName}</span>
+                KHO : <span className='font-black'>{currentHubName}</span>
               </div>
               <div>
-                TÊN HÀNG: <span className="font-black">{goodsDescription}</span>
+                TÊN HÀNG: <span className='font-black'>{goodsDescription}</span>
               </div>
             </div>
 
             {/* Main Grid (Bordered Table) */}
-            <table className="w-full border-collapse border-2 border-black text-black">
+            <table className='w-full border-collapse border-2 border-black text-black'>
               <tbody>
                 {/* Row 1: MÃ ĐƠN HÀNG */}
-                <tr className="border-b-[1.5px] border-black">
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-1.5 text-xs sm:text-sm font-bold align-middle">
+                <tr className='border-b-[1.5px] border-black'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-1.5 text-xs sm:text-sm font-bold align-middle'>
                     MÃ ĐƠN HÀNG :
                   </td>
-                  <td colSpan={3} className="px-4 py-1.5 text-center align-middle font-sans text-xl sm:text-3xl font-black tracking-wider text-black leading-tight" style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}>
-                    {data.orderCode}
+                  <td
+                    colSpan={3}
+                    className='px-4 py-1.5 text-center align-middle font-sans text-xl sm:text-3xl font-black tracking-wider text-black leading-tight'
+                    style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+                  >
+                    {currentItem.orderCode}
                   </td>
                 </tr>
 
                 {/* Row 2: NGÀY NHẬP */}
-                <tr className="border-b-[1.5px] border-black">
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
+                <tr className='border-b-[1.5px] border-black'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle'>
                     NGÀY NHẬP :
                   </td>
-                  <td colSpan={3} className="px-4 py-2 text-center align-middle text-base sm:text-xl font-bold text-black">
+                  <td
+                    colSpan={3}
+                    className='px-4 py-2 text-center align-middle text-base sm:text-xl font-bold text-black'
+                  >
                     {formattedDate}
                   </td>
                 </tr>
 
                 {/* Row 3: SỐ LƯỢNG */}
-                <tr className="border-b-[1.5px] border-black">
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
+                <tr className='border-b-[1.5px] border-black'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle'>
                     SỐ LƯỢNG :
                   </td>
-                  <td colSpan={3} className="px-4 py-3 text-center align-middle text-2xl sm:text-4xl font-black text-black h-20 sm:h-24">
+                  <td
+                    colSpan={3}
+                    className='px-4 py-3 text-center align-middle text-2xl sm:text-4xl font-black text-black h-20 sm:h-24'
+                  >
                     {quantityDisplay}
                   </td>
                 </tr>
 
                 {/* Row 4: PALET SỐ & TỔNG SỐ PALET */}
-                <tr className="border-b-[1.5px] border-black">
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle">
+                <tr className='border-b-[1.5px] border-black'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle'>
                     PALET SỐ :
                   </td>
-                  <td className="w-[28%] border-r-[1.5px] border-black px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12">
+                  <td className='w-[28%] border-r-[1.5px] border-black px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12'>
                     {palletIndex}
                   </td>
-                  <td className="w-[25%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold text-center align-middle">
+                  <td className='w-[25%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold text-center align-middle'>
                     TỔNG SỐ PALET :
                   </td>
-                  <td className="w-[25%] px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12">
+                  <td className='w-[25%] px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12'>
                     {totalPallets}
                   </td>
                 </tr>
 
                 {/* Row 5: GIAO ĐẾN */}
                 <tr>
-                  <td className="w-[22%] border-r-[1.5px] border-black px-3.5 py-4 text-xs sm:text-sm font-bold align-middle">
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-4 text-xs sm:text-sm font-bold align-middle'>
                     GIAO ĐẾN :
                   </td>
-                  <td colSpan={3} className="px-4 py-5 text-center align-middle text-2xl sm:text-4xl font-black uppercase tracking-wide text-black h-20 sm:h-24">
+                  <td
+                    colSpan={3}
+                    className='px-4 py-5 text-center align-middle text-2xl sm:text-4xl font-black uppercase tracking-wide text-black h-20 sm:h-24'
+                  >
                     {destinationDisplay}
                   </td>
                 </tr>
@@ -410,19 +504,25 @@ export function PalletLabelA4Modal({
           </div>
         </div>
 
-        <DialogFooter className="mt-4 gap-2 flex sm:justify-between items-center">
-          <Button variant="outline" onClick={onClose} className="text-slate-700 dark:text-slate-200">
-            <IconX className="mr-1.5 h-4 w-4" /> Đóng
+        <DialogFooter className='mt-4 gap-2 flex sm:justify-between items-center'>
+          <Button
+            variant='outline'
+            onClick={onClose}
+            className='text-slate-700 dark:text-slate-200'
+          >
+            <IconX className='mr-1.5 h-4 w-4' /> Đóng
           </Button>
           <Button
             onClick={handlePrint}
-            className="bg-[#0F3D62] text-white hover:bg-[#0c314f] font-semibold shadow-sm"
+            className='bg-[#0F3D62] text-white hover:bg-[#0c314f] font-semibold shadow-sm'
           >
-            <IconPrinter className="mr-1.5 h-4 w-4" /> In Tem Ngay (Ctrl + P)
+            <IconPrinter className='mr-1.5 h-4 w-4' />{' '}
+            {items.length > 1
+              ? `In Toàn Bộ ${items.length} Tem (Ctrl + P)`
+              : 'In Tem Ngay (Ctrl + P)'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

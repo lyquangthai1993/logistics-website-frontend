@@ -15,6 +15,7 @@ import {
   IconSearch,
   IconRefresh,
   IconPrinter,
+  IconPencil,
   IconCircleCheck,
   IconClipboardCheck,
   IconEye,
@@ -81,10 +82,8 @@ export default function WarehouseInboundPage() {
     pendingCount: 0,
     completedCount: 0
   });
-  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
 
   // Modals
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -96,13 +95,19 @@ export default function WarehouseInboundPage() {
     null
   );
 
-  // Vehicle Trip Detail & Tally Modal State
-  const [isTripDetailModalOpen, setIsTripDetailModalOpen] = useState(false);
+  // Vehicle Trip Detail & Tally Modal State (Separated View & Edit/Resume)
+  const [isTripViewModalOpen, setIsTripViewModalOpen] = useState(false);
+  const [isTripEditModalOpen, setIsTripEditModalOpen] = useState(false);
   const [selectedTripGroup, setSelectedTripGroup] = useState<InboundVehicleGroup | null>(null);
 
   const handleOpenTripDetail = (grp: InboundVehicleGroup) => {
     setSelectedTripGroup(grp);
-    setIsTripDetailModalOpen(true);
+    setIsTripViewModalOpen(true);
+  };
+
+  const handleResumeInboundTrip = (grp: InboundVehicleGroup) => {
+    setSelectedTripGroup(grp);
+    setIsTripEditModalOpen(true);
   };
 
   // Pallet Label A4 Modal State
@@ -478,44 +483,6 @@ export default function WarehouseInboundPage() {
     }
   };
 
-  // Submit Batch Inbound Confirmation
-  const handleBatchConfirmInbound = async () => {
-    if (selectedOrderIds.length === 0) {
-      toast.error('Vui lòng chọn ít nhất 1 đơn hàng để nhập kho');
-      return;
-    }
-
-    setIsBatchSubmitting(true);
-    const token = tokenManager.getAccessToken();
-
-    try {
-      const res = await fetch('/api/v1/warehouse/inbound/confirm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          orderIds: selectedOrderIds
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ message: res.statusText }));
-        throw { response: { data: errData, status: res.status } };
-      }
-
-      toast.success(`Đã xác nhận nhập kho thành công cho ${selectedOrderIds.length} đơn hàng!`);
-      setSelectedOrderIds([]);
-      fetchKpi();
-      fetchInboundTrips();
-    } catch (err: any) {
-      showApiErrorToast(err, 'Lỗi khi xác nhận nhập kho hàng loạt');
-    } finally {
-      setIsBatchSubmitting(false);
-    }
-  };
-
   // Submit Mode 1 (Direct Customer Inbound)
   const handleSubmitMode1 = async () => {
     if (!licensePlate.trim()) {
@@ -844,7 +811,6 @@ export default function WarehouseInboundPage() {
                         key={tab.key}
                         onClick={() => {
                           setBoardStatus(tab.key as typeof boardStatus);
-                          setSelectedOrderIds([]);
                         }}
                         className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                           boardStatus === tab.key
@@ -894,65 +860,11 @@ export default function WarehouseInboundPage() {
                   </div>
                 </div>
 
-                {/* Floating Batch Action Bar if rows selected */}
-                {selectedOrderIds.length > 0 && (
-                  <div className='flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-200 dark:border-blue-900 text-xs animate-in fade-in duration-200'>
-                    <span className='font-bold text-blue-900 dark:text-blue-200'>
-                      Đã chọn {selectedOrderIds.length} đơn hàng
-                    </span>
-                    <div className='flex items-center gap-2'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={() => setSelectedOrderIds([])}
-                        className='h-7 text-xs text-slate-600'
-                      >
-                        Bỏ chọn
-                      </Button>
-                      <Button
-                        size='sm'
-                        onClick={handleBatchConfirmInbound}
-                        disabled={isBatchSubmitting}
-                        className='h-7 text-xs font-bold bg-[#0F3D62] text-white hover:bg-[#0c314f]'
-                      >
-                        {isBatchSubmitting ? (
-                          <>
-                            <IconLoader2 className='h-3.5 w-3.5 mr-1 animate-spin' /> Đang nhập
-                            kho...
-                          </>
-                        ) : (
-                          <>
-                            <IconCircleCheck className='h-3.5 w-3.5 mr-1 text-emerald-400' /> Xác
-                            nhận nhập kho {selectedOrderIds.length} đơn
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Inbound Board Table (Frame sq2P6) */}
                 <div className='border rounded-lg overflow-hidden'>
                   <table className='w-full text-[11px] text-left'>
                     <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
-                        <th className='py-1.5 px-2 w-[36px] text-center'>
-                          <input
-                            type='checkbox'
-                            checked={
-                              allVisibleOrders.length > 0 &&
-                              allVisibleOrders.every((o) => selectedOrderIds.includes(Number(o.id)))
-                            }
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedOrderIds(allVisibleOrders.map((o) => Number(o.id)));
-                              } else {
-                                setSelectedOrderIds([]);
-                              }
-                            }}
-                            className='rounded border-gray-300 text-blue-600 cursor-pointer'
-                          />
-                        </th>
                         <th className='py-1.5 px-2 w-[150px]'>CHUYẾN XE / TRIP</th>
                         <th className='py-1.5 px-2 w-[150px]'>XE & TÀI XẾ</th>
                         <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
@@ -963,46 +875,25 @@ export default function WarehouseInboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={6} className='p-2 text-center text-gray-500'>
+                          <td colSpan={5} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className='p-2 text-center text-gray-400'>
+                          <td colSpan={5} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
                       ) : (
                         vehicleGroups.map((grp) => {
                           const isExpanded = !!expandedVehicleKeys[grp.groupKey];
-                          const groupOrderIds = grp.orders.map((o) => Number(o.id));
-                          const isGroupSelected =
-                            groupOrderIds.length > 0 &&
-                            groupOrderIds.every((id) => selectedOrderIds.includes(id));
+                          const isPending = grp.status === 'PENDING';
 
                           return (
                             <React.Fragment key={grp.groupKey}>
                               <tr className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'>
-                                <td className='py-1 px-2 text-center'>
-                                  <input
-                                    type='checkbox'
-                                    checked={isGroupSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedOrderIds((prev) =>
-                                          Array.from(new Set([...prev, ...groupOrderIds]))
-                                        );
-                                      } else {
-                                        setSelectedOrderIds((prev) =>
-                                          prev.filter((id) => !groupOrderIds.includes(id))
-                                        );
-                                      }
-                                    }}
-                                    className='rounded border-gray-300 text-blue-600 cursor-pointer'
-                                  />
-                                </td>
                                 <td className='py-1 px-2'>
                                   <div className='flex items-center gap-1.5'>
                                     <button
@@ -1069,25 +960,27 @@ export default function WarehouseInboundPage() {
                                 </td>
                                 <td className='py-1 px-2 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
-                                    <Button
-                                      variant='outline'
-                                      size='sm'
-                                      onClick={() => handleOpenReceiptForVehicle(grp)}
-                                      className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
-                                      title='In phiếu nhập xe (chứa tất cả đơn hàng của xe)'
-                                    >
-                                      <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
-                                    </Button>
-
-                                    <Button
-                                      variant='ghost'
-                                      size='sm'
-                                      onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                      className='h-7 text-[11px] text-slate-600 hover:text-blue-700 px-1.5'
-                                      title={isExpanded ? 'Thu gọn danh sách đơn' : 'Xem các đơn'}
-                                    >
-                                      {isExpanded ? 'Thu gọn' : 'Xem đơn'}
-                                    </Button>
+                                    {isPending ? (
+                                      <Button
+                                        variant='outline'
+                                        size='sm'
+                                        onClick={() => handleResumeInboundTrip(grp)}
+                                        className='h-7 text-[11px] text-[#0F3D62] border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-800 px-2 font-semibold'
+                                        title='Mở trip nhập kho để kiểm đếm, chỉnh sửa hoặc xác nhận nhập kho'
+                                      >
+                                        <IconPencil className='h-3.5 w-3.5 mr-1' /> Tiếp tục
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant='outline'
+                                        size='sm'
+                                        onClick={() => handleOpenReceiptForVehicle(grp)}
+                                        className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
+                                        title='In phiếu nhập xe (chứa tất cả đơn hàng của xe)'
+                                      >
+                                        <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
+                                      </Button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -1095,7 +988,7 @@ export default function WarehouseInboundPage() {
                               {/* Nested Sub-row with all orders of this vehicle */}
                               {isExpanded && (
                                 <tr className='bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800'>
-                                  <td colSpan={6} className='py-1 px-2 pl-8'>
+                                  <td colSpan={5} className='py-1 px-2 pl-8'>
                                     <div className='bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1'>
                                       <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
                                         <span className='flex items-center gap-1'>
@@ -1243,8 +1136,12 @@ export default function WarehouseInboundPage() {
                                                         totalQuantity: subOrder.totalQuantity || 1,
                                                         originHub: orig,
                                                         destinationHub: dest,
-                                                        province: subOrder.province || subOrder.destinationHubEntity?.city || dest,
-                                                        destinationHubEntity: subOrder.destinationHubEntity,
+                                                        province:
+                                                          subOrder.province ||
+                                                          subOrder.destinationHubEntity?.city ||
+                                                          dest,
+                                                        destinationHubEntity:
+                                                          subOrder.destinationHubEntity,
                                                         warehouseName:
                                                           subOrder.currentHubEntity?.name,
                                                         createdAt: new Date()
@@ -1568,14 +1465,29 @@ export default function WarehouseInboundPage() {
           data={selectedReceiptData}
         />
 
-        {/* ── Modal Chi Tiết & Kiểm Đếm Chuyến Xe Nhập Kho ── */}
+        {/* ── Modal Chi Tiết Chuyến Xe Nhập Kho (Chế độ Xem & In Tem Nhận Diện) ── */}
         <WarehouseTripDetailModal
-          isOpen={isTripDetailModalOpen}
+          isOpen={isTripViewModalOpen}
           onClose={() => {
-            setIsTripDetailModalOpen(false);
+            setIsTripViewModalOpen(false);
             setSelectedTripGroup(null);
           }}
           tripGroup={selectedTripGroup}
+          readOnly={true}
+          mode='INBOUND'
+          onOpenReceipt={handleOpenReceiptForVehicle}
+        />
+
+        {/* ── Modal Tác Nghiệp & Kiểm Đếm Chuyến Xe Nhập Kho (Chế độ Chỉnh Sửa) ── */}
+        <WarehouseTripDetailModal
+          isOpen={isTripEditModalOpen}
+          onClose={() => {
+            setIsTripEditModalOpen(false);
+            setSelectedTripGroup(null);
+          }}
+          tripGroup={selectedTripGroup}
+          readOnly={false}
+          mode='INBOUND'
           onSuccess={() => {
             fetchInboundTrips();
             fetchKpi();
