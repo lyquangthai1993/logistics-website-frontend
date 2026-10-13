@@ -159,7 +159,7 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     page,
   }) => {
     // 1. Sign in as HCM Warehouse Manager
-    await loginAs(page, WH_HCM_USER);
+    await loginAs(page, WH_HCM_USER, DEV_FRONTEND_URL);
 
     // 2. Navigate to Warehouse Outbound (SD44 is an outbound origin trip at Andromeda Hub - HCM)
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`, { waitUntil: 'domcontentloaded' });
@@ -231,7 +231,7 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     page,
   }) => {
     // 1. Sign in as Super Admin
-    await loginAs(page, SUPER_ADMIN_USER);
+    await loginAs(page, SUPER_ADMIN_USER, DEV_FRONTEND_URL);
 
     // 2. Navigate to Warehouse Outbound
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`, { waitUntil: 'domcontentloaded' });
