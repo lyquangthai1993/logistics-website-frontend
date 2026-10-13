@@ -90,7 +90,7 @@ export async function loginAs(page: Page, creds: LoginCredentials, baseUrl?: str
     '';
   const target = targetBase ? `${targetBase.replace(/\/$/, '')}/auth/sign-in` : '/auth/sign-in';
   await page.goto(target);
-  await page.locator('input[name="email"]').waitFor({ state: 'visible', timeout: 15_000 });
+  await page.locator('input[name="email"]:not([disabled])').waitFor({ state: 'visible', timeout: 15_000 });
 
   await page.fill('input[name="email"]', creds.email);
   await page.fill('input[name="password"]', creds.password);

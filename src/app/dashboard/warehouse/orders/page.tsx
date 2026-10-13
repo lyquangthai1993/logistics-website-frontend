@@ -227,6 +227,8 @@ export default function WarehouseOrdersPage() {
           const inboundDateStr =
             item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
           const destHubStr =
+            item.originalDestination ||
+            order.originalDestination ||
             item.destinationHubEntity?.name ||
             order.destinationHubEntity?.name ||
             item.destinationHub ||
@@ -683,7 +685,8 @@ export default function WarehouseOrdersPage() {
             packagesOnPallet: m.totalQuantity ?? 0,
             palletIndex: 1,
             totalPallets: 1,
-            destinationHub: m.destinationHub || m.route,
+            destinationHub: m.originalDestination || m.destinationHub || m.route,
+            originalDestination: m.originalDestination || m.destinationHub || m.route,
             province: m.province || m.destinationHubEntity?.city || m.destinationHub,
             destinationHubEntity: m.destinationHubEntity,
             warehouseName: m.currentHubEntity?.name,
@@ -919,12 +922,20 @@ export default function WarehouseOrdersPage() {
                               })}
                             </td>
                             <td
-                              className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 max-w-[180px] truncate'
-                              title={row.destinationHub || row.route || 'Giao khách lẻ'}
+                              className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-[140px] max-w-[200px] truncate'
+                              title={`Đích đến ban đầu: ${row.originalDestination || row.destinationHub || row.destinationHubEntity?.name || row.route || 'Giao khách lẻ'}${row.outboundDestination && row.outboundDestination !== (row.originalDestination || row.destinationHub) ? ` (Chặng xuất: ${row.outboundDestination})` : ''}`}
                             >
-                              <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
-                                {row.destinationHub || row.route || 'Giao khách lẻ'}
-                              </span>
+                              <div className='flex flex-col'>
+                                <span className='text-indigo-600 dark:text-indigo-400 font-medium truncate'>
+                                  {row.originalDestination || row.destinationHub || row.destinationHubEntity?.name || row.route || 'Giao khách lẻ'}
+                                </span>
+                                {row.outboundDestination &&
+                                  row.outboundDestination !== (row.originalDestination || row.destinationHub) && (
+                                    <span className='text-[9px] text-slate-400 dark:text-slate-500 truncate'>
+                                      Xuất: {row.outboundDestination}
+                                    </span>
+                                  )}
+                              </div>
                             </td>
                             <td className='py-1 px-1.5 text-center'>
                               {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
@@ -999,20 +1010,24 @@ export default function WarehouseOrdersPage() {
                                   })}
                                 </td>
                                 <td
-                                  className='py-1 px-1.5 text-[10px] text-slate-600 dark:text-slate-400 max-w-[180px] truncate'
-                                  title={
-                                    m.destinationHub ||
-                                    m.destinationHubEntity?.name ||
-                                    m.route ||
-                                    'Giao khách lẻ'
-                                  }
+                                  className='py-1 px-1.5 text-[10px] text-slate-600 dark:text-slate-400 min-w-[140px] max-w-[200px] truncate'
+                                  title={`Đích đến ban đầu: ${m.originalDestination || m.destinationHub || m.destinationHubEntity?.name || m.route || 'Giao khách lẻ'}${m.outboundDestination && m.outboundDestination !== (m.originalDestination || m.destinationHub) ? ` (Chặng xuất: ${m.outboundDestination})` : ''}`}
                                 >
-                                  <span className='text-indigo-600 dark:text-indigo-400 font-medium'>
-                                    {m.destinationHub ||
-                                      m.destinationHubEntity?.name ||
-                                      m.route ||
-                                      'Giao khách lẻ'}
-                                  </span>
+                                  <div className='flex flex-col'>
+                                    <span className='text-indigo-600 dark:text-indigo-400 font-medium truncate'>
+                                      {m.originalDestination ||
+                                        m.destinationHub ||
+                                        m.destinationHubEntity?.name ||
+                                        m.route ||
+                                        'Giao khách lẻ'}
+                                    </span>
+                                    {m.outboundDestination &&
+                                      m.outboundDestination !== (m.originalDestination || m.destinationHub) && (
+                                        <span className='text-[9px] text-slate-400 dark:text-slate-500 truncate'>
+                                          Xuất: {m.outboundDestination}
+                                        </span>
+                                      )}
+                                  </div>
                                 </td>
                                 <td className='py-1 px-1.5 text-center'>
                                   {renderWarehouseOrderStatusBadge(resolveDisplayStatus(m))}
@@ -1073,7 +1088,8 @@ export default function WarehouseOrdersPage() {
               packagesOnPallet: w.totalQuantity ?? 0,
               palletIndex: 1,
               totalPallets: 1,
-              destinationHub: w.destinationHub || w.route,
+              destinationHub: w.originalDestination || w.destinationHub || w.route,
+              originalDestination: w.originalDestination || w.destinationHub || w.route,
               province: w.province || w.destinationHubEntity?.city || w.destinationHub,
               destinationHubEntity: w.destinationHubEntity,
               warehouseName: w.currentHubEntity?.name,

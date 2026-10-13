@@ -50,6 +50,7 @@ export interface WaybillDetailData {
   destinationHub?: string;
   destinationHubId?: number | null;
   destinationHubEntity?: { id?: number; name?: string; code?: string; level?: number; city?: string | null };
+  originalDestination?: string;
   originHub?: string;
   originHubId?: number | null;
   originHubEntity?: { id?: number; name?: string; code?: string };
@@ -503,6 +504,7 @@ export function WarehouseWaybillDetailModal({
                       '—'
                     ).trim();
                     const destName =
+                      waybill.originalDestination ||
                       waybill.destinationHubEntity?.name ||
                       waybill.destinationHub ||
                       latestOutboundTx?.destination ||
@@ -633,7 +635,10 @@ export function WarehouseWaybillDetailModal({
                         {waybill.totalVolume ?? 0} CBM
                       </td>
                       <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">
-                        {waybill.destinationHub || waybill.deliveryAddress || 'Điểm đích'}
+                        {waybill.originalDestination ||
+                          waybill.destinationHub ||
+                          waybill.deliveryAddress ||
+                          'Điểm đích'}
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                         {waybill.province ? (

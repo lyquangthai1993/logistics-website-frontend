@@ -21,6 +21,7 @@ export interface PalletLabelData {
   totalPallets?: number;
   originHub?: string;
   destinationHub?: string;
+  originalDestination?: string;
   deliveryAddress?: string;
   province?: string | null;
   destinationHubEntity?: { id?: number; name?: string; code?: string; city?: string | null } | null;
@@ -59,6 +60,7 @@ export function PalletLabelA4Modal({
   const totalPallets = '';
   const goodsDescription = (data?.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
   const destinationDisplay = (
+    data?.originalDestination?.trim() ||
     data?.province?.trim() ||
     data?.destinationHubEntity?.city?.trim() ||
     data?.destinationHub?.trim() ||
