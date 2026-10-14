@@ -70,58 +70,55 @@ test.describe
     authToken = loginJson?.data?.token ?? loginJson?.token;
     expect(authToken).toBeTruthy();
 
-    // 2. Query existing draft orders or create one for testing
-    const lookupRes = await request.get(
-      `${DEV_BACKEND_URL}/warehouse/orders?flow=OUTBOUND_LOOKUP&status=DRAFT&limit=5`,
-      {
-        headers: { Authorization: `Bearer ${authToken}` },
-        timeout: 15000
-      }
-    );
+    // 2. Create a dedicated draft order specifically for Polaris Hub (hubId: 3) so TEST_USERS[3] can manage it
+    const uniqueSuffix = Date.now().toString().slice(-4);
+    testDraftOrderCode = `DFT51-${uniqueSuffix}`;
+    const createRes = await request.post(`${DEV_BACKEND_URL}/orders`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      data: {
+        orderCode: testDraftOrderCode,
+        senderName: 'Khách hàng Nháp Task 51',
+        senderPhone: '0901234567',
+        pickupAddress: 'Kho Polaris - Hưng Yên',
+        receiverName: 'Khách nhận Nháp Task 51',
+        receiverPhone: '0987654321',
+        deliveryAddress: 'Kho Andromeda - TP.HCM',
+        goodsDescription: 'Lô hàng nháp kiểm thử Task 51',
+        totalQuantity: 5,
+        totalWeight: 50,
+        totalVolume: 0.25,
+        paymentMethod: 'SENDER_PAY',
+        originHubId: 3,
+        destinationHubId: 1,
+        status: 'DRAFT'
+      },
+      timeout: 15000
+    });
 
-    if (lookupRes.ok()) {
-      const lookupJson = await lookupRes.json();
-      const items = lookupJson?.data || [];
-      if (items.length > 0) {
-        testDraftOrderId = items[0].id;
-        testDraftOrderCode = items[0].orderCode;
-      }
-    }
-
-    // If no draft order existed, create a new draft order
-    if (!testDraftOrderId) {
-      const uniqueSuffix = Date.now().toString().slice(-4);
-      testDraftOrderCode = `DFT-51-${uniqueSuffix}`;
-      const createRes = await request.post(`${DEV_BACKEND_URL}/orders`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`
-        },
-        data: {
-          orderCode: testDraftOrderCode,
-          senderName: 'Khách hàng Nháp Task 51',
-          senderPhone: '0901234567',
-          pickupAddress: 'Kho Andromeda - TP.HCM',
-          receiverName: 'Khách nhận Nháp Task 51',
-          receiverPhone: '0987654321',
-          deliveryAddress: 'Kho Polaris - Hưng Yên',
-          goodsDescription: 'Lô hàng nháp kiểm thử Task 51',
-          totalQuantity: 5,
-          totalWeight: 50,
-          totalVolume: 0.25,
-          paymentMethod: 'SENDER_PAY',
-          originHubId: 1,
-          destinationHubId: 3,
-          status: 'DRAFT'
-        },
-        timeout: 15000
-      });
-
-      if (createRes.ok()) {
-        const createJson = await createRes.json();
-        const created = createJson?.data || createJson;
-        testDraftOrderId = created.id;
-        testDraftOrderCode = created.orderCode || testDraftOrderCode;
+    if (createRes.ok()) {
+      const createJson = await createRes.json();
+      const created = createJson?.data || createJson;
+      testDraftOrderId = created.id;
+      testDraftOrderCode = created.orderCode || testDraftOrderCode;
+    } else {
+      // Fallback: Query any existing draft order
+      const lookupRes = await request.get(
+        `${DEV_BACKEND_URL}/warehouse/orders?flow=OUTBOUND_LOOKUP&status=DRAFT&limit=5`,
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+          timeout: 15000
+        }
+      );
+      if (lookupRes.ok()) {
+        const lookupJson = await lookupRes.json();
+        const items = lookupJson?.data || [];
+        if (items.length > 0) {
+          testDraftOrderId = items[0].id;
+          testDraftOrderCode = items[0].orderCode;
+        }
       }
     }
 
@@ -210,37 +207,26 @@ test.describe
     await page.waitForLoadState('domcontentloaded');
 
     // 3. Click "Tạo phiếu xuất kho" (Mode 1 Customer)
-    const createOutboundBtn = page
-      .locator('button', { hasText: /Tạo phiếu xuất kho|Xuất giao khách/i })
-      .first();
-    if (await createOutboundBtn.isVisible({ timeout: 5000 })) {
-      await createOutboundBtn.click();
-    }
+    // 3. Click "Xuất kho" button to switch to Mode 1 Customer Form
+    const createOutboundBtn = page.locator('button', { hasText: /Xuất kho/i }).first();
+    await expect(createOutboundBtn).toBeVisible({ timeout: 10000 });
+    await createOutboundBtn.click();
+    await page.waitForTimeout(1000);
 
-    // 4. Open Lookup Modal via "Tra cứu" button or grid action
-    const openLookupBtn = page
-      .locator('button', { hasText: /Tra cứu kho|Tra cứu|Chọn hàng/i })
-      .first();
-    if (await openLookupBtn.isVisible({ timeout: 5000 })) {
-      await openLookupBtn.click();
-    } else {
-      // Click lookup icon in grid row if present
-      const gridLookupIcon = page.locator('button[title*="Tra cứu"]').first();
-      if (await gridLookupIcon.isVisible({ timeout: 5000 })) {
-        await gridLookupIcon.click();
-      }
-    }
+    // 4. Open Lookup Modal via grid lookup button
+    const gridLookupIcon = page.locator('button[title*="Tra cứu kho"]').first();
+    await expect(gridLookupIcon).toBeVisible({ timeout: 10000 });
+    await gridLookupIcon.click();
 
-    // Wait for modal
-    const modalHeading = page.locator('text=Tra cứu hàng trong kho').first();
+    // Wait for modal heading
+    const modalHeading = page.locator('text=Tra cứu & chọn hàng trong kho').first();
     await expect(modalHeading).toBeVisible({ timeout: 10000 });
 
     // Switch to "Đơn nháp" tab in modal
     const draftTabBtn = page.locator('button', { hasText: /Đơn nháp/i }).first();
-    if (await draftTabBtn.isVisible({ timeout: 5000 })) {
-      await draftTabBtn.click();
-      await page.waitForTimeout(1000);
-    }
+    await expect(draftTabBtn).toBeVisible({ timeout: 10000 });
+    await draftTabBtn.click();
+    await page.waitForTimeout(1000);
 
     // Verify draft order row exists
     const draftBadge = page.locator('span', { hasText: /Đơn nháp/i }).first();
@@ -275,36 +261,28 @@ test.describe
     await page.waitForLoadState('domcontentloaded');
 
     // 3. Open Mode 1 form
-    const createOutboundBtn = page
-      .locator('button', { hasText: /Tạo phiếu xuất kho|Xuất giao khách/i })
-      .first();
-    if (await createOutboundBtn.isVisible({ timeout: 5000 })) {
-      await createOutboundBtn.click();
-      await page.waitForTimeout(1000);
-    }
+    const createOutboundBtn = page.locator('button', { hasText: /Xuất kho/i }).first();
+    await expect(createOutboundBtn).toBeVisible({ timeout: 10000 });
+    await createOutboundBtn.click();
+    await page.waitForTimeout(1000);
 
     // 4. Open Lookup Modal and pick a draft order
-    const openLookupBtn = page
-      .locator('button', { hasText: /Tra cứu kho|Tra cứu|Chọn hàng/i })
-      .first();
-    if (await openLookupBtn.isVisible({ timeout: 5000 })) {
-      await openLookupBtn.click();
-      const draftTabBtn = page.locator('button', { hasText: /Đơn nháp/i }).first();
-      if (await draftTabBtn.isVisible({ timeout: 5000 })) {
-        await draftTabBtn.click();
-        await page.waitForTimeout(800);
-      }
-      const selectBtn = page.locator('button', { hasText: /Chọn đơn này/i }).first();
-      if (await selectBtn.isVisible({ timeout: 5000 })) {
-        await selectBtn.click();
-        await page.waitForTimeout(800);
-      }
-    }
+    const gridLookupIcon = page.locator('button[title*="Tra cứu kho"]').first();
+    await expect(gridLookupIcon).toBeVisible({ timeout: 10000 });
+    await gridLookupIcon.click();
+
+    const draftTabBtn = page.locator('button', { hasText: /Đơn nháp/i }).first();
+    await expect(draftTabBtn).toBeVisible({ timeout: 10000 });
+    await draftTabBtn.click();
+    await page.waitForTimeout(800);
+
+    const selectBtn = page.locator('button', { hasText: /Chọn đơn này/i }).first();
+    await expect(selectBtn).toBeVisible({ timeout: 10000 });
+    await selectBtn.click();
+    await page.waitForTimeout(800);
 
     // 5. Verify Business Alert Banner is displayed
-    const alertBanner = page
-      .locator('div', { hasText: /Lưu ý nghiệp vụ.*Đơn nháp.*Chờ xử lý/i })
-      .first();
+    const alertBanner = page.locator('text=Lưu ý nghiệp vụ').first();
     await expect(alertBanner).toBeVisible({ timeout: 10000 });
 
     // 6. Verify "Xác nhận xuất kho" button is disabled or marked not allowed
