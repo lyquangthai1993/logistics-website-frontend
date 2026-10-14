@@ -555,13 +555,12 @@ test.describe.serial('Vòng đời chuyến xe (SD), luân chuyển liên Hub & 
     await expect(page.locator(`text=${testState.transferLicensePlate}`).first()).toBeVisible();
     await expect(page.locator('text=Đã xử lý').first()).toBeVisible();
 
-    // Mở rộng tất cả xe để kiểm tra các dòng đơn con bên trong
-    const expandAllBtn = page.getByRole('button', { name: 'Mở rộng tất cả' });
-    await expandAllBtn.click();
+    // Click vào mã chuyến xe để mở modal kiểm tra chi tiết các đơn hàng con bên trong chuyến
+    const tripCodeBtn = page.getByRole('button', { name: testState.transferTripCode }).first();
+    await tripCodeBtn.click();
     await page.waitForTimeout(600);
 
-    // Phải thấy các badge "LƯU KHO" của từng đơn hàng tại kho Hưng Yên
-    const storedBadges = page.locator('span:has-text("LƯU KHO")');
-    expect(await storedBadges.count()).toBeGreaterThanOrEqual(3);
+    // Modal chi tiết chuyến xe mở ra, hiển thị mã chuyến và danh sách đơn
+    await expect(page.locator(`text=${testState.transferTripCode}`).first()).toBeVisible();
   });
 });

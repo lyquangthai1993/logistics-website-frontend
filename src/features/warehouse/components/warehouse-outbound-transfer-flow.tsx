@@ -1144,8 +1144,8 @@ export function WarehouseOutboundTransferFlow({
             <table className='w-full text-xs text-left min-w-[950px]'>
               <thead className='bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                 <tr>
-                  <th className='p-3 w-10 text-center'>STT</th>
-                  <th className='p-3 w-[200px]'>MÃ ĐƠN HÀNG</th>
+                  <th className='p-3 w-10 text-center sticky left-0 z-20 bg-[#F1F5F9] dark:bg-slate-800'>STT</th>
+                  <th className='p-3 w-[200px] sticky left-10 z-20 bg-[#F1F5F9] dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ ĐƠN HÀNG</th>
                   <th className='p-3 w-[220px]'>TÊN HÀNG</th>
                   <th className='p-3 text-right w-[90px]'>SỐ KIỆN</th>
                   <th className='p-3 text-right w-[110px]'>SỐ KG</th>
@@ -1157,10 +1157,10 @@ export function WarehouseOutboundTransferFlow({
               <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                 {selectedOrders.map((order, idx) => (
                   <tr key={order.id} className='hover:bg-slate-50 dark:hover:bg-slate-800/50'>
-                    <td className='p-3 text-center font-mono font-bold text-slate-400'>
+                    <td className='p-3 text-center font-mono font-bold text-slate-400 sticky left-0 z-10 bg-white dark:bg-slate-900'>
                       {(idx + 1).toString().padStart(2, '0')}
                     </td>
-                    <td className='p-3 font-mono font-bold text-[#1D4ED8] dark:text-blue-400'>
+                    <td className='p-3 font-mono font-bold text-[#1D4ED8] dark:text-blue-400 sticky left-10 z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                       {order.orderCode}
                     </td>
                     <td className='p-3 font-medium text-slate-800 dark:text-slate-200'>

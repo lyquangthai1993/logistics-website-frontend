@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { IconLock, IconAlertTriangle, IconPrinter } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { formatWeight, formatVolume } from '@/lib/format';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { TripManifestLine } from '../api/trip-manifest';
 
 export interface TallyLineState {
@@ -63,6 +64,9 @@ export function WarehouseTripTallyTable({
   currentHubName,
   onPrintLabel
 }: WarehouseTripTallyTableProps) {
+  const isMobile = useIsMobile();
+  const isEffectiveReadOnly = readOnly || isMobile;
+
   const visibleLines = useMemo(
     () =>
       hideOtherHubs
@@ -105,16 +109,18 @@ export function WarehouseTripTallyTable({
         </label>
         <span className='text-[10px] text-slate-500 flex items-center gap-1'>
           <IconLock className='h-3 w-3' />
-          Số liệu hợp đồng gốc chỉ xem, chỉ nhập số kiện thực nhận
+          {isMobile
+            ? 'Chế độ chỉ xem trên thiết bị di động'
+            : 'Số liệu hợp đồng gốc chỉ xem, chỉ nhập số kiện thực nhận'}
         </span>
       </div>
 
       <div className='border border-slate-200 dark:border-slate-700 rounded-lg overflow-auto max-h-[52vh]'>
         <table className='w-full text-[10px] text-left'>
-          <thead className='sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
+          <thead className='sticky top-0 z-20 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
             <tr>
-              <th className='py-1 px-1.5 w-[28px] text-center'>
-                {!readOnly && (
+              <th className='hidden sm:table-cell py-1 px-1.5 w-[28px] text-center sticky left-0 z-30 bg-slate-100 dark:bg-slate-800'>
+                {!isEffectiveReadOnly && (
                   <Checkbox
                     checked={allChecked}
                     onCheckedChange={(v) => toggleAll(v === true)}
@@ -122,8 +128,12 @@ export function WarehouseTripTallyTable({
                   />
                 )}
               </th>
-              <th className='py-1 px-1.5 w-[32px] text-center'>STT</th>
-              <th className='py-1 px-1.5 min-w-[120px]'>MÃ VẬN ĐƠN</th>
+              <th className='py-1 px-1.5 w-[32px] text-center sticky left-0 sm:left-[28px] z-30 bg-slate-100 dark:bg-slate-800'>
+                STT
+              </th>
+              <th className='py-1 px-1.5 min-w-[120px] sticky left-[32px] sm:left-[60px] z-30 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                MÃ VẬN ĐƠN
+              </th>
               <th className='py-1 px-1.5 min-w-[130px]'>KHO NHẬN / NƠI GIAO</th>
               <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
               <th className='py-1 px-1.5 text-right w-[60px]'>KIỆN HĐ</th>
@@ -149,7 +159,7 @@ export function WarehouseTripTallyTable({
                 const expected = expectedForLine(l);
                 const actual = s?.actualQuantity === '' ? 0 : Number(s?.actualQuantity ?? 0);
                 const diff = s?.checked ? actual - expected : 0;
-                const rowLocked = readOnly || l.isReceivedHere;
+                const rowLocked = isEffectiveReadOnly || l.isReceivedHere;
                 const dim = !l.isForCurrentHub && !s?.checked;
                 return (
                   <tr
@@ -158,7 +168,7 @@ export function WarehouseTripTallyTable({
                       s?.checked ? 'border-l-4 border-l-blue-600' : ''
                     } ${dim ? 'opacity-60' : ''}`}
                   >
-                    <td className='py-1 px-1.5 text-center'>
+                    <td className='hidden sm:table-cell py-1 px-1.5 text-center sticky left-0 z-10 bg-white dark:bg-slate-900'>
                       {!rowLocked && (
                         <Checkbox
                           checked={!!s?.checked}
@@ -177,10 +187,10 @@ export function WarehouseTripTallyTable({
                         />
                       )}
                     </td>
-                    <td className='py-1 px-1.5 text-center font-bold text-slate-500'>
+                    <td className='py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 sm:left-[28px] z-10 bg-white dark:bg-slate-900'>
                       {String(i + 1).padStart(2, '0')}
                     </td>
-                    <td className='py-1 px-1.5'>
+                    <td className='py-1 px-1.5 sticky left-[32px] sm:left-[60px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                       <div className='text-[11px] font-mono font-bold text-blue-700 dark:text-blue-300'>
                         {l.orderCode}
                       </div>
@@ -295,7 +305,13 @@ export function WarehouseTripTallyTable({
                     <td className='py-1 px-1.5 text-right'>
                       {rowLocked || !s?.checked ? (
                         <span className='font-bold text-slate-800 dark:text-slate-200'>
-                          {l.isReceivedHere ? l.receivedQuantity : '—'}
+                          {l.isReceivedHere
+                            ? `${l.receivedQuantity} kiện`
+                            : s?.actualQuantity !== '' && s?.actualQuantity !== undefined
+                              ? `${s.actualQuantity} kiện`
+                              : s?.checked
+                                ? `${expected} kiện`
+                                : '—'}
                         </span>
                       ) : (
                         <Input
@@ -332,6 +348,10 @@ export function WarehouseTripTallyTable({
                             aria-label={`Lý do chênh lệch đơn ${l.orderCode}`}
                           />
                         </div>
+                      ) : s?.discrepancyReason ? (
+                        <span className='text-[10px] text-amber-700 dark:text-amber-300 font-medium'>
+                          {s.discrepancyReason}
+                        </span>
                       ) : (
                         <span className='text-slate-400'>—</span>
                       )}

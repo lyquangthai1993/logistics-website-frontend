@@ -31,6 +31,7 @@ import { tokenManager } from '@/lib/token-manager';
 import { apiClient } from '@/lib/api-client';
 import { ApiResponse, formatApiError, showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseEditableGrid, WarehouseRowItem, HubOption } from './warehouse-editable-grid';
 import { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
@@ -93,6 +94,8 @@ export function WarehouseTripDetailModal({
 }: WarehouseTripDetailModalProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const isMobileReadOnly = isMobile || readOnly;
 
   // 2-Step Workflow state: 1 = Inbound/Unloading, 2 = Outbound/Loading
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -304,6 +307,7 @@ export function WarehouseTripDetailModal({
 
   // Auto-resolve read-only mode based on business status
   const effectiveReadOnly = useMemo(() => {
+    if (isMobile) return true;
     if (readOnly) return true;
     if (!tripGroup) return true;
 
@@ -335,7 +339,7 @@ export function WarehouseTripDetailModal({
     ].includes(tripGroup.status?.toUpperCase());
 
     return !hasWaiting || isStoredOrFinalized;
-  }, [readOnly, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
+  }, [isMobile, readOnly, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
 
   const [selectedLabelData, setSelectedLabelData] = useState<
     PalletLabelData | PalletLabelData[] | null
@@ -973,6 +977,15 @@ export function WarehouseTripDetailModal({
           </div>
 
           <div className='flex items-center gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={handlePrintAllLabels}
+              className='h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 font-semibold'
+              title='In toàn bộ tem nhận diện cho chuyến xe'
+            >
+              <IconPrinter className='h-3.5 w-3.5 mr-1' /> In tất cả tem
+            </Button>
             {onOpenReceipt && (
               <Button
                 variant='outline'
@@ -1243,6 +1256,7 @@ export function WarehouseTripDetailModal({
                     </span>
                     {/* Nút duy nhất bốc thêm đơn dọc đường về Hub */}
                     {!effectiveReadOnly &&
+                      !isMobile &&
                       mode === 'INBOUND' &&
                       isTransferTrip &&
                       !isTripOriginHere &&
@@ -1256,7 +1270,7 @@ export function WarehouseTripDetailModal({
                             setAppendModalMode('ROADSIDE_INBOUND');
                             setIsAppendModalOpen(true);
                           }}
-                          className='h-6 px-2 text-[10px] text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950 font-bold'
+                          className='hidden sm:inline-flex h-6 px-2 text-[10px] text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950 font-bold'
                           title='Tài xế bốc thêm hàng ngoài đường chở về dỡ tại kho hiện tại'
                         >
                           {isAdmin && isCurrentHubCompleted && (
@@ -1316,8 +1330,8 @@ export function WarehouseTripDetailModal({
                     <table className='w-full text-[10px] text-left'>
                       <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                         <tr>
-                          <th className='py-1 px-1.5 w-[36px] text-center'>STT</th>
-                          <th className='py-1 px-1.5 w-[130px]'>MÃ VẬN ĐƠN</th>
+                          <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>STT</th>
+                          <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ VẬN ĐƠN</th>
                           {mode === 'OUTBOUND' ? (
                             <th className='py-1 px-1.5 min-w-[140px]'>BIỂN SỐ XE NHẬP DỰ KIẾN</th>
                           ) : (
@@ -1340,10 +1354,10 @@ export function WarehouseTripDetailModal({
                             key={r.id || i}
                             className='hover:bg-slate-50 dark:hover:bg-slate-800/50'
                           >
-                            <td className='py-1 px-1.5 text-center font-bold text-slate-500'>
+                            <td className='py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
                               {String(i + 1).padStart(2, '0')}
                             </td>
-                            <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300'>
+                            <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                               {r.orderCode}
                             </td>
                             {mode === 'OUTBOUND' ? (
@@ -1431,7 +1445,7 @@ export function WarehouseTripDetailModal({
 
                   <div className='flex items-center gap-2'>
                     {/* Nút thêm đơn xuất từ kho lên xe */}
-                    {!effectiveReadOnly && !isHubAccountLocked && (
+                    {!effectiveReadOnly && !isHubAccountLocked && !isMobile && (
                       <Button
                         type='button'
                         size='sm'
@@ -1458,8 +1472,8 @@ export function WarehouseTripDetailModal({
                   <table className='w-full text-[10px] text-left'>
                     <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                       <tr>
-                        <th className='py-1 px-1.5 w-[36px] text-center'>STT</th>
-                        <th className='py-1 px-1.5 w-[130px]'>MÃ VẬN ĐƠN</th>
+                        <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>STT</th>
+                        <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ VẬN ĐƠN</th>
                         <th className='py-1 px-1.5 w-[110px]'>NGUỒN HÀNG</th>
                         <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
                         <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
@@ -1467,12 +1481,13 @@ export function WarehouseTripDetailModal({
                         <th className='py-1 px-1.5 text-right w-[65px]'>SỐ M³</th>
                         <th className='py-1 px-1.5 min-w-[140px]'>KHO ĐÍCH / NƠI GIAO</th>
                         <th className='py-1 px-1.5 min-w-[120px]'>GHI CHÚ</th>
+                        <th className='py-1 px-1.5 text-center w-[70px]'>THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
                       {outboundBreakdown.allOutboundLines.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className='py-3 text-center text-slate-400'>
+                          <td colSpan={10} className='py-3 text-center text-slate-400'>
                             Chưa có đơn hàng nào xuất tiếp trên chuyến xe này. Bấm{' '}
                             <strong>"Thêm đơn xuất từ kho lên xe"</strong> để bốc thêm hàng.
                           </td>
@@ -1482,6 +1497,9 @@ export function WarehouseTripDetailModal({
                           const effectiveCurrentHubId =
                             manifest?.currentHubId || user?.hubId || user?.hub?.id || 2;
                           const isNewlyLoadedHere = l.originHubId === effectiveCurrentHubId;
+                          const stickyBg = isNewlyLoadedHere
+                            ? 'bg-blue-50 dark:bg-blue-950'
+                            : 'bg-white dark:bg-slate-900';
                           return (
                             <tr
                               key={l.id || i}
@@ -1491,10 +1509,10 @@ export function WarehouseTripDetailModal({
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                               }
                             >
-                              <td className='py-1 px-1.5 text-center font-bold text-slate-500'>
+                              <td className={`py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}>
                                 {String(i + 1).padStart(2, '0')}
                               </td>
-                              <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300'>
+                              <td className={`py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}>
                                 {l.orderCode}
                               </td>
                               <td className='py-1 px-1.5'>
@@ -1554,7 +1572,7 @@ export function WarehouseTripDetailModal({
                                           <DestinationHubInfoCard
                                             hub={hub}
                                             isXeBo={isXeBo}
-                                            disabled={isHubAccountLocked || !canEditOrderInfo}
+                                            disabled={isHubAccountLocked || !canEditOrderInfo || isMobile || effectiveReadOnly}
                                             onResetToOriginal={() => handleDirectReset(l)}
                                             onChangeDestination={() =>
                                               setSelectedOrderForDestModal(l)
@@ -1564,7 +1582,7 @@ export function WarehouseTripDetailModal({
                                       }
 
                                       // DIRECT_CUSTOMER
-                                      if (isHubAccountLocked || !canEditOrderInfo) {
+                                      if (isHubAccountLocked || !canEditOrderInfo || isMobile || effectiveReadOnly) {
                                         return (
                                           <div className='text-[10px] py-0.5 space-y-0.5'>
                                             <Badge
@@ -1651,6 +1669,18 @@ export function WarehouseTripDetailModal({
                               </td>
                               <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
                                 {l.notes || '—'}
+                              </td>
+                              <td className='py-1 px-1.5 text-center'>
+                                <Button
+                                  type='button'
+                                  variant='outline'
+                                  size='sm'
+                                  onClick={() => handlePrintLabelForOrder(l)}
+                                  className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 px-1.5 font-semibold'
+                                  title='In tem nhận diện hàng hóa A4'
+                                >
+                                  <IconPrinter className='h-3 w-3 mr-1' /> In tem
+                                </Button>
                               </td>
                             </tr>
                           );
@@ -1763,6 +1793,27 @@ export function WarehouseTripDetailModal({
                     <IconPrinter className='mr-1.5 h-3.5 w-3.5' /> In phiếu xe
                   </Button>
                 )}
+                {isTransferTrip &&
+                  (currentStep === 1 ? (
+                    <Button
+                      type='button'
+                      size='sm'
+                      onClick={() => setCurrentStep(2)}
+                      className='h-7 bg-blue-600 hover:bg-blue-700 text-white px-2.5 font-bold shadow-xs text-xs'
+                    >
+                      <IconArrowRight className='mr-1 h-3.5 w-3.5' /> Xem hàng xuất tiếp trên xe
+                    </Button>
+                  ) : (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setCurrentStep(1)}
+                      className='h-7 text-xs font-semibold border-slate-300'
+                    >
+                      <IconArrowLeft className='mr-1 h-3.5 w-3.5' /> Quay lại Bước 1
+                    </Button>
+                  ))}
               </>
             ) : currentStep === 1 ? (
               <>
