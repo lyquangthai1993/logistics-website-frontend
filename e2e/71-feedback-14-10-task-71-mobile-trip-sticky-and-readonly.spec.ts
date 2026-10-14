@@ -89,9 +89,7 @@ test.describe
 
     await tripCodeButtons.first().click();
 
-    const modal = page.locator('[role="dialog"], [data-testid="trip-detail-modal"], .fixed.inset-0').filter({
-      hasText: /thông tin chuyến xe|chi tiết chuyến xe|bảng kê chuyến xe/i
-    }).first();
+    const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible({ timeout: 10000 });
 
     // 3. Verify Mobile Read-only Gate:
@@ -111,9 +109,16 @@ test.describe
     const quantityInputs = modal.locator('table input[type="number"]');
     await expect(quantityInputs).toHaveCount(0);
 
-    // 4. Verify Sticky Table Columns
-    const stickySttHeaders = modal.locator('th.sticky.left-0');
-    await expect(stickySttHeaders.first()).toBeVisible();
+    // 4. Verify Sticky Table Columns (STT & MÃ VẬN ĐƠN)
+    const sttHeader = modal.locator('th').filter({ hasText: /^STT$/i }).first();
+    await expect(sttHeader).toBeVisible();
+    const sttPosition = await sttHeader.evaluate((el) => window.getComputedStyle(el).position);
+    expect(sttPosition).toBe('sticky');
+
+    const waybillHeader = modal.locator('th').filter({ hasText: /mã vận đơn/i }).first();
+    await expect(waybillHeader).toBeVisible();
+    const waybillPosition = await waybillHeader.evaluate((el) => window.getComputedStyle(el).position);
+    expect(waybillPosition).toBe('sticky');
 
     // 5. Verify Pallet A4 Label Printing Buttons
     const printAllBtn = modal.getByRole('button', { name: /in tất cả tem/i });
@@ -154,14 +159,23 @@ test.describe
 
     await tripCodeButtons.first().click();
 
-    const modal = page.locator('[role="dialog"], [data-testid="trip-detail-modal"], .fixed.inset-0').filter({
-      hasText: /thông tin chuyến xe|chi tiết chuyến xe|bảng kê chuyến xe/i
-    }).first();
+    const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible({ timeout: 10000 });
 
     // Verify roadside button is hidden on mobile
     const roadsideBtn = page.getByRole('button', { name: /bốc thêm đơn dọc đường/i });
     await expect(roadsideBtn).toHaveCount(0);
+
+    // Verify Sticky Table Columns (STT & MÃ VẬN ĐƠN)
+    const sttHeader = modal.locator('th').filter({ hasText: /^STT$/i }).first();
+    await expect(sttHeader).toBeVisible();
+    const sttPosition = await sttHeader.evaluate((el) => window.getComputedStyle(el).position);
+    expect(sttPosition).toBe('sticky');
+
+    const waybillHeader = modal.locator('th').filter({ hasText: /mã vận đơn/i }).first();
+    await expect(waybillHeader).toBeVisible();
+    const waybillPosition = await waybillHeader.evaluate((el) => window.getComputedStyle(el).position);
+    expect(waybillPosition).toBe('sticky');
 
     // Capture screenshot
     const screenshot = await page.screenshot({ fullPage: true });
