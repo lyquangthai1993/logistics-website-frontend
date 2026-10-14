@@ -34,6 +34,43 @@ export interface PalletLabelData {
   warehouseName?: string;
 }
 
+/**
+ * Trích xuất Tỉnh/Thành phố của đơn hàng để hiển thị vào ô "GIAO ĐẾN" trên Tem Nhận Diện Hàng Hóa A4
+ * Theo yêu cầu nghiệp vụ kho vận (Feedback 14/10 Task #73):
+ * Ô khoanh đỏ "GIAO ĐẾN" bắt buộc phải thể hiện nội dung cột Tỉnh/TP của đơn hàng (thay vì số nhà chi tiết).
+ */
+export function resolvePalletLabelDestination(item?: PalletLabelData | null): string {
+  if (!item) return '—';
+
+  // 1. Ưu tiên số 1: Cột Tỉnh/TP trực tiếp của đơn hàng (province)
+  const prov = item.province?.trim();
+  if (prov) return prov.toUpperCase();
+
+  // 2. Ưu tiên số 2: Tỉnh/Thành phố từ Hub đích (destinationHubEntity.city)
+  const hubCity = item.destinationHubEntity?.city?.trim();
+  if (hubCity) return hubCity.toUpperCase();
+
+  // 3. Ưu tiên số 3: Trích xuất phần Tỉnh/TP ở cuối chuỗi địa chỉ giao hàng nếu có
+  const addr = item.deliveryAddress?.trim() || item.originalDestination?.trim();
+  if (addr) {
+    const parts = addr.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const lastPart = parts[parts.length - 1];
+      // Nếu đoạn cuối là tên Tỉnh/TP (dưới 40 ký tự)
+      if (lastPart && lastPart.length <= 40) {
+        return lastPart.toUpperCase();
+      }
+    }
+    return addr.toUpperCase();
+  }
+
+  // 4. Ưu tiên số 4: Tên Hub đích
+  const destHub = item.destinationHub?.trim();
+  if (destHub) return destHub.toUpperCase();
+
+  return '—';
+}
+
 interface PalletLabelA4ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -67,14 +104,7 @@ export function PalletLabelA4Modal({ isOpen, onClose, data }: PalletLabelA4Modal
   const palletIndex = '';
   const totalPallets = '';
   const goodsDescription = (currentItem?.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
-  const destinationDisplay = (
-    currentItem?.originalDestination?.trim() ||
-    currentItem?.province?.trim() ||
-    currentItem?.destinationHubEntity?.city?.trim() ||
-    currentItem?.destinationHub?.trim() ||
-    currentItem?.deliveryAddress?.trim() ||
-    '—'
-  ).toUpperCase();
+  const destinationDisplay = resolvePalletLabelDestination(currentItem);
 
   const handlePrint = () => {
     if (items.length === 0) return;
@@ -101,14 +131,7 @@ export function PalletLabelA4Modal({ isOpen, onClose, data }: PalletLabelA4Modal
           ? new Date(item.createdAt).toLocaleDateString('vi-VN')
           : new Date().toLocaleDateString('vi-VN');
         const itemGoodsDesc = (item.goodsDescription || 'HÀNG HÓA NHẬP KHO').toUpperCase();
-        const itemDestDisplay = (
-          item.originalDestination?.trim() ||
-          item.province?.trim() ||
-          item.destinationHubEntity?.city?.trim() ||
-          item.destinationHub?.trim() ||
-          item.deliveryAddress?.trim() ||
-          '—'
-        ).toUpperCase();
+        const itemDestDisplay = resolvePalletLabelDestination(item);
         const isLast = idx === items.length - 1;
 
         return `

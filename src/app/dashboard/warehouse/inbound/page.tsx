@@ -1129,7 +1129,8 @@ export default function WarehouseInboundPage() {
                             totalPallets: 1,
                             originHub: r.pickupAddress,
                             destinationHub: r.deliveryAddress,
-                            province: r.province || r.deliveryAddress,
+                            deliveryAddress: r.deliveryAddress,
+                            province: r.province || undefined,
                             createdAt: new Date()
                           });
                           setIsLabelModalOpen(true);

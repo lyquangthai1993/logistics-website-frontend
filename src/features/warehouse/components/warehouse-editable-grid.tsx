@@ -1320,7 +1320,8 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
             totalQuantity: r.totalQuantity || 1,
             originHub: r.pickupAddress,
             destinationHub: r.deliveryAddress,
-            province: r.province || r.deliveryAddress,
+            deliveryAddress: r.deliveryAddress,
+            province: r.province || undefined,
             createdAt: new Date()
           })
         }
