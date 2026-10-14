@@ -1202,7 +1202,7 @@ export default function WarehouseInboundPage() {
                     <Button
                       onClick={handleSubmitMode1}
                       disabled={isSubmitting || mode1Rows.length === 0}
-                      className='bg-[#0F3D62] hover:bg-[#0c314f] text-white px-5 font-bold shadow-md h-9 text-xs'
+                      className='bg-[#0F3D62] hover:bg-[#0c314f] text-white px-3 font-bold shadow-md h-8 text-xs'
                     >
                       {isSubmitting ? (
                         <>

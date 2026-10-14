@@ -305,7 +305,7 @@ export function WarehouseLookupModal({
             <tbody className='divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900'>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className='py-8 text-center text-slate-500'>
+                  <td colSpan={7} className='py-3 text-center text-slate-500'>
                     <IconLoader2 className='mx-auto mb-1.5 h-5 w-5 animate-spin text-[#0F3D62]' />
                     <span className='text-xs font-medium'>
                       Đang tải danh sách hàng hóa trong kho...
@@ -314,7 +314,7 @@ export function WarehouseLookupModal({
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className='py-8 text-center text-slate-400'>
+                  <td colSpan={7} className='py-3 text-center text-slate-400'>
                     <IconPackage className='mx-auto mb-1 h-7 w-7 stroke-[1.5] text-slate-300 dark:text-slate-600' />
                     <p className='text-xs font-semibold text-slate-600 dark:text-slate-300'>
                       Không tìm thấy lô hàng nào phù hợp

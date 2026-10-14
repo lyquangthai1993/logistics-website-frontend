@@ -245,7 +245,7 @@ function SearchableHubSelect({
           {/* List Options */}
           <div className='max-h-56 overflow-y-auto space-y-1 pr-1'>
             {filtered.length === 0 ? (
-              <div className='py-6 text-center text-xs text-slate-400'>
+              <div className='py-2.5 text-center text-xs text-slate-400'>
                 Không tìm thấy {isXeBo ? 'tuyến xe bo' : 'hub'} nào với từ khóa "{search}"
               </div>
             ) : (
@@ -1826,7 +1826,7 @@ export function WarehouseEditableGrid({
   };
 
   return (
-    <div className='space-y-3' onPaste={handlePaste}>
+    <div className='space-y-1.5' onPaste={handlePaste}>
       {/* ── Excel Input Toolbar (Frame S5y54b in WH_CASE_01) ── */}
       <div className='flex flex-wrap items-center justify-between gap-2.5'>
         <div className='flex items-center gap-2'>

@@ -485,7 +485,7 @@ export function WarehouseOutboundTransferFlow({
       </div>
 
       {/* ── Journey Stepper (3 Steps - Frames oct_stepper, sm_trip_bar, ol_stepper) ── */}
-      <div className='flex items-center justify-between px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
+      <div className='flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm'>
         {/* Step 1 */}
         <div className='flex items-center gap-2'>
           <div
@@ -1043,7 +1043,7 @@ export function WarehouseOutboundTransferFlow({
                   setStep(3);
                 }}
                 disabled={selectedOrderIds.size === 0}
-                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-5 shadow-sm flex items-center gap-1.5'
+                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-3 h-8 shadow-sm flex items-center gap-1.5'
               >
                 <span>Xác nhận hàng đã chọn → Sang Bước 3</span>
                 <IconArrowRight className='h-4 w-4' />

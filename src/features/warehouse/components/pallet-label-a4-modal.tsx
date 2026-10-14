@@ -368,7 +368,7 @@ ${pagesHtml}
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className='sm:max-w-4xl max-w-[96vw] bg-slate-50 dark:bg-slate-900 p-5 sm:p-6 overflow-y-auto max-h-[95vh] border-slate-200 dark:border-slate-800'>
+      <DialogContent className='sm:max-w-4xl max-w-[96vw] bg-slate-50 dark:bg-slate-900 p-2.5 sm:p-3 overflow-y-auto max-h-[95vh] border-slate-200 dark:border-slate-800'>
         <DialogHeader>
           <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2'>
             <div>
@@ -414,11 +414,11 @@ ${pagesHtml}
         </DialogHeader>
 
         {/* ── Realistic A4 Landscape Paper Preview Container ── */}
-        <div className='w-full my-2 flex justify-center items-center bg-slate-200/80 dark:bg-slate-950 p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-slate-800 shadow-inner overflow-x-auto'>
+        <div className='w-full my-1.5 flex justify-center items-center bg-slate-200/80 dark:bg-slate-950 p-2 sm:p-2.5 rounded-xl border border-slate-300 dark:border-slate-800 shadow-inner overflow-x-auto'>
           <div
             id='pallet-label-print-area'
-            className='w-full max-w-[850px] bg-white text-black p-6 sm:p-8 rounded shadow-2xl border border-slate-300 font-sans select-none'
-            style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+            className='w-full max-w-[850px] bg-white text-black rounded shadow-2xl border border-slate-300 font-sans select-none'
+            style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif", padding: '24px' }}
           >
             {/* Row 1: Header Bar with QR Code */}
             <div className='flex items-center justify-between mb-3 relative'>
@@ -461,7 +461,7 @@ ${pagesHtml}
                   </td>
                   <td
                     colSpan={3}
-                    className='px-4 py-1.5 text-center align-middle font-sans text-xl sm:text-3xl font-black tracking-wider text-black leading-tight'
+                    className='px-3 py-1.5 text-center align-middle font-sans text-xl sm:text-3xl font-black tracking-wider text-black leading-tight'
                     style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
                   >
                     {currentItem.orderCode}
@@ -470,12 +470,12 @@ ${pagesHtml}
 
                 {/* Row 2: NGÀY NHẬP */}
                 <tr className='border-b-[1.5px] border-black'>
-                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3 py-2 text-xs sm:text-sm font-bold align-middle'>
                     NGÀY NHẬP :
                   </td>
                   <td
                     colSpan={3}
-                    className='px-4 py-2 text-center align-middle text-base sm:text-xl font-bold text-black'
+                    className='px-3 py-2 text-center align-middle text-base sm:text-xl font-bold text-black'
                   >
                     {formattedDate}
                   </td>
@@ -483,12 +483,12 @@ ${pagesHtml}
 
                 {/* Row 3: SỐ LƯỢNG */}
                 <tr className='border-b-[1.5px] border-black'>
-                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3 py-2 text-xs sm:text-sm font-bold align-middle'>
                     SỐ LƯỢNG :
                   </td>
                   <td
                     colSpan={3}
-                    className='px-4 py-3 text-center align-middle text-2xl sm:text-4xl font-black text-black h-20 sm:h-24'
+                    className='px-3 py-2.5 text-center align-middle text-2xl sm:text-4xl font-black text-black h-20 sm:h-24'
                   >
                     {quantityDisplay}
                   </td>
@@ -496,28 +496,28 @@ ${pagesHtml}
 
                 {/* Row 4: PALET SỐ & TỔNG SỐ PALET */}
                 <tr className='border-b-[1.5px] border-black'>
-                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold align-middle'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3 py-2 text-xs sm:text-sm font-bold align-middle'>
                     PALET SỐ :
                   </td>
-                  <td className='w-[28%] border-r-[1.5px] border-black px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12'>
+                  <td className='w-[28%] border-r-[1.5px] border-black px-3 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12'>
                     {palletIndex}
                   </td>
-                  <td className='w-[25%] border-r-[1.5px] border-black px-3.5 py-2 text-xs sm:text-sm font-bold text-center align-middle'>
+                  <td className='w-[25%] border-r-[1.5px] border-black px-3 py-2 text-xs sm:text-sm font-bold text-center align-middle'>
                     TỔNG SỐ PALET :
                   </td>
-                  <td className='w-[25%] px-3.5 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12'>
+                  <td className='w-[25%] px-3 py-2 text-center align-middle text-base sm:text-xl font-bold text-black h-10 sm:h-12'>
                     {totalPallets}
                   </td>
                 </tr>
 
                 {/* Row 5: GIAO ĐẾN */}
                 <tr>
-                  <td className='w-[22%] border-r-[1.5px] border-black px-3.5 py-4 text-xs sm:text-sm font-bold align-middle'>
+                  <td className='w-[22%] border-r-[1.5px] border-black px-3 py-2.5 text-xs sm:text-sm font-bold align-middle'>
                     GIAO ĐẾN :
                   </td>
                   <td
                     colSpan={3}
-                    className='px-4 py-5 text-center align-middle text-2xl sm:text-4xl font-black uppercase tracking-wide text-black h-20 sm:h-24'
+                    className='px-3 py-2.5 text-center align-middle text-2xl sm:text-4xl font-black uppercase tracking-wide text-black h-20 sm:h-24'
                   >
                     {destinationDisplay}
                   </td>
@@ -527,19 +527,23 @@ ${pagesHtml}
           </div>
         </div>
 
-        <DialogFooter className='mt-4 gap-2 flex sm:justify-between items-center'>
+        <DialogFooter className='mt-2 gap-1.5 flex sm:justify-between items-center'>
           <Button
+            type='button'
             variant='outline'
+            size='sm'
             onClick={onClose}
-            className='text-slate-700 dark:text-slate-200'
+            className='h-8 text-xs text-slate-700 dark:text-slate-200'
           >
-            <IconX className='mr-1.5 h-4 w-4' /> Đóng
+            <IconX className='mr-1.5 h-3.5 w-3.5' /> Đóng
           </Button>
           <Button
+            type='button'
+            size='sm'
             onClick={handlePrint}
-            className='bg-[#0F3D62] text-white hover:bg-[#0c314f] font-semibold shadow-sm'
+            className='h-8 text-xs bg-[#0F3D62] text-white hover:bg-[#0c314f] font-semibold shadow-sm'
           >
-            <IconPrinter className='mr-1.5 h-4 w-4' />{' '}
+            <IconPrinter className='mr-1.5 h-3.5 w-3.5' />{' '}
             {items.length > 1
               ? `In Toàn Bộ ${items.length} Tem (Ctrl + P)`
               : 'In Tem Ngay (Ctrl + P)'}
