@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,8 +21,11 @@ import {
   IconClipboardCheck,
   IconEye,
   IconX,
-  IconTrash
+  IconTrash,
+  IconFileSpreadsheet,
+  IconRotate
 } from '@tabler/icons-react';
+import { rollbackTrip } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -106,6 +110,34 @@ export default function WarehouseInboundPage() {
   const handleResumeInboundTrip = (grp: InboundVehicleGroup) => {
     setSelectedTripGroup(grp);
     setIsTripEditModalOpen(true);
+  };
+
+  const isAdmin =
+    user?.role === 'SUPER_ADMIN' ||
+    (user?.role as any)?.id === 1 ||
+    (user?.role as any)?.name === 'SUPER_ADMIN';
+
+  const handleRollbackTrip = async (grp: InboundVehicleGroup) => {
+    if (!grp?.tripCode || grp.tripCode === '—') return;
+    if (
+      !window.confirm(
+        `Xác nhận mở lại chuyến xe ${grp.tripCode}? Toàn bộ số lượng kiện hàng đã dỡ vào kho sẽ được hoàn tác khỏi tồn kho và các đơn hàng quay lại trạng thái Chờ xử lý.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const activeHubId = Number(user?.hubId ?? (user?.hub as any)?.id) || undefined;
+      await rollbackTrip(grp.tripCode, {
+        hubId: activeHubId,
+        reason: 'Admin mở lại chuyến xe nhập kho từ bảng danh sách'
+      });
+      toast.success(`Đã mở lại chuyến xe ${grp.tripCode} về trạng thái Chờ xử lý!`);
+      fetchInboundTrips();
+      fetchKpi();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Lỗi khi mở lại chuyến xe');
+    }
   };
 
   const [cancellingDraftCode, setCancellingDraftCode] = useState<string | null>(null);
@@ -211,6 +243,29 @@ export default function WarehouseInboundPage() {
   useEffect(() => {
     fetchKpi();
   }, [fetchKpi]);
+
+  // Tự động nạp dữ liệu chuyển đổi từ Công cụ Excel nếu có
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('TMS_INBOUND_CONVERTER_TRANSFER');
+      if (stored) {
+        const payload = JSON.parse(stored);
+        sessionStorage.removeItem('TMS_INBOUND_CONVERTER_TRANSFER');
+        if (payload.receiveDate) setReceiveDate(payload.receiveDate);
+        if (payload.licensePlate) setLicensePlate(payload.licensePlate);
+        if (payload.driverName) setDriverName(payload.driverName);
+        if (payload.rows && payload.rows.length > 0) {
+          setMode1Rows(payload.rows);
+          setActiveView('MODE1_CUSTOMER');
+          toast.success(
+            `Đã tiếp nhận ${payload.rows.length} dòng đơn từ Công cụ chuyển đổi Excel!`
+          );
+        }
+      }
+    } catch (e) {
+      console.error('Lỗi nạp dữ liệu từ converter:', e);
+    }
+  }, []);
 
   // Reset page to 1 when search, status, or dates change
   useEffect(() => {
@@ -782,12 +837,25 @@ export default function WarehouseInboundPage() {
                 <span>Nhập kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
               </h1>
               {activeView === 'BOARD' && (
-                <Button
-                  onClick={() => setActiveView('MODE1_CUSTOMER')}
-                  className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm h-8 px-2.5'
-                >
-                  <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
-                </Button>
+                <>
+                  <Button
+                    onClick={() => setActiveView('MODE1_CUSTOMER')}
+                    className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm h-8 px-2.5'
+                  >
+                    <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
+                  </Button>
+                  <Link href='/dashboard/warehouse/excel-converter'>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='h-8 text-xs font-semibold border-slate-300 dark:border-slate-700 shadow-xs'
+                    >
+                      <IconFileSpreadsheet className='mr-1.5 h-4 w-4 text-emerald-600' />
+                      Chuyển đổi Excel điều hành
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
             <p className='text-xs text-slate-500 mt-0.5'>
@@ -1018,15 +1086,28 @@ export default function WarehouseInboundPage() {
                                       </Button>
                                     </>
                                   ) : (
-                                    <Button
-                                      variant='outline'
-                                      size='sm'
-                                      onClick={() => handleOpenReceiptForVehicle(grp)}
-                                      className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
-                                      title='In phiếu nhập xe (chứa tất cả đơn hàng của xe)'
-                                    >
-                                      <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
-                                    </Button>
+                                    <>
+                                      {isAdmin && (
+                                        <Button
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() => handleRollbackTrip(grp)}
+                                          className='h-7 text-[11px] text-amber-600 border-amber-300 hover:bg-amber-50 dark:border-amber-800 px-2 font-semibold'
+                                          title='Mở lại chuyến xe (Rollback về Chờ xử lý)'
+                                        >
+                                          <IconRotate className='h-3.5 w-3.5 mr-1' /> Mở lại
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant='outline'
+                                        size='sm'
+                                        onClick={() => handleOpenReceiptForVehicle(grp)}
+                                        className='h-7 text-[11px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2 font-semibold'
+                                        title='In phiếu nhập xe (chứa tất cả đơn hàng của xe)'
+                                      >
+                                        <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -1346,6 +1427,10 @@ export default function WarehouseInboundPage() {
           tripGroup={selectedTripGroup}
           readOnly={true}
           mode='INBOUND'
+          onSuccess={() => {
+            fetchInboundTrips();
+            fetchKpi();
+          }}
           onOpenReceipt={handleOpenReceiptForVehicle}
         />
 

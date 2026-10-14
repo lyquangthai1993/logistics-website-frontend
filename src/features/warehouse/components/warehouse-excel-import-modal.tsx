@@ -22,6 +22,11 @@ import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { WarehouseRowItem, HubOption } from './warehouse-editable-grid';
+import {
+  isDispatchExcelWorkbook,
+  inspectDispatchWorkbook,
+  parseDispatchSheet,
+} from '../lib/dispatch-excel-converter';
 
 interface WarehouseExcelImportModalProps {
   isOpen: boolean;
@@ -119,6 +124,37 @@ export function WarehouseExcelImportModal({
   const parseExcelBuffer = (buffer: ArrayBuffer) => {
     try {
       const wb = XLSX.read(buffer, { type: 'array' });
+      if (isDispatchExcelWorkbook(wb)) {
+        const inspection = inspectDispatchWorkbook(buffer);
+        const sheetToUse = inspection.defaultSheetName || inspection.sheetNames[0];
+        const dispatchResult = parseDispatchSheet(inspection.workbook, sheetToUse);
+        if (dispatchResult.rows.length === 0) {
+          toast.error(`Sheet "${sheetToUse}" trong file điều hành không có dòng đơn hàng nào`);
+          return;
+        }
+        const convertedRows: ParsedPreviewRow[] = dispatchResult.rows.map((r) => ({
+          orderCode: r.orderCode,
+          pickupAddress: r.pickupAddress || currentHubName || '',
+          goodsDescription: r.goodsDescription,
+          totalQuantity: r.totalQuantity,
+          totalWeight: r.totalWeight,
+          totalVolume: r.totalVolume,
+          deliveryMode: 'DIRECT_CUSTOMER',
+          deliveryAddress: r.deliveryAddress,
+          destinationHubId: null,
+          province: r.province,
+          accompanyingDocs: r.accompanyingDocs,
+          notes: r.notes,
+          isValid: true,
+          errors: [],
+        }));
+        setParsedRows(convertedRows);
+        toast.success(
+          `Tự động nhận diện file Điều hành: Đã chuyển đổi ${convertedRows.length} dòng hàng từ sheet "${sheetToUse}"`
+        );
+        return;
+      }
+
       const firstSheetName = wb.SheetNames[0];
       if (!firstSheetName) {
         toast.error('File Excel không có dữ liệu sheet');

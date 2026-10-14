@@ -23,7 +23,9 @@ import {
   IconArrowRight,
   IconArrowLeft,
   IconCheck,
-  IconMapPin
+  IconMapPin,
+  IconRotate,
+  IconAlertTriangle
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -46,6 +48,7 @@ import {
   isManifestTripCode,
   updateTransitStep,
   updateTripOrderDestination,
+  rollbackTrip,
   TripManifestLine
 } from '../api/trip-manifest';
 import {
@@ -120,11 +123,17 @@ export function WarehouseTripDetailModal({
   const isCurrentHubCompleted =
     manifest?.currentHubStatus === 'COMPLETED' || manifest?.isCurrentHubCompleted === true;
 
+  // Rollback state (Admin override to reopen completed trips to pending)
+  const [isRollingBack, setIsRollingBack] = useState(false);
+  const [isRollbackConfirmOpen, setIsRollbackConfirmOpen] = useState(false);
+  const [rollbackReason, setRollbackReason] = useState('');
+  const [isReopenedByAdmin, setIsReopenedByAdmin] = useState(false);
+
   // 3. Cờ khóa toàn bộ quyền của tài khoản thuộc Hub đã xử lý
-  const isHubAccountLocked = isCurrentHubCompleted && !isAdmin;
+  const isHubAccountLocked = isCurrentHubCompleted && !isAdmin && !isReopenedByAdmin;
 
   // 4. Quyền chỉnh sửa thông tin đơn hàng (Chỉ mở khi trạm chưa xong HOẶC là Admin)
-  const canEditOrderInfo = !isCurrentHubCompleted || isAdmin;
+  const canEditOrderInfo = !isCurrentHubCompleted || isAdmin || isReopenedByAdmin;
 
   /**
    * Tally mode: the trip carries at least one locked Master Contract (cargo coming from another hub
@@ -316,7 +325,8 @@ export function WarehouseTripDetailModal({
   // Auto-resolve read-only mode based on business status
   const effectiveReadOnly = useMemo(() => {
     if (isMobile) return true;
-    if (readOnly) return true;
+    if (isReopenedByAdmin) return false;
+    if (readOnly && !isReopenedByAdmin) return true;
     if (!tripGroup) return true;
 
     // Khi trạm dừng tại kho này đã COMPLETED và tài khoản không phải Admin:
@@ -324,7 +334,7 @@ export function WarehouseTripDetailModal({
 
     if (isTallyMode && manifest) {
       if (!manifest.currentHubId) return true;
-      if (manifest.currentHubStatus === 'COMPLETED' && !isAdmin) return true;
+      if (manifest.currentHubStatus === 'COMPLETED' && !isAdmin && !isReopenedByAdmin) return true;
       return !manifest.lines.some((l) => !l.isReceivedHere);
     }
 
@@ -347,7 +357,7 @@ export function WarehouseTripDetailModal({
     ].includes(tripGroup.status?.toUpperCase());
 
     return !hasWaiting || isStoredOrFinalized;
-  }, [isMobile, readOnly, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
+  }, [isMobile, readOnly, isReopenedByAdmin, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
 
   const [selectedLabelData, setSelectedLabelData] = useState<
     PalletLabelData | PalletLabelData[] | null
@@ -564,6 +574,9 @@ export function WarehouseTripDetailModal({
   // Sync state when tripGroup opens
   useEffect(() => {
     if (tripGroup && isOpen) {
+      setIsReopenedByAdmin(false);
+      setIsRollbackConfirmOpen(false);
+      setRollbackReason('');
       setLicensePlate(tripGroup.licensePlate !== 'CHƯA GÁN' ? tripGroup.licensePlate : '');
       setDriverName(tripGroup.driverName || '');
       setReceiveDate(tripGroup.receiveDate || new Date().toISOString().split('T')[0]);
@@ -686,6 +699,45 @@ export function WarehouseTripDetailModal({
       }
     }
     return true;
+  };
+
+  // Rollback Trip Action (Super Admin only: reopen completed trip to pending and restore inventory)
+  const handleRollback = async () => {
+    if (!tripGroup?.tripCode || tripGroup.tripCode === '—') {
+      toast.error('Chuyến xe không có mã hợp lệ để mở lại.');
+      return;
+    }
+
+    setIsRollingBack(true);
+    try {
+      const activeHubId =
+        tripGroup.hubId ?? manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
+      const res = await rollbackTrip(tripGroup.tripCode, {
+        hubId: activeHubId,
+        reason: rollbackReason.trim() || 'Admin mở lại chuyến xe để chỉnh sửa'
+      });
+      toast.success(res?.message || `Đã mở lại chuyến xe ${tripGroup.tripCode} về trạng thái Chờ xử lý!`);
+
+      // Update local state to immediately unlock the modal
+      tripGroup.status = 'PENDING';
+      setIsReopenedByAdmin(true);
+      setIsRollbackConfirmOpen(false);
+
+      // Invalidate related cache
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: tripManifestKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
+      ]);
+
+      onSuccess?.();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Lỗi khi mở lại chuyến xe');
+    } finally {
+      setIsRollingBack(false);
+    }
   };
 
   // 1. Lưu thay đổi (Save updates without changing to INBOUND status if pending)
@@ -1871,11 +1923,30 @@ export function WarehouseTripDetailModal({
                   variant='outline'
                   size='sm'
                   onClick={onClose}
-                  disabled={isSaving || isConfirming}
+                  disabled={isSaving || isConfirming || isRollingBack}
                   className='h-7 text-xs font-semibold border-slate-300'
                 >
                   Đóng
                 </Button>
+
+                {/* Rollback action for Admin when trip is completed */}
+                {isAdmin &&
+                  (isCurrentHubCompleted ||
+                    ['COMPLETED', 'INBOUND', 'STORED', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(
+                      tripGroup.status?.toUpperCase()
+                    )) &&
+                  !isReopenedByAdmin && (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setIsRollbackConfirmOpen(true)}
+                      className='h-7 text-xs font-semibold text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+                      title='Mở lại chuyến xe đã xử lý về trạng thái Chờ xử lý để chỉnh sửa thông tin (Rollback tồn kho)'
+                    >
+                      <IconRotate className='mr-1 h-3.5 w-3.5' /> Mở lại chuyến xe (Rollback)
+                    </Button>
+                  )}
 
                 {!effectiveReadOnly && !manifestPending && isTallyMode && (
                   <Button
@@ -1984,15 +2055,34 @@ export function WarehouseTripDetailModal({
                 </Button>
 
                 {isHubAccountLocked ? (
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={onClose}
-                    className='h-7 text-xs font-semibold border-slate-300'
-                  >
-                    Đóng
-                  </Button>
+                  <>
+                    {isAdmin &&
+                      (isCurrentHubCompleted ||
+                        ['COMPLETED', 'INBOUND', 'STORED', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(
+                          tripGroup.status?.toUpperCase()
+                        )) &&
+                      !isReopenedByAdmin && (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setIsRollbackConfirmOpen(true)}
+                          className='h-7 text-xs font-semibold text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+                          title='Mở lại chuyến xe đã xử lý về trạng thái Chờ xử lý để chỉnh sửa thông tin (Rollback tồn kho)'
+                        >
+                          <IconRotate className='mr-1 h-3.5 w-3.5' /> Mở lại chuyến xe (Rollback)
+                        </Button>
+                      )}
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={onClose}
+                      className='h-7 text-xs font-semibold border-slate-300'
+                    >
+                      Đóng
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button
@@ -2108,6 +2198,63 @@ export function WarehouseTripDetailModal({
           level1Hubs={level1Hubs}
           level2XeBoHubs={level2XeBoHubs}
         />
+
+        {/* Admin Trip Rollback Confirmation Dialog */}
+        {isRollbackConfirmOpen && (
+          <Dialog open={isRollbackConfirmOpen} onOpenChange={setIsRollbackConfirmOpen}>
+            <DialogContent className='sm:max-w-md p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'>
+              <div className='p-2 space-y-2'>
+                <div className='flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-sm'>
+                  <IconAlertTriangle className='h-5 w-5 shrink-0' />
+                  <span>Xác nhận mở lại chuyến xe {tripGroup.tripCode}</span>
+                </div>
+                <p className='text-xs text-slate-600 dark:text-slate-300 leading-relaxed'>
+                  Hành vi này dành riêng cho <strong>Quản trị viên (Admin)</strong>. Toàn bộ số lượng tồn kho đã nhập/xuất của chuyến xe này sẽ được <strong>hoàn tác (rollback)</strong> và các đơn hàng sẽ quay lại trạng thái Chờ xử lý.
+                </p>
+                <div>
+                  <label className='text-[10px] font-bold block mb-1 text-slate-700 dark:text-slate-300'>
+                    Lý do mở lại chuyến xe (tùy chọn):
+                  </label>
+                  <Input
+                    value={rollbackReason}
+                    onChange={(e) => setRollbackReason(e.target.value)}
+                    placeholder='VD: Nhập nhầm biển số xe, sửa số lượng kiện...'
+                    className='h-7 text-xs border-slate-300 dark:border-slate-700'
+                  />
+                </div>
+                <div className='flex justify-end gap-1.5 pt-1 border-t'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setIsRollbackConfirmOpen(false)}
+                    disabled={isRollingBack}
+                    className='h-7 text-xs'
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    type='button'
+                    size='sm'
+                    onClick={handleRollback}
+                    disabled={isRollingBack}
+                    className='h-7 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold'
+                  >
+                    {isRollingBack ? (
+                      <>
+                        <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> Đang mở lại...
+                      </>
+                    ) : (
+                      <>
+                        <IconRotate className='mr-1 h-3.5 w-3.5' /> Xác nhận Mở lại
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </DialogContent>
     </Dialog>
   );

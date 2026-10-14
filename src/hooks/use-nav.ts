@@ -35,7 +35,8 @@ export function useFilteredNavItems(items: NavItem[]) {
       const allowedUrls = new Set([
         '/dashboard/warehouse/inbound',
         '/dashboard/warehouse/outbound',
-        '/dashboard/warehouse/orders'
+        '/dashboard/warehouse/orders',
+        '/dashboard/warehouse/excel-converter'
       ]);
       return items.filter((item) => allowedUrls.has(item.url));
     }
