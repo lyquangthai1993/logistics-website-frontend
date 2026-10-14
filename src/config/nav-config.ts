@@ -87,6 +87,15 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         items: [],
         access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
+      },
+      {
+        title: 'Chuyển đổi Excel',
+        url: '/dashboard/warehouse/excel-converter',
+        icon: 'table',
+        shortcut: ['w', 'c'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN,WAREHOUSE_MANAGER' }
       }
     ]
   },

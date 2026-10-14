@@ -199,3 +199,19 @@ export async function updateTripOrderDestination(
   return res.data.data;
 }
 
+export interface RollbackTripPayload {
+  hubId?: number;
+  reason?: string;
+}
+
+export async function rollbackTrip(
+  tripCode: string,
+  payload?: RollbackTripPayload
+) {
+  const res = await apiClient.post<ApiResponse<any>>(
+    `/api/v1/warehouse/trips/${encodeURIComponent(tripCode)}/rollback`,
+    payload ?? {}
+  );
+  return res.data.data;
+}
+
