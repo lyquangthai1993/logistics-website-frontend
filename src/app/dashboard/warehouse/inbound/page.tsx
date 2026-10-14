@@ -37,7 +37,8 @@ import {
 import {
   WarehouseInboundReceiptModal,
   InboundReceiptData,
-  InboundReceiptItem
+  InboundReceiptItem,
+  resolveInboundReceiptDeliveryAddress
 } from '@/features/warehouse/components/warehouse-inbound-receipt-modal';
 import {
   WarehouseWaybillDetailModal,
@@ -425,7 +426,7 @@ export default function WarehouseInboundPage() {
       goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
       quantity: o.inboundQuantity ?? o.totalQuantity ?? 1,
       unit: 'Kiện',
-      deliveryAddress: o.deliveryAddress || o.destinationHub || '—',
+      deliveryAddress: resolveInboundReceiptDeliveryAddress(o),
       accompanyingDocs: o.accompanyingDocs || 'KHÔNG CÓ',
       notes: o.notes || ''
     }));

@@ -257,7 +257,15 @@ export function WarehouseTripDetailModal({
         totalWeight: l.totalWeight || l.weightAllocated || 0,
         totalVolume: l.totalVolume || l.volumeAllocated || 0,
         deliveryAddress:
-          l.destinationHub || l.destinationHubEntity?.name || l.deliveryAddress || '—',
+          l.deliveryAddress && l.deliveryAddress !== '—'
+            ? l.deliveryAddress
+            : l.originalDeliveryAddress && l.originalDeliveryAddress !== '—'
+              ? l.originalDeliveryAddress
+              : (l.route?.includes('→') ? l.route.split('→')[1]?.trim() : '') ||
+                l.destinationHub ||
+                l.destinationHubEntity?.name ||
+                l.province ||
+                '—',
         destinationHub: l.destinationHub || l.destinationHubEntity?.name || '',
         destinationHubId: l.destinationHubId,
         destinationHubEntity: l.destinationHubEntity,

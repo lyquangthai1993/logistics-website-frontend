@@ -51,6 +51,39 @@ export interface InboundReceiptData {
   items?: InboundReceiptItem[];
 }
 
+export function resolveInboundReceiptDeliveryAddress(order: any): string {
+  if (!order) return '—';
+  if (order.deliveryAddress && order.deliveryAddress !== '—' && String(order.deliveryAddress).trim() !== '') {
+    return String(order.deliveryAddress).trim();
+  }
+  if (order.originalDeliveryAddress && order.originalDeliveryAddress !== '—' && String(order.originalDeliveryAddress).trim() !== '') {
+    return String(order.originalDeliveryAddress).trim();
+  }
+  if (order.notes && typeof order.notes === 'string') {
+    const match = order.notes.match(/\[Giao khách:\s*([^\]]+)\]/);
+    if (match && match[1]?.trim()) {
+      return match[1].trim();
+    }
+  }
+  if (order.route && typeof order.route === 'string' && order.route.includes('→')) {
+    const parts = order.route.split('→');
+    const destPart = parts[1]?.trim();
+    if (destPart && destPart !== 'Điểm giao' && destPart !== 'Hub') {
+      return destPart;
+    }
+  }
+  if (order.destinationHub && String(order.destinationHub).trim() !== '') {
+    return String(order.destinationHub).trim();
+  }
+  if (order.destinationHubEntity?.name && String(order.destinationHubEntity.name).trim() !== '') {
+    return String(order.destinationHubEntity.name).trim();
+  }
+  if (order.province && String(order.province).trim() !== '') {
+    return String(order.province).trim();
+  }
+  return '—';
+}
+
 interface WarehouseInboundReceiptModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -93,7 +126,7 @@ export function WarehouseInboundReceiptModal({
   const formattedDate = data.createdAt
     ? new Date(data.createdAt).toLocaleDateString('vi-VN')
     : new Date().toLocaleDateString('vi-VN');
-  const receiptItems: InboundReceiptItem[] =
+  const rawItems =
     data.items && data.items.length > 0
       ? data.items
       : [
@@ -102,11 +135,16 @@ export function WarehouseInboundReceiptModal({
             goodsDescription: data.goodsDescription || 'Hàng hóa nhập kho',
             quantity: data.inboundQuantity ?? data.totalQuantity ?? 1,
             unit: data.unit || 'Kiện',
-            deliveryAddress: data.deliveryAddress || data.destinationHub || '—',
+            deliveryAddress: resolveInboundReceiptDeliveryAddress(data),
             accompanyingDocs: data.accompanyingDocs || 'KHÔNG CÓ',
             notes: data.notes || '',
           },
         ];
+
+  const receiptItems: InboundReceiptItem[] = rawItems.map((item) => ({
+    ...item,
+    deliveryAddress: resolveInboundReceiptDeliveryAddress(item),
+  }));
 
   const totalReceiptQty = receiptItems.reduce(
     (sum, item) => sum + (Number(item.quantity) || 1),
