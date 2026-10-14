@@ -5,50 +5,82 @@
 import type { Page } from '@playwright/test';
 
 export interface LoginCredentials {
+  username?: string;
   email: string;
   password: string;
   role: 'SUPER_ADMIN' | 'DISPATCHER' | 'FLEET_MANAGER' | 'WAREHOUSE_MANAGER';
   expectedLandingPath?: string;
+  hubName?: string;
 }
 
 /**
- * Seed credentials – update when real users are seeded in DB
- * Keep aligned with backend/src/database/seeds/users.seed.ts
+ * Seed credentials – aligned with backend/src/database/seeds/users.seed.ts
+ * Each user has a clean, readable username matching database schema:
+ * - admin: Super Admin (System-wide)
+ * - dispatcher: Dispatcher (Polaris Hub - Hưng Yên)
+ * - fleet: Fleet Manager (Magellan Hub - Đà Nẵng)
+ * - warehouse_hyn: Warehouse Manager (Polaris Hub - Hưng Yên)
+ * - warehouse_dad: Warehouse Manager (Magellan Hub - Đà Nẵng)
+ * - warehouse_hcm: Warehouse Manager (Andromeda Hub - HCM)
  */
 export const TEST_USERS: LoginCredentials[] = [
   {
+    username: 'admin',
     email: process.env.E2E_SUPER_ADMIN_EMAIL ?? 'lyquangthai1993+1@gmail.com',
     password: process.env.E2E_SUPER_ADMIN_PASSWORD ?? 'secret',
     role: 'SUPER_ADMIN',
     expectedLandingPath: '/dashboard/overview'
   },
   {
+    username: 'dispatcher',
     email: process.env.E2E_DISPATCHER_EMAIL ?? 'lyquangthai1993+2@gmail.com',
     password: process.env.E2E_DISPATCHER_PASSWORD ?? 'secret',
     role: 'DISPATCHER',
+    hubName: 'Polaris Hub - Hưng Yên',
     expectedLandingPath: '/dashboard/overview'
   },
   {
+    username: 'fleet',
     email: process.env.E2E_FLEET_MANAGER_EMAIL ?? 'lyquangthai1993+3@gmail.com',
     password: process.env.E2E_FLEET_MANAGER_PASSWORD ?? 'secret',
     role: 'FLEET_MANAGER',
+    hubName: 'Magellan Hub - Đà Nẵng',
     expectedLandingPath: '/dashboard/overview'
   },
   {
+    username: 'warehouse_hyn',
     email: process.env.E2E_WAREHOUSE_MANAGER_EMAIL ?? 'lyquangthai1993+4@gmail.com',
     password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
-    expectedLandingPath: '/dashboard/overview'
+    hubName: 'Polaris Hub - Hưng Yên',
+    expectedLandingPath: '/dashboard/warehouse/inbound'
   },
   {
+    username: 'warehouse_hcm',
     email: process.env.E2E_WAREHOUSE_MANAGER_HCM_EMAIL ?? 'lyquangthai1993+6@gmail.com',
     password: process.env.E2E_WAREHOUSE_MANAGER_HCM_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
-    expectedLandingPath: '/dashboard/overview'
+    hubName: 'Andromeda Hub - HCM',
+    expectedLandingPath: '/dashboard/warehouse/inbound'
+  },
+  {
+    username: 'warehouse_dad',
+    email: process.env.E2E_WAREHOUSE_MANAGER_DAD_EMAIL ?? 'lyquangthai1993+5@gmail.com',
+    password: process.env.E2E_WAREHOUSE_MANAGER_DAD_PASSWORD ?? 'secret',
+    role: 'WAREHOUSE_MANAGER',
+    hubName: 'Magellan Hub - Đà Nẵng',
+    expectedLandingPath: '/dashboard/warehouse/inbound'
   }
 ];
 
-export const TEST_USER_HCM: LoginCredentials = TEST_USERS[4];
+// Re-export self-documenting named constants:
+export const USER_ADMIN: LoginCredentials = TEST_USERS[0];
+export const USER_DISPATCHER: LoginCredentials = TEST_USERS[1];
+export const USER_FLEET: LoginCredentials = TEST_USERS[2];
+export const USER_WAREHOUSE_HYN: LoginCredentials = TEST_USERS[3];
+export const USER_WAREHOUSE_HCM: LoginCredentials = TEST_USERS[4];
+export const USER_WAREHOUSE_DAD: LoginCredentials = TEST_USERS[5];
+export const TEST_USER_HCM: LoginCredentials = USER_WAREHOUSE_HCM;
 
 const IGNORED_LOG_PATTERNS = [
   'favicon.ico',
@@ -100,7 +132,8 @@ export async function loginAs(page: Page, creds: LoginCredentials, baseUrl?: str
   await page.goto(target);
   await page.locator('input[name="email"]:not([disabled])').waitFor({ state: 'visible', timeout: 15_000 });
 
-  await page.fill('input[name="email"]', creds.email);
+  const loginIdentifier = creds.username || creds.email;
+  await page.fill('input[name="email"]', loginIdentifier);
   await page.fill('input[name="password"]', creds.password);
   await page.click('button[type="submit"]');
 

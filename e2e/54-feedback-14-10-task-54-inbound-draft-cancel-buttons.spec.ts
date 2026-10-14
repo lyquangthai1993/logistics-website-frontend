@@ -25,7 +25,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loginAs, TEST_USERS } from './helpers/auth';
+import { loginAs, USER_WAREHOUSE_HCM } from './helpers/auth';
 
 const DEV_BACKEND_URL =
   process.env.API_URL ??
@@ -57,12 +57,11 @@ let authToken = '';
 test.describe
   .serial('Feedback 14/10 (Task #54) — Đồng bộ 2 nút "Tiếp tục" & "Hủy nháp" trên màn hình Nhập kho', () => {
   test.beforeAll(async ({ request }) => {
-    // 1. Authenticate with backend using Warehouse Manager HCM (Andromeda Hub)
-    const hcmUser = TEST_USERS[4] || TEST_USERS[0];
+    // 1. Authenticate with backend using Warehouse Manager HCM (username: warehouse_hcm)
     const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
       data: {
-        email: hcmUser.email,
-        password: hcmUser.password
+        email: USER_WAREHOUSE_HCM.username || USER_WAREHOUSE_HCM.email,
+        password: USER_WAREHOUSE_HCM.password
       },
       timeout: 15000
     });
@@ -106,9 +105,8 @@ test.describe
     await page.goto(`${DEV_FRONTEND_URL}/auth/signin`);
     await page.waitForLoadState('domcontentloaded');
 
-    // 2. Login as Warehouse Manager HCM (Andromeda Hub - HCM)
-    const hcmUser = TEST_USERS[4] || TEST_USERS[0];
-    await loginAs(page, hcmUser, DEV_FRONTEND_URL);
+    // 2. Login as Warehouse Manager HCM (username: warehouse_hcm -> Andromeda Hub - HCM)
+    await loginAs(page, USER_WAREHOUSE_HCM, DEV_FRONTEND_URL);
 
     // 3. Navigate to Warehouse Inbound page
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`);
