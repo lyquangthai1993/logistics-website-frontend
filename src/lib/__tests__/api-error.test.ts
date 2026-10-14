@@ -1,4 +1,4 @@
-﻿// @ts-ignore
+// @ts-ignore
 import { describe, it, expect } from 'bun:test';
 import { formatApiError } from '../api-error';
 

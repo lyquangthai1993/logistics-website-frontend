@@ -1,4 +1,4 @@
-﻿/**
+/**
  * e2e/11-orders-table-responsive-matrix.spec.ts
  *
  * Kiem tra bang orders tai /dashboard/orders tren ma tran Responsive:
