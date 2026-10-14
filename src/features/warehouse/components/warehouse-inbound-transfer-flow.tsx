@@ -34,6 +34,11 @@ import {
   type TallyState
 } from './warehouse-trip-tally-table';
 import { TripStopStatusBadge } from './trip-stop-status-badge';
+import {
+  type InboundReceiptData,
+  type InboundReceiptItem,
+  resolveInboundReceiptDeliveryAddress
+} from './warehouse-inbound-receipt-modal';
 
 export interface InboundTripItem {
   id: number;
@@ -57,6 +62,7 @@ interface WarehouseInboundTransferFlowProps {
   onBackToBoard: () => void;
   onSwitchToCustomerMode: () => void;
   onSuccess: () => void;
+  onOpenReceipt?: (data: InboundReceiptData) => void;
 }
 
 /**
@@ -68,7 +74,8 @@ interface WarehouseInboundTransferFlowProps {
 export function WarehouseInboundTransferFlow({
   onBackToBoard,
   onSwitchToCustomerMode,
-  onSuccess
+  onSuccess,
+  onOpenReceipt
 }: WarehouseInboundTransferFlowProps) {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
@@ -249,6 +256,72 @@ export function WarehouseInboundTransferFlow({
         }.`
       );
       await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
+
+      if (onOpenReceipt) {
+        const totalQty = selectedLines.reduce(
+          (sum, l) =>
+            sum + (Number(tally[l.id]?.actualQuantity) || expectedForLine(l)),
+          0
+        );
+        const totalWt = selectedLines.reduce(
+          (sum, l) => sum + (Number(l.totalWeight) || 0),
+          0
+        );
+        const totalVol = selectedLines.reduce(
+          (sum, l) => sum + (Number(l.totalVolume) || 0),
+          0
+        );
+        const descs = Array.from(
+          new Set(selectedLines.map((l) => l.goodsDescription).filter(Boolean))
+        );
+        const goodsDesc =
+          descs.length === 1
+            ? descs[0]
+            : descs.length > 1
+              ? `${descs[0]} (+${descs.length - 1} loại hàng)`
+              : 'Hàng luân chuyển';
+
+        const receiptItems: InboundReceiptItem[] = selectedLines.map((l) => ({
+          orderCode: l.orderCode,
+          goodsDescription: l.goodsDescription || 'Hàng hóa nhập kho',
+          quantity: Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+          unit: 'Kiện',
+          deliveryAddress: resolveInboundReceiptDeliveryAddress(l),
+          accompanyingDocs: l.accompanyingDocs || 'KHÔNG CÓ',
+          notes: tally[l.id]?.discrepancyReason || l.notes || ''
+        }));
+
+        const originHubName =
+          manifest.stops?.find((s) => s.stopType === 'ORIGIN')?.hubName ||
+          manifest.lines?.[0]?.originHub ||
+          selectedTrip.originHub ||
+          user?.hub?.name ||
+          '';
+
+        const receiptData: InboundReceiptData = {
+          tripCode: manifest.tripCode,
+          orderCode:
+            invoiceCode || selectedLines[0]?.orderCode || manifest.tripCode,
+          goodsDescription: goodsDesc || 'Hàng luân chuyển',
+          totalQuantity: totalQty,
+          inboundQuantity: totalQty,
+          totalWeight: totalWt,
+          totalVolume: totalVol,
+          licensePlate: licensePlate.toUpperCase(),
+          driverName: (
+            manifest.driverName ||
+            selectedTrip.driverName ||
+            ''
+          ).trim(),
+          originHub: originHubName,
+          destinationHub: user?.hub?.name || selectedTrip.destinationHub || '',
+          createdAt: new Date(),
+          items: receiptItems
+        };
+
+        onOpenReceipt(receiptData);
+      }
+
       onSuccess();
     } catch (err: any) {
       showApiErrorToast(err, 'Tiếp nhận kho không thành công');

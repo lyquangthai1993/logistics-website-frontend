@@ -404,7 +404,7 @@ export function WarehouseInboundReceiptModal({
           orientation === 'landscape'
             ? 'sm:max-w-5xl max-w-[96vw]'
             : 'sm:max-w-3xl max-w-[95vw]'
-        } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5`}
+        } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5`}
       >
         <DialogHeader>
           <div className='flex items-center justify-between flex-wrap gap-2 w-full'>
@@ -447,7 +447,7 @@ export function WarehouseInboundReceiptModal({
 
         {/* Paper Preview */}
         <div
-          className={`border border-slate-200 dark:border-slate-700 rounded-lg p-5 bg-slate-50 dark:bg-slate-950 text-xs space-y-3 mx-auto transition-all ${
+          className={`border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50 dark:bg-slate-950 text-xs space-y-2 mx-auto transition-all ${
             orientation === 'landscape' ? 'w-full' : 'max-w-[760px]'
           }`}
         >
@@ -562,49 +562,49 @@ export function WarehouseInboundReceiptModal({
           )}
 
           <div className='overflow-x-auto border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900'>
-            <table className='w-full text-[11px] text-left'>
+            <table className='w-full text-[10px] text-left'>
               <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800'>
                 <tr>
-                  <th className='p-2 text-center w-8'>STT</th>
-                  <th className='p-2'>Mã Đơn Hàng</th>
-                  <th className='p-2'>Tên mặt hàng</th>
-                  <th className='p-2 text-center'>Số lượng</th>
-                  <th className='p-2 text-center'>Đơn vị</th>
-                  <th className='p-2'>Địa chỉ giao hàng</th>
-                  <th className='p-2 text-center'>Chứng từ đi kèm</th>
-                  <th className='p-2'>Ghi chú</th>
+                  <th className='py-1 px-1.5 text-center w-8'>STT</th>
+                  <th className='py-1 px-1.5'>Mã Đơn Hàng</th>
+                  <th className='py-1 px-1.5'>Tên mặt hàng</th>
+                  <th className='py-1 px-1.5 text-center'>Số lượng</th>
+                  <th className='py-1 px-1.5 text-center'>Đơn vị</th>
+                  <th className='py-1 px-1.5'>Địa chỉ giao hàng</th>
+                  <th className='py-1 px-1.5 text-center'>Chứng từ đi kèm</th>
+                  <th className='py-1 px-1.5'>Ghi chú</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                 {receiptItems.map((item, index) => (
                   <tr key={`${item.orderCode}-${index}`}>
-                    <td className='p-2 text-center font-medium'>{index + 1}</td>
-                    <td className='p-2 font-mono font-bold text-blue-700 dark:text-blue-400'>
+                    <td className='py-1 px-1.5 text-center font-medium'>{index + 1}</td>
+                    <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-400'>
                       {item.orderCode}
                     </td>
-                    <td className='p-2 font-semibold text-slate-800 dark:text-slate-200'>
+                    <td className='py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200'>
                       {item.goodsDescription || 'Hàng hóa nhập kho'}
                     </td>
-                    <td className='p-2 text-center font-bold text-slate-900 dark:text-white'>
+                    <td className='py-1 px-1.5 text-center font-bold text-slate-900 dark:text-white'>
                       {(item.quantity || 1).toLocaleString('vi-VN')}
                     </td>
-                    <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                    <td className='py-1 px-1.5 text-center text-slate-600 dark:text-slate-400'>
                       {item.unit || 'Kiện'}
                     </td>
-                    <td className='p-2 text-slate-600 dark:text-slate-400'>
+                    <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400'>
                       {item.deliveryAddress || '—'}
                     </td>
-                    <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                    <td className='py-1 px-1.5 text-center text-slate-600 dark:text-slate-400'>
                       {item.accompanyingDocs || 'KHÔNG CÓ'}
                     </td>
-                    <td className='p-2 text-slate-500'>{item.notes || '—'}</td>
+                    <td className='py-1 px-1.5 text-slate-500'>{item.notes || '—'}</td>
                   </tr>
                 ))}
                 <tr className='bg-slate-50 dark:bg-slate-800/40 font-bold'>
-                  <td colSpan={3} className='p-2 text-center text-slate-800 dark:text-slate-200'>
+                  <td colSpan={3} className='py-1 px-1.5 text-center text-slate-800 dark:text-slate-200'>
                     Tổng cộng
                   </td>
-                  <td className='p-2 text-center text-slate-900 dark:text-white'>
+                  <td className='py-1 px-1.5 text-center text-slate-900 dark:text-white'>
                     {totalReceiptQty.toLocaleString('vi-VN')}
                   </td>
                   <td colSpan={4}></td>

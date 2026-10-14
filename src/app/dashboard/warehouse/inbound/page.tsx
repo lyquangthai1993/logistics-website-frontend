@@ -591,6 +591,63 @@ export default function WarehouseInboundPage() {
         `Đã tiếp nhận thành công xe ${licensePlate.trim().toUpperCase()} (${mode1Rows.length} dòng hàng) - Mã chuyến: ${batchResult?.tripCode || 'TRIP'}!`
       );
 
+      // Tự động chuẩn bị dữ liệu và hiển thị ngay Modal Phiếu Nhập Kho A4
+      const totalQty = mode1Rows.reduce(
+        (sum, r) => sum + (Number(r.totalQuantity) || 1),
+        0
+      );
+      const totalWt = mode1Rows.reduce(
+        (sum, r) => sum + (Number(r.totalWeight) || 0),
+        0
+      );
+      const totalVol = mode1Rows.reduce(
+        (sum, r) => sum + (Number(r.totalVolume) || 0),
+        0
+      );
+      const descs = Array.from(
+        new Set(mode1Rows.map((r) => r.goodsDescription).filter(Boolean))
+      );
+      const goodsDesc =
+        descs.length === 1
+          ? descs[0]
+          : descs.length > 1
+            ? `${descs[0]} (+${descs.length - 1} loại hàng)`
+            : 'Hàng hóa nhập kho';
+
+      const receiptItems: InboundReceiptItem[] = mode1Rows.map((r) => ({
+        orderCode: r.orderCode.trim().toUpperCase(),
+        goodsDescription: r.goodsDescription.trim() || 'Hàng hóa nhập kho',
+        quantity: Number(r.totalQuantity) || 1,
+        unit: 'Kiện',
+        deliveryAddress: r.deliveryAddress?.trim() || user?.hub?.name || '—',
+        accompanyingDocs: r.accompanyingDocs?.trim() || 'KHÔNG CÓ',
+        notes: r.notes?.trim() || ''
+      }));
+
+      const receiptData: InboundReceiptData = {
+        tripCode: batchResult?.tripCode || undefined,
+        orderCode:
+          batchResult?.invoiceCode ||
+          batchResult?.orders?.[0]?.orderCode ||
+          mode1Rows[0]?.orderCode?.trim()?.toUpperCase() ||
+          'INBOUND',
+        goodsDescription: goodsDesc,
+        totalQuantity: totalQty,
+        inboundQuantity: totalQty,
+        totalWeight: totalWt,
+        totalVolume: totalVol,
+        licensePlate: licensePlate.trim().toUpperCase(),
+        driverName: driverName.trim(),
+        originHub: user?.hub?.name || '',
+        destinationHub:
+          mode1Rows[0]?.deliveryAddress?.trim() || user?.hub?.name || '',
+        createdAt: receiveDate || new Date(),
+        items: receiptItems
+      };
+
+      setSelectedReceiptData(receiptData);
+      setIsInboundReceiptModalOpen(true);
+
       setMode1Rows([
         {
           orderCode: '',
@@ -1153,8 +1210,7 @@ export default function WarehouseInboundPage() {
                         </>
                       ) : (
                         <>
-                          <IconCircleCheck className='mr-1.5 h-4 w-4 text-emerald-400' /> Xác nhận
-                          tiếp nhận & Lưu kho
+                          <IconCircleCheck className='mr-1.5 h-4 w-4 text-emerald-400' /> Xác nhận nhập kho
                         </>
                       )}
                     </Button>
@@ -1174,6 +1230,10 @@ export default function WarehouseInboundPage() {
               setActiveView('BOARD');
               fetchInboundTrips();
               fetchKpi();
+            }}
+            onOpenReceipt={(receiptData) => {
+              setSelectedReceiptData(receiptData);
+              setIsInboundReceiptModalOpen(true);
             }}
           />
         )}

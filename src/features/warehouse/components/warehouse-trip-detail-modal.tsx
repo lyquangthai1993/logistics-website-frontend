@@ -869,6 +869,59 @@ export function WarehouseTripDetailModal({
       );
       await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
       onSuccess?.();
+
+      if (onOpenReceipt && tripGroup) {
+        const totalQty = selectedLines.reduce(
+          (sum, l) =>
+            sum + (Number(tally[l.id]?.actualQuantity) || expectedForLine(l)),
+          0
+        );
+        const totalWt = selectedLines.reduce(
+          (sum, l) => sum + (Number(l.totalWeight) || 0),
+          0
+        );
+        const totalVol = selectedLines.reduce(
+          (sum, l) => sum + (Number(l.totalVolume) || 0),
+          0
+        );
+        const descs = Array.from(
+          new Set(
+            selectedLines
+              .map((l) => l.goodsDescription)
+              .filter((x): x is string => !!x)
+          )
+        );
+        const goodsDesc: string =
+          descs.length === 1
+            ? descs[0]
+            : descs.length > 1
+              ? `${descs[0]} (+${descs.length - 1} loại hàng)`
+              : tripGroup.goodsDescription || 'Hàng hóa nhập kho';
+
+        const updatedTripGroup: InboundVehicleGroup = {
+          ...tripGroup,
+          licensePlate: licensePlate.trim().toUpperCase(),
+          driverName: driverName.trim() || tripGroup.driverName,
+          tripCode: manifest.tripCode,
+          totalQuantity: totalQty,
+          totalWeight: totalWt > 0 ? totalWt : tripGroup.totalWeight,
+          totalVolume: totalVol > 0 ? totalVol : tripGroup.totalVolume,
+          goodsDescription: goodsDesc,
+          orders: selectedLines.map((l) => ({
+            ...l,
+            quantity:
+              Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+            inboundQuantity:
+              Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+            totalQuantity:
+              Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+            deliveryAddress: l.deliveryAddress || l.originalDeliveryAddress,
+            notes: tally[l.id]?.discrepancyReason || l.notes
+          }))
+        };
+        onOpenReceipt(updatedTripGroup);
+        onClose();
+      }
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xác nhận kiểm đếm nhập kho');
     } finally {

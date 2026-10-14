@@ -374,7 +374,7 @@ export function WarehouseOutboundReceiptModal({
           orientation === 'landscape'
             ? 'sm:max-w-5xl max-w-[96vw]'
             : 'sm:max-w-3xl max-w-[95vw]'
-        } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5`}
+        } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5`}
       >
         <DialogHeader>
           <div className='flex items-center justify-between flex-wrap gap-2 w-full'>
@@ -417,7 +417,7 @@ export function WarehouseOutboundReceiptModal({
 
         {/* Paper Preview */}
         <div
-          className={`border border-slate-200 dark:border-slate-700 rounded-lg p-5 bg-slate-50 dark:bg-slate-950 text-xs space-y-3 mx-auto transition-all ${
+          className={`border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50 dark:bg-slate-950 text-xs space-y-2 mx-auto transition-all ${
             orientation === 'landscape' ? 'w-full' : 'max-w-[760px]'
           }`}
         >
@@ -529,66 +529,66 @@ export function WarehouseOutboundReceiptModal({
           )}
 
           <div className='overflow-x-auto border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900'>
-            <table className='w-full text-[11px] text-left'>
+            <table className='w-full text-[10px] text-left'>
               <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800'>
                 <tr>
-                  <th className='p-2 text-center w-8'>STT</th>
-                  <th className='p-2'>Mã Đơn Hàng</th>
-                  <th className='p-2'>Tên mặt hàng</th>
-                  <th className='p-2 text-center'>Số lượng</th>
-                  <th className='p-2 text-center'>Đơn vị</th>
-                  <th className='p-2'>Kho đích / Nơi giao</th>
-                  <th className='p-2 text-center'>Chứng từ đi kèm</th>
-                  <th className='p-2'>Ghi chú</th>
+                  <th className='py-1 px-1.5 text-center w-8'>STT</th>
+                  <th className='py-1 px-1.5'>Mã Đơn Hàng</th>
+                  <th className='py-1 px-1.5'>Tên mặt hàng</th>
+                  <th className='py-1 px-1.5 text-center'>Số lượng</th>
+                  <th className='py-1 px-1.5 text-center'>Đơn vị</th>
+                  <th className='py-1 px-1.5'>Kho đích / Nơi giao</th>
+                  <th className='py-1 px-1.5 text-center'>Chứng từ đi kèm</th>
+                  <th className='py-1 px-1.5'>Ghi chú</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                 {data.items && data.items.length > 0 ? (
                   data.items.map((it, idx) => (
                     <tr key={idx}>
-                      <td className='p-2 text-center font-medium'>{idx + 1}</td>
-                      <td className='p-2 font-mono font-bold text-emerald-700 dark:text-emerald-400'>
+                      <td className='py-1 px-1.5 text-center font-medium'>{idx + 1}</td>
+                      <td className='py-1 px-1.5 font-mono font-bold text-emerald-700 dark:text-emerald-400'>
                         {it.orderCode}
                       </td>
-                      <td className='p-2 font-semibold text-slate-800 dark:text-slate-200'>
+                      <td className='py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200'>
                         {it.goodsDescription || 'Hàng hóa xuất kho'}
                       </td>
-                      <td className='p-2 text-center font-bold text-slate-900 dark:text-white'>
+                      <td className='py-1 px-1.5 text-center font-bold text-slate-900 dark:text-white'>
                         {Number(it.quantity || 1).toLocaleString('vi-VN')}
                       </td>
-                      <td className='p-2 text-center text-slate-600 dark:text-slate-400'>{it.unit || unit}</td>
-                      <td className='p-2 text-slate-600 dark:text-slate-400'>{it.destinationHub || it.deliveryAddress || targetDestination}</td>
-                      <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                      <td className='py-1 px-1.5 text-center text-slate-600 dark:text-slate-400'>{it.unit || unit}</td>
+                      <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400'>{it.destinationHub || it.deliveryAddress || targetDestination}</td>
+                      <td className='py-1 px-1.5 text-center text-slate-600 dark:text-slate-400'>
                         {it.accompanyingDocs || accompanyingDocs}
                       </td>
-                      <td className='p-2 text-slate-500'>{it.notes || '—'}</td>
+                      <td className='py-1 px-1.5 text-slate-500'>{it.notes || '—'}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className='p-2 text-center font-medium'>1</td>
-                    <td className='p-2 font-mono font-bold text-emerald-700 dark:text-emerald-400'>
+                    <td className='py-1 px-1.5 text-center font-medium'>1</td>
+                    <td className='py-1 px-1.5 font-mono font-bold text-emerald-700 dark:text-emerald-400'>
                       {data.orderCode}
                     </td>
-                    <td className='p-2 font-semibold text-slate-800 dark:text-slate-200'>
+                    <td className='py-1 px-1.5 font-semibold text-slate-800 dark:text-slate-200'>
                       {data.goodsDescription || 'Hàng hóa xuất kho'}
                     </td>
-                    <td className='p-2 text-center font-bold text-slate-900 dark:text-white'>
+                    <td className='py-1 px-1.5 text-center font-bold text-slate-900 dark:text-white'>
                       {qty.toLocaleString('vi-VN')}
                     </td>
-                    <td className='p-2 text-center text-slate-600 dark:text-slate-400'>{unit}</td>
-                    <td className='p-2 text-slate-600 dark:text-slate-400'>{targetDestination}</td>
-                    <td className='p-2 text-center text-slate-600 dark:text-slate-400'>
+                    <td className='py-1 px-1.5 text-center text-slate-600 dark:text-slate-400'>{unit}</td>
+                    <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400'>{targetDestination}</td>
+                    <td className='py-1 px-1.5 text-center text-slate-600 dark:text-slate-400'>
                       {accompanyingDocs}
                     </td>
-                    <td className='p-2 text-slate-500'>{data.notes || '—'}</td>
+                    <td className='py-1 px-1.5 text-slate-500'>{data.notes || '—'}</td>
                   </tr>
                 )}
                 <tr className='bg-slate-50 dark:bg-slate-800/40 font-bold'>
-                  <td colSpan={3} className='p-2 text-center text-slate-800 dark:text-slate-200'>
+                  <td colSpan={3} className='py-1 px-1.5 text-center text-slate-800 dark:text-slate-200'>
                     Tổng cộng
                   </td>
-                  <td className='p-2 text-center text-slate-900 dark:text-white'>
+                  <td className='py-1 px-1.5 text-center text-slate-900 dark:text-white'>
                     {(data.items && data.items.length > 0
                       ? data.items.reduce((s, it) => s + Number(it.quantity || 0), 0)
                       : qty
