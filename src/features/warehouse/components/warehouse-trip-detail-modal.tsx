@@ -534,6 +534,24 @@ export function WarehouseTripDetailModal({
             pickupAddr = o.originHub || '';
           }
 
+          const isStored = ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(
+            String(o.hubStatus || o.status || '').toUpperCase()
+          );
+
+          const expPlate = isStored
+            ? null
+            : o.expectedInboundLicensePlate ||
+              (!isStored ? o.inboundLicensePlate || o.vehicleLicensePlate : null) ||
+              (Array.isArray(o.trips)
+                ? o.trips.find(
+                    (t: any) =>
+                      (t.type === 'INBOUND' || (t.type !== 'OUTBOUND' && t.type !== 'TRANSFER')) &&
+                      (t.status === 'PENDING' || t.status === 'WAITING') &&
+                      t.licensePlate
+                  )?.licensePlate
+                : null) ||
+              null;
+
           return {
             id: o.id,
             orderCode: o.orderCode || '',
@@ -556,7 +574,9 @@ export function WarehouseTripDetailModal({
               (o.destinationHub
                 ? { id: o.destinationHubId, name: o.destinationHub, code: '' }
                 : null),
-            status: o.status
+            status: o.status,
+            hubStatus: o.hubStatus,
+            expectedInboundLicensePlate: expPlate
           };
         });
         setRows(mappedRows);
@@ -906,11 +926,13 @@ export function WarehouseTripDetailModal({
             <h2 className='text-sm font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
               <IconBuildingWarehouse className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
               <span>
-                {isTransferTrip
-                  ? currentStep === 1
-                    ? 'Bước 1: Kiểm đếm dỡ hàng & Nhập kho'
-                    : 'Bước 2: Xuất hàng mới lên xe đi trạm kế tiếp'
-                  : 'Kiểm đếm dỡ hàng & Nhập kho'}
+                {mode === 'OUTBOUND'
+                  ? 'Chi tiết chuyến xe xuất kho'
+                  : isTransferTrip
+                    ? currentStep === 1
+                      ? 'Bước 1: Kiểm đếm dỡ hàng & Nhập kho'
+                      : 'Bước 2: Xuất hàng mới lên xe đi trạm kế tiếp'
+                    : 'Kiểm đếm dỡ hàng & Nhập kho'}
               </span>
             </h2>
           </div>
@@ -1044,6 +1066,8 @@ export function WarehouseTripDetailModal({
                     {currentStopHubName ?? 'kho này'}. Bạn có thể bấm sang{' '}
                     <strong>Bước 2: Xuất hàng mới lên xe</strong> để bốc thêm hàng gửi tiếp.
                   </span>
+                ) : mode === 'OUTBOUND' ? (
+                  <span>Chuyến xe xuất kho tại trạm này.</span>
                 ) : (
                   <span>Chuyến xe đã chốt sổ cái tồn kho nhập tại kho này.</span>
                 )}
@@ -1084,7 +1108,7 @@ export function WarehouseTripDetailModal({
               {/* 1. Ngày nhận / xuất */}
               <div>
                 <label className='text-[10px] font-bold block mb-0.5 text-slate-700 dark:text-slate-300'>
-                  1. {currentStep === 1 ? 'Ngày nhập kho' : 'Ngày xuất kho'}
+                  1. {mode === 'OUTBOUND' || currentStep === 2 ? 'Ngày xuất kho' : 'Ngày nhập kho'}
                 </label>
                 {effectiveReadOnly ? (
                   <div className='h-7 px-2.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between text-xs'>
@@ -1252,7 +1276,11 @@ export function WarehouseTripDetailModal({
                         <tr>
                           <th className='py-1 px-1.5 w-[36px] text-center'>STT</th>
                           <th className='py-1 px-1.5 w-[130px]'>MÃ VẬN ĐƠN</th>
-                          <th className='py-1 px-1.5 min-w-[130px]'>ĐIỂM BỐC HÀNG</th>
+                          {mode === 'OUTBOUND' ? (
+                            <th className='py-1 px-1.5 min-w-[140px]'>BIỂN SỐ XE NHẬP DỰ KIẾN</th>
+                          ) : (
+                            <th className='py-1 px-1.5 min-w-[130px]'>ĐIỂM BỐC HÀNG</th>
+                          )}
                           <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
                           <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
                           <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KG</th>
@@ -1276,9 +1304,22 @@ export function WarehouseTripDetailModal({
                             <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300'>
                               {r.orderCode}
                             </td>
-                            <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
-                              {r.pickupAddress || '—'}
-                            </td>
+                            {mode === 'OUTBOUND' ? (
+                              <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200'>
+                                {r.expectedInboundLicensePlate ? (
+                                  <span className='inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 uppercase'>
+                                    <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
+                                    {r.expectedInboundLicensePlate}
+                                  </span>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                            ) : (
+                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
+                                {r.pickupAddress || '—'}
+                              </td>
+                            )}
                             <td className='py-1 px-1.5 font-medium text-slate-900 dark:text-white'>
                               {r.goodsDescription || '—'}
                             </td>

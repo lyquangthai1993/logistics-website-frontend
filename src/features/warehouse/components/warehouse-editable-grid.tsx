@@ -77,6 +77,7 @@ export interface WarehouseRowItem {
   status?: string;
   hubStatus?: string | null;
   destinationHub?: any;
+  expectedInboundLicensePlate?: string | null;
 }
 
 declare module '@tanstack/react-table' {
