@@ -946,18 +946,6 @@ export function WarehouseTripDetailModal({
               <span className='text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800'>
                 CHUYẾN XE {manifest?.tripCode ?? tripGroup.tripCode}
               </span>
-              <Badge
-                variant='outline'
-                className={
-                  (manifest?.isTransfer ?? tripGroup.isTransfer)
-                    ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold text-[10px]'
-                    : 'bg-blue-50 text-blue-700 border-blue-300 font-bold text-[10px]'
-                }
-              >
-                {(manifest?.isTransfer ?? tripGroup.isTransfer)
-                  ? 'Luân chuyển nội bộ'
-                  : 'Khách gửi trực tiếp'}
-              </Badge>
               {manifest?.currentHubStatus ? (
                 <TripStopStatusBadge status={manifest.currentHubStatus} />
               ) : (
