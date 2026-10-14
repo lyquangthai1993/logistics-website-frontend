@@ -39,8 +39,16 @@ export const TEST_USERS: LoginCredentials[] = [
     password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
     expectedLandingPath: '/dashboard/overview'
+  },
+  {
+    email: process.env.E2E_WAREHOUSE_MANAGER_HCM_EMAIL ?? 'lyquangthai1993+6@gmail.com',
+    password: process.env.E2E_WAREHOUSE_MANAGER_HCM_PASSWORD ?? 'secret',
+    role: 'WAREHOUSE_MANAGER',
+    expectedLandingPath: '/dashboard/overview'
   }
 ];
+
+export const TEST_USER_HCM: LoginCredentials = TEST_USERS[4];
 
 const IGNORED_LOG_PATTERNS = [
   'favicon.ico',

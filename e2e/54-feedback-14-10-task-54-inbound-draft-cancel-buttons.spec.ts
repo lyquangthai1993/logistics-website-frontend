@@ -57,11 +57,12 @@ let authToken = '';
 test.describe
   .serial('Feedback 14/10 (Task #54) — Đồng bộ 2 nút "Tiếp tục" & "Hủy nháp" trên màn hình Nhập kho', () => {
   test.beforeAll(async ({ request }) => {
-    // 1. Authenticate with backend using Warehouse Manager / Admin credentials
+    // 1. Authenticate with backend using Warehouse Manager HCM (Andromeda Hub)
+    const hcmUser = TEST_USERS[4] || TEST_USERS[0];
     const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
       data: {
-        email: TEST_USERS[0].email,
-        password: TEST_USERS[0].password
+        email: hcmUser.email,
+        password: hcmUser.password
       },
       timeout: 15000
     });
@@ -105,16 +106,20 @@ test.describe
     await page.goto(`${DEV_FRONTEND_URL}/auth/signin`);
     await page.waitForLoadState('domcontentloaded');
 
-    // 2. Login as Warehouse Manager
-    await loginAs(page, TEST_USERS[3] || TEST_USERS[0]);
+    // 2. Login as Warehouse Manager HCM (Andromeda Hub - HCM)
+    const hcmUser = TEST_USERS[4] || TEST_USERS[0];
+    await loginAs(page, hcmUser, DEV_FRONTEND_URL);
 
     // 3. Navigate to Warehouse Inbound page
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/inbound`);
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for the Inbound board table to render
+    // Wait for the Inbound board table and pending rows to render
     const table = page.locator('table');
     await expect(table.first()).toBeVisible({ timeout: 25000 });
+
+    // Ensure table has loaded data
+    await page.waitForTimeout(2000);
 
     // Locate action buttons in the Inbound table
     const resumeButtons = page.locator('button:has-text("Tiếp tục")');
@@ -122,47 +127,38 @@ test.describe
     const printReceiptButtons = page.locator('button:has-text("In phiếu nhập")');
 
     const pendingCount = await cancelDraftButtons.count();
-    console.log(`[E2E] Found ${pendingCount} "Hủy nháp" button(s) on Inbound board.`);
+    console.log(`[E2E] Found ${pendingCount} "Hủy nháp" button(s) on Inbound board for Andromeda Hub.`);
 
-    if (pendingCount > 0) {
-      // 1. Verify "Hủy nháp" button structure & styling
-      const firstCancelBtn = cancelDraftButtons.first();
-      await expect(firstCancelBtn).toBeVisible();
+    // There must be pending trips at Andromeda Hub (SD49, SD45, SD39)
+    expect(pendingCount).toBeGreaterThan(0);
 
-      // Check compact density height and styling
-      const btnClass = (await firstCancelBtn.getAttribute('class')) || '';
-      expect(btnClass).toContain('h-7');
-      expect(btnClass).toContain('text-[11px]');
-      expect(btnClass).toContain('text-red-600');
+    // 1. Verify "Hủy nháp" button structure & styling
+    const firstCancelBtn = cancelDraftButtons.first();
+    await expect(firstCancelBtn).toBeVisible();
 
-      // 2. Verify "Tiếp tục" button is present alongside "Hủy nháp"
-      const resumeBtnCount = await resumeButtons.count();
-      expect(resumeBtnCount).toBeGreaterThanOrEqual(pendingCount);
+    // Check compact density height and styling
+    const btnClass = (await firstCancelBtn.getAttribute('class')) || '';
+    expect(btnClass).toContain('h-7');
+    expect(btnClass).toContain('text-[11px]');
+    expect(btnClass).toContain('text-red-600');
 
-      const firstResumeBtn = resumeButtons.first();
-      await expect(firstResumeBtn).toBeVisible();
-      const resumeClass = (await firstResumeBtn.getAttribute('class')) || '';
-      expect(resumeClass).toContain('h-7');
-      expect(resumeClass).toContain('text-[11px]');
+    // 2. Verify "Tiếp tục" button is present alongside "Hủy nháp"
+    const resumeBtnCount = await resumeButtons.count();
+    expect(resumeBtnCount).toBeGreaterThanOrEqual(pendingCount);
 
-      // 3. Capture verified evidence screenshot showing both buttons
-      const firstRow = firstCancelBtn.locator('xpath=ancestor::tr');
-      await expect(firstRow).toBeVisible();
-      const buffer = await firstRow.screenshot();
-      saveEvidenceScreenshot('screenshot_01_verified.png', buffer);
-    } else {
-      console.log(
-        '[E2E] No pending inbound trips currently present on the board. Verifying table structure.'
-      );
-      const printCount = await printReceiptButtons.count();
-      console.log(`[E2E] Found ${printCount} "In phiếu nhập" button(s) for completed trips.`);
+    const firstResumeBtn = resumeButtons.first();
+    await expect(firstResumeBtn).toBeVisible();
+    const resumeClass = (await firstResumeBtn.getAttribute('class')) || '';
+    expect(resumeClass).toContain('h-7');
+    expect(resumeClass).toContain('text-[11px]');
 
-      // Capture full table screenshot as evidence
-      const buffer = await table.first().screenshot();
-      saveEvidenceScreenshot('screenshot_01_verified.png', buffer);
-    }
+    // 3. Capture verified evidence screenshot showing both buttons on the row
+    const firstRow = firstCancelBtn.locator('xpath=ancestor::tr');
+    await expect(firstRow).toBeVisible();
+    const buffer = await firstRow.screenshot();
+    saveEvidenceScreenshot('screenshot_01_verified.png', buffer);
 
-    // Always capture a clean full-page evidence
+    // 4. Capture a clean full-page evidence showing the full board with both buttons
     const fullPageBuffer = await page.screenshot();
     saveEvidenceScreenshot('screenshot_inbound_board_verified.png', fullPageBuffer);
   });
