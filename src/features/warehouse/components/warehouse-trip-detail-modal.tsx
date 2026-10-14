@@ -486,25 +486,62 @@ export function WarehouseTripDetailModal({
 
   const isTransferTrip = Boolean(manifest?.isTransfer ?? tripGroup?.isTransfer);
 
+  const currentHubId = manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
+
+  const isTripOriginHere = useMemo(() => {
+    // 1. Mọi chuyến xe trên màn hình Xuất kho đều xuất phát từ Hub hiện tại
+    if (mode === 'OUTBOUND') return true;
+
+    // 2. Chuyến xe không phải luân chuyển (Khách gửi trực tiếp tạo tại Hub)
+    if (!isTransferTrip) return true;
+
+    // 3. Kiểm tra trạm xuất phát đầu tiên trong danh sách lộ trình stops của Manifest
+    if (manifest?.stops && manifest.stops.length > 0) {
+      const originStop =
+        manifest.stops.find((s) => s.stopType === 'ORIGIN' || s.stopSequence === 1) ??
+        manifest.stops[0];
+      if (originStop && currentHubId && originStop.hubId === currentHubId) {
+        return true;
+      }
+    }
+
+    // 4. Kiểm tra hubId được gán trên tripGroup
+    if (tripGroup?.hubId && currentHubId && tripGroup.hubId === currentHubId) {
+      return true;
+    }
+
+    // 5. Kiểm tra originHubId trên các đơn hàng thuộc trip
+    if (tripGroup?.orders && tripGroup.orders.length > 0) {
+      const firstOriginId = tripGroup.orders[0]?.originHubId;
+      if (firstOriginId && currentHubId && firstOriginId === currentHubId) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [mode, isTransferTrip, manifest, currentHubId, tripGroup]);
+
   // Outbound cargo breakdown for Step 2
   const outboundBreakdown = useMemo(() => {
     if (!manifest || !manifest.lines) {
       return { transitLines: [], hubOutboundLines: [], allOutboundLines: [] };
     }
-    const currentHubId = manifest.currentHubId || user?.hubId || user?.hub?.id || 2;
+    const resolvedHubId = currentHubId || user?.hub?.id || 2;
     // Cargo loaded at earlier stops continuing past this hub
     const transitLines = manifest.lines.filter(
-      (l) => !l.isForCurrentHub && l.originHubId !== currentHubId
+      (l) => !l.isForCurrentHub && l.originHubId !== resolvedHubId
     );
     // Cargo loaded directly from this hub to go to another hub
     const hubOutboundLines = manifest.lines.filter(
       (l) =>
-        l.originHubId === currentHubId && !l.isForCurrentHub && l.destinationHubId !== currentHubId
+        l.originHubId === resolvedHubId &&
+        !l.isForCurrentHub &&
+        l.destinationHubId !== resolvedHubId
     );
     const allOutboundLines = [...transitLines, ...hubOutboundLines];
 
     return { transitLines, hubOutboundLines, allOutboundLines };
-  }, [manifest, user]);
+  }, [manifest, user, currentHubId]);
 
   useEffect(() => {
     if (!isTransferTrip && currentStep !== 1) {
@@ -923,18 +960,16 @@ export function WarehouseTripDetailModal({
                 renderWarehouseOrderStatusBadge(tripGroup.status)
               )}
             </div>
-            <h2 className='text-sm font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
-              <IconBuildingWarehouse className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
-              <span>
-                {mode === 'OUTBOUND'
-                  ? 'Chi tiết chuyến xe xuất kho'
-                  : isTransferTrip
-                    ? currentStep === 1
-                      ? 'Bước 1: Kiểm đếm dỡ hàng & Nhập kho'
-                      : 'Bước 2: Xuất hàng mới lên xe đi trạm kế tiếp'
-                    : 'Kiểm đếm dỡ hàng & Nhập kho'}
-              </span>
-            </h2>
+            {!effectiveReadOnly && mode === 'INBOUND' && isTransferTrip && !isTripOriginHere && (
+              <h2 className='text-sm font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
+                <IconBuildingWarehouse className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
+                <span>
+                  {currentStep === 1
+                    ? 'Bước 1: Kiểm đếm dỡ hàng & Nhập kho'
+                    : 'Bước 2: Xuất hàng mới lên xe đi trạm kế tiếp'}
+                </span>
+              </h2>
+            )}
           </div>
 
           <div className='flex items-center gap-2'>
@@ -1068,6 +1103,8 @@ export function WarehouseTripDetailModal({
                   </span>
                 ) : mode === 'OUTBOUND' ? (
                   <span>Chuyến xe xuất kho tại trạm này.</span>
+                ) : !isTransferTrip || isTripOriginHere ? (
+                  <span>Chuyến xe tạo mới tại trạm này.</span>
                 ) : (
                   <span>Chuyến xe đã chốt sổ cái tồn kho nhập tại kho này.</span>
                 )}
@@ -1205,29 +1242,34 @@ export function WarehouseTripDetailModal({
                       {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} dòng hàng
                     </span>
                     {/* Nút duy nhất bốc thêm đơn dọc đường về Hub */}
-                    {isManifestTripCode(tripGroup?.tripCode) && !isHubAccountLocked && (
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        onClick={() => {
-                          setAppendModalMode('ROADSIDE_INBOUND');
-                          setIsAppendModalOpen(true);
-                        }}
-                        className='h-6 px-2 text-[10px] text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950 font-bold'
-                        title='Tài xế bốc thêm hàng ngoài đường chở về dỡ tại kho hiện tại'
-                      >
-                        {isAdmin && isCurrentHubCompleted && (
-                          <Badge
-                            variant='outline'
-                            className='text-[9px] mr-1 bg-amber-100 text-amber-900 border-amber-300 px-1 py-0 h-3.5'
-                          >
-                            Admin
-                          </Badge>
-                        )}
-                        <IconPlus className='h-3 w-3 mr-1' /> Bốc thêm đơn dọc đường về Hub
-                      </Button>
-                    )}
+                    {!effectiveReadOnly &&
+                      mode === 'INBOUND' &&
+                      isTransferTrip &&
+                      !isTripOriginHere &&
+                      isManifestTripCode(tripGroup?.tripCode) &&
+                      !isHubAccountLocked && (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          onClick={() => {
+                            setAppendModalMode('ROADSIDE_INBOUND');
+                            setIsAppendModalOpen(true);
+                          }}
+                          className='h-6 px-2 text-[10px] text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950 font-bold'
+                          title='Tài xế bốc thêm hàng ngoài đường chở về dỡ tại kho hiện tại'
+                        >
+                          {isAdmin && isCurrentHubCompleted && (
+                            <Badge
+                              variant='outline'
+                              className='text-[9px] mr-1 bg-amber-100 text-amber-900 border-amber-300 px-1 py-0 h-3.5'
+                            >
+                              Admin
+                            </Badge>
+                          )}
+                          <IconPlus className='h-3 w-3 mr-1' /> Bốc thêm đơn dọc đường về Hub
+                        </Button>
+                      )}
                   </div>
                 </div>
 
