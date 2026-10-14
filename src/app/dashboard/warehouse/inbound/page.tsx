@@ -23,7 +23,8 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconFoldUp,
-  IconFoldDown
+  IconFoldDown,
+  IconTrash
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -109,6 +110,42 @@ export default function WarehouseInboundPage() {
     setSelectedTripGroup(grp);
     setIsTripEditModalOpen(true);
   };
+
+  const [cancellingDraftCode, setCancellingDraftCode] = useState<string | null>(null);
+
+  // "Hủy nháp": drops the draft inbound trip (soft deletes trip_stop & pending draft orders)
+  const handleCancelDraft = async (tripCode: string) => {
+    if (
+      !window.confirm(
+        `Hủy chuyến nháp ${tripCode}? Các dòng hàng dự kiến nhập sẽ bị hủy khỏi chuyến.`
+      )
+    ) {
+      return;
+    }
+    setCancellingDraftCode(tripCode);
+    const token = tokenManager.getAccessToken();
+    try {
+      const res = await fetch(`/api/v1/warehouse/inbound/drafts/${encodeURIComponent(tripCode)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
+      }
+      toast.success(`Đã hủy chuyến nháp ${tripCode}`);
+      fetchKpi();
+      fetchInboundTrips();
+    } catch (err: any) {
+      showApiErrorToast(err, 'Không thể hủy chuyến nháp');
+    } finally {
+      setCancellingDraftCode(null);
+    }
+  };
+
 
   // Pallet Label A4 Modal State
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
@@ -961,15 +998,32 @@ export default function WarehouseInboundPage() {
                                 <td className='py-1 px-2 text-center'>
                                   <div className='flex items-center justify-center gap-1.5 flex-wrap'>
                                     {isPending ? (
-                                      <Button
-                                        variant='outline'
-                                        size='sm'
-                                        onClick={() => handleResumeInboundTrip(grp)}
-                                        className='h-7 text-[11px] text-[#0F3D62] border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-800 px-2 font-semibold'
-                                        title='Mở trip nhập kho để kiểm đếm, chỉnh sửa hoặc xác nhận nhập kho'
-                                      >
-                                        <IconPencil className='h-3.5 w-3.5 mr-1' /> Tiếp tục
-                                      </Button>
+                                      <>
+                                        <Button
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() => handleResumeInboundTrip(grp)}
+                                          className='h-7 text-[11px] text-[#0F3D62] border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-800 px-2 font-semibold'
+                                          title='Mở trip nhập kho để kiểm đếm, chỉnh sửa hoặc xác nhận nhập kho'
+                                        >
+                                          <IconPencil className='h-3.5 w-3.5 mr-1' /> Tiếp tục
+                                        </Button>
+                                        <Button
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() => handleCancelDraft(grp.tripCode)}
+                                          disabled={cancellingDraftCode === grp.tripCode}
+                                          className='h-7 text-[11px] text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 px-2 font-semibold'
+                                          title='Hủy chuyến nháp (chưa xác nhận nhập kho)'
+                                        >
+                                          {cancellingDraftCode === grp.tripCode ? (
+                                            <IconLoader2 className='h-3.5 w-3.5 mr-1 animate-spin' />
+                                          ) : (
+                                            <IconTrash className='h-3.5 w-3.5 mr-1' />
+                                          )}
+                                          Hủy nháp
+                                        </Button>
+                                      </>
                                     ) : (
                                       <Button
                                         variant='outline'
