@@ -11,10 +11,25 @@ interface StockSource {
   hubStock?: number | null;
   remainingQuantity?: number | null;
   totalQuantity?: number | null;
+  status?: string;
+  hubStatus?: string | null;
 }
 
 /** Packages that can be dispatched from the viewer's hub. */
-export function availableOutboundStock(order: StockSource): number {
+export function availableOutboundStock(
+  order: StockSource & { status?: string; hubStatus?: string | null }
+): number {
+  const st = (order.hubStatus ?? order.status ?? '').toUpperCase();
+  const isDraft = ['DRAFT', 'PENDING', 'WAITING'].includes(st);
+
+  // Nếu là đơn nháp, tồn khả dụng để xếp xe chính là số kiện kế hoạch của đơn hàng
+  if (isDraft) {
+    if (order.remainingQuantity !== null && order.remainingQuantity !== undefined) {
+      return Math.max(0, Number(order.remainingQuantity) || 0);
+    }
+    return Math.max(0, Number(order.totalQuantity) || 0);
+  }
+
   if (order.hubStock !== null && order.hubStock !== undefined) {
     return Math.max(0, Number(order.hubStock) || 0);
   }

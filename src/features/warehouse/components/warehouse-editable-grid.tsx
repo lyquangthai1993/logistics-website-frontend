@@ -75,6 +75,7 @@ export interface WarehouseRowItem {
   accompanyingDocs?: string;
   notes: string;
   status?: string;
+  hubStatus?: string | null;
   destinationHub?: any;
 }
 
@@ -585,8 +586,17 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
         if (foundOrder && foundOrder.orderCode) {
           lastSearchedCodeRef.current = foundOrder.orderCode.trim().toUpperCase();
 
+          const isDraft = ['DRAFT', 'PENDING', 'WAITING'].includes(
+            String(foundOrder.hubStatus ?? foundOrder.status ?? '').toUpperCase()
+          );
+
           // Orders outside this hub's stock (on the way, dispatched...) cannot be exported here.
-          const availStock = foundInHubStock ? availableOutboundStock(foundOrder) : 0;
+          // Đối với đơn nháp: Cho phép chọn, lấy availStock = remainingQuantity ?? totalQuantity
+          const availStock = isDraft
+            ? Math.max(0, Number(foundOrder.remainingQuantity ?? foundOrder.totalQuantity) || 1)
+            : foundInHubStock
+              ? availableOutboundStock(foundOrder)
+              : 0;
 
           // Trùng thực sự = cùng một dòng hàng (cùng id), không phải chỉ trùng mã đơn
           const isDuplicate = usedIds.has(String(foundOrder.id));
@@ -599,6 +609,8 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           const updatedRow: WarehouseRowItem = {
             ...currentRow,
             id: foundOrder.id,
+            status: foundOrder.status,
+            hubStatus: foundOrder.hubStatus,
             orderCode: foundOrder.orderCode,
             goodsDescription: foundOrder.goodsDescription || '',
             totalQuantity: availStock,
@@ -638,7 +650,11 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
           meta?.updateRow(idx, updatedRow);
           setValue(foundOrder.orderCode);
-          if (availStock > 0) {
+          if (isDraft) {
+            toast.success(
+              `Đã chọn đơn nháp ${foundOrder.orderCode} (${availStock} kiện) vào chuyến xe!`
+            );
+          } else if (availStock > 0) {
             toast.success(
               `Đã tìm thấy đơn hàng ${foundOrder.orderCode} (Tồn khả dụng: ${availStock} kiện)!`
             );
@@ -1140,7 +1156,9 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
   const isChangedHub =
     r.deliveryMode === 'HUB_L1' ||
     r.deliveryMode === 'XE_BO' ||
-    (r.destinationHubId !== undefined && r.destinationHubId !== null && Number(r.destinationHubId) > 0);
+    (r.destinationHubId !== undefined &&
+      r.destinationHubId !== null &&
+      Number(r.destinationHubId) > 0);
 
   return (
     <div className='space-y-1'>
@@ -1564,25 +1582,24 @@ export function WarehouseEditableGrid({
     const availStock = availableOutboundStock(order);
     const destHubEntity = (order as any).destinationHubEntity;
     const destHubId =
-      (order as any).destinationHubId ??
-      (destHubEntity ? destHubEntity.id : null) ??
-      null;
+      (order as any).destinationHubId ?? (destHubEntity ? destHubEntity.id : null) ?? null;
     const isXeBo =
       destHubEntity?.level === 2 ||
       destHubEntity?.code?.startsWith('XB-') ||
       destHubEntity?.code?.startsWith('HUB-BO-') ||
       (order.destinationHub && order.destinationHub.toLowerCase().includes('xe bo')) ||
       order.deliveryMode === 'XE_BO';
-    const resolvedMode =
-      isXeBo
-        ? 'XE_BO'
-        : destHubId || (destHubEntity && destHubEntity.level === 1)
-          ? 'HUB_L1'
-          : order.deliveryMode || 'DIRECT_CUSTOMER';
+    const resolvedMode = isXeBo
+      ? 'XE_BO'
+      : destHubId || (destHubEntity && destHubEntity.level === 1)
+        ? 'HUB_L1'
+        : order.deliveryMode || 'DIRECT_CUSTOMER';
 
     updated[lookupRowIndex] = {
       ...updated[lookupRowIndex],
       id: order.id,
+      status: order.status,
+      hubStatus: order.hubStatus,
       orderCode: order.orderCode,
       goodsDescription: order.goodsDescription || '',
       totalQuantity: availStock,

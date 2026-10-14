@@ -23,7 +23,8 @@ import {
   IconPackage,
   IconPackageImport,
   IconInbox,
-  IconCheck
+  IconCheck,
+  IconAlertCircle
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -119,9 +120,7 @@ export function WarehouseOutboundTransferFlow({
             (h.level === 1 || !h.code?.startsWith('HUB-BO-')) && (!ownHubId || h.id !== ownHubId)
         );
         setHubs(l1);
-        setDestinationHubId((prev) =>
-          l1.some((h) => h.id === prev) ? prev : (l1[0]?.id ?? 0)
-        );
+        setDestinationHubId((prev) => (l1.some((h) => h.id === prev) ? prev : (l1[0]?.id ?? 0)));
       })
       .catch((err) => showApiErrorToast(err, 'Không tải được danh sách kho đích'));
   }, [ownHubId]);
@@ -146,20 +145,28 @@ export function WarehouseOutboundTransferFlow({
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         const rawOrders = resData?.data || [];
-        const formatted: StoredOrderItem[] = rawOrders.map((o: any) => ({
-          id: o.id,
-          orderCode: o.orderCode ?? `#${o.id}`,
-          goodsDescription: o.goodsDescription || '—',
-          // Per-hub available stock from the ledger; contract quantity only as last resort
-          totalQuantity: Number(o.hubStock ?? o.remainingQuantity ?? o.totalQuantity ?? 0),
-          totalWeight: Number(o.totalWeight ?? 0),
-          totalVolume: Number(o.totalVolume ?? 0),
-          status: o.hubStatus ?? o.status ?? 'INBOUND',
-          createdAt: o.createdAt ?? '',
-          destinationHub: o.destinationHub || o.route || '',
-          deliveryAddress: o.deliveryAddress || '',
-          originHub: o.originHub || user?.hub?.name || ''
-        }));
+        const formatted: StoredOrderItem[] = rawOrders.map((o: any) => {
+          const st = String(o.hubStatus ?? o.status ?? '').toUpperCase();
+          const isDraft = ['DRAFT', 'PENDING', 'WAITING'].includes(st);
+          const availQty = isDraft
+            ? Math.max(0, Number(o.remainingQuantity ?? o.totalQuantity) || 0)
+            : o.hubStock !== null && o.hubStock !== undefined
+              ? Math.max(0, Number(o.hubStock) || 0)
+              : Math.max(0, Number(o.remainingQuantity ?? o.totalQuantity) || 0);
+          return {
+            id: o.id,
+            orderCode: o.orderCode ?? `#${o.id}`,
+            goodsDescription: o.goodsDescription || '—',
+            totalQuantity: availQty,
+            totalWeight: Number(o.totalWeight ?? 0),
+            totalVolume: Number(o.totalVolume ?? 0),
+            status: o.hubStatus ?? o.status ?? 'INBOUND',
+            createdAt: o.createdAt ?? '',
+            destinationHub: o.destinationHub || o.route || '',
+            deliveryAddress: o.deliveryAddress || '',
+            originHub: o.originHub || user?.hub?.name || ''
+          };
+        });
         setWarehouseOrders(formatted);
 
         if (resData?.meta) {
@@ -214,6 +221,12 @@ export function WarehouseOutboundTransferFlow({
     };
   }, [selectedOrders]);
 
+  const hasDraftOrdersSelected = useMemo(() => {
+    return selectedOrders.some((o) =>
+      ['DRAFT', 'PENDING', 'WAITING'].includes(String(o.status).toUpperCase())
+    );
+  }, [selectedOrders]);
+
   // Toggle order checkbox selection
   const handleToggleSelect = (orderId: number | string) => {
     setSelectedOrderIds((prev) => {
@@ -266,6 +279,12 @@ export function WarehouseOutboundTransferFlow({
 
   // Submit Outbound Transfer in Step 3
   const handleConfirmOutboundTransfer = async () => {
+    if (hasDraftOrdersSelected) {
+      toast.error(
+        'Chuyến luân chuyển chứa đơn nháp, chỉ có thể bấm "Lưu nháp" ở trạng thái Chờ xử lý.'
+      );
+      return;
+    }
     const orderIds = Array.from(selectedOrderIds)
       .map(Number)
       .filter((id) => !isNaN(id));
@@ -931,12 +950,15 @@ export function WarehouseOutboundTransferFlow({
                                     totalQuantity: order.totalQuantity,
                                     originHub: currentHubName,
                                     destinationHub: selectedDestHub.name,
-                                    province: order.province || selectedDestHub.city || selectedDestHub.name,
+                                    province:
+                                      order.province ||
+                                      selectedDestHub.city ||
+                                      selectedDestHub.name,
                                     destinationHubEntity: {
                                       id: selectedDestHub.id,
                                       name: selectedDestHub.name,
                                       code: selectedDestHub.code,
-                                      city: selectedDestHub.city,
+                                      city: selectedDestHub.city
                                     },
                                     createdAt: order.createdAt
                                   })
@@ -1166,12 +1188,13 @@ export function WarehouseOutboundTransferFlow({
                             totalQuantity: order.totalQuantity,
                             originHub: currentHubName,
                             destinationHub: selectedDestHub.name,
-                            province: order.province || selectedDestHub.city || selectedDestHub.name,
+                            province:
+                              order.province || selectedDestHub.city || selectedDestHub.name,
                             destinationHubEntity: {
                               id: selectedDestHub.id,
                               name: selectedDestHub.name,
                               code: selectedDestHub.code,
-                              city: selectedDestHub.city,
+                              city: selectedDestHub.city
                             },
                             createdAt: order.createdAt
                           })
@@ -1208,46 +1231,77 @@ export function WarehouseOutboundTransferFlow({
           </div>
 
           {/* Sticky Footer for Step 3 (Frame ol_sticky_footer) */}
-          <div className='flex flex-wrap items-center justify-between gap-2 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
-            <Button
-              variant='outline'
-              onClick={() => setStep(2)}
-              className='text-xs font-semibold flex items-center gap-1.5'
-            >
-              <IconArrowLeft className='h-4 w-4' />
-              Quay lại Bước 2
-            </Button>
-
-            <div className='flex items-center gap-2'>
+          <div className='flex flex-col gap-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
+            {hasDraftOrdersSelected && (
+              <div className='flex items-center gap-1.5 p-1.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-[11px]'>
+                <IconAlertCircle className='h-4 w-4 shrink-0 text-amber-600' />
+                <span>
+                  <strong>Lưu ý nghiệp vụ:</strong> Chuyến luân chuyển này chứa đơn hàng đang ở
+                  trạng thái <strong>Đơn nháp</strong>. Chuyến xe sẽ được lưu ở trạng thái{' '}
+                  <strong>Chờ xử lý</strong> và không thể chuyển sang <strong>Đã xử lý</strong> cho
+                  đến khi các đơn hàng được duyệt chính thức.
+                </span>
+              </div>
+            )}
+            <div className='flex flex-wrap items-center justify-between gap-2'>
               <Button
                 variant='outline'
-                onClick={handleSaveTransferDraft}
-                disabled={isSavingDraft || isSubmitting}
-                className='text-xs font-semibold'
-              >
-                {isSavingDraft && <IconLoader2 className='h-4 w-4 mr-1 animate-spin' />}
-                Lưu nháp
-              </Button>
-              <Button
-                variant='outline'
-                onClick={() => window.print()}
+                onClick={() => setStep(2)}
                 className='text-xs font-semibold flex items-center gap-1.5'
               >
-                <IconPrinter className='h-4 w-4 text-slate-600' />
-                In Loading Plan (A4 Ngang)
+                <IconArrowLeft className='h-4 w-4' />
+                Quay lại Bước 2
               </Button>
-              <Button
-                onClick={handleConfirmOutboundTransfer}
-                disabled={isSubmitting}
-                className='bg-[#0F3D62] hover:bg-[#0c314f] text-white font-bold text-xs px-2 shadow-sm flex items-center gap-2'
-              >
-                {isSubmitting ? (
-                  <IconLoader2 className='h-4 w-4 animate-spin' />
-                ) : (
-                  <IconCircleCheck className='h-4 w-4 text-emerald-400' />
+
+              <div className='flex items-center gap-2'>
+                {hasDraftOrdersSelected && (
+                  <span className='text-[11px] text-amber-600 dark:text-amber-400 font-medium'>
+                    ⚠️ Có đơn nháp — Chỉ được Lưu nháp
+                  </span>
                 )}
-                Xác nhận xuất kho luân chuyển
-              </Button>
+                <Button
+                  variant={hasDraftOrdersSelected ? 'default' : 'outline'}
+                  onClick={handleSaveTransferDraft}
+                  disabled={isSavingDraft || isSubmitting}
+                  className={`text-xs font-semibold ${
+                    hasDraftOrdersSelected
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
+                      : ''
+                  }`}
+                >
+                  {isSavingDraft && <IconLoader2 className='h-4 w-4 mr-1 animate-spin' />}
+                  Lưu nháp (Chờ xử lý)
+                </Button>
+                <Button
+                  variant='outline'
+                  onClick={() => window.print()}
+                  className='text-xs font-semibold flex items-center gap-1.5'
+                >
+                  <IconPrinter className='h-4 w-4 text-slate-600' />
+                  In Loading Plan (A4 Ngang)
+                </Button>
+                <Button
+                  onClick={handleConfirmOutboundTransfer}
+                  disabled={isSubmitting || isSavingDraft || hasDraftOrdersSelected}
+                  className={`font-bold text-xs px-2 shadow-sm flex items-center gap-2 ${
+                    hasDraftOrdersSelected
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500'
+                      : 'bg-[#0F3D62] hover:bg-[#0c314f] text-white'
+                  }`}
+                  title={
+                    hasDraftOrdersSelected
+                      ? 'Chuyến luân chuyển có đơn nháp chỉ được phép Lưu nháp (Chờ xử lý)'
+                      : undefined
+                  }
+                >
+                  {isSubmitting ? (
+                    <IconLoader2 className='h-4 w-4 animate-spin' />
+                  ) : (
+                    <IconCircleCheck className='h-4 w-4 text-emerald-400' />
+                  )}
+                  Xác nhận xuất kho luân chuyển
+                </Button>
+              </div>
             </div>
           </div>
         </div>
