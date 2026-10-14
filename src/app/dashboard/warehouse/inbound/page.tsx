@@ -20,10 +20,6 @@ import {
   IconClipboardCheck,
   IconEye,
   IconX,
-  IconChevronDown,
-  IconChevronRight,
-  IconFoldUp,
-  IconFoldDown,
   IconTrash
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
@@ -274,15 +270,6 @@ export default function WarehouseInboundPage() {
     }
   }, [activeView, fetchInboundTrips]);
 
-  // Collapsed / Expanded Vehicle Groups State
-  const [expandedVehicleKeys, setExpandedVehicleKeys] = useState<Record<string, boolean>>({});
-
-  const toggleExpandVehicle = (key: string) => {
-    setExpandedVehicleKeys((prev) => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
 
   // Group inbound trips directly from backend response
   const vehicleGroups: InboundVehicleGroup[] = useMemo(
@@ -326,23 +313,6 @@ export default function WarehouseInboundPage() {
     () => vehicleGroups.flatMap((g) => g.orders ?? []),
     [vehicleGroups]
   );
-
-  const allExpanded = useMemo(() => {
-    if (vehicleGroups.length === 0) return false;
-    return vehicleGroups.every((g) => !!expandedVehicleKeys[g.groupKey]);
-  }, [vehicleGroups, expandedVehicleKeys]);
-
-  const toggleAllGroups = () => {
-    if (allExpanded) {
-      setExpandedVehicleKeys({});
-    } else {
-      const next: Record<string, boolean> = {};
-      vehicleGroups.forEach((g) => {
-        next[g.groupKey] = true;
-      });
-      setExpandedVehicleKeys(next);
-    }
-  };
 
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
@@ -862,25 +832,6 @@ export default function WarehouseInboundPage() {
 
                   {/* Quick Actions: Expand/Collapse All & Refresh Metrics */}
                   <div className='flex items-center gap-1.5'>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={toggleAllGroups}
-                      className='h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50'
-                      title={allExpanded ? 'Thu gọn tất cả xe' : 'Mở rộng tất cả xe'}
-                    >
-                      {allExpanded ? (
-                        <>
-                          <IconFoldUp className='mr-1.5 h-4 w-4 text-slate-600' />
-                          <span>Thu gọn</span>
-                        </>
-                      ) : (
-                        <>
-                          <IconFoldDown className='mr-1.5 h-4 w-4 text-slate-600' />
-                          <span>Mở rộng</span>
-                        </>
-                      )}
-                    </Button>
 
                     <Button
                       variant='outline'
@@ -925,49 +876,28 @@ export default function WarehouseInboundPage() {
                         </tr>
                       ) : (
                         vehicleGroups.map((grp) => {
-                          const isExpanded = !!expandedVehicleKeys[grp.groupKey];
                           const isPending = grp.status === 'PENDING';
 
                           return (
                             <React.Fragment key={grp.groupKey}>
                               <tr className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'>
                                 <td className='py-1 px-2'>
-                                  <div className='flex items-center gap-1.5'>
-                                    <button
-                                      type='button'
-                                      onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                      className='p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer'
-                                      title={
-                                        isExpanded
-                                          ? 'Thu gọn danh sách đơn'
-                                          : 'Xem chi tiết các đơn trên xe'
-                                      }
-                                    >
-                                      {isExpanded ? (
-                                        <IconChevronDown className='h-3.5 w-3.5 text-blue-600 font-bold' />
-                                      ) : (
-                                        <IconChevronRight className='h-3.5 w-3.5 text-slate-400' />
-                                      )}
-                                    </button>
-                                    <div>
-                                      <button
-                                        type='button'
-                                        onClick={() => handleOpenTripDetail(grp)}
-                                        className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
-                                        title='Nhấp để xem chi tiết chuyến xe'
+                                  <button
+                                    type='button'
+                                    onClick={() => handleOpenTripDetail(grp)}
+                                    className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
+                                    title='Nhấp để xem chi tiết chuyến xe'
+                                  >
+                                    <span>{grp.tripCode}</span>
+                                    {grp.orders.length > 1 && (
+                                      <Badge
+                                        variant='outline'
+                                        className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
                                       >
-                                        <span>{grp.tripCode}</span>
-                                        {grp.orders.length > 1 && (
-                                          <Badge
-                                            variant='outline'
-                                            className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
-                                          >
-                                            {grp.orders.length} đơn
-                                          </Badge>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
+                                        {grp.orders.length} đơn
+                                      </Badge>
+                                    )}
+                                  </button>
                                 </td>
                                 <td className='py-1 px-2'>
                                   <div className='text-[11px] space-y-0.5'>
@@ -1039,184 +969,6 @@ export default function WarehouseInboundPage() {
                                 </td>
                               </tr>
 
-                              {/* Nested Sub-row with all orders of this vehicle */}
-                              {isExpanded && (
-                                <tr className='bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800'>
-                                  <td colSpan={5} className='py-1 px-2 pl-8'>
-                                    <div className='bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1'>
-                                      <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
-                                        <span className='flex items-center gap-1'>
-                                          <IconTruck className='h-3 w-3 text-blue-600' />
-                                          <span>
-                                            Chi tiết các đơn hàng thuộc xe {grp.licensePlate} (
-                                            {grp.tripCode})
-                                          </span>
-                                        </span>
-                                        <span>
-                                          Tổng cộng: {grp.orders.length} đơn &bull;{' '}
-                                          {grp.totalQuantity} kiện
-                                        </span>
-                                      </div>
-                                      <table className='w-full text-[10px]'>
-                                        <thead>
-                                          <tr className='text-slate-400 text-[10px] border-b border-slate-100 dark:border-slate-700 text-left'>
-                                            <th className='py-0.5 px-1.5 font-semibold w-[130px]'>
-                                              MÃ VẬN ĐƠN
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold min-w-[160px]'>
-                                              HÀNG HÓA
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-right w-[140px]'>
-                                              SỐ KIỆN / TẢI TRỌNG
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
-                                              CHỨNG TỪ
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold min-w-[180px]'>
-                                              GHI CHÚ
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[150px]'>
-                                              THAO TÁC
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className='divide-y divide-slate-100 dark:divide-slate-700'>
-                                          {grp.orders.map((subOrder) => (
-                                            <tr
-                                              key={subOrder.id}
-                                              className='hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                            >
-                                              <td className='py-1 px-1.5'>
-                                                <button
-                                                  type='button'
-                                                  onClick={() => {
-                                                    setSelectedWaybillForDetail(subOrder);
-                                                    setIsDetailModalOpen(true);
-                                                  }}
-                                                  className='font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]'
-                                                  title='Xem chi tiết mã vận đơn'
-                                                >
-                                                  {subOrder.orderCode}
-                                                </button>
-                                              </td>
-                                              <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]'>
-                                                {subOrder.goodsDescription || 'Hàng hóa nhập kho'}
-                                              </td>
-                                              <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                                                <div>
-                                                  {subOrder.inboundQuantity ??
-                                                    subOrder.totalQuantity ??
-                                                    1}{' '}
-                                                  kiện
-                                                </div>
-                                                <div className='text-gray-400 text-[9px]'>
-                                                  {formatWeight(subOrder.totalWeight)} kg &bull;{' '}
-                                                  {formatVolume(subOrder.totalVolume)} m³
-                                                </div>
-                                              </td>
-                                              <td className='py-1.5 px-2 text-center'>
-                                                {subOrder.accompanyingDocs &&
-                                                subOrder.accompanyingDocs.toUpperCase() !==
-                                                  'KHÔNG CÓ' ? (
-                                                  <Badge
-                                                    variant='outline'
-                                                    className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
-                                                  >
-                                                    {subOrder.accompanyingDocs}
-                                                  </Badge>
-                                                ) : (
-                                                  <Badge
-                                                    variant='outline'
-                                                    className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
-                                                  >
-                                                    {subOrder.accompanyingDocs || 'Không có'}
-                                                  </Badge>
-                                                )}
-                                              </td>
-                                              <td
-                                                className='py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]'
-                                                title={subOrder.notes}
-                                              >
-                                                {subOrder.notes || '—'}
-                                              </td>
-                                              <td className='py-1.5 px-2 text-center'>
-                                                <div className='flex items-center justify-center gap-1'>
-                                                  <Button
-                                                    variant='ghost'
-                                                    size='sm'
-                                                    onClick={() => {
-                                                      setSelectedWaybillForDetail(subOrder);
-                                                      setIsDetailModalOpen(true);
-                                                    }}
-                                                    className='h-6 text-[10px] px-1.5 text-slate-600 hover:text-blue-700 font-semibold'
-                                                  >
-                                                    <IconEye className='h-3 w-3 mr-1' /> Chi tiết
-                                                  </Button>
-
-                                                  <Button
-                                                    variant='outline'
-                                                    size='sm'
-                                                    onClick={() => {
-                                                      const isTrans =
-                                                        subOrder.inboundType === 'TRANSFER' ||
-                                                        subOrder.orderCode?.startsWith('TRIP') ||
-                                                        (subOrder.originHub &&
-                                                          subOrder.destinationHub &&
-                                                          subOrder.originHub !==
-                                                            subOrder.destinationHub) ||
-                                                        (subOrder.trips &&
-                                                          subOrder.trips.length > 0);
-                                                      const orig =
-                                                        subOrder.pickupAddress?.trim() ||
-                                                        (isTrans ? subOrder.originHub : null) ||
-                                                        subOrder.originHubEntity?.name ||
-                                                        subOrder.originHub ||
-                                                        (subOrder.route?.includes('→')
-                                                          ? subOrder.route.split('→')[0].trim()
-                                                          : '') ||
-                                                        user?.hub?.name;
-                                                      const dest =
-                                                        subOrder.destinationHubEntity?.name ||
-                                                        subOrder.destinationHub ||
-                                                        subOrder.deliveryAddress?.trim() ||
-                                                        (subOrder.route?.includes('→')
-                                                          ? subOrder.route.split('→')[1].trim()
-                                                          : '');
-                                                      setSelectedLabelData({
-                                                        orderCode: subOrder.orderCode,
-                                                        goodsDescription:
-                                                          subOrder.goodsDescription ||
-                                                          'Hàng hóa nhập kho',
-                                                        totalQuantity: subOrder.totalQuantity || 1,
-                                                        originHub: orig,
-                                                        destinationHub: dest,
-                                                        province:
-                                                          subOrder.province ||
-                                                          subOrder.destinationHubEntity?.city ||
-                                                          dest,
-                                                        destinationHubEntity:
-                                                          subOrder.destinationHubEntity,
-                                                        warehouseName:
-                                                          subOrder.currentHubEntity?.name,
-                                                        createdAt: new Date()
-                                                      });
-                                                      setIsLabelModalOpen(true);
-                                                    }}
-                                                    className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 px-1.5 font-semibold'
-                                                    title='In tem nhận diện A4'
-                                                  >
-                                                    <IconPrinter className='h-3 w-3 mr-1' /> In tem
-                                                  </Button>
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
                             </React.Fragment>
                           );
                         })

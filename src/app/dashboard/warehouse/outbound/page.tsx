@@ -19,10 +19,6 @@ import {
   IconFileSpreadsheet,
   IconCalendar,
   IconUser,
-  IconChevronDown,
-  IconChevronRight,
-  IconFoldUp,
-  IconFoldDown,
   IconPencil,
   IconTrash,
   IconAlertCircle
@@ -97,15 +93,6 @@ export default function WarehouseOutboundPage() {
     setIsTripDetailModalOpen(true);
   };
 
-  // Expanded Vehicle Groups State
-  const [expandedVehicleKeys, setExpandedVehicleKeys] = useState<Record<string, boolean>>({});
-
-  const toggleExpandVehicle = (key: string) => {
-    setExpandedVehicleKeys((prev) => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
 
   // Date Range Filter: Default from 1st of current month to today
   const getDefaultFromDate = () => {
@@ -749,22 +736,6 @@ export default function WarehouseOutboundPage() {
     [tripGroups]
   );
 
-  const allExpanded = useMemo(() => {
-    if (vehicleGroups.length === 0) return false;
-    return vehicleGroups.every((g) => !!expandedVehicleKeys[g.groupKey]);
-  }, [vehicleGroups, expandedVehicleKeys]);
-
-  const toggleAllGroups = () => {
-    if (allExpanded) {
-      setExpandedVehicleKeys({});
-    } else {
-      const next: Record<string, boolean> = {};
-      vehicleGroups.forEach((g) => {
-        next[g.groupKey] = true;
-      });
-      setExpandedVehicleKeys(next);
-    }
-  };
 
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Xuất tại kho" = the hub that dispatched this vehicle (hub of creator / dispatch transaction).
@@ -855,95 +826,7 @@ export default function WarehouseOutboundPage() {
     setIsReceiptModalOpen(true);
   };
 
-  // Open Outbound Receipt modal for printing
-  const handlePrintOrderReceipt = (o: any, tripCode?: string) => {
-    const tripTx =
-      o.inventoryTransactions?.find(
-        (tx: any) =>
-          (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
-          (!tripCode || tripCode === '—' || !tx?.tripCode || tx.tripCode === tripCode)
-      ) ||
-      o.inventoryTransactions?.find(
-        (tx: any) => tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER'
-      );
-    const exportedQty = tripTx
-      ? Number(tripTx.quantity || 0)
-      : Number(o.outboundQuantity || o.totalQuantity || 1);
-    const contractTotal = Math.max(Number(o.totalQuantity || 1), 1);
-    const exportedWeight =
-      tripTx?.weight != null
-        ? Number(tripTx.weight)
-        : (Number(o.totalWeight || 0) * exportedQty) / contractTotal;
-    const exportedVolume =
-      tripTx?.volume != null
-        ? Number(tripTx.volume)
-        : (Number(o.totalVolume || 0) * exportedQty) / contractTotal;
-
-    const tripRecord =
-      tripCode && tripCode !== '—'
-        ? o.trips?.find((t: any) => t.tripCode === tripCode) || o.trips?.[0]
-        : o.trips?.[0];
-    const knownHubs = [
-      tripTx?.hub,
-      tripRecord?.originHub,
-      o.originHubEntity,
-      o.currentHubEntity,
-      o.destinationHubEntity,
-      ...level1Hubs
-    ];
-    const orig =
-      tripTx?.hub?.name ||
-      knownHubs.find((h: any) => h?.id && tripTx?.hubId && Number(h.id) === Number(tripTx.hubId))
-        ?.name ||
-      tripRecord?.originHub?.name ||
-      o.originHubEntity?.name ||
-      user?.hub?.name ||
-      '';
-
-    const dest = o.destinationHub || o.destinationHubEntity?.name || o.deliveryAddress || '';
-
-    const receiptData: OutboundReceiptData = {
-      tripCode: tripCode && tripCode !== '—' ? tripCode : undefined,
-      orderCode:
-        tripTx?.invoiceCode ||
-        (tripCode && tripCode !== '—' ? tripCode : o.orderCode) ||
-        `WH-OUT-${o.id}`,
-      goodsDescription: o.goodsDescription || 'Hàng tổng quan',
-      totalQuantity: exportedQty,
-      outboundQuantity: exportedQty,
-      totalWeight: Math.round(exportedWeight * 100) / 100,
-      totalVolume: Math.round(exportedVolume * 1000) / 1000,
-      driverName: tripRecord?.driverName || o.trips?.[0]?.driverName || o.driverName || '',
-      licensePlate:
-        tripRecord?.licensePlate || o.trips?.[0]?.licensePlate || o.vehicleLicensePlate || '',
-      deliveryAddress: dest,
-      destinationHub: dest,
-      originHub: orig,
-      mode: o.destinationHub || o.destinationHubEntity?.name ? 'TRANSFER' : 'CUSTOMER',
-      dispatchDate: o.updatedAt
-        ? new Date(o.updatedAt).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0],
-      notes: o.notes || '',
-      accompanyingDocs: o.accompanyingDocs || '—',
-      items: [
-        {
-          orderCode: o.orderCode,
-          goodsDescription: o.goodsDescription || 'Hàng tổng quan',
-          quantity: exportedQty,
-          unit: 'Kiện',
-          destinationHub: dest,
-          deliveryAddress: dest,
-          province: o.province || o.destinationHubEntity?.province || '—',
-          accompanyingDocs: o.accompanyingDocs || '—',
-          notes: o.notes || ''
-        }
-      ]
-    };
-    setSelectedReceiptData(receiptData);
-    setIsReceiptModalOpen(true);
-  };
-
-  const currentHubName = user?.hub?.name;
+const currentHubName = user?.hub?.name;
 
   return (
     <PageContainer>
@@ -1064,30 +947,6 @@ export default function WarehouseOutboundPage() {
                     ))}
                   </div>
 
-                  {/* Collapse / Expand All Button */}
-                  {vehicleGroups.length > 0 && (
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={toggleAllGroups}
-                      className='h-9 text-xs font-semibold border-slate-300 dark:border-slate-700'
-                      title={
-                        allExpanded ? 'Thu gọn tất cả các nhóm xe' : 'Mở rộng tất cả các nhóm xe'
-                      }
-                    >
-                      {allExpanded ? (
-                        <>
-                          <IconFoldUp className='mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400' />
-                          Thu gọn tất cả ({vehicleGroups.length} xe)
-                        </>
-                      ) : (
-                        <>
-                          <IconFoldDown className='mr-1.5 h-4 w-4 text-slate-600 dark:text-slate-400' />
-                          Mở rộng tất cả ({vehicleGroups.length} xe)
-                        </>
-                      )}
-                    </Button>
-                  )}
 
                   {/* Refresh Metrics Button */}
                   <Button
@@ -1132,7 +991,6 @@ export default function WarehouseOutboundPage() {
                         </tr>
                       ) : (
                         vehicleGroups.map((grp) => {
-                          const isExpanded = !!expandedVehicleKeys[grp.groupKey];
                           // Trip status at this hub comes from the backend: COMPLETED = đã xuất, PENDING = nháp
                           const isDispatched = grp.status === 'COMPLETED';
                           const isDraft = grp.status === 'PENDING';
@@ -1142,42 +1000,22 @@ export default function WarehouseOutboundPage() {
                             <React.Fragment key={grp.groupKey}>
                               <tr className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'>
                                 <td className='py-1 px-2'>
-                                  <div className='flex items-center gap-1.5'>
-                                    <button
-                                      type='button'
-                                      onClick={() => toggleExpandVehicle(grp.groupKey)}
-                                      className='p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer'
-                                      title={
-                                        isExpanded
-                                          ? 'Thu gọn danh sách đơn'
-                                          : 'Xem chi tiết các đơn trên xe'
-                                      }
-                                    >
-                                      {isExpanded ? (
-                                        <IconChevronDown className='h-3.5 w-3.5 text-blue-600 font-bold' />
-                                      ) : (
-                                        <IconChevronRight className='h-3.5 w-3.5 text-slate-400' />
-                                      )}
-                                    </button>
-                                    <div>
-                                      <button
-                                        type='button'
-                                        onClick={() => handleOpenTripDetail(grp)}
-                                        className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
-                                        title='Nhấp để xem chi tiết chuyến xe (chế độ xem)'
+                                  <button
+                                    type='button'
+                                    onClick={() => handleOpenTripDetail(grp)}
+                                    className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
+                                    title='Nhấp để xem chi tiết chuyến xe (chế độ xem)'
+                                  >
+                                    <span>{grp.tripCode}</span>
+                                    {grp.orders.length > 1 && (
+                                      <Badge
+                                        variant='outline'
+                                        className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
                                       >
-                                        <span>{grp.tripCode}</span>
-                                        {grp.orders.length > 1 && (
-                                          <Badge
-                                            variant='outline'
-                                            className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
-                                          >
-                                            {grp.orders.length} đơn
-                                          </Badge>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
+                                        {grp.orders.length} đơn
+                                      </Badge>
+                                    )}
+                                  </button>
                                 </td>
                                 <td className='py-1 px-2'>
                                   <div className='text-[11px] space-y-0.5'>
@@ -1250,163 +1088,7 @@ export default function WarehouseOutboundPage() {
                                   </div>
                                 </td>
                               </tr>
-
-                              {/* Nested Sub-row with all orders of this vehicle */}
-                              {isExpanded && (
-                                <tr className='bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800'>
-                                  <td colSpan={5} className='py-1 px-2 pl-8'>
-                                    <div className='bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-1.5 shadow-xs space-y-1'>
-                                      <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
-                                        <span className='flex items-center gap-1'>
-                                          <IconTruck className='h-3 w-3 text-blue-600' />
-                                          <span>
-                                            Chi tiết các đơn hàng thuộc xe {grp.licensePlate} (
-                                            {grp.tripCode})
-                                          </span>
-                                        </span>
-                                        <span>
-                                          Tổng cộng: {grp.orders.length} đơn &bull;{' '}
-                                          {grp.totalQuantity} kiện
-                                        </span>
-                                      </div>
-                                      <table className='w-full text-[10px]'>
-                                        <thead>
-                                          <tr className='text-slate-400 text-[10px] border-b border-slate-100 dark:border-slate-700 text-left'>
-                                            <th className='py-0.5 px-1.5 font-semibold w-[130px]'>
-                                              MÃ VẬN ĐƠN
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold min-w-[150px]'>
-                                              HÀNG HÓA
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-right w-[130px]'>
-                                              SỐ KIỆN / TẢI TRỌNG
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[100px]'>
-                                              CHỨNG TỪ
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold min-w-[130px]'>
-                                              GHI CHÚ
-                                            </th>
-                                            <th className='py-0.5 px-1.5 font-semibold text-center w-[150px]'>
-                                              THAO TÁC
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className='divide-y divide-slate-100 dark:divide-slate-700'>
-                                          {grp.orders.map((subOrder) => {
-                                            // Backend sums this trip's lines per order: dispatch invoice (đã xuất) or planned line (nháp)
-                                            const exportedQty = Number(
-                                              subOrder.exportedQuantity ?? 0
-                                            );
-                                            const contractTotal = Math.max(
-                                              Number(subOrder.totalQuantity || 1),
-                                              1
-                                            );
-                                            const exportedWeight = Number(
-                                              subOrder.exportedWeight ?? 0
-                                            );
-                                            const exportedVolume = Number(
-                                              subOrder.exportedVolume ?? 0
-                                            );
-
-                                            const isSubOrderDispatched = isDispatched;
-
-                                            const displayStatus = isSubOrderDispatched
-                                              ? 'COMPLETED_INBOUND'
-                                              : (subOrder.hubStatus ?? subOrder.status);
-
-                                            return (
-                                              <tr
-                                                key={subOrder.id}
-                                                className='hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                              >
-                                                <td className='py-1 px-1.5'>
-                                                  <button
-                                                    type='button'
-                                                    onClick={() => {
-                                                      setSelectedWaybillForDetail(subOrder);
-                                                      setIsDetailModalOpen(true);
-                                                    }}
-                                                    className='font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left block text-[10px]'
-                                                    title='Xem chi tiết mã vận đơn'
-                                                  >
-                                                    {subOrder.orderCode}
-                                                  </button>
-                                                </td>
-                                                <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 text-[10px]'>
-                                                  {subOrder.goodsDescription || 'Hàng hóa xuất kho'}
-                                                </td>
-                                                <td className='py-1 px-1.5 text-right font-semibold text-slate-700 dark:text-slate-300 text-[10px]'>
-                                                  <div>
-                                                    {exportedQty} kiện
-                                                    {exportedQty !== contractTotal && (
-                                                      <span className='text-[9px] font-normal text-slate-400 ml-1'>
-                                                        ({exportedQty}/{contractTotal} kiện)
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                  <div className='text-gray-400 text-[9px]'>
-                                                    {formatWeight(exportedWeight)} kg &bull;{' '}
-                                                    {formatVolume(exportedVolume)} m³
-                                                  </div>
-                                                </td>
-                                                <td className='py-1.5 px-2 text-center'>
-                                                  {subOrder.accompanyingDocs &&
-                                                  subOrder.accompanyingDocs.toUpperCase() !==
-                                                    'KHÔNG CÓ' ? (
-                                                    <Badge
-                                                      variant='outline'
-                                                      className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
-                                                    >
-                                                      {subOrder.accompanyingDocs}
-                                                    </Badge>
-                                                  ) : (
-                                                    <Badge
-                                                      variant='outline'
-                                                      className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
-                                                    >
-                                                      {subOrder.accompanyingDocs || 'Không có'}
-                                                    </Badge>
-                                                  )}
-                                                </td>
-                                                <td
-                                                  className='py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[180px]'
-                                                  title={subOrder.notes}
-                                                >
-                                                  {subOrder.notes || '—'}
-                                                </td>
-                                                <td className='py-1 px-1.5 text-center'>
-                                                  {isDispatched ? (
-                                                    <Button
-                                                      variant='outline'
-                                                      size='sm'
-                                                      onClick={() =>
-                                                        handlePrintOrderReceipt(
-                                                          subOrder,
-                                                          grp.tripCode
-                                                        )
-                                                      }
-                                                      className='h-6 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2'
-                                                    >
-                                                      <IconPrinter className='h-3 w-3 mr-1' /> In
-                                                      phiếu
-                                                    </Button>
-                                                  ) : (
-                                                    <span className='text-[10px] text-slate-400'>
-                                                      —
-                                                    </span>
-                                                  )}
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
+</React.Fragment>
                           );
                         })
                       )}
