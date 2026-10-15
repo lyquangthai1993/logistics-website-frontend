@@ -630,6 +630,7 @@ export default function WarehouseInboundPage() {
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || undefined,
           receiveDate: receiveDate || undefined,
+          hubId: Number(user?.hubId ?? (user?.hub as any)?.id) || 1,
           items: itemsPayload
         })
       });
