@@ -76,10 +76,10 @@ test.describe.serial('Feedback 15/10 (Task #86) — Ẩn Nút Kính Lúp Tra C�
       waitUntil: 'domcontentloaded'
     });
 
-    // 3. Chờ trang tải và bấm nút "Tạo phiếu xuất" hoặc "Tạo Phiếu Xuất Kho"
+    // 3. Chờ trang tải và bấm nút "Xuất kho" ở header chính của trang
     const createOutboundBtn = page
-      .getByRole('button', { name: /Tạo phiếu xuất/i })
-      .or(page.locator('button:has-text("Tạo phiếu xuất")'))
+      .locator('main')
+      .locator('button:has-text("Xuất kho")')
       .first();
 
     await expect(createOutboundBtn).toBeVisible({ timeout: 25000 });
