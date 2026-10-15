@@ -369,7 +369,7 @@ ${pagesHtml}
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className='sm:max-w-4xl max-w-[96vw] bg-slate-50 dark:bg-slate-900 p-2.5 sm:p-3 overflow-y-auto max-h-[95vh] border-slate-200 dark:border-slate-800'>
-        <DialogHeader>
+        <DialogHeader className='pr-9'>
           <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2'>
             <div>
               <DialogTitle className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white'>

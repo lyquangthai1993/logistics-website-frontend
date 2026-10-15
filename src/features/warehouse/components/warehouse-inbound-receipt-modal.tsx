@@ -406,7 +406,7 @@ export function WarehouseInboundReceiptModal({
             : 'sm:max-w-3xl max-w-[95vw]'
         } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5`}
       >
-        <DialogHeader>
+        <DialogHeader className='pr-9'>
           <div className='flex items-center justify-between flex-wrap gap-2 w-full'>
             <DialogTitle className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white'>
               <IconBuildingWarehouse className='w-5 h-5 text-blue-600' />
