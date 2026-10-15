@@ -153,7 +153,7 @@ export async function proxy(request: NextRequest) {
   // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
     if (isAuthenticated) {
-      const response = NextResponse.redirect(new URL('/dashboard/overview', request.url));
+      const response = NextResponse.redirect(new URL('/dashboard/warehouse/orders', request.url));
       if (isRefreshed && token) {
         response.cookies.set('access_token', token, {
           path: '/',
@@ -183,7 +183,11 @@ export async function proxy(request: NextRequest) {
   // If user has NO valid token (or refresh failed with auth error), redirect protected routes to sign-in
   if (!isAuthenticated) {
     const signInUrl = new URL('/auth/sign-in', request.url);
-    if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/overview') {
+    if (
+      pathname.startsWith('/dashboard') &&
+      pathname !== '/dashboard/overview' &&
+      pathname !== '/dashboard/warehouse/orders'
+    ) {
       signInUrl.searchParams.set('redirect', pathname);
     }
     // If we still have a refreshToken (transient network/cold-start error), do NOT wipe refreshToken
@@ -206,7 +210,7 @@ export async function proxy(request: NextRequest) {
     // Check role-based route access
     for (const [route, roles] of Object.entries(roleRouteMap)) {
       if (pathname.startsWith(route) && !roles.includes(userRole)) {
-        const redirectUrl = new URL('/dashboard/overview', request.url);
+        const redirectUrl = new URL('/dashboard/warehouse/orders', request.url);
         const response = NextResponse.redirect(redirectUrl);
         if (isRefreshed && token) {
           response.cookies.set('access_token', token, {

@@ -13,7 +13,7 @@ export default async function Page() {
   const token = cookieStore.get('access_token')?.value;
 
   if (token) {
-    redirect('/dashboard/overview');
+    redirect('/dashboard/warehouse/orders');
   }
 
   return <ForgotPasswordViewPage />;
