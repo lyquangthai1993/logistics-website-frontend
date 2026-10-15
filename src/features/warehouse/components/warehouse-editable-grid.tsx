@@ -852,33 +852,21 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
   if (isOutbound) {
     return (
-      <div className='flex items-center gap-1 relative'>
-        <div className='relative flex-1 min-w-0'>
-          <Input
-            value={value}
-            onChange={handleOutboundChange}
-            onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
-            className={cn(
-              'h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
-              isSearching && 'pr-6'
-            )}
-            title='Nhập mã đơn hàng (hệ thống tự tra cứu sau 1.2s hoặc nhấn Enter)'
-          />
-          {isSearching && (
-            <IconLoader2 className='absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none' />
+      <div className='relative'>
+        <Input
+          value={value}
+          onChange={handleOutboundChange}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          className={cn(
+            'h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
+            isSearching && 'pr-6'
           )}
-        </div>
-        <Button
-          type='button'
-          size='sm'
-          variant='outline'
-          onClick={() => meta?.openLookup?.(idx)}
-          className='h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 shrink-0'
-          title='Tra cứu kho để gán mã đơn'
-        >
-          <IconSearch className='h-3.5 w-3.5' />
-        </Button>
+          title='Nhập mã đơn hàng (hệ thống tự tra cứu sau 1.2s hoặc nhấn Enter)'
+        />
+        {isSearching && (
+          <IconLoader2 className='absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none' />
+        )}
       </div>
     );
   }
