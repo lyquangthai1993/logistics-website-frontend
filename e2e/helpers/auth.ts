@@ -29,7 +29,7 @@ export const TEST_USERS: LoginCredentials[] = [
     email: process.env.E2E_SUPER_ADMIN_EMAIL ?? 'lyquangthai1993+1@gmail.com',
     password: process.env.E2E_SUPER_ADMIN_PASSWORD ?? 'secret',
     role: 'SUPER_ADMIN',
-    expectedLandingPath: '/dashboard/overview'
+    expectedLandingPath: '/dashboard/warehouse/orders'
   },
   {
     username: 'dispatcher',
@@ -37,7 +37,7 @@ export const TEST_USERS: LoginCredentials[] = [
     password: process.env.E2E_DISPATCHER_PASSWORD ?? 'secret',
     role: 'DISPATCHER',
     hubName: 'Polaris Hub - Hưng Yên',
-    expectedLandingPath: '/dashboard/overview'
+    expectedLandingPath: '/dashboard/warehouse/orders'
   },
   {
     username: 'fleet',
@@ -45,7 +45,7 @@ export const TEST_USERS: LoginCredentials[] = [
     password: process.env.E2E_FLEET_MANAGER_PASSWORD ?? 'secret',
     role: 'FLEET_MANAGER',
     hubName: 'Magellan Hub - Đà Nẵng',
-    expectedLandingPath: '/dashboard/overview'
+    expectedLandingPath: '/dashboard/warehouse/orders'
   },
   {
     username: 'warehouse_hyn',
@@ -53,7 +53,7 @@ export const TEST_USERS: LoginCredentials[] = [
     password: process.env.E2E_WAREHOUSE_MANAGER_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
     hubName: 'Polaris Hub - Hưng Yên',
-    expectedLandingPath: '/dashboard/warehouse/inbound'
+    expectedLandingPath: '/dashboard/warehouse/orders'
   },
   {
     username: 'warehouse_hcm',
@@ -61,7 +61,7 @@ export const TEST_USERS: LoginCredentials[] = [
     password: process.env.E2E_WAREHOUSE_MANAGER_HCM_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
     hubName: 'Andromeda Hub - HCM',
-    expectedLandingPath: '/dashboard/warehouse/inbound'
+    expectedLandingPath: '/dashboard/warehouse/orders'
   },
   {
     username: 'warehouse_dad',
@@ -69,7 +69,7 @@ export const TEST_USERS: LoginCredentials[] = [
     password: process.env.E2E_WAREHOUSE_MANAGER_DAD_PASSWORD ?? 'secret',
     role: 'WAREHOUSE_MANAGER',
     hubName: 'Magellan Hub - Đà Nẵng',
-    expectedLandingPath: '/dashboard/warehouse/inbound'
+    expectedLandingPath: '/dashboard/warehouse/orders'
   }
 ];
 

@@ -663,15 +663,20 @@ export default function WarehouseOutboundPage() {
           ? 'HUB_L1'
           : o.deliveryMode || 'DIRECT_CUSTOMER';
 
+      const draftQty = Number(o.exportedQuantity) || 0;
+      const liveStock = availableOutboundStock(o);
+      // Khi mở lại chuyến xe nháp để tiếp tục xuất, số tồn khả dụng cho dòng hàng này
+      // phải bao gồm cả số kiện mà chính chuyến nháp này đang dự kiến xuất (tránh báo "Vượt tồn!")
+      const effectiveAvailable = liveStock >= draftQty ? liveStock : liveStock + draftQty;
+
       return {
         id: o.id,
         orderCode: o.orderCode,
         pickupAddress: o.pickupAddress || '',
         goodsDescription: o.goodsDescription || '',
-        totalQuantity: Number(o.exportedQuantity) || 0,
-        quantityToExport: Number(o.exportedQuantity) || 0,
-        // Drafts do not hold stock: available stock at this hub is the live ledger figure
-        remainingQuantity: availableOutboundStock(o),
+        totalQuantity: draftQty,
+        quantityToExport: draftQty,
+        remainingQuantity: effectiveAvailable,
         totalWeight: Number(o.exportedWeight) || 0,
         totalVolume: Number(o.exportedVolume) || 0,
         deliveryMode: resolvedDeliveryMode,

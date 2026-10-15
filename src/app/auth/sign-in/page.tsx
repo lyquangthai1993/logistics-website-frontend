@@ -14,12 +14,7 @@ export default async function Page() {
   const token = cookieStore.get('access_token')?.value;
 
   if (isTokenValid(token)) {
-    const payload = parseJwtServer(token!);
-    const roleId = typeof payload?.role === 'object' ? payload.role?.id : payload?.role;
-    if (roleId === 4 || roleId === 'WAREHOUSE_MANAGER') {
-      redirect('/dashboard/warehouse/inbound');
-    }
-    redirect('/dashboard/overview');
+    redirect('/dashboard/warehouse/orders');
   }
 
   return <SignInViewPage />;
