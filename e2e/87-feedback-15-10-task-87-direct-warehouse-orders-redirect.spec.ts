@@ -85,10 +85,11 @@ test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàn
     await page.waitForURL(/.*\/dashboard\/warehouse\/orders.*/, { timeout: 25000 });
     expect(page.url()).toContain('/dashboard/warehouse/orders');
 
-    // 3. Kiểm tra tiêu đề trang là Đơn hàng kho (hoặc Báo cáo đơn hàng)
-    await expect(page.locator('h1, h2, span').filter({ hasText: /Đơn hàng/i }).first()).toBeVisible({
-      timeout: 15000
-    });
+    // 3. Kiểm tra tiêu đề trang chính xác là Tổng Hợp Đơn Hàng Tại Kho
+    await expect(
+      page.locator('main h1').filter({ hasText: /Tổng Hợp Đơn Hàng Tại Kho/i })
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('table').first()).toBeVisible({ timeout: 15000 });
 
     // 4. Cố tình truy cập trực tiếp vào /dashboard/overview
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/overview`, {
