@@ -81,11 +81,14 @@ export function LoginForm() {
         searchParams.get('callbackUrl') ||
         searchParams.get('from');
 
-      let targetUrl = '/dashboard/overview';
-      if (redirectParam && redirectParam.startsWith('/dashboard')) {
+      let targetUrl = '/dashboard/warehouse/orders';
+      if (
+        redirectParam &&
+        redirectParam.startsWith('/dashboard') &&
+        redirectParam !== '/dashboard/overview' &&
+        redirectParam !== '/dashboard'
+      ) {
         targetUrl = redirectParam;
-      } else if (roleCode === 'WAREHOUSE_MANAGER') {
-        targetUrl = '/dashboard/warehouse/inbound';
       }
 
       // Hard redirect ensures fresh SSR load, transmits cookies to headers, and clears stale router cache

@@ -18,20 +18,6 @@ import { NavGroup } from '@/types';
  */
 export const navGroups: NavGroup[] = [
   {
-    // Unlabeled top-level group: app-sidebar skips SidebarGroupLabel when label is empty
-    label: '',
-    items: [
-      {
-        title: 'Dashboard',
-        url: '/dashboard/overview',
-        icon: 'dashboard',
-        isActive: false,
-        shortcut: ['d', 'd'],
-        items: []
-      }
-    ]
-  },
-  {
     label: 'Vận hành TMS',
     items: [
       {
