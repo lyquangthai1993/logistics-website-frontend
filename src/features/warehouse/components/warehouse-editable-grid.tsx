@@ -1846,7 +1846,7 @@ export function WarehouseEditableGrid({
             variant='outline'
             size='sm'
             onClick={handleManualPaste}
-            className='hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm'
+            className='h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm'
           >
             <IconFileSpreadsheet className='mr-1.5 h-4 w-4 text-emerald-600' />
             Dán từ Excel
@@ -1856,7 +1856,7 @@ export function WarehouseEditableGrid({
             variant='outline'
             size='sm'
             onClick={() => setIsExcelImportModalOpen(true)}
-            className='hidden h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm'
+            className='h-8 text-xs font-semibold bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-sm'
           >
             <IconFileSpreadsheet className='mr-1.5 h-4 w-4 text-blue-600' />
             Import Excel

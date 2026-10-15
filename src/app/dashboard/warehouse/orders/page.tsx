@@ -19,8 +19,10 @@ import {
   IconTrash,
   IconEye,
   IconTruck,
-  IconFileSpreadsheet
+  IconFileSpreadsheet,
+  IconUpload
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
@@ -41,6 +43,10 @@ import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name;
+  const isAdmin =
+    user?.role === 'SUPER_ADMIN' ||
+    (user?.role as any)?.id === 1 ||
+    (user?.role as any)?.name === 'SUPER_ADMIN';
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -760,6 +766,20 @@ export default function WarehouseOrdersPage() {
                       : 'Xuất Excel tất cả'}
               </span>
             </Button>
+
+            {isAdmin && (
+              <Link href='/dashboard/warehouse/excel-converter'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='h-8 text-xs font-bold border-blue-600/30 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-500/40 dark:text-blue-400 dark:hover:bg-blue-950/40 shadow-xs'
+                  title='Dành riêng cho Super Admin: Nhập danh sách hàng hóa từ file Excel điều hành hoặc tồn kho'
+                >
+                  <IconUpload className='mr-1.5 h-3.5 w-3.5 text-blue-600 dark:text-blue-400' />
+                  <span>Nhập Excel</span>
+                </Button>
+              </Link>
+            )}
 
             <Button
               variant='outline'
