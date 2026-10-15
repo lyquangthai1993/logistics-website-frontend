@@ -57,7 +57,7 @@ import {
   expectedForLine,
   type TallyState
 } from './warehouse-trip-tally-table';
-import { TripStopStatusBadge } from './trip-stop-status-badge';
+import { TripStopStatusBadge, toTripStopStatus } from './trip-stop-status-badge';
 
 export interface InboundVehicleGroup {
   groupKey: string;
@@ -119,15 +119,33 @@ export function WarehouseTripDetailModal({
     (user?.role as any)?.name === 'SUPER_ADMIN' ||
     manifest?.userRole === 'SUPER_ADMIN';
 
-  // 2. Kiểm tra trạng thái xử lý của Hub hiện tại
+  const [forceCompleted, setForceCompleted] = useState<boolean | null>(null);
+  const [isReopenedByAdmin, setIsReopenedByAdmin] = useState(false);
+
+  useEffect(() => {
+    setForceCompleted(null);
+    setIsReopenedByAdmin(false);
+  }, [tripGroup?.tripCode, isOpen]);
+
+  // 2. Kiểm tra trạng thái xử lý của Hub hiện tại (Chờ xử lý / Đã xử lý)
+  const isCurrentHubPending = useMemo(() => {
+    if (forceCompleted === true) return false;
+    if (forceCompleted === false || isReopenedByAdmin) return true;
+    const rawStatus = manifest?.currentHubStatus || tripGroup?.status;
+    return toTripStopStatus(rawStatus) === 'PENDING';
+  }, [manifest?.currentHubStatus, tripGroup?.status, isReopenedByAdmin, forceCompleted]);
+
   const isCurrentHubCompleted =
-    manifest?.currentHubStatus === 'COMPLETED' || manifest?.isCurrentHubCompleted === true;
+    forceCompleted === true ||
+    (!isCurrentHubPending &&
+      (manifest?.currentHubStatus === 'COMPLETED' ||
+        manifest?.isCurrentHubCompleted === true ||
+        tripGroup?.status === 'COMPLETED'));
 
   // Rollback state (Admin override to reopen completed trips to pending)
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [isRollbackConfirmOpen, setIsRollbackConfirmOpen] = useState(false);
   const [rollbackReason, setRollbackReason] = useState('');
-  const [isReopenedByAdmin, setIsReopenedByAdmin] = useState(false);
 
   // 3. Cờ khóa toàn bộ quyền của tài khoản thuộc Hub đã xử lý
   const isHubAccountLocked = isCurrentHubCompleted && !isAdmin && !isReopenedByAdmin;
@@ -228,6 +246,11 @@ export function WarehouseTripDetailModal({
   const handlePrintReceipt = (overrideMode?: 'INBOUND' | 'OUTBOUND') => {
     if (!onOpenReceipt || !tripGroup) return;
     const printMode = overrideMode || (currentStep === 1 ? 'INBOUND' : 'OUTBOUND');
+
+    if (printMode === 'INBOUND' && isCurrentHubPending) {
+      toast.warning('Chuyến xe đang ở trạng thái Chờ xử lý, chưa thể in phiếu nhập kho.');
+      return;
+    }
 
     if (manifest && manifest.lines && manifest.lines.length > 0) {
       let targetLines: any[] = [];
@@ -720,6 +743,10 @@ export function WarehouseTripDetailModal({
 
       // Update local state to immediately unlock the modal
       tripGroup.status = 'PENDING';
+      if (manifest) {
+        manifest.currentHubStatus = 'PENDING';
+      }
+      setForceCompleted(false);
       setIsReopenedByAdmin(true);
       setIsRollbackConfirmOpen(false);
 
@@ -841,6 +868,19 @@ export function WarehouseTripDetailModal({
       toast.success(
         `Đã xác nhận kiểm đếm và tiếp nhận thành công ${rows.length} đơn hàng của xe ${licensePlate.trim().toUpperCase()} vào kho!`
       );
+      setForceCompleted(true);
+      setIsReopenedByAdmin(false);
+      if (manifest) {
+        manifest.currentHubStatus = 'COMPLETED';
+      }
+      if (tripGroup) {
+        tripGroup.status = 'COMPLETED';
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: tripManifestKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
+      ]);
       onSuccess?.();
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xác nhận kiểm đếm nhập kho');
@@ -919,7 +959,19 @@ export function WarehouseTripDetailModal({
           invoiceCode ? ` (phiếu ${invoiceCode})` : ''
         }.`
       );
-      await queryClient.invalidateQueries({ queryKey: tripManifestKeys.all });
+      setForceCompleted(true);
+      setIsReopenedByAdmin(false);
+      if (manifest) {
+        manifest.currentHubStatus = 'COMPLETED';
+      }
+      if (tripGroup) {
+        tripGroup.status = 'COMPLETED';
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: tripManifestKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
+      ]);
       onSuccess?.();
 
       if (onOpenReceipt && tripGroup) {
@@ -1059,11 +1111,15 @@ export function WarehouseTripDetailModal({
               <span className='text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800'>
                 CHUYẾN XE {manifest?.tripCode ?? tripGroup.tripCode}
               </span>
-              {manifest?.currentHubStatus ? (
-                <TripStopStatusBadge status={manifest.currentHubStatus} />
-              ) : (
-                renderWarehouseOrderStatusBadge(tripGroup.status)
-              )}
+              <TripStopStatusBadge
+                status={
+                  forceCompleted === true
+                    ? 'COMPLETED'
+                    : forceCompleted === false
+                      ? 'PENDING'
+                      : manifest?.currentHubStatus || tripGroup.status
+                }
+              />
             </div>
             {!effectiveReadOnly && mode === 'INBOUND' && isTransferTrip && !isTripOriginHere && (
               <h2 className='text-sm font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2'>
@@ -1087,7 +1143,7 @@ export function WarehouseTripDetailModal({
             >
               <IconPrinter className='h-3.5 w-3.5 mr-1' /> In tất cả tem
             </Button>
-            {onOpenReceipt && (
+            {onOpenReceipt && !isCurrentHubPending && (
               <Button
                 variant='outline'
                 size='sm'
@@ -1883,7 +1939,7 @@ export function WarehouseTripDetailModal({
                 >
                   Đóng
                 </Button>
-                {tripGroup?.status === 'COMPLETED' && onOpenReceipt && (
+                {!isCurrentHubPending && onOpenReceipt && (
                   <Button
                     type='button'
                     variant='outline'
