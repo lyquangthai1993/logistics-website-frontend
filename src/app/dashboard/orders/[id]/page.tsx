@@ -322,7 +322,7 @@ export default function OrderDetailPage() {
               } else if (isWarehouseManager) {
                 router.push('/dashboard/warehouse');
               } else {
-                router.push('/dashboard/overview');
+                router.push('/dashboard/warehouse/inbound');
               }
             }}
             className='text-slate-600 hover:text-slate-900 dark:text-slate-300'

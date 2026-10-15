@@ -58,6 +58,15 @@ const baseConfig: NextConfig = {
         destination: `${backendUrl.replace(/\/+$/, '')}/api/:path*`
       }
     ];
+  },
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/overview',
+        destination: '/dashboard/warehouse/inbound',
+        permanent: false
+      }
+    ];
   }
 };
 

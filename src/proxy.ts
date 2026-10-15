@@ -180,6 +180,39 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // Chặn tuyệt đối '/dashboard/overview' -> chuyển ngay đến màn hình nhập kho (/dashboard/warehouse/inbound)
+  if (pathname === '/dashboard/overview' || pathname === '/dashboard/overview/') {
+    if (!isAuthenticated) {
+      const signInUrl = new URL('/auth/sign-in', request.url);
+      signInUrl.searchParams.set('redirect', '/dashboard/warehouse/inbound');
+      const response = NextResponse.redirect(signInUrl);
+      response.cookies.delete('access_token');
+      if (!refreshToken) {
+        response.cookies.delete('refreshToken');
+        response.cookies.delete('refresh_token');
+      }
+      return response;
+    }
+
+    const inboundUrl = new URL('/dashboard/warehouse/inbound', request.url);
+    const response = NextResponse.redirect(inboundUrl);
+    if (isRefreshed && token) {
+      response.cookies.set('access_token', token, {
+        path: '/',
+        maxAge: 24 * 60 * 60,
+        sameSite: 'lax'
+      });
+      if (newRefreshToken) {
+        response.cookies.set('refreshToken', newRefreshToken, {
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60,
+          sameSite: 'lax'
+        });
+      }
+    }
+    return response;
+  }
+
   // If user has NO valid token (or refresh failed with auth error), redirect protected routes to sign-in
   if (!isAuthenticated) {
     const signInUrl = new URL('/auth/sign-in', request.url);
