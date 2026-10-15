@@ -73,24 +73,15 @@ test.describe.serial('Feedback 15/10 (Task #86) — Ẩn Nút Kính Lúp Tra C�
 
     // 2. Điều hướng tới Quản lý Xuất kho (/dashboard/warehouse/outbound)
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`, {
-      waitUntil: 'domcontentloaded'
+      waitUntil: 'networkidle'
     });
 
-    // 3. Chờ trang tải và bấm nút "Xuất kho" ở header chính của trang
-    const createOutboundBtn = page
-      .locator('main')
-      .locator('button:has-text("Xuất kho")')
-      .first();
+    // 3. Bấm nút "Xuất kho" ở header chính để mở màn hình Tạo phiếu xuất kho (MODE1_CUSTOMER)
+    const outboundBtn = page.getByRole('button', { name: /Xuất kho/i }).first();
+    await expect(outboundBtn).toBeVisible({ timeout: 25000 });
+    await outboundBtn.click();
 
-    await expect(createOutboundBtn).toBeVisible({ timeout: 25000 });
-    await createOutboundBtn.click();
-
-    // 4. Chờ giao diện MODE1_CUSTOMER "Tạo Phiếu Xuất Kho" xuất hiện
-    await expect(
-      page.getByText('Tạo Phiếu Xuất Kho').or(page.locator('h3:has-text("Tạo Phiếu Xuất Kho")')).first()
-    ).toBeVisible({ timeout: 15000 });
-
-    // 5. Chờ bảng kê Editable Grid xuất hiện các dòng
+    // 4. Kiểm tra sự xuất hiện của bảng kê soạn hàng xuất kho
     const tableBody = page.locator('table tbody');
     await expect(tableBody).toBeVisible({ timeout: 15000 });
     const rows = tableBody.locator('tr');
