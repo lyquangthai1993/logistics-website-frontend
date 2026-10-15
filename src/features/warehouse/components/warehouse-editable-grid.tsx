@@ -599,6 +599,19 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
               ? availableOutboundStock(foundOrder)
               : 0;
 
+          if (isOutbound && !isDraft && availStock <= 0) {
+            if (Number(foundOrder.pendingOutboundQuantity) > 0) {
+              toast.error(
+                `Đơn hàng ${foundOrder.orderCode} đã được xếp hết số kiện vào chuyến xe chờ xuất (${foundOrder.pendingOutboundTripCodes?.join(', ') || 'khác'}). Không thể thêm vào chuyến xe này!`
+              );
+            } else {
+              toast.error(
+                `Đơn hàng ${foundOrder.orderCode} đã hết tồn kho khả dụng tại kho này!`
+              );
+            }
+            return;
+          }
+
           // Trùng thực sự = cùng một dòng hàng (cùng id), không phải chỉ trùng mã đơn
           const isDuplicate = usedIds.has(String(foundOrder.id));
           if (isDuplicate) {
@@ -1580,8 +1593,18 @@ export function WarehouseEditableGrid({
   // Handle selected order from lookup modal
   const handleSelectFromLookup = (order: WarehouseLookupItem) => {
     if (lookupRowIndex === null) return;
-    const updated = [...rows];
     const availStock = availableOutboundStock(order);
+    if (isOutboundMode && availStock <= 0) {
+      if (Number(order.pendingOutboundQuantity) > 0) {
+        toast.error(
+          `Đơn hàng ${order.orderCode} đã được xếp hết số kiện vào chuyến xe chờ xuất (${order.pendingOutboundTripCodes?.join(', ') || 'khác'}). Không thể chọn đơn này!`
+        );
+      } else {
+        toast.error(`Đơn hàng ${order.orderCode} đã hết tồn kho khả dụng!`);
+      }
+      return;
+    }
+    const updated = [...rows];
     const destHubEntity = (order as any).destinationHubEntity;
     const destHubId =
       (order as any).destinationHubId ?? (destHubEntity ? destHubEntity.id : null) ?? null;

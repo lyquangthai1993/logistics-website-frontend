@@ -330,9 +330,13 @@ export function WarehouseSelectStoredOrdersModal({
                 filteredOrders.map((o, idx) => {
                   const isChecked = selectedOrderIds.includes(o.id);
                   const pkgQty =
-                    Number(o.remainingQuantity) > 0
-                      ? Number(o.remainingQuantity)
-                      : Number(o.totalQuantity) || 1;
+                    (o as any).effectiveHubStock !== undefined && (o as any).effectiveHubStock !== null
+                      ? Number((o as any).effectiveHubStock)
+                      : Number(o.remainingQuantity) > 0
+                        ? Number(o.remainingQuantity)
+                        : Number(o.totalQuantity) || 1;
+                  const isOutOfStock = pkgQty <= 0;
+                  const rowDisabled = disabled || isOutOfStock;
                   const destName =
                     o.destinationHub ||
                     o.destinationHubEntity?.name ||
@@ -345,10 +349,10 @@ export function WarehouseSelectStoredOrdersModal({
                   return (
                     <tr
                       key={o.id}
-                      onClick={() => !disabled && handleToggleOrder(o.id)}
+                      onClick={() => !rowDisabled && handleToggleOrder(o.id)}
                       className={`transition-colors ${
-                        disabled
-                          ? 'opacity-70 cursor-not-allowed'
+                        rowDisabled
+                          ? 'opacity-60 cursor-not-allowed bg-slate-50/50 dark:bg-slate-900/50'
                           : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'
                       } ${
                         isChecked
@@ -362,8 +366,8 @@ export function WarehouseSelectStoredOrdersModal({
                       >
                         <Checkbox
                           checked={isChecked}
-                          onCheckedChange={() => !disabled && handleToggleOrder(o.id)}
-                          disabled={disabled}
+                          onCheckedChange={() => !rowDisabled && handleToggleOrder(o.id)}
+                          disabled={rowDisabled}
                           className='h-3.5 w-3.5'
                         />
                       </td>
@@ -372,6 +376,11 @@ export function WarehouseSelectStoredOrdersModal({
                       </td>
                       <td className='py-1 px-1.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap'>
                         {o.orderCode}
+                        {isOutOfStock && (
+                          <span className='ml-1.5 text-[9px] text-amber-600 font-normal'>
+                            (Đã xếp chuyến khác)
+                          </span>
+                        )}
                       </td>
                       <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 min-w-[180px] max-w-[260px] truncate'>
                         {o.goodsDescription || 'Hàng lưu kho'}

@@ -45,6 +45,9 @@ export interface WarehouseLookupItem {
   destinationHubId?: number | null;
   destinationHubEntity?: any;
   route?: string | null;
+  pendingOutboundQuantity?: number | null;
+  effectiveHubStock?: number | null;
+  pendingOutboundTripCodes?: string[] | null;
 }
 
 interface WarehouseLookupModalProps {
@@ -388,6 +391,11 @@ export function WarehouseLookupModal({
                           {' '}
                           / {(Number(row.totalQuantity) || 0).toLocaleString('vi-VN')} kiện
                         </span>
+                        {Number(row.pendingOutboundQuantity) > 0 && (
+                          <div className='text-[9px] font-normal text-amber-600 dark:text-amber-400'>
+                            (Đang giữ {row.pendingOutboundQuantity} kiện)
+                          </div>
+                        )}
                       </td>
                       <td className='px-1.5 py-1 text-right font-semibold whitespace-nowrap text-slate-700 dark:text-slate-300'>
                         {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg
@@ -419,9 +427,18 @@ export function WarehouseLookupModal({
                               : `Đã ở dòng #${selectedIndex + 1}`}
                           </span>
                         ) : isOutOfStock ? (
-                          <span className='inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:border-red-900 dark:bg-red-950/30'>
-                            Hết tồn khả dụng
-                          </span>
+                          Number(row.pendingOutboundQuantity) > 0 ? (
+                            <span
+                              className='inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                              title={`Đã gán vào chuyến xe: ${row.pendingOutboundTripCodes?.join(', ') || 'khác'}`}
+                            >
+                              Đã xếp chuyến {row.pendingOutboundTripCodes?.[0] || 'khác'} (Chờ xuất)
+                            </span>
+                          ) : (
+                            <span className='inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:border-red-900 dark:bg-red-950/30'>
+                              Hết tồn khả dụng
+                            </span>
+                          )
                         ) : (
                           <Button
                             size='sm'
