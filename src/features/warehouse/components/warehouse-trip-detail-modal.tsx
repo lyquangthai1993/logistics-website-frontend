@@ -380,7 +380,16 @@ export function WarehouseTripDetailModal({
     ].includes(tripGroup.status?.toUpperCase());
 
     return !hasWaiting || isStoredOrFinalized;
-  }, [isMobile, readOnly, isReopenedByAdmin, tripGroup, isTallyMode, manifest, isHubAccountLocked, isAdmin]);
+  }, [
+    isMobile,
+    readOnly,
+    isReopenedByAdmin,
+    tripGroup,
+    isTallyMode,
+    manifest,
+    isHubAccountLocked,
+    isAdmin
+  ]);
 
   const [selectedLabelData, setSelectedLabelData] = useState<
     PalletLabelData | PalletLabelData[] | null
@@ -739,7 +748,9 @@ export function WarehouseTripDetailModal({
         hubId: activeHubId,
         reason: rollbackReason.trim() || 'Admin mở lại chuyến xe để chỉnh sửa'
       });
-      toast.success(res?.message || `Đã mở lại chuyến xe ${tripGroup.tripCode} về trạng thái Chờ xử lý!`);
+      toast.success(
+        res?.message || `Đã mở lại chuyến xe ${tripGroup.tripCode} về trạng thái Chờ xử lý!`
+      );
 
       // Update local state to immediately unlock the modal
       tripGroup.status = 'PENDING';
@@ -976,24 +987,13 @@ export function WarehouseTripDetailModal({
 
       if (onOpenReceipt && tripGroup) {
         const totalQty = selectedLines.reduce(
-          (sum, l) =>
-            sum + (Number(tally[l.id]?.actualQuantity) || expectedForLine(l)),
+          (sum, l) => sum + (Number(tally[l.id]?.actualQuantity) || expectedForLine(l)),
           0
         );
-        const totalWt = selectedLines.reduce(
-          (sum, l) => sum + (Number(l.totalWeight) || 0),
-          0
-        );
-        const totalVol = selectedLines.reduce(
-          (sum, l) => sum + (Number(l.totalVolume) || 0),
-          0
-        );
+        const totalWt = selectedLines.reduce((sum, l) => sum + (Number(l.totalWeight) || 0), 0);
+        const totalVol = selectedLines.reduce((sum, l) => sum + (Number(l.totalVolume) || 0), 0);
         const descs = Array.from(
-          new Set(
-            selectedLines
-              .map((l) => l.goodsDescription)
-              .filter((x): x is string => !!x)
-          )
+          new Set(selectedLines.map((l) => l.goodsDescription).filter((x): x is string => !!x))
         );
         const goodsDesc: string =
           descs.length === 1
@@ -1013,12 +1013,9 @@ export function WarehouseTripDetailModal({
           goodsDescription: goodsDesc,
           orders: selectedLines.map((l) => ({
             ...l,
-            quantity:
-              Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
-            inboundQuantity:
-              Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
-            totalQuantity:
-              Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+            quantity: Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+            inboundQuantity: Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
+            totalQuantity: Number(tally[l.id]?.actualQuantity) || expectedForLine(l),
             deliveryAddress: l.deliveryAddress || l.originalDeliveryAddress,
             notes: tally[l.id]?.discrepancyReason || l.notes
           }))
@@ -1134,16 +1131,18 @@ export function WarehouseTripDetailModal({
           </div>
 
           <div className='flex items-center gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={handlePrintAllLabels}
-              className='h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 font-semibold'
-              title='In toàn bộ tem nhận diện cho chuyến xe'
-            >
-              <IconPrinter className='h-3.5 w-3.5 mr-1' /> In tất cả tem
-            </Button>
-            {onOpenReceipt && !isCurrentHubPending && (
+            {!readOnly && (
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={handlePrintAllLabels}
+                className='h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900 font-semibold'
+                title='In toàn bộ tem nhận diện cho chuyến xe'
+              >
+                <IconPrinter className='h-3.5 w-3.5 mr-1' /> In tất cả tem
+              </Button>
+            )}
+            {!readOnly && onOpenReceipt && !isCurrentHubPending && (
               <Button
                 variant='outline'
                 size='sm'
@@ -1232,7 +1231,7 @@ export function WarehouseTripDetailModal({
 
         {/* Scrollable Body Content */}
         <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
-          {isHubAccountLocked && (
+          {!readOnly && isHubAccountLocked && (
             <div
               data-testid='hub-locked-banner'
               className='bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-[10px] px-2.5 py-1.5 rounded flex items-start gap-1.5 border border-amber-300 dark:border-amber-800'
@@ -1246,7 +1245,7 @@ export function WarehouseTripDetailModal({
             </div>
           )}
 
-          {isAdmin && isCurrentHubCompleted && (
+          {!readOnly && isAdmin && isCurrentHubCompleted && (
             <div
               data-testid='admin-override-banner'
               className='bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 text-[10px] px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-blue-300 dark:border-blue-800'
@@ -1259,7 +1258,8 @@ export function WarehouseTripDetailModal({
             </div>
           )}
 
-          {!isHubAccountLocked &&
+          {!readOnly &&
+            !isHubAccountLocked &&
             !(isAdmin && isCurrentHubCompleted) &&
             effectiveReadOnly &&
             currentStep === 1 && (
@@ -1288,7 +1288,7 @@ export function WarehouseTripDetailModal({
           )}
 
           {/* Route stops: per-hub processing status */}
-          {manifest && manifest.stops.length > 0 && (
+          {!readOnly && manifest && manifest.stops.length > 0 && (
             <div className='flex flex-wrap items-center gap-1 text-[10px]'>
               <span className='font-semibold text-slate-600 dark:text-slate-300'>Lộ trình xe:</span>
               {manifest.stops.map((s, idx) => (
@@ -1450,27 +1450,29 @@ export function WarehouseTripDetailModal({
                   </div>
                 ) : isTallyMode && manifest ? (
                   <div className='space-y-1.5'>
-                    <div className='flex flex-wrap items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800/60 rounded-md border border-slate-200 dark:border-slate-700 text-[10px]'>
-                      <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
-                        <span>Dỡ tại kho này:</span>
-                        <span>
-                          {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty}{' '}
-                          kiện)
-                        </span>
+                    {!readOnly && (
+                      <div className='flex flex-wrap items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800/60 rounded-md border border-slate-200 dark:border-slate-700 text-[10px]'>
+                        <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
+                          <span>Dỡ tại kho này:</span>
+                          <span>
+                            {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty}{' '}
+                            kiện)
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
+                          <span className='font-bold text-amber-700 dark:text-amber-400'>
+                            Tiếp tục trên xe:
+                          </span>
+                          <span>
+                            {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
+                            {inboundBreakdown.stayDetailsText
+                              ? `: ${inboundBreakdown.stayDetailsText}`
+                              : ''}
+                            )
+                          </span>
+                        </div>
                       </div>
-                      <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
-                        <span className='font-bold text-amber-700 dark:text-amber-400'>
-                          Tiếp tục trên xe:
-                        </span>
-                        <span>
-                          {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
-                          {inboundBreakdown.stayDetailsText
-                            ? `: ${inboundBreakdown.stayDetailsText}`
-                            : ''}
-                          )
-                        </span>
-                      </div>
-                    </div>
+                    )}
                     <WarehouseTripTallyTable
                       lines={manifest.lines}
                       state={tally}
@@ -1487,8 +1489,12 @@ export function WarehouseTripDetailModal({
                     <table className='w-full text-[10px] text-left'>
                       <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                         <tr>
-                          <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>STT</th>
-                          <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ VẬN ĐƠN</th>
+                          <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
+                            STT
+                          </th>
+                          <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                            MÃ VẬN ĐƠN
+                          </th>
                           {mode === 'OUTBOUND' ? (
                             <th className='py-1 px-1.5 min-w-[140px]'>BIỂN SỐ XE NHẬP DỰ KIẾN</th>
                           ) : (
@@ -1629,8 +1635,12 @@ export function WarehouseTripDetailModal({
                   <table className='w-full text-[10px] text-left'>
                     <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                       <tr>
-                        <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>STT</th>
-                        <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ VẬN ĐƠN</th>
+                        <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
+                          STT
+                        </th>
+                        <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                          MÃ VẬN ĐƠN
+                        </th>
                         <th className='py-1 px-1.5 w-[110px]'>NGUỒN HÀNG</th>
                         <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
                         <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
@@ -1666,10 +1676,14 @@ export function WarehouseTripDetailModal({
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                               }
                             >
-                              <td className={`py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}>
+                              <td
+                                className={`py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}
+                              >
                                 {String(i + 1).padStart(2, '0')}
                               </td>
-                              <td className={`py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}>
+                              <td
+                                className={`py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}
+                              >
                                 {l.orderCode}
                               </td>
                               <td className='py-1 px-1.5'>
@@ -1729,7 +1743,12 @@ export function WarehouseTripDetailModal({
                                           <DestinationHubInfoCard
                                             hub={hub}
                                             isXeBo={isXeBo}
-                                            disabled={isHubAccountLocked || !canEditOrderInfo || isMobile || effectiveReadOnly}
+                                            disabled={
+                                              isHubAccountLocked ||
+                                              !canEditOrderInfo ||
+                                              isMobile ||
+                                              effectiveReadOnly
+                                            }
                                             onResetToOriginal={() => handleDirectReset(l)}
                                             onChangeDestination={() =>
                                               setSelectedOrderForDestModal(l)
@@ -1739,7 +1758,12 @@ export function WarehouseTripDetailModal({
                                       }
 
                                       // DIRECT_CUSTOMER
-                                      if (isHubAccountLocked || !canEditOrderInfo || isMobile || effectiveReadOnly) {
+                                      if (
+                                        isHubAccountLocked ||
+                                        !canEditOrderInfo ||
+                                        isMobile ||
+                                        effectiveReadOnly
+                                      ) {
                                         return (
                                           <div className='text-[10px] py-0.5 space-y-0.5'>
                                             <Badge
@@ -1988,9 +2012,14 @@ export function WarehouseTripDetailModal({
                 {/* Rollback action for Admin when trip is completed */}
                 {isAdmin &&
                   (isCurrentHubCompleted ||
-                    ['COMPLETED', 'INBOUND', 'STORED', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(
-                      tripGroup.status?.toUpperCase()
-                    )) &&
+                    [
+                      'COMPLETED',
+                      'INBOUND',
+                      'STORED',
+                      'DISPATCHED',
+                      'OUT_FOR_DELIVERY',
+                      'DELIVERED'
+                    ].includes(tripGroup.status?.toUpperCase())) &&
                   !isReopenedByAdmin && (
                     <Button
                       type='button'
@@ -2114,9 +2143,14 @@ export function WarehouseTripDetailModal({
                   <>
                     {isAdmin &&
                       (isCurrentHubCompleted ||
-                        ['COMPLETED', 'INBOUND', 'STORED', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(
-                          tripGroup.status?.toUpperCase()
-                        )) &&
+                        [
+                          'COMPLETED',
+                          'INBOUND',
+                          'STORED',
+                          'DISPATCHED',
+                          'OUT_FOR_DELIVERY',
+                          'DELIVERED'
+                        ].includes(tripGroup.status?.toUpperCase())) &&
                       !isReopenedByAdmin && (
                         <Button
                           type='button'
@@ -2265,7 +2299,10 @@ export function WarehouseTripDetailModal({
                   <span>Xác nhận mở lại chuyến xe {tripGroup.tripCode}</span>
                 </div>
                 <p className='text-xs text-slate-600 dark:text-slate-300 leading-relaxed'>
-                  Hành vi này dành riêng cho <strong>Quản trị viên (Admin)</strong>. Toàn bộ số lượng tồn kho đã nhập/xuất của chuyến xe này sẽ được <strong>hoàn tác (rollback)</strong> và các đơn hàng sẽ quay lại trạng thái Chờ xử lý.
+                  Hành vi này dành riêng cho <strong>Quản trị viên (Admin)</strong>. Toàn bộ số
+                  lượng tồn kho đã nhập/xuất của chuyến xe này sẽ được{' '}
+                  <strong>hoàn tác (rollback)</strong> và các đơn hàng sẽ quay lại trạng thái Chờ xử
+                  lý.
                 </p>
                 <div>
                   <label className='text-[10px] font-bold block mb-1 text-slate-700 dark:text-slate-300'>
