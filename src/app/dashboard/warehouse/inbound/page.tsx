@@ -217,6 +217,19 @@ export default function WarehouseInboundPage() {
     } catch {}
   }, []);
 
+  // Centralized reset function for Mode 1 trip intake
+  const resetMode1Form = useCallback(() => {
+    setLicensePlate('');
+    setDriverName('');
+    setReceiveDate(new Date().toISOString().split('T')[0]);
+    setMode1Rows([emptyWarehouseRow()]);
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('TMS_INBOUND_CONVERTER_TRANSFER');
+      }
+    } catch {}
+  }, []);
+
   // Submitting State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -1140,7 +1153,10 @@ export default function WarehouseInboundPage() {
               </button>
               <button
                 type='button'
-                onClick={() => setActiveView('MODE2_TRANSFER')}
+                onClick={() => {
+                  resetMode1Form();
+                  setActiveView('MODE2_TRANSFER');
+                }}
                 className='flex-1 py-1.5 px-3 rounded-lg text-xs transition-all text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-900 dark:hover:text-white'
               >
                 Luân chuyển nội bộ
