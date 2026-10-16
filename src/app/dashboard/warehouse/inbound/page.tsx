@@ -58,7 +58,7 @@ import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
-import { TripStopStatusBadge } from '@/features/warehouse/components/trip-stop-status-badge';
+import { TripStopStatusBadge, toTripStopStatus } from '@/features/warehouse/components/trip-stop-status-badge';
 import { formatWeight, formatVolume } from '@/lib/format';
 
 export default function WarehouseInboundPage() {
@@ -991,7 +991,7 @@ export default function WarehouseInboundPage() {
                         </tr>
                       ) : (
                         vehicleGroups.map((grp) => {
-                          const isPending = grp.status === 'PENDING';
+                          const isPending = toTripStopStatus(grp.status) === 'PENDING';
 
                           return (
                             <tr

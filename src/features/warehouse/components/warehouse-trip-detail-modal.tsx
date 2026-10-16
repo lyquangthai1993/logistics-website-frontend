@@ -153,12 +153,53 @@ export function WarehouseTripDetailModal({
   // 4. Quyền chỉnh sửa thông tin đơn hàng (Chỉ mở khi trạm chưa xong HOẶC là Admin)
   const canEditOrderInfo = !isCurrentHubCompleted || isAdmin || isReopenedByAdmin;
 
+  const isTransferTrip = Boolean(manifest?.isTransfer ?? tripGroup?.isTransfer);
+
+  const currentHubId = manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
+
+  const isTripOriginHere = useMemo(() => {
+    // 1. Mọi chuyến xe trên màn hình Xuất kho đều xuất phát từ Hub hiện tại
+    if (mode === 'OUTBOUND') return true;
+
+    // 2. Chuyến xe không phải luân chuyển (Khách gửi trực tiếp tạo tại Hub)
+    if (!isTransferTrip) return true;
+
+    // 3. Kiểm tra trạm xuất phát đầu tiên trong danh sách lộ trình stops của Manifest
+    if (manifest?.stops && manifest.stops.length > 0) {
+      const originStop =
+        manifest.stops.find((s) => s.stopType === 'ORIGIN' || s.stopSequence === 1) ??
+        manifest.stops[0];
+      if (originStop && currentHubId && originStop.hubId === currentHubId) {
+        return true;
+      }
+    }
+
+    // 4. Kiểm tra hubId được gán trên tripGroup
+    if (tripGroup?.hubId && currentHubId && tripGroup.hubId === currentHubId) {
+      return true;
+    }
+
+    // 5. Kiểm tra originHubId trên các đơn hàng thuộc trip
+    if (tripGroup?.orders && tripGroup.orders.length > 0) {
+      const firstOriginId = tripGroup.orders[0]?.originHubId;
+      if (firstOriginId && currentHubId && firstOriginId === currentHubId) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [mode, isTransferTrip, manifest, currentHubId, tripGroup]);
+
   /**
    * Tally mode: the trip carries at least one locked Master Contract (cargo coming from another hub
    * or already submitted). Contract columns become read-only and the operator records actual quantities.
    */
   const isTallyMode =
-    mode === 'INBOUND' && !!manifest && manifest.lines.some((l) => l.isContractLocked);
+    mode === 'INBOUND' &&
+    isTransferTrip &&
+    !isTripOriginHere &&
+    !!manifest &&
+    manifest.lines.some((l) => l.isContractLocked);
   /** Block every action until we know whether the trip must be tallied (prevents contract overwrite) */
   const manifestPending = mode === 'INBOUND' && !!manifestTripCode && isManifestLoading;
 
@@ -355,6 +396,9 @@ export function WarehouseTripDetailModal({
     // Khi trạm dừng tại kho này đã COMPLETED và tài khoản không phải Admin:
     if (isHubAccountLocked) return true;
 
+    // Nếu trạm dừng tại Hub này vẫn đang Chờ xử lý (PENDING) thì không bị khóa read-only:
+    if (isCurrentHubPending) return false;
+
     if (isTallyMode && manifest) {
       if (!manifest.currentHubId) return true;
       if (manifest.currentHubStatus === 'COMPLETED' && !isAdmin && !isReopenedByAdmin) return true;
@@ -539,42 +583,7 @@ export function WarehouseTripDetailModal({
     };
   }, [manifest]);
 
-  const isTransferTrip = Boolean(manifest?.isTransfer ?? tripGroup?.isTransfer);
 
-  const currentHubId = manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
-
-  const isTripOriginHere = useMemo(() => {
-    // 1. Mọi chuyến xe trên màn hình Xuất kho đều xuất phát từ Hub hiện tại
-    if (mode === 'OUTBOUND') return true;
-
-    // 2. Chuyến xe không phải luân chuyển (Khách gửi trực tiếp tạo tại Hub)
-    if (!isTransferTrip) return true;
-
-    // 3. Kiểm tra trạm xuất phát đầu tiên trong danh sách lộ trình stops của Manifest
-    if (manifest?.stops && manifest.stops.length > 0) {
-      const originStop =
-        manifest.stops.find((s) => s.stopType === 'ORIGIN' || s.stopSequence === 1) ??
-        manifest.stops[0];
-      if (originStop && currentHubId && originStop.hubId === currentHubId) {
-        return true;
-      }
-    }
-
-    // 4. Kiểm tra hubId được gán trên tripGroup
-    if (tripGroup?.hubId && currentHubId && tripGroup.hubId === currentHubId) {
-      return true;
-    }
-
-    // 5. Kiểm tra originHubId trên các đơn hàng thuộc trip
-    if (tripGroup?.orders && tripGroup.orders.length > 0) {
-      const firstOriginId = tripGroup.orders[0]?.originHubId;
-      if (firstOriginId && currentHubId && firstOriginId === currentHubId) {
-        return true;
-      }
-    }
-
-    return false;
-  }, [mode, isTransferTrip, manifest, currentHubId, tripGroup]);
 
   // Outbound cargo breakdown for Step 2
   const outboundBreakdown = useMemo(() => {
