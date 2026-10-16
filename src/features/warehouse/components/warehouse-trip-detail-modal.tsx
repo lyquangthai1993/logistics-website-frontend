@@ -455,6 +455,7 @@ export function WarehouseTripDetailModal({
   const [rows, setRows] = useState<WarehouseRowItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [inboundLoadingIndex, setInboundLoadingIndex] = useState<number | null>(null);
 
   // Fill vehicle info from the manifest when the board group did not carry it
   useEffect(() => {
@@ -832,6 +833,85 @@ export function WarehouseTripDetailModal({
     }
   };
 
+  // 1b. Nhập kho riêng lẻ từng đơn hàng trong chuyến xe chờ xử lý (giữ nguyên trạng thái chuyến PENDING)
+  const handleInboundSingleOrder = async (row: WarehouseRowItem, rowIndex: number) => {
+    if (!row.orderCode || !row.orderCode.trim() || row.orderCode.trim() === '—') {
+      toast.error('Vui lòng nhập mã vận đơn hợp lệ để nhập kho!');
+      return;
+    }
+    const qty = Number(row.totalQuantity);
+    if (!qty || qty <= 0) {
+      toast.error('Số kiện hàng phải lớn hơn 0!');
+      return;
+    }
+
+    setInboundLoadingIndex(rowIndex);
+    const token = tokenManager.getAccessToken();
+
+    try {
+      const payload = {
+        tripCode: tripGroup?.tripCode !== '—' ? tripGroup?.tripCode : undefined,
+        licensePlate: licensePlate.trim().toUpperCase(),
+        driverName: driverName.trim() || undefined,
+        receiveDate,
+        targetStatus: 'INBOUND',
+        keepTripPending: true,
+        orders: [
+          {
+            id: row.id,
+            orderCode: row.orderCode.trim().toUpperCase(),
+            goodsDescription: row.goodsDescription?.trim() || 'Hàng tiếp nhận kho',
+            totalQuantity: qty,
+            totalWeight: Number(row.totalWeight) >= 0 ? Number(row.totalWeight) : 0,
+            totalVolume: Number(row.totalVolume) >= 0 ? Number(row.totalVolume) : 0,
+            pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
+            deliveryAddress: row.deliveryAddress?.trim() || '',
+            province: row.province?.trim() || undefined,
+            accompanyingDocs: row.accompanyingDocs?.trim() || undefined,
+            destinationHubId: row.destinationHubId || null,
+            notes: row.notes?.trim() || undefined
+          }
+        ]
+      };
+
+      const res = await fetch('/api/v1/warehouse/inbound/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: res.statusText }));
+        throw { response: { data: errData, status: res.status } };
+      }
+
+      // Cập nhật trạng thái dòng đơn sang INBOUND trong state bảng
+      setRows((prev) =>
+        prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND' } : r))
+      );
+
+      toast.success(
+        `Đã nhập kho đơn hàng ${row.orderCode.trim().toUpperCase()} thành công! Sẵn sàng xuất kho.`
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: tripManifestKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'available-outbound-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
+      ]);
+      // TUYỆT ĐỐI KHÔNG GỌI onOpenReceipt (không in phiếu nhập kho lẻ)
+    } catch (err: any) {
+      showApiErrorToast(err, `Lỗi khi nhập kho đơn ${row.orderCode}`);
+    } finally {
+      setInboundLoadingIndex(null);
+    }
+  };
+
   // 2. Xác nhận kiểm đếm & Nhập kho (Confirm All to INBOUND status)
   const handleConfirmInbound = async () => {
     if (!validateForm()) return;
@@ -846,6 +926,7 @@ export function WarehouseTripDetailModal({
         driverName: driverName.trim() || undefined,
         receiveDate,
         targetStatus: 'INBOUND',
+        keepTripPending: false,
         orders: rows.map((r) => ({
           id: r.id,
           orderCode: r.orderCode.trim().toUpperCase(),
@@ -890,9 +971,51 @@ export function WarehouseTripDetailModal({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: tripManifestKeys.all }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'available-outbound-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
       ]);
       onSuccess?.();
+
+      if (onOpenReceipt && tripGroup) {
+        const totalQty = rows.reduce(
+          (sum, r) => sum + (Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1),
+          0
+        );
+        const totalWt = rows.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
+        const totalVol = rows.reduce((sum, r) => sum + (Number(r.totalVolume) || 0), 0);
+        const descs = Array.from(
+          new Set(rows.map((r) => r.goodsDescription).filter((x): x is string => !!x))
+        );
+        const goodsDesc: string =
+          descs.length === 1
+            ? descs[0]
+            : descs.length > 1
+              ? `${descs[0]} (+${descs.length - 1} loại hàng)`
+              : tripGroup.goodsDescription || 'Hàng hóa nhập kho';
+
+        const updatedTripGroup: InboundVehicleGroup = {
+          ...tripGroup,
+          status: 'COMPLETED',
+          licensePlate: licensePlate.trim().toUpperCase(),
+          driverName: driverName.trim() || tripGroup.driverName,
+          tripCode: tripGroup.tripCode,
+          totalQuantity: totalQty,
+          totalWeight: totalWt > 0 ? totalWt : tripGroup.totalWeight,
+          totalVolume: totalVol > 0 ? totalVol : tripGroup.totalVolume,
+          goodsDescription: goodsDesc,
+          orders: rows.map((r) => ({
+            ...r,
+            quantity: Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
+            inboundQuantity: Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
+            totalQuantity: Number(r.totalQuantity) > 0 ? Number(r.totalQuantity) : 1,
+            deliveryAddress: r.deliveryAddress || r.originalDeliveryAddress,
+            notes: r.notes
+          }))
+        };
+        onOpenReceipt(updatedTripGroup);
+        onClose();
+      }
     } catch (err: any) {
       showApiErrorToast(err, 'Lỗi khi xác nhận kiểm đếm nhập kho');
     } finally {
@@ -1583,7 +1706,14 @@ export function WarehouseTripDetailModal({
                     </table>
                   </div>
                 ) : (
-                  <WarehouseEditableGrid rows={rows} onChange={setRows} isOutboundMode={false} />
+                  <WarehouseEditableGrid
+                    rows={rows}
+                    onChange={setRows}
+                    isOutboundMode={false}
+                    isInboundTripMode={mode === 'INBOUND' && isCurrentHubPending}
+                    onInboundSingleOrder={handleInboundSingleOrder}
+                    loadingRowIndex={inboundLoadingIndex}
+                  />
                 )}
               </CardContent>
             </Card>

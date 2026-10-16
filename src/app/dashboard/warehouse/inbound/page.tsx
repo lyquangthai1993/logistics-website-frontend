@@ -206,17 +206,6 @@ export default function WarehouseInboundPage() {
   // Mode 1 Rows (Pure Clean Initial State for Warehouse Intake)
   const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([emptyWarehouseRow()]);
 
-  // Reset Mode 1 Form (Discard all unsaved state)
-  const resetMode1Form = useCallback(() => {
-    setLicensePlate('');
-    setDriverName('');
-    setReceiveDate(new Date().toISOString().split('T')[0]);
-    setMode1Rows([emptyWarehouseRow()]);
-    try {
-      sessionStorage.removeItem('TMS_INBOUND_CONVERTER_TRANSFER');
-    } catch {}
-  }, []);
-
   // Centralized reset function for Mode 1 trip intake
   const resetMode1Form = useCallback(() => {
     setLicensePlate('');

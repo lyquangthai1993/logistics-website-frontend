@@ -24,6 +24,7 @@ import {
   IconFileSpreadsheet,
   IconChevronDown,
   IconCheck,
+  IconCircleCheck,
   IconX,
   IconTruck,
   IconBuildingWarehouse,
@@ -94,6 +95,9 @@ declare module '@tanstack/react-table' {
     isOutboundMode?: boolean;
     rowsCount?: number;
     allRows?: WarehouseRowItem[];
+    isInboundTripMode?: boolean;
+    onInboundSingleOrder?: (rowIndex: number) => void;
+    loadingRowIndex?: number | null;
   }
 }
 
@@ -104,6 +108,9 @@ interface WarehouseEditableGridProps {
   onRefreshMetrics?: () => void;
   isLoadingMetrics?: boolean;
   showAddressHint?: boolean;
+  isInboundTripMode?: boolean;
+  onInboundSingleOrder?: (row: WarehouseRowItem, rowIndex: number) => Promise<void> | void;
+  loadingRowIndex?: number | null;
 }
 
 interface SearchableHubSelectProps {
@@ -850,6 +857,9 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
     }
   };
 
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+
   if (isOutbound) {
     return (
       <div className='relative'>
@@ -858,6 +868,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           onChange={handleOutboundChange}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
+          disabled={isRowInbound}
           className={cn(
             'h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
             isSearching && 'pr-6'
@@ -878,6 +889,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
         onChange={handleInboundChange}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
+        disabled={isRowInbound}
         required
         placeholder='Mã vận đơn'
         title='Nhập mã vận đơn (tự động nhận diện và điền thông tin nếu đơn đã có trong hệ thống).'
@@ -897,6 +909,8 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 }
 
 function PickupAddressCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -915,8 +929,9 @@ function PickupAddressCell({ getValue, row, column, table }: CellContext<Warehou
       rows={2}
       value={value}
       onChange={handleChange}
+      disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
@@ -927,6 +942,8 @@ function GoodsDescriptionCell({
   column,
   table
 }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -945,6 +962,7 @@ function GoodsDescriptionCell({
       <Input
         value={value}
         onChange={handleChange}
+        disabled={isRowInbound}
         placeholder=''
         className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700'
       />
@@ -985,6 +1003,8 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
 
+  const isRowInbound = r.status === 'INBOUND' || r.status === 'IN_WAREHOUSE';
+
   return (
     <div className='space-y-0.5'>
       <Input
@@ -994,6 +1014,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
         value={value}
         onChange={handleChange}
         onBlur={handleBlur}
+        disabled={isRowInbound}
         className={cn(
           'h-7 px-1 text-[10px] text-right font-bold',
           isExceeded
@@ -1016,6 +1037,8 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 }
 
 function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -1047,12 +1070,15 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
+      disabled={isRowInbound}
       className='h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700'
     />
   );
 }
 
 function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -1084,6 +1110,7 @@ function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
       value={value}
       onChange={handleChange}
       onBlur={handleBlur}
+      disabled={isRowInbound}
       className='h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700'
     />
   );
@@ -1141,6 +1168,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
+  const isRowInbound = r.status === 'INBOUND' || r.status === 'IN_WAREHOUSE';
   const isOutbound = meta?.isOutboundMode;
 
   if (!isOutbound) {
@@ -1149,8 +1177,9 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
         rows={2}
         value={addressText}
         onChange={handleAddressTextChange}
+        disabled={isRowInbound}
         placeholder=''
-        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
+        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
       />
     );
   }
@@ -1190,13 +1219,15 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
             rows={2}
             value={addressText}
             onChange={handleAddressTextChange}
+            disabled={isRowInbound}
             placeholder='Địa chỉ giao khách...'
-            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px]'
+            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px] disabled:opacity-70 disabled:cursor-not-allowed'
           />
           <button
             type='button'
             onClick={() => setModalOpen(true)}
-            className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer'
+            disabled={isRowInbound}
+            className='w-full h-6 px-1.5 rounded text-[10px] font-semibold text-[#0F3D62] dark:text-blue-300 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
           >
             <IconMapPin className='h-3 w-3 text-blue-600' />
             <span>Thay đổi địa chỉ (Điều chuyển)</span>
@@ -1222,6 +1253,8 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
 }
 
 function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1240,8 +1273,9 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
       rows={2}
       value={value}
       onChange={handleChange}
+      disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
+      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1252,6 +1286,8 @@ function AccompanyingDocsCell({
   column,
   table
 }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1270,13 +1306,16 @@ function AccompanyingDocsCell({
       type='text'
       value={value}
       onChange={handleChange}
+      disabled={isRowInbound}
       placeholder=''
-      className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'
+      className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
 
 function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isRowInbound =
+    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1295,8 +1334,9 @@ function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowIte
       rows={2}
       value={value}
       onChange={handleChange}
+      disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px]'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1306,6 +1346,9 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const idx = row.index;
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
+  const isOrderInbound = r.status === 'INBOUND' || r.status === 'IN_WAREHOUSE';
+  const isInboundTripMode = meta?.isInboundTripMode ?? false;
+  const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   return (
     <div className='flex items-center justify-center gap-0.5'>
@@ -1331,24 +1374,64 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
       >
         <IconPrinter className='h-3.5 w-3.5' />
       </Button>
+
+      {isInboundTripMode ? (
+        isLoadingThisRow ? (
+          <Button
+            type='button'
+            size='sm'
+            variant='ghost'
+            disabled
+            className='h-6 w-6 p-0 text-blue-600 cursor-wait'
+            title='Đang nhập kho đơn hàng này...'
+          >
+            <IconLoader2 className='h-3.5 w-3.5 animate-spin text-blue-600' />
+          </Button>
+        ) : isOrderInbound ? (
+          <Button
+            type='button'
+            size='sm'
+            variant='ghost'
+            disabled
+            className='h-6 w-6 p-0 text-emerald-600 opacity-80 cursor-default'
+            title='Đơn hàng đã nhập kho'
+          >
+            <IconCircleCheck className='h-3.5 w-3.5 text-emerald-600' />
+          </Button>
+        ) : (
+          <Button
+            type='button'
+            size='sm'
+            variant='ghost'
+            onClick={() => meta?.onInboundSingleOrder?.(idx)}
+            disabled={meta?.loadingRowIndex != null}
+            className='h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50'
+            title='Nhập kho đơn hàng này (Sẵn sàng để xuất kho ngay)'
+          >
+            <IconBuildingWarehouse className='h-3.5 w-3.5 text-emerald-600' />
+          </Button>
+        )
+      ) : (
+        <Button
+          type='button'
+          size='sm'
+          variant='ghost'
+          onClick={() => meta?.duplicateRow?.(idx)}
+          className='h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+          title='Nhân bản dòng'
+        >
+          <IconCopy className='h-3.5 w-3.5' />
+        </Button>
+      )}
+
       <Button
         type='button'
         size='sm'
         variant='ghost'
-        onClick={() => meta?.duplicateRow?.(idx)}
-        className='h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
-        title='Nhân bản dòng'
-      >
-        <IconCopy className='h-3.5 w-3.5' />
-      </Button>
-      <Button
-        type='button'
-        size='sm'
-        variant='ghost'
-        disabled={rowsCount <= 1}
+        disabled={isOrderInbound || rowsCount <= 1}
         onClick={() => meta?.deleteRow?.(idx)}
         className='h-6 w-6 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30'
-        title='Xóa dòng'
+        title={isOrderInbound ? 'Đơn hàng đã nhập kho, không thể xóa' : 'Xóa dòng'}
       >
         <IconTrash className='h-3.5 w-3.5' />
       </Button>
@@ -1364,7 +1447,10 @@ export function WarehouseEditableGrid({
   isOutboundMode = false,
   onRefreshMetrics,
   isLoadingMetrics = false,
-  showAddressHint = true
+  showAddressHint = true,
+  isInboundTripMode = false,
+  onInboundSingleOrder,
+  loadingRowIndex = null
 }: WarehouseEditableGridProps) {
   const user = useAuthStore((state) => state.user);
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
@@ -1807,7 +1893,10 @@ export function WarehouseEditableGrid({
       level2XeBoHubs,
       isOutboundMode,
       rowsCount: rows.length,
-      allRows: rows
+      allRows: rows,
+      isInboundTripMode,
+      onInboundSingleOrder: (idx) => onInboundSingleOrder?.(rows[idx], idx),
+      loadingRowIndex
     }
   });
 
@@ -1959,41 +2048,53 @@ export function WarehouseEditableGrid({
           </thead>
 
           <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group align-top'
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const isPinned = cell.column.getIsPinned();
-                  const colId = cell.column.id;
+            {table.getRowModel().rows.map((row) => {
+              const isRowInbound =
+                row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
 
-                  return (
-                    <td
-                      key={cell.id}
-                      style={getPinningStyles(cell.column, false)}
-                      className={cn(
-                        'py-1 px-1 text-[10px]',
-                        colId === 'stt' || colId === 'actions' ? 'text-center' : '',
-                        ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId)
-                          ? 'text-right'
-                          : '',
-                        isPinned
-                          ? 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
-                          : '',
-                        isPinned === 'left'
-                          ? 'border-r border-slate-200 dark:border-slate-700'
-                          : isPinned === 'right'
-                            ? 'border-l border-slate-200 dark:border-slate-700'
-                            : 'border-r border-slate-100 dark:border-slate-800'
-                      )}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+              return (
+                <tr
+                  key={row.id}
+                  className={cn(
+                    'align-top group',
+                    isRowInbound
+                      ? 'opacity-50 bg-slate-50/80 dark:bg-slate-800/40 transition-opacity'
+                      : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
+                  )}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const isPinned = cell.column.getIsPinned();
+                    const colId = cell.column.id;
+
+                    return (
+                      <td
+                        key={cell.id}
+                        style={getPinningStyles(cell.column, false)}
+                        className={cn(
+                          'py-1 px-1 text-[10px]',
+                          colId === 'stt' || colId === 'actions' ? 'text-center' : '',
+                          ['totalQuantity', 'totalWeight', 'totalVolume'].includes(colId)
+                            ? 'text-right'
+                            : '',
+                          isPinned
+                            ? isRowInbound
+                              ? 'bg-slate-50/80 dark:bg-slate-800/40'
+                              : 'bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800'
+                            : '',
+                          isPinned === 'left'
+                            ? 'border-r border-slate-200 dark:border-slate-700'
+                            : isPinned === 'right'
+                              ? 'border-l border-slate-200 dark:border-slate-700'
+                              : 'border-r border-slate-100 dark:border-slate-800'
+                        )}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
