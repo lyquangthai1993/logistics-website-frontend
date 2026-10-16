@@ -182,7 +182,7 @@ export default function WarehouseExcelConverterPage() {
     try {
       setIsExporting(true);
       const standardWb = generateStandardExcelWorkbook(rows, meta);
-      const safeSheet = selectedSheet.replace(/[\/\\?*:[\]]/g, '_');
+      const safeSheet = selectedSheet.replace(/[/\\?*:[\]]/g, '_');
       const outFileName = `Phieu_Yeu_Cau_Nhap_Kho_Chuan_${safeSheet}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
       XLSX.writeFile(standardWb, outFileName);

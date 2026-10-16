@@ -55,8 +55,8 @@ export function formatExcelDate(rawDate: unknown): string {
   // If already formatted like DD/MM/YYYY or DD-MM-YYYY
   if (typeof rawDate === 'string') {
     const trimmed = rawDate.trim();
-    if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/.test(trimmed)) {
-      return trimmed.replace(/[\-\.]/g, '/');
+    if (/^\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}$/.test(trimmed)) {
+      return trimmed.replace(/[-.]/g, '/');
     }
   }
 

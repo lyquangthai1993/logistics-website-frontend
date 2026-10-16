@@ -88,7 +88,7 @@ export const VIETNAM_PROVINCES: ProvinceInfo[] = [
 function normalizeText(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[,\.\-\/\\_\(\)\r\n\t]+/g, ' ')
+    .replace(/[,.\-/\\_()\r\n\t]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -134,7 +134,7 @@ export function extractVietnamProvince(address: string | null | undefined): stri
 
   for (const prov of VIETNAM_PROVINCES) {
     // Sắp xếp alias dài trước để tránh 'huế' khớp đè 'thừa thiên huế'
-    const sortedAliases = [...prov.aliases, normalizeText(prov.name)].sort(
+    const sortedAliases = [...prov.aliases, normalizeText(prov.name)].toSorted(
       (a, b) => b.length - a.length
     );
 
