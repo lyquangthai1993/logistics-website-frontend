@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { isTokenValid, parseJwtServer } from '@/lib/server-auth';
+import { isTokenValid, parseJwtServer, getRoleDefaultPath } from '@/lib/server-auth';
 
 export default async function Page() {
   const cookieStore = await cookies();
@@ -9,7 +9,8 @@ export default async function Page() {
   if (!isTokenValid(token)) {
     return redirect('/auth/sign-in');
   } else {
-    redirect('/dashboard/warehouse/orders');
+    const payload = parseJwtServer(token!);
+    redirect(getRoleDefaultPath(payload?.role));
   }
 }
 

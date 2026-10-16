@@ -19,6 +19,20 @@ const roleMap: Record<number | string, string> = {
   4: 'WAREHOUSE_MANAGER'
 };
 
+function getRoleDefaultPath(userRole?: string): string {
+  switch (userRole) {
+    case 'WAREHOUSE_MANAGER':
+      return '/dashboard/warehouse/orders';
+    case 'FLEET_MANAGER':
+      return '/dashboard/trips';
+    case 'DISPATCHER':
+      return '/dashboard/orders';
+    case 'SUPER_ADMIN':
+    default:
+      return '/dashboard/orders';
+  }
+}
+
 function parseJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
@@ -147,13 +161,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  const userRole = payload
+    ? (typeof payload.role === 'object' && payload.role?.id
+        ? roleMap[payload.role.id]
+        : roleMap[payload.role] || (typeof payload.role === 'object' ? payload.role?.name : payload.role))
+    : undefined;
+
   const isAuthenticated =
     !!token && !!payload && (!payload.exp || payload.exp * 1000 >= Date.now());
 
   // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
     if (isAuthenticated) {
-      const response = NextResponse.redirect(new URL('/dashboard/warehouse/orders', request.url));
+      const defaultTarget = getRoleDefaultPath(userRole);
+      const response = NextResponse.redirect(new URL(defaultTarget, request.url));
       if (isRefreshed && token) {
         response.cookies.set('access_token', token, {
           path: '/',
@@ -243,7 +264,8 @@ export async function proxy(request: NextRequest) {
     // Check role-based route access
     for (const [route, roles] of Object.entries(roleRouteMap)) {
       if (pathname.startsWith(route) && !roles.includes(userRole)) {
-        const redirectUrl = new URL('/dashboard/warehouse/orders', request.url);
+        const defaultTarget = getRoleDefaultPath(userRole);
+        const redirectUrl = new URL(defaultTarget, request.url);
         const response = NextResponse.redirect(redirectUrl);
         if (isRefreshed && token) {
           response.cookies.set('access_token', token, {

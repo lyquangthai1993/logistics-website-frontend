@@ -81,7 +81,18 @@ export function LoginForm() {
         searchParams.get('callbackUrl') ||
         searchParams.get('from');
 
-      let targetUrl = '/dashboard/warehouse/orders';
+      let targetUrl = '/dashboard/orders';
+      const roleVal = user?.role;
+      const roleStr = typeof roleVal === 'object' ? (roleVal?.name || '') : String(roleVal || '');
+      const roleUpper = roleStr.toUpperCase();
+      if (roleUpper.includes('WAREHOUSE')) {
+        targetUrl = '/dashboard/warehouse/orders';
+      } else if (roleUpper.includes('FLEET')) {
+        targetUrl = '/dashboard/trips';
+      } else if (roleUpper.includes('DISPATCHER')) {
+        targetUrl = '/dashboard/orders';
+      }
+
       if (
         redirectParam &&
         redirectParam.startsWith('/dashboard') &&
