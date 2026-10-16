@@ -565,7 +565,7 @@ export default function WarehouseOutboundPage() {
       });
       setIsReceiptModalOpen(true);
 
-      setDraftTripCode(null);
+      resetMode1Form();
       setActiveView('BOARD');
       fetchOrders();
     } catch (err: any) {
@@ -599,9 +599,9 @@ export default function WarehouseOutboundPage() {
     setMode1Rows([emptyMode1Row()]);
   };
 
-  // "Tạo phiếu xuất": keeps an unfinished new note, but never continues a reopened draft by accident
+  // "Tạo phiếu xuất": clears previous form state and ensures clean slate
   const handleOpenNewMode1 = () => {
-    if (draftTripCode) resetMode1Form();
+    resetMode1Form();
     setActiveView('MODE1_CUSTOMER');
   };
 
@@ -893,7 +893,10 @@ export default function WarehouseOutboundPage() {
               <Button
                 variant='outline'
                 size='sm'
-                onClick={() => setActiveView('BOARD')}
+                onClick={() => {
+                  resetMode1Form();
+                  setActiveView('BOARD');
+                }}
                 className='text-xs font-semibold'
               >
                 <IconX className='mr-1.5 h-4 w-4' /> Quay lại danh sách
@@ -1257,7 +1260,14 @@ export default function WarehouseOutboundPage() {
               />
 
               <div className='flex justify-between items-center pt-3 border-t'>
-                <Button variant='outline' size='sm' onClick={() => setActiveView('BOARD')}>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => {
+                    resetMode1Form();
+                    setActiveView('BOARD');
+                  }}
+                >
                   Hủy bỏ
                 </Button>
                 <div className='flex items-center gap-2'>
@@ -1310,9 +1320,16 @@ export default function WarehouseOutboundPage() {
         {/* ── View 3: Mode 2 - Xuất Luân Chuyển Nội Bộ ── */}
         {activeView === 'MODE2_TRANSFER' && (
           <WarehouseOutboundTransferFlow
-            onBackToBoard={() => setActiveView('BOARD')}
-            onSwitchToCustomerMode={() => setActiveView('MODE1_CUSTOMER')}
+            onBackToBoard={() => {
+              resetMode1Form();
+              setActiveView('BOARD');
+            }}
+            onSwitchToCustomerMode={() => {
+              resetMode1Form();
+              setActiveView('MODE1_CUSTOMER');
+            }}
             onSuccess={() => {
+              resetMode1Form();
               setActiveView('BOARD');
               fetchOrders();
             }}
