@@ -30,6 +30,8 @@ const DEV_FRONTEND_URL =
 const EVIDENCE_DIR = path.resolve(__dirname, '../../feedbacks/feedback_16_10_task_87');
 const SCREENSHOT_PATH = path.join(EVIDENCE_DIR, 'screenshot_feedback_16_10_task_87_verified.png');
 
+let currentTargetTripCode = '';
+
 test.describe.serial('Feedback 16/10 (Task #87) — Nhập Kho Tách Lẻ Từng Đơn & Xuất Kho Tức Thì', () => {
   test.beforeAll(() => {
     if (!fs.existsSync(EVIDENCE_DIR)) {
@@ -60,11 +62,14 @@ test.describe.serial('Feedback 16/10 (Task #87) — Nhập Kho Tách Lẻ Từng
       await expect(initialLoader).not.toBeVisible({ timeout: 25000 });
     }
 
-    // 4. Mở chuyến xe gom khách SD80 (10 đơn nháp, trạng thái Chờ xử lý)
-    const sd80Row = page.locator('table tbody tr').filter({ hasText: 'SD80' }).first();
-    await expect(sd80Row).toBeVisible({ timeout: 25000 });
+    // 4. Mở chuyến xe gom khách Chờ xử lý có nút "Tiếp tục"
+    const pendingTripRow = page.locator('table tbody tr', { has: page.locator('button:has-text("Tiếp tục")') }).first();
+    await expect(pendingTripRow).toBeVisible({ timeout: 25000 });
 
-    const continueBtn = sd80Row.locator('button:has-text("Tiếp tục")').first();
+    const tripCodeCell = pendingTripRow.locator('td').first();
+    currentTargetTripCode = ((await tripCodeCell.innerText()) || '').split(/[\s\n]+/)[0].trim();
+
+    const continueBtn = pendingTripRow.locator('button:has-text("Tiếp tục")').first();
     await expect(continueBtn).toBeVisible({ timeout: 15000 });
     await continueBtn.click();
 
@@ -110,7 +115,7 @@ test.describe.serial('Feedback 16/10 (Task #87) — Nhập Kho Tách Lẻ Từng
       await expect(checkedBtn).toBeVisible({ timeout: 15000 });
       await expect(checkedBtn).toBeDisabled();
 
-      // Xác nhận dòng đơn hàng đầu tiên bị làm mờ (opacity-50) và nút xóa bị disabled
+      // Xác nhận dòng đơn hàng đầu tiên bị làm mờ (opacity-50) và nút xóa bị disabled trong Inbound Trip Mode
       const firstRow = gridRows.first();
       await expect(firstRow).toHaveClass(/opacity-50/);
       const deleteBtn = firstRow.locator('button[title*="xóa"], button[title*="Xóa"]').first();
@@ -140,7 +145,7 @@ test.describe.serial('Feedback 16/10 (Task #87) — Nhập Kho Tách Lẻ Từng
     }
   });
 
-  test('CASE-02: Scenario 2 — Immediate Outbound Availability of the Partially Received Order', async ({
+  test('CASE-02: Scenario 2 — Immediate Outbound Availability of the Partially Received Order & Non-Dimming in Outbound Mode', async ({
     page
   }) => {
     test.setTimeout(90000);
@@ -162,9 +167,54 @@ test.describe.serial('Feedback 16/10 (Task #87) — Nhập Kho Tách Lẻ Từng
     const outboundContent = page.locator('table, [role="tablist"], button').first();
     await expect(outboundContent).toBeVisible({ timeout: 20000 });
 
-    // Chụp ảnh bằng chứng nghiệm thu Kịch bản 2
+    // 5. Chờ board xuất kho tải xong
+    const outboundLoader = page.getByText('Đang tải danh sách đơn xuất kho...');
+    if (await outboundLoader.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await expect(outboundLoader).not.toBeVisible({ timeout: 20000 });
+    }
+
+    // Mở chuyến nháp hoặc bấm "Xuất kho" để vào bảng kê xuất kho
+    const continueDraftBtn = page.locator('table tbody tr button:has-text("Tiếp tục")').first();
+    if (await continueDraftBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await continueDraftBtn.click();
+    } else {
+      const createOutboundBtn = page.getByRole('button', { name: 'Xuất kho', exact: true }).first();
+      await expect(createOutboundBtn).toBeVisible({ timeout: 10000 });
+      await createOutboundBtn.click();
+    }
+
+    // Chờ màn hình phiếu xuất kho xuất hiện (Tạo Phiếu Xuất Kho hoặc Phiếu xuất nháp)
+    await expect(page.locator('button:has-text("Quay lại danh sách")')).toBeVisible({ timeout: 15000 });
+
+    // Chờ bảng kê xuất kho hiển thị
+    const gridRows = page.locator('table tbody tr');
+    await expect(gridRows.first()).toBeVisible({ timeout: 15000 });
+
+    const firstRow = gridRows.first();
+    // BẮT BUỘC KHÔNG bị làm mờ (không có opacity-50)
+    await expect(firstRow).not.toHaveClass(/opacity-50/);
+
+    // Input số kiện không bị disabled
+    const inputs = firstRow.locator('input, textarea');
+    if (await inputs.count() > 0) {
+      await expect(inputs.first()).not.toBeDisabled();
+    }
+
+    // Nút xóa không bị disabled do trạng thái đơn hàng
+    const deleteBtn = firstRow.locator('button[title*="Xóa"], button[title*="xóa"]');
+    if (await deleteBtn.count() > 0) {
+      await expect(deleteBtn.first()).not.toHaveAttribute('title', /Đơn hàng đã nhập kho/);
+    }
+
+    // Chụp ảnh bằng chứng nghiệm thu Kịch bản 2 (Bảng kê xuất kho KHÔNG bị làm mờ)
     await page.screenshot({ path: path.join(EVIDENCE_DIR, '02_available_for_outbound.png') });
     expect(fs.existsSync(path.join(EVIDENCE_DIR, '02_available_for_outbound.png'))).toBeTruthy();
+
+    // Quay lại màn hình chính xuất kho
+    const backBtn = page.locator('button:has-text("Quay lại danh sách")').first();
+    if (await backBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await backBtn.click();
+    }
   });
 
   test('CASE-03: Scenario 3 — Complete Final Trip Inbound & Verify Unified Full A4 Receipt Modal', async ({
@@ -184,11 +234,13 @@ test.describe.serial('Feedback 16/10 (Task #87) — Nhập Kho Tách Lẻ Từng
       await expect(initialLoader).not.toBeVisible({ timeout: 25000 });
     }
 
-    // 2. Mở lại chuyến xe gom khách SD80 bằng nút "Tiếp tục"
-    const sd80Row = page.locator('table tbody tr').filter({ hasText: 'SD80' }).first();
-    await expect(sd80Row).toBeVisible({ timeout: 25000 });
+    // 2. Mở lại chuyến xe đang xử lý bằng nút "Tiếp tục"
+    const targetRow = currentTargetTripCode
+      ? page.locator('table tbody tr').filter({ hasText: currentTargetTripCode }).first()
+      : page.locator('table tbody tr', { has: page.locator('button:has-text("Tiếp tục")') }).first();
+    await expect(targetRow).toBeVisible({ timeout: 25000 });
 
-    const continueBtn = sd80Row.locator('button:has-text("Tiếp tục")').first();
+    const continueBtn = targetRow.locator('button:has-text("Tiếp tục")').first();
     await expect(continueBtn).toBeVisible({ timeout: 15000 });
     await continueBtn.click();
 

@@ -483,6 +483,11 @@ export function mapPastedColsToRow(cols: string[], defaultPickup = ''): Warehous
 
 // ── Stable Cell Components (Defined Outside to Prevent Unmounting & Focus Loss) ──
 
+function isRowInboundLocked(rowStatus?: string, isInboundTripMode?: boolean): boolean {
+  if (!isInboundTripMode) return false;
+  return rowStatus === 'INBOUND' || rowStatus === 'IN_WAREHOUSE';
+}
+
 function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
   return (
     <span className='font-mono font-bold text-[10px] text-slate-600 dark:text-slate-300'>
@@ -857,8 +862,10 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
     }
   };
 
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
 
   if (isOutbound) {
     return (
@@ -909,8 +916,10 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 }
 
 function PickupAddressCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -942,8 +951,10 @@ function GoodsDescriptionCell({
   column,
   table
 }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1003,7 +1014,10 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
 
-  const isRowInbound = r.status === 'INBOUND' || r.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    r.status,
+    table.options.meta?.isInboundTripMode
+  );
 
   return (
     <div className='space-y-0.5'>
@@ -1037,8 +1051,10 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 }
 
 function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -1077,8 +1093,10 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
 }
 
 function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
 
@@ -1168,7 +1186,10 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = r.status === 'INBOUND' || r.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    r.status,
+    meta?.isInboundTripMode
+  );
   const isOutbound = meta?.isOutboundMode;
 
   if (!isOutbound) {
@@ -1253,8 +1274,10 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
 }
 
 function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1286,8 +1309,10 @@ function AccompanyingDocsCell({
   column,
   table
 }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1314,8 +1339,10 @@ function AccompanyingDocsCell({
 }
 
 function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
-  const isRowInbound =
-    row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+  const isRowInbound = isRowInboundLocked(
+    row.original.status,
+    table.options.meta?.isInboundTripMode
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1346,8 +1373,8 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const idx = row.index;
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
-  const isOrderInbound = r.status === 'INBOUND' || r.status === 'IN_WAREHOUSE';
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
+  const isOrderInbound = isRowInboundLocked(r.status, isInboundTripMode);
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   return (
@@ -2049,8 +2076,10 @@ export function WarehouseEditableGrid({
 
           <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
             {table.getRowModel().rows.map((row) => {
-              const isRowInbound =
-                row.original.status === 'INBOUND' || row.original.status === 'IN_WAREHOUSE';
+              const isRowInbound = isRowInboundLocked(
+                row.original.status,
+                table.options.meta?.isInboundTripMode
+              );
 
               return (
                 <tr
