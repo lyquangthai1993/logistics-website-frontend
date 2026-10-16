@@ -47,3 +47,29 @@ export function isTokenValid(token?: string | null, bufferSeconds = 10): boolean
 
   return true;
 }
+
+/**
+ * Returns the default dashboard landing page for a given role.
+ */
+export function getRoleDefaultPath(role?: string | number | { id: number; name?: string } | null): string {
+  let roleStr = '';
+  if (typeof role === 'object' && role) {
+    if (role.id === 1) roleStr = 'SUPER_ADMIN';
+    else if (role.id === 2) roleStr = 'DISPATCHER';
+    else if (role.id === 3) roleStr = 'FLEET_MANAGER';
+    else if (role.id === 4) roleStr = 'WAREHOUSE_MANAGER';
+    else roleStr = role.name || '';
+  } else if (typeof role === 'number') {
+    if (role === 1) roleStr = 'SUPER_ADMIN';
+    else if (role === 2) roleStr = 'DISPATCHER';
+    else if (role === 3) roleStr = 'FLEET_MANAGER';
+    else if (role === 4) roleStr = 'WAREHOUSE_MANAGER';
+  } else if (typeof role === 'string') {
+    roleStr = role;
+  }
+  const upper = roleStr.toUpperCase();
+  if (upper.includes('WAREHOUSE')) return '/dashboard/warehouse/orders';
+  if (upper.includes('FLEET')) return '/dashboard/trips';
+  if (upper.includes('DISPATCHER')) return '/dashboard/orders';
+  return '/dashboard/orders';
+}
