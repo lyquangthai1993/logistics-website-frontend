@@ -189,22 +189,33 @@ export default function WarehouseInboundPage() {
   const [licensePlate, setLicensePlate] = useState('');
   const [driverName, setDriverName] = useState('');
 
+  const emptyWarehouseRow = (): WarehouseRowItem => ({
+    orderCode: '',
+    pickupAddress: '',
+    goodsDescription: '',
+    totalQuantity: 1,
+    totalWeight: 0,
+    totalVolume: 0,
+    deliveryMode: 'DIRECT_CUSTOMER',
+    deliveryAddress: '',
+    province: '',
+    accompanyingDocs: '',
+    notes: ''
+  });
+
   // Mode 1 Rows (Pure Clean Initial State for Warehouse Intake)
-  const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([
-    {
-      orderCode: '',
-      pickupAddress: '',
-      goodsDescription: '',
-      totalQuantity: 1,
-      totalWeight: 0,
-      totalVolume: 0,
-      deliveryMode: 'DIRECT_CUSTOMER',
-      deliveryAddress: '',
-      province: '',
-      accompanyingDocs: '',
-      notes: ''
-    }
-  ]);
+  const [mode1Rows, setMode1Rows] = useState<WarehouseRowItem[]>([emptyWarehouseRow()]);
+
+  // Reset Mode 1 Form (Discard all unsaved state)
+  const resetMode1Form = useCallback(() => {
+    setLicensePlate('');
+    setDriverName('');
+    setReceiveDate(new Date().toISOString().split('T')[0]);
+    setMode1Rows([emptyWarehouseRow()]);
+    try {
+      sessionStorage.removeItem('TMS_INBOUND_CONVERTER_TRANSFER');
+    } catch {}
+  }, []);
 
   // Submitting State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -704,23 +715,7 @@ export default function WarehouseInboundPage() {
       setSelectedReceiptData(receiptData);
       setIsInboundReceiptModalOpen(true);
 
-      setMode1Rows([
-        {
-          orderCode: '',
-          pickupAddress: '',
-          goodsDescription: '',
-          totalQuantity: 1,
-          totalWeight: 0,
-          totalVolume: 0,
-          deliveryMode: 'DIRECT_CUSTOMER',
-          deliveryAddress: '',
-          province: '',
-          accompanyingDocs: '',
-          notes: ''
-        }
-      ]);
-      setLicensePlate('');
-      setDriverName('');
+      resetMode1Form();
       setActiveView('BOARD');
       fetchKpi();
       fetchInboundTrips();
@@ -796,23 +791,7 @@ export default function WarehouseInboundPage() {
       }
 
       toast.success(`Đã lưu nháp thành công ${mode1Rows.length} đơn hàng nhập kho!`);
-      setMode1Rows([
-        {
-          orderCode: '',
-          pickupAddress: '',
-          goodsDescription: '',
-          totalQuantity: 1,
-          totalWeight: 0,
-          totalVolume: 0,
-          deliveryMode: 'DIRECT_CUSTOMER',
-          deliveryAddress: '',
-          province: '',
-          accompanyingDocs: '',
-          notes: ''
-        }
-      ]);
-      setLicensePlate('');
-      setDriverName('');
+      resetMode1Form();
       setActiveView('BOARD');
       setBoardStatus('PENDING');
       fetchKpi();
@@ -840,7 +819,10 @@ export default function WarehouseInboundPage() {
               {activeView === 'BOARD' && (
                 <>
                   <Button
-                    onClick={() => setActiveView('MODE1_CUSTOMER')}
+                    onClick={() => {
+                      resetMode1Form();
+                      setActiveView('MODE1_CUSTOMER');
+                    }}
                     className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm h-8 px-2.5'
                   >
                     <IconPlus className='mr-1 h-4 w-4' /> Tạo đơn nhập mới
@@ -868,7 +850,10 @@ export default function WarehouseInboundPage() {
             <Button
               variant='outline'
               size='sm'
-              onClick={() => setActiveView('BOARD')}
+              onClick={() => {
+                resetMode1Form();
+                setActiveView('BOARD');
+              }}
               className='text-xs font-semibold'
             >
               <IconX className='mr-1.5 h-4 w-4' /> Quay lại danh sách
@@ -1236,9 +1221,22 @@ export default function WarehouseInboundPage() {
                       type='button'
                       variant='outline'
                       size='sm'
+                      onClick={() => {
+                        resetMode1Form();
+                        setActiveView('BOARD');
+                      }}
+                      className='text-xs font-semibold h-8 border-slate-300 dark:border-slate-700'
+                    >
+                      Hủy bỏ
+                    </Button>
+
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
                       onClick={handleSaveDraftMode1}
                       disabled={isSavingDraft || isSubmitting || mode1Rows.length === 0}
-                      className='text-xs font-semibold h-9 border-slate-300 dark:border-slate-700'
+                      className='text-xs font-semibold h-8 border-slate-300 dark:border-slate-700'
                     >
                       {isSavingDraft ? (
                         <>
@@ -1276,7 +1274,7 @@ export default function WarehouseInboundPage() {
                           setIsLabelModalOpen(true);
                         }
                       }}
-                      className='text-xs font-semibold h-9 border-slate-300 dark:border-slate-700'
+                      className='text-xs font-semibold h-8 border-slate-300 dark:border-slate-700'
                     >
                       Xem trước
                     </Button>
@@ -1306,9 +1304,16 @@ export default function WarehouseInboundPage() {
         {/* ── View 3: Mode 2 - Luân Chuyển Nội Bộ (Multi-Step Transfer Flow) ── */}
         {activeView === 'MODE2_TRANSFER' && (
           <WarehouseInboundTransferFlow
-            onBackToBoard={() => setActiveView('BOARD')}
-            onSwitchToCustomerMode={() => setActiveView('MODE1_CUSTOMER')}
+            onBackToBoard={() => {
+              resetMode1Form();
+              setActiveView('BOARD');
+            }}
+            onSwitchToCustomerMode={() => {
+              resetMode1Form();
+              setActiveView('MODE1_CUSTOMER');
+            }}
             onSuccess={() => {
+              resetMode1Form();
               setActiveView('BOARD');
               fetchInboundTrips();
               fetchKpi();
