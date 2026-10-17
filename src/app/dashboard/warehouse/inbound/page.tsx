@@ -1063,9 +1063,9 @@ export default function WarehouseInboundPage() {
                                 {orderCodes.length > 0 ? (
                                   <div
                                     className='text-[10px] text-gray-500 dark:text-slate-400 leading-snug break-words'
-                                    title={orderCodes.join(' ')}
+                                    title={orderCodes.join(', ')}
                                   >
-                                    {orderCodes.join(' ')}
+                                    {orderCodes.join(', ')}
                                   </div>
                                 ) : (
                                   <span className='text-[10px] text-gray-400 italic'>—</span>
