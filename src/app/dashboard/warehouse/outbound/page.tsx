@@ -44,6 +44,7 @@ import {
   WarehouseWaybillDetailModal
 } from '@/features/warehouse/components';
 import type { WaybillDetailData } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
+import { resolveHubOption } from '@/features/warehouse/components/destination-hub-info-card';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
@@ -122,7 +123,6 @@ export default function WarehouseOutboundPage() {
     setIsTripDetailModalOpen(true);
   };
 
-
   // Date Range Filter: Default from 1st of current month to today
   const getDefaultFromDate = () => {
     const d = new Date();
@@ -177,6 +177,7 @@ export default function WarehouseOutboundPage() {
   const [transferLicensePlate, setTransferLicensePlate] = useState('');
   const [transferDriverName, setTransferDriverName] = useState('');
   const [level1Hubs, setLevel1Hubs] = useState<any[]>([]);
+  const [level2XeBoHubs, setLevel2XeBoHubs] = useState<any[]>([]);
 
   useEffect(() => {
     const token =
@@ -186,7 +187,7 @@ export default function WarehouseOutboundPage() {
           document.cookie.match(/(?:^|; )access_token=([^;]*)/)?.[1]
         : null;
 
-    fetch('/api/v1/hubs/active?level=1', {
+    fetch('/api/v1/hubs/active', {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -196,7 +197,18 @@ export default function WarehouseOutboundPage() {
       .then((res) => {
         const data = Array.isArray(res) ? res : res?.data;
         if (Array.isArray(data) && data.length > 0) {
-          setLevel1Hubs(data.filter((h: any) => h.level === 1 || !h.code.startsWith('HUB-BO-')));
+          setLevel1Hubs(
+            data.filter(
+              (h: any) =>
+                h.level === 1 && !h.code?.startsWith('HUB-BO-') && !h.code?.startsWith('XB-')
+            )
+          );
+          setLevel2XeBoHubs(
+            data.filter(
+              (h: any) =>
+                h.level === 2 || h.code?.startsWith('HUB-BO-') || h.code?.startsWith('XB-')
+            )
+          );
         }
       })
       .catch(() => {});
@@ -364,6 +376,33 @@ export default function WarehouseOutboundPage() {
     }
   };
 
+  const resolveRowOutboundDestination = (r: WarehouseRowItem): string => {
+    const isRowTransfer =
+      r.deliveryMode === 'HUB_L1' ||
+      r.deliveryMode === 'XE_BO' ||
+      (r.destinationHubId !== undefined &&
+        r.destinationHubId !== null &&
+        Number(r.destinationHubId) > 0);
+
+    if (isRowTransfer) {
+      const { hub } = resolveHubOption(
+        typeof r.destinationHub === 'object' ? r.destinationHub : null,
+        r.destinationHubId,
+        r.deliveryAddress !== r.originalDeliveryAddress ? r.deliveryAddress : null,
+        level1Hubs,
+        level2XeBoHubs,
+        r.deliveryMode
+      );
+      if (hub?.name) {
+        return hub.address && !hub.name.includes(hub.address)
+          ? `${hub.name} — ${hub.address}`
+          : hub.name;
+      }
+    }
+
+    return (r.deliveryAddress || customerAddress || '').trim();
+  };
+
   // Validate the note and build the request body shared by "Xác nhận xuất kho" and "Lưu nháp"
   const buildOutboundRequest = (mode: 'CUSTOMER' | 'TRANSFER') => {
     if (mode === 'CUSTOMER') {
@@ -446,6 +485,7 @@ export default function WarehouseOutboundPage() {
       .filter((r) => r.id && !isNaN(Number(r.id)))
       .map((r) => {
         const isDirect = r.deliveryMode === 'DIRECT_CUSTOMER';
+        const resolvedAddr = resolveRowOutboundDestination(r);
         return {
           orderId: Number(r.id),
           quantityToExport: Number(r.totalQuantity) || 0,
@@ -457,7 +497,7 @@ export default function WarehouseOutboundPage() {
               ? Number(r.destinationHubId)
               : undefined,
           deliveryMode: r.deliveryMode || (r.destinationHubId ? 'HUB_L1' : 'DIRECT_CUSTOMER'),
-          deliveryAddress: r.deliveryAddress || undefined
+          deliveryAddress: resolvedAddr || undefined
         };
       });
 
@@ -475,7 +515,7 @@ export default function WarehouseOutboundPage() {
       draftTripCode: draftTripCode || undefined
     };
 
-    return { body, validRows, effectiveMode, primaryDestHubId };
+    return { body, validRows, effectiveMode, primaryDestHubId, resolveRowOutboundDestination };
   };
 
   // Submit Outbound
@@ -488,7 +528,8 @@ export default function WarehouseOutboundPage() {
     }
     const request = buildOutboundRequest(mode);
     if (!request) return;
-    const { body, validRows, effectiveMode, primaryDestHubId } = request;
+    const { body, validRows, effectiveMode, primaryDestHubId, resolveRowOutboundDestination } =
+      request;
 
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
@@ -519,8 +560,14 @@ export default function WarehouseOutboundPage() {
       );
 
       const isTransferReceipt = effectiveMode === 'TRANSFER';
-      const transferHubName = isTransferReceipt
-        ? level1Hubs.find((h: any) => String(h.id) === String(primaryDestHubId))?.name
+      const allActiveHubs = [...level1Hubs, ...level2XeBoHubs];
+      const matchedPrimaryHub = isTransferReceipt
+        ? allActiveHubs.find((h: any) => String(h.id) === String(primaryDestHubId))
+        : undefined;
+      const transferHubName = matchedPrimaryHub?.name
+        ? matchedPrimaryHub.address && !matchedPrimaryHub.name.includes(matchedPrimaryHub.address)
+          ? `${matchedPrimaryHub.name} — ${matchedPrimaryHub.address}`
+          : matchedPrimaryHub.name
         : undefined;
       const totalExportQty = validRows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 0), 0);
 
@@ -549,19 +596,20 @@ export default function WarehouseOutboundPage() {
           .map((r) => r.notes)
           .filter(Boolean)
           .join('; '),
-        items: validRows.map((r) => ({
-          orderCode: r.orderCode,
-          goodsDescription: r.goodsDescription || '',
-          quantity: Number(r.totalQuantity) || 0,
-          unit: 'Kiện',
-          deliveryAddress:
-            effectiveMode === 'CUSTOMER'
-              ? r.deliveryAddress || customerAddress || ''
-              : r.deliveryAddress || '',
-          province: r.province || '',
-          accompanyingDocs: r.accompanyingDocs || '',
-          notes: r.notes || ''
-        }))
+        items: validRows.map((r) => {
+          const itemDest = resolveRowOutboundDestination(r);
+          return {
+            orderCode: r.orderCode,
+            goodsDescription: r.goodsDescription || '',
+            quantity: Number(r.totalQuantity) || 0,
+            unit: 'Kiện',
+            destinationHub: itemDest,
+            deliveryAddress: itemDest,
+            province: r.province || '',
+            accompanyingDocs: r.accompanyingDocs || '',
+            notes: r.notes || ''
+          };
+        })
       });
       setIsReceiptModalOpen(true);
 
@@ -645,23 +693,42 @@ export default function WarehouseOutboundPage() {
 
   // "Tiếp tục": reopen a draft trip on the outbound note to edit or confirm it
   const handleResumeDraft = (grp: InboundVehicleGroup) => {
+    const allActiveHubs = [...level1Hubs, ...level2XeBoHubs];
     const rows: WarehouseRowItem[] = grp.orders.map((o: any) => {
-      const plannedDest = o.plannedDestinationHubId
-        ? Number(o.plannedDestinationHubId)
-        : o.destinationHubId
-          ? Number(o.destinationHubId)
-          : null;
+      const plannedDest =
+        o.plannedDestinationHubId !== undefined && o.plannedDestinationHubId !== null
+          ? Number(o.plannedDestinationHubId)
+          : o.outboundDestinationHubEntity?.id
+            ? Number(o.outboundDestinationHubEntity.id)
+            : null;
+      const targetHubEntity =
+        o.outboundDestinationHubEntity ||
+        (plannedDest
+          ? allActiveHubs.find((h: any) => Number(h.id) === Number(plannedDest))
+          : null) ||
+        (plannedDest && o.destinationHubEntity?.id === plannedDest ? o.destinationHubEntity : null);
       const isXeBo =
-        o.destinationHubEntity?.level === 2 ||
-        o.destinationHubEntity?.code?.startsWith('XB-') ||
-        o.destinationHubEntity?.code?.startsWith('HUB-BO-') ||
-        (o.destinationHub && o.destinationHub.toLowerCase().includes('xe bo')) ||
+        targetHubEntity?.level === 2 ||
+        targetHubEntity?.code?.startsWith('XB-') ||
+        targetHubEntity?.code?.startsWith('HUB-BO-') ||
+        targetHubEntity?.name?.toLowerCase().includes('xe bo') ||
+        (o.outboundDestination && o.outboundDestination.toLowerCase().includes('xe bo')) ||
         o.deliveryMode === 'XE_BO';
       const resolvedDeliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' = isXeBo
         ? 'XE_BO'
         : plannedDest
           ? 'HUB_L1'
           : o.deliveryMode || 'DIRECT_CUSTOMER';
+
+      const targetHubLabel = targetHubEntity?.name
+        ? targetHubEntity.address && !targetHubEntity.name.includes(targetHubEntity.address)
+          ? `${targetHubEntity.name} — ${targetHubEntity.address}`
+          : targetHubEntity.name
+        : '';
+      const resolvedOutboundAddress =
+        resolvedDeliveryMode !== 'DIRECT_CUSTOMER'
+          ? targetHubLabel || o.outboundDestination || o.deliveryAddress || o.destinationHub || ''
+          : o.outboundDestination || o.deliveryAddress || o.destinationHub || '';
 
       const draftQty = Number(o.exportedQuantity) || 0;
       const liveStock = availableOutboundStock(o);
@@ -680,11 +747,14 @@ export default function WarehouseOutboundPage() {
         totalWeight: Number(o.exportedWeight) || 0,
         totalVolume: Number(o.exportedVolume) || 0,
         deliveryMode: resolvedDeliveryMode,
-        deliveryAddress: o.deliveryAddress || o.destinationHub || '',
+        deliveryAddress: resolvedOutboundAddress,
         originalDeliveryAddress:
           o.originalDeliveryAddress || o.deliveryAddress || o.destinationHub || '',
         destinationHubId: plannedDest,
-        destinationHub: o.destinationHubEntity || o.destinationHub || null,
+        destinationHub:
+          resolvedDeliveryMode !== 'DIRECT_CUSTOMER'
+            ? targetHubEntity || o.outboundDestination || null
+            : null,
         province: o.province || '',
         accompanyingDocs: o.accompanyingDocs || '',
         notes: o.notes || '',
@@ -770,9 +840,9 @@ export default function WarehouseOutboundPage() {
     [tripGroups]
   );
 
-
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Xuất tại kho" = the hub that dispatched this vehicle (hub of creator / dispatch transaction).
+    const allActiveHubs = [...level1Hubs, ...level2XeBoHubs];
     const firstOrder = grp.orders[0];
     const dispatchTx = firstOrder?.inventoryTransactions?.find(
       (tx: any) =>
@@ -788,7 +858,7 @@ export default function WarehouseOutboundPage() {
       firstOrder?.originHubEntity,
       firstOrder?.currentHubEntity,
       firstOrder?.destinationHubEntity,
-      ...level1Hubs
+      ...allActiveHubs
     ];
     const orig =
       dispatchTx?.hub?.name ||
@@ -800,16 +870,23 @@ export default function WarehouseOutboundPage() {
       user?.hub?.name ||
       '';
     const dest =
-      grp.orders[0]?.destinationHubEntity?.name ||
-      grp.orders[0]?.destinationHub ||
-      grp.orders[0]?.deliveryAddress?.trim() ||
+      firstOrder?.outboundDestination ||
+      firstOrder?.outboundDestinationHubEntity?.name ||
+      tripRecord?.destinationHub?.name ||
+      dispatchTx?.destination ||
+      firstOrder?.deliveryAddress?.trim() ||
+      firstOrder?.destinationHubEntity?.name ||
+      firstOrder?.destinationHub ||
       '';
 
-    const items: OutboundReceiptItem[] = grp.orders.map((o) => {
+    const items: OutboundReceiptItem[] = grp.orders.map((o: any) => {
       const tripTx = o.inventoryTransactions?.find(
         (tx: any) =>
           (tx?.type === 'OUTBOUND' || tx?.type === 'TRANSFER') &&
           (grp.tripCode === '—' || !tx?.tripCode || tx.tripCode === grp.tripCode)
+      );
+      const tripForOrder = (o.trips ?? []).find(
+        (t: any) => grp.tripCode !== '—' && t?.tripCode === grp.tripCode
       );
       const exportedQty =
         o.exportedQuantity != null
@@ -817,8 +894,25 @@ export default function WarehouseOutboundPage() {
           : tripTx
             ? Number(tripTx.quantity || 0)
             : Number(o.outboundQuantity || o.totalQuantity || 1);
+      const plannedHubId = o.plannedDestinationHubId ?? tripForOrder?.destinationHubId ?? null;
+      const outboundHubEntity =
+        o.outboundDestinationHubEntity ||
+        tripForOrder?.destinationHub ||
+        (plannedHubId
+          ? allActiveHubs.find((h: any) => Number(h.id) === Number(plannedHubId))
+          : null);
+      const outboundHubLabel = outboundHubEntity?.name
+        ? outboundHubEntity.address && !outboundHubEntity.name.includes(outboundHubEntity.address)
+          ? `${outboundHubEntity.name} — ${outboundHubEntity.address}`
+          : outboundHubEntity.name
+        : null;
       const itemDestination =
-        o.destinationHub || o.destinationHubEntity?.name || o.deliveryAddress || dest;
+        outboundHubLabel ||
+        o.outboundDestination ||
+        tripTx?.destination ||
+        o.deliveryAddress ||
+        o.destinationHub ||
+        dest;
       return {
         orderCode: o.orderCode,
         goodsDescription: o.goodsDescription || 'Hàng hóa xuất kho',
@@ -826,7 +920,7 @@ export default function WarehouseOutboundPage() {
         unit: 'Kiện',
         destinationHub: itemDestination,
         deliveryAddress: itemDestination,
-        province: o.province || o.destinationHubEntity?.province || '—',
+        province: outboundHubEntity?.city || o.province || o.destinationHubEntity?.province || '—',
         accompanyingDocs: o.accompanyingDocs || '—',
         notes: o.notes || ''
       };
@@ -848,8 +942,8 @@ export default function WarehouseOutboundPage() {
       totalVolume: grp.totalVolume,
       driverName: grp.driverName,
       licensePlate: grp.licensePlate,
-      deliveryAddress: dest,
-      destinationHub: dest,
+      deliveryAddress: items[0]?.deliveryAddress || dest,
+      destinationHub: items[0]?.destinationHub || dest,
       originHub: orig,
       mode: grp.isTransfer ? 'TRANSFER' : 'CUSTOMER',
       dispatchDate: grp.receiveDate || new Date().toISOString().split('T')[0],
@@ -859,7 +953,6 @@ export default function WarehouseOutboundPage() {
     setSelectedReceiptData(receiptData);
     setIsReceiptModalOpen(true);
   };
-
 
   const currentHubName = user?.hub?.name;
 
@@ -985,7 +1078,6 @@ export default function WarehouseOutboundPage() {
                     ))}
                   </div>
 
-
                   {/* Refresh Metrics Button */}
                   <Button
                     variant='outline'
@@ -1006,8 +1098,11 @@ export default function WarehouseOutboundPage() {
                   <table className='w-full text-[11px] text-left'>
                     <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
-                        <th className='py-1.5 px-2 w-[150px]'>CHUYẾN XE / TRIP</th>
-                        <th className='py-1.5 px-2 w-[150px]'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 w-[115px] whitespace-nowrap'>
+                          CHUYẾN XE / TRIP
+                        </th>
+                        <th className='py-1.5 px-2 w-[160px]'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 min-w-[240px]'>MÃ VẬN ĐƠN</th>
                         <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
                         <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
                         <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
@@ -1016,14 +1111,14 @@ export default function WarehouseOutboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoading ? (
                         <tr>
-                          <td colSpan={5} className='p-2 text-center text-gray-500'>
+                          <td colSpan={6} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn xuất kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className='p-2 text-center text-gray-400'>
+                          <td colSpan={6} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe xuất kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -1032,13 +1127,20 @@ export default function WarehouseOutboundPage() {
                           // Trip status at this hub comes from the backend: COMPLETED = đã xuất, PENDING = nháp
                           const isDispatched = grp.status === 'COMPLETED';
                           const isDraft = grp.status === 'PENDING';
+                          const orderCodes = Array.from(
+                            new Set(
+                              (grp.orders ?? [])
+                                .map((o: any) => (o.orderCode || '').trim())
+                                .filter((code: string) => code && code !== '(Tự sinh khi lưu)')
+                            )
+                          );
 
                           return (
                             <tr
                               key={grp.groupKey}
                               className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                             >
-                              <td className='py-1 px-2'>
+                              <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
                                 <div>
                                   <button
                                     type='button'
@@ -1058,7 +1160,7 @@ export default function WarehouseOutboundPage() {
                                   </button>
                                 </div>
                               </td>
-                              <td className='py-1 px-2'>
+                              <td className='py-1 px-2 w-[160px] align-top'>
                                 <div className='text-[11px] space-y-0.5'>
                                   <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1'>
                                     <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
@@ -1074,7 +1176,19 @@ export default function WarehouseOutboundPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px]'>
+                              <td className='py-1 px-2 min-w-[240px] align-top'>
+                                {orderCodes.length > 0 ? (
+                                  <div
+                                    className='text-[10px] text-gray-500 dark:text-slate-400 leading-snug break-words'
+                                    title={orderCodes.join(' ')}
+                                  >
+                                    {orderCodes.join(' ')}
+                                  </div>
+                                ) : (
+                                  <span className='text-[10px] text-gray-400 italic'>—</span>
+                                )}
+                              </td>
+                              <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px] align-top'>
                                 <div>{grp.totalQuantity} kiện</div>
                                 <div className='text-gray-400 text-[10px]'>
                                   {formatWeight(grp.totalWeight)} kg &bull;{' '}
@@ -1291,6 +1405,76 @@ export default function WarehouseOutboundPage() {
                     Lưu nháp (Chờ xử lý)
                   </Button>
                   <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => {
+                      const validRows = mode1Rows.filter(
+                        (r) =>
+                          r.orderCode &&
+                          r.orderCode !== '(Tự sinh khi lưu)' &&
+                          r.orderCode.trim() !== ''
+                      );
+                      const targetRows = validRows.length > 0 ? validRows : mode1Rows;
+                      const totalExportQty = targetRows.reduce(
+                        (sum, r) => sum + (Number(r.totalQuantity) || 0),
+                        0
+                      );
+                      const items = targetRows.map((r) => {
+                        const itemDest = resolveRowOutboundDestination(r);
+                        return {
+                          orderCode: r.orderCode || '—',
+                          goodsDescription: r.goodsDescription || 'Hàng hóa xuất kho',
+                          quantity: Number(r.totalQuantity) || 0,
+                          unit: 'Kiện',
+                          destinationHub: itemDest,
+                          deliveryAddress: itemDest,
+                          province: r.province || '—',
+                          accompanyingDocs: r.accompanyingDocs || '—',
+                          notes: r.notes || ''
+                        };
+                      });
+                      setSelectedReceiptData({
+                        orderCode:
+                          draftTripCode ||
+                          (targetRows.length > 1
+                            ? `CHUYẾN-${outboundLicensePlate || 'NHÁP'}`
+                            : targetRows[0]?.orderCode || 'WH-OUT'),
+                        tripCode: draftTripCode || undefined,
+                        goodsDescription: targetRows
+                          .map((r) => r.goodsDescription)
+                          .filter(Boolean)
+                          .join(', '),
+                        totalQuantity: totalExportQty,
+                        outboundQuantity: totalExportQty,
+                        totalWeight: targetRows.reduce(
+                          (sum, r) => sum + (Number(r.totalWeight) || 0),
+                          0
+                        ),
+                        totalVolume: targetRows.reduce(
+                          (sum, r) => sum + (Number(r.totalVolume) || 0),
+                          0
+                        ),
+                        driverName: outboundDriverName || '—',
+                        licensePlate: outboundLicensePlate || '—',
+                        deliveryAddress: items[0]?.deliveryAddress || '—',
+                        destinationHub: items[0]?.destinationHub || '—',
+                        originHub: user?.hub?.name || '—',
+                        mode: 'CUSTOMER',
+                        dispatchDate: dispatchDate,
+                        notes: targetRows
+                          .map((r) => r.notes)
+                          .filter(Boolean)
+                          .join('; '),
+                        items
+                      });
+                      setIsReceiptModalOpen(true);
+                    }}
+                    className='text-xs font-bold border-slate-300'
+                  >
+                    <IconPrinter className='mr-1 h-3.5 w-3.5 text-emerald-600' />
+                    Xem trước
+                  </Button>
+                  <Button
                     onClick={() => handleSubmitOutbound('CUSTOMER')}
                     disabled={isSubmitting || isSavingDraft || hasDraftOrdersInNote}
                     className={`px-2 font-bold h-9 text-xs shadow-xs ${
@@ -1366,9 +1550,7 @@ export default function WarehouseOutboundPage() {
           onSuccess={() => {
             fetchOrders();
           }}
-          onOpenReceipt={
-            selectedTripGroup?.status === 'COMPLETED' ? handleOpenReceiptForVehicle : undefined
-          }
+          onOpenReceipt={handleOpenReceiptForVehicle}
         />
       </div>
     </PageContainer>

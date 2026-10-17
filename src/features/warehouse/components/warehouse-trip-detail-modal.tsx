@@ -321,15 +321,20 @@ export function WarehouseTripDetailModal({
         targetLines = manifest.lines;
       }
 
-      const filteredOrders = targetLines.map((l) => ({
-        id: l.id,
-        orderCode: l.orderCode,
-        goodsDescription: l.goodsDescription || 'Hàng hóa vận chuyển',
-        totalQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
-        inboundQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
-        totalWeight: l.totalWeight || l.weightAllocated || 0,
-        totalVolume: l.totalVolume || l.volumeAllocated || 0,
-        deliveryAddress:
+      const filteredOrders = targetLines.map((l) => {
+        const isTransferLine =
+          l.deliveryMode === 'HUB_L1' ||
+          l.deliveryMode === 'XE_BO' ||
+          l.deliveryMode === 'HUB_TRANSFER' ||
+          Boolean(l.destinationHubId);
+        const outboundHubLabel =
+          isTransferLine && l.destinationHubEntity?.name
+            ? l.destinationHubEntity.address &&
+              !l.destinationHubEntity.name.includes(l.destinationHubEntity.address)
+              ? `${l.destinationHubEntity.name} — ${l.destinationHubEntity.address}`
+              : l.destinationHubEntity.name
+            : null;
+        const baseDeliveryAddr =
           l.deliveryAddress && l.deliveryAddress !== '—'
             ? l.deliveryAddress
             : l.originalDeliveryAddress && l.originalDeliveryAddress !== '—'
@@ -338,14 +343,36 @@ export function WarehouseTripDetailModal({
                 l.destinationHub ||
                 l.destinationHubEntity?.name ||
                 l.province ||
-                '—',
-        destinationHub: l.destinationHub || l.destinationHubEntity?.name || '',
-        destinationHubId: l.destinationHubId,
-        destinationHubEntity: l.destinationHubEntity,
-        accompanyingDocs: l.accompanyingDocs || 'KHÔNG CÓ',
-        notes: l.notes || '',
-        pickupAddress: l.pickupAddress
-      }));
+                '—';
+        const resolvedDeliveryAddr =
+          printMode === 'OUTBOUND' && outboundHubLabel ? outboundHubLabel : baseDeliveryAddr;
+
+        return {
+          id: l.id,
+          orderCode: l.orderCode,
+          goodsDescription: l.goodsDescription || 'Hàng hóa vận chuyển',
+          totalQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+          inboundQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+          exportedQuantity: l.expectedQuantity || l.totalQuantity,
+          totalWeight: l.totalWeight || l.weightAllocated || 0,
+          totalVolume: l.totalVolume || l.volumeAllocated || 0,
+          deliveryAddress: resolvedDeliveryAddr,
+          outboundDestination:
+            printMode === 'OUTBOUND'
+              ? outboundHubLabel || l.destinationHub || resolvedDeliveryAddr
+              : undefined,
+          outboundDestinationHubEntity: l.destinationHubEntity,
+          destinationHub:
+            printMode === 'OUTBOUND'
+              ? outboundHubLabel || l.destinationHub || l.destinationHubEntity?.name || ''
+              : l.destinationHub || l.destinationHubEntity?.name || '',
+          destinationHubId: l.destinationHubId,
+          destinationHubEntity: l.destinationHubEntity,
+          accompanyingDocs: l.accompanyingDocs || 'KHÔNG CÓ',
+          notes: l.notes || '',
+          pickupAddress: l.pickupAddress
+        };
+      });
 
       const totalQty = filteredOrders.reduce((sum, o) => sum + (Number(o.inboundQuantity) || 1), 0);
       const totalWeight = filteredOrders.reduce((sum, o) => sum + (Number(o.totalWeight) || 0), 0);
@@ -473,20 +500,30 @@ export function WarehouseTripDetailModal({
       return;
     }
 
-    const allLabels: PalletLabelData[] = targetList.map((o: any) => ({
-      orderCode: o.orderCode,
-      goodsDescription: o.goodsDescription || 'Hàng hóa tổng quan',
-      totalQuantity: Number(o.totalQuantity ?? o.expectedQuantity ?? 1),
-      originHub: o.pickupAddress || o.originHub || o.originHubEntity?.name,
-      destinationHub: o.destinationHub || o.destinationHubEntity?.name,
-      originalDestination:
-        o.originalDestination || o.destinationHubEntity?.name || o.deliveryAddress,
-      deliveryAddress: o.deliveryAddress,
-      province: o.province || o.destinationHubEntity?.city,
-      destinationHubEntity: o.destinationHubEntity,
-      createdAt: o.createdAt,
-      warehouseName: user?.hub?.name || tripGroup?.licensePlate
-    }));
+    const allLabels: PalletLabelData[] = targetList.map((o: any) => {
+      const outHub =
+        mode === 'OUTBOUND'
+          ? o.outboundDestinationHubEntity || o.destinationHubEntity
+          : o.destinationHubEntity;
+      const outDest =
+        mode === 'OUTBOUND'
+          ? o.outboundDestination || o.deliveryAddress || o.destinationHub || outHub?.name
+          : o.destinationHub || o.destinationHubEntity?.name;
+      return {
+        orderCode: o.orderCode,
+        goodsDescription: o.goodsDescription || 'Hàng hóa tổng quan',
+        totalQuantity: Number(o.totalQuantity ?? o.expectedQuantity ?? 1),
+        originHub: o.pickupAddress || o.originHub || o.originHubEntity?.name,
+        destinationHub: outDest,
+        originalDestination:
+          o.originalDestination || o.destinationHubEntity?.name || o.deliveryAddress,
+        deliveryAddress: mode === 'OUTBOUND' ? outDest : o.deliveryAddress,
+        province: outHub?.city || o.province || o.destinationHubEntity?.city,
+        destinationHubEntity: outHub,
+        createdAt: o.createdAt,
+        warehouseName: user?.hub?.name || tripGroup?.licensePlate
+      };
+    });
 
     setSelectedLabelData(allLabels);
   };
@@ -583,8 +620,6 @@ export function WarehouseTripDetailModal({
     };
   }, [manifest]);
 
-
-
   // Outbound cargo breakdown for Step 2
   const outboundBreakdown = useMemo(() => {
     if (!manifest || !manifest.lines) {
@@ -624,8 +659,19 @@ export function WarehouseTripDetailModal({
       setReceiveDate(tripGroup.receiveDate || new Date().toISOString().split('T')[0]);
 
       if (tripGroup.orders && tripGroup.orders.length > 0) {
-        const mappedRows: WarehouseRowItem[] = tripGroup.orders.map((o) => {
-          let deliveryAddr = o.deliveryAddress || '';
+        const mappedRows: WarehouseRowItem[] = tripGroup.orders.map((o: any) => {
+          const outHubEntity =
+            mode === 'OUTBOUND'
+              ? o.outboundDestinationHubEntity || o.destinationHubEntity
+              : o.destinationHubEntity;
+          const outHubId =
+            mode === 'OUTBOUND'
+              ? (o.plannedDestinationHubId ?? outHubEntity?.id ?? o.destinationHubId ?? null)
+              : o.destinationHubId || null;
+          let deliveryAddr =
+            (mode === 'OUTBOUND'
+              ? o.outboundDestination || o.deliveryAddress
+              : o.deliveryAddress) || '';
           if (!deliveryAddr && o.route && o.route.includes('→')) {
             deliveryAddr = o.route.split('→')[1]?.trim() || '';
           }
@@ -669,15 +715,13 @@ export function WarehouseTripDetailModal({
             totalVolume: Number(o.totalVolume ?? 0),
             deliveryMode: (o.deliveryMode as any) || 'DIRECT_CUSTOMER',
             deliveryAddress: deliveryAddr,
-            province: o.province || '',
+            province: outHubEntity?.city || o.province || '',
             accompanyingDocs: o.accompanyingDocs || '',
             notes: o.notes || '',
-            destinationHubId: o.destinationHubId || null,
+            destinationHubId: outHubId,
             destinationHub:
-              o.destinationHubEntity ||
-              (o.destinationHub
-                ? { id: o.destinationHubId, name: o.destinationHub, code: '' }
-                : null),
+              outHubEntity ||
+              (o.destinationHub ? { id: outHubId, name: o.destinationHub, code: '' } : null),
             status: o.status,
             hubStatus: o.hubStatus,
             expectedInboundLicensePlate: expPlate
@@ -898,9 +942,7 @@ export function WarehouseTripDetailModal({
       }
 
       // Cập nhật trạng thái dòng đơn sang INBOUND trong state bảng
-      setRows((prev) =>
-        prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND' } : r))
-      );
+      setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND' } : r)));
 
       toast.success(
         `Đã nhập kho đơn hàng ${row.orderCode.trim().toUpperCase()} thành công! Sẵn sàng xuất kho.`

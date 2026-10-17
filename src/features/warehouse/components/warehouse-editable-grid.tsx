@@ -507,6 +507,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
   );
   const [isSearching, setIsSearching] = useState(false);
   const searchTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const inFlightCodeRef = React.useRef<string>('');
   const lastSearchedCodeRef = React.useRef<string>(
     r.id ? (r.orderCode || '').trim().toUpperCase() : ''
   );
@@ -534,8 +535,10 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
       const allRows = meta?.allRows || [];
       const currentRow = allRows[idx] || r;
 
+      if (inFlightCodeRef.current === trimmed) return;
       if (lastSearchedCodeRef.current === trimmed && currentRow.id) return;
 
+      inFlightCodeRef.current = trimmed;
       setIsSearching(true);
       const token = tokenManager.getAccessToken();
 
@@ -617,9 +620,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
                 `Đơn hàng ${foundOrder.orderCode} đã được xếp hết số kiện vào chuyến xe chờ xuất (${foundOrder.pendingOutboundTripCodes?.join(', ') || 'khác'}). Không thể thêm vào chuyến xe này!`
               );
             } else {
-              toast.error(
-                `Đơn hàng ${foundOrder.orderCode} đã hết tồn kho khả dụng tại kho này!`
-              );
+              toast.error(`Đơn hàng ${foundOrder.orderCode} đã hết tồn kho khả dụng tại kho này!`);
             }
             return;
           }
@@ -707,6 +708,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
       } catch (err) {
         toast.error(`Lỗi khi tìm kiếm đơn hàng "${trimmed}"`);
       } finally {
+        inFlightCodeRef.current = '';
         setIsSearching(false);
       }
     },
@@ -722,8 +724,9 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
     async (codeToSearch: string) => {
       const trimmed = codeToSearch.trim().toUpperCase();
       if (!trimmed || trimmed === '(TỰ SINH KHI LƯU)' || trimmed === 'TỰ SINH') return;
-      if (lastSearchedCodeRef.current === trimmed) return;
+      if (inFlightCodeRef.current === trimmed || lastSearchedCodeRef.current === trimmed) return;
 
+      inFlightCodeRef.current = trimmed;
       setIsSearching(true);
 
       try {
@@ -789,6 +792,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           lastSearchedCodeRef.current = trimmed;
         }
       } finally {
+        inFlightCodeRef.current = '';
         setIsSearching(false);
       }
     },
@@ -807,12 +811,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
-    }
-
-    if (nextVal.trim()) {
-      searchTimerRef.current = setTimeout(() => {
-        performSearchRef.current(nextVal);
-      }, 1200);
+      searchTimerRef.current = null;
     }
   };
 
@@ -823,20 +822,18 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
-    }
-
-    if (nextVal.trim() && nextVal.trim() !== '(TỰ SINH KHI LƯU)') {
-      searchTimerRef.current = setTimeout(() => {
-        performInboundSearchRef.current(nextVal);
-      }, 1200);
+      searchTimerRef.current = null;
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
       }
       if (value.trim()) {
         if (isOutbound) {
@@ -853,6 +850,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
     if (trimmed && trimmed !== lastSearchedCodeRef.current) {
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
       }
       if (isOutbound) {
         performSearch(trimmed);
@@ -880,7 +878,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             'h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
             isSearching && 'pr-6'
           )}
-          title='Nhập mã đơn hàng (hệ thống tự tra cứu sau 1.2s hoặc nhấn Enter)'
+          title='Nhập mã đơn hàng (nhấn Enter hoặc Tab để tra cứu)'
         />
         {isSearching && (
           <IconLoader2 className='absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none' />
@@ -899,7 +897,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
         disabled={isRowInbound}
         required
         placeholder='Mã vận đơn'
-        title='Nhập mã vận đơn (tự động nhận diện và điền thông tin nếu đơn đã có trong hệ thống).'
+        title='Nhập mã vận đơn (nhấn Enter hoặc Tab để tự động nhận diện và điền thông tin).'
         className={cn(
           'h-7 px-1.5 text-[10px] font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500',
           isSearching && 'pr-6',
@@ -1014,10 +1012,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
 
-  const isRowInbound = isRowInboundLocked(
-    r.status,
-    table.options.meta?.isInboundTripMode
-  );
+  const isRowInbound = isRowInboundLocked(r.status, table.options.meta?.isInboundTripMode);
 
   return (
     <div className='space-y-0.5'>
@@ -1161,7 +1156,8 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
       !hub.code?.startsWith('HUB-BO-') &&
       !hub.name?.toLowerCase().includes('xe bo');
     const mode = isL1 ? 'HUB_L1' : 'XE_BO';
-    const label = `${hub.name} · ${isL1 ? 'nhận trung chuyển' : 'gom hàng tuyến nội thành'}`;
+    const label =
+      hub.address && !hub.name.includes(hub.address) ? `${hub.name} — ${hub.address}` : hub.name;
 
     meta?.updateRow(idx, {
       ...r,
@@ -1186,10 +1182,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(
-    r.status,
-    meta?.isInboundTripMode
-  );
+  const isRowInbound = isRowInboundLocked(r.status, meta?.isInboundTripMode);
   const isOutbound = meta?.isOutboundMode;
 
   if (!isOutbound) {
@@ -1377,6 +1370,27 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const isOrderInbound = isRowInboundLocked(r.status, isInboundTripMode);
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
+  const resolvedHubForPrint =
+    r.deliveryMode === 'HUB_L1' ||
+    r.deliveryMode === 'XE_BO' ||
+    (r.destinationHubId !== undefined &&
+      r.destinationHubId !== null &&
+      Number(r.destinationHubId) > 0)
+      ? resolveHubOption(
+          r.destinationHub,
+          r.destinationHubId,
+          r.deliveryAddress,
+          meta?.level1Hubs ?? [],
+          meta?.level2XeBoHubs ?? [],
+          r.deliveryMode
+        ).hub
+      : null;
+  const resolvedDestForPrint = resolvedHubForPrint?.name
+    ? resolvedHubForPrint.address && !resolvedHubForPrint.name.includes(resolvedHubForPrint.address)
+      ? `${resolvedHubForPrint.name} — ${resolvedHubForPrint.address}`
+      : resolvedHubForPrint.name
+    : r.deliveryAddress;
+
   return (
     <div className='flex items-center justify-center gap-0.5'>
       <Button
@@ -1390,9 +1404,10 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
             goodsDescription: r.goodsDescription || 'Hàng hóa tổng quan',
             totalQuantity: r.totalQuantity || 1,
             originHub: r.pickupAddress,
-            destinationHub: r.deliveryAddress,
-            deliveryAddress: r.deliveryAddress,
-            province: r.province || undefined,
+            destinationHub: resolvedDestForPrint,
+            deliveryAddress: resolvedDestForPrint,
+            destinationHubEntity: resolvedHubForPrint || undefined,
+            province: resolvedHubForPrint?.city || r.province || undefined,
             createdAt: new Date()
           })
         }
