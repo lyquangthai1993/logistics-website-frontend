@@ -114,13 +114,14 @@ test.describe
     await expect(inboundTable).toBeVisible({ timeout: 15000 });
 
     const headers = inboundTable.locator('thead th');
-    await expect(headers).toHaveCount(6);
-    await expect(headers.nth(0)).toContainText('CHUYẾN XE / TRIP');
-    await expect(headers.nth(1)).toContainText('XE & TÀI XẾ');
-    await expect(headers.nth(2)).toContainText('MÃ VẬN ĐƠN');
-    await expect(headers.nth(3)).toContainText('SỐ KIỆN / TẢI TRỌNG');
-    await expect(headers.nth(4)).toContainText('TRẠNG THÁI');
-    await expect(headers.nth(5)).toContainText('THAO TÁC');
+    await expect(headers).toHaveCount(7);
+    await expect(headers.nth(0)).toContainText('NGÀY');
+    await expect(headers.nth(1)).toContainText('CHUYẾN XE / TRIP');
+    await expect(headers.nth(2)).toContainText('XE & TÀI XẾ');
+    await expect(headers.nth(3)).toContainText('MÃ VẬN ĐƠN');
+    await expect(headers.nth(4)).toContainText('SỐ KIỆN / TẢI TRỌNG');
+    await expect(headers.nth(5)).toContainText('TRẠNG THÁI');
+    await expect(headers.nth(6)).toContainText('THAO TÁC');
 
     // Wait for data rows to load
     const inboundRows = inboundTable.locator('tbody tr');
@@ -128,10 +129,14 @@ test.describe
     const inboundRowCount = await inboundRows.count();
     expect(inboundRowCount).toBeGreaterThan(0);
 
+    // Task 5: Verify first column displays date in dd/MM/yyyy format
+    const firstInboundDateCell = inboundRows.first().locator('td').nth(0);
+    await expect(firstInboundDateCell).toHaveText(/^\d{2}\/\d{2}\/\d{4}$/);
+
     // Verify column proximity: XE & TÀI XẾ is immediately adjacent to CHUYẾN XE / TRIP
-    const tripHeaderBox = await headers.nth(0).boundingBox();
-    const vehicleHeaderBox = await headers.nth(1).boundingBox();
-    const waybillHeaderBox = await headers.nth(2).boundingBox();
+    const tripHeaderBox = await headers.nth(1).boundingBox();
+    const vehicleHeaderBox = await headers.nth(2).boundingBox();
+    const waybillHeaderBox = await headers.nth(3).boundingBox();
     expect(tripHeaderBox).not.toBeNull();
     expect(vehicleHeaderBox).not.toBeNull();
     expect(waybillHeaderBox).not.toBeNull();
@@ -144,7 +149,7 @@ test.describe
     }
 
     // Check MÃ VẬN ĐƠN cell styling (text-[10px] text-gray-500)
-    const firstWaybillCell = inboundRows.first().locator('td').nth(2).locator('div').first();
+    const firstWaybillCell = inboundRows.first().locator('td').nth(3).locator('div').first();
     await expect(firstWaybillCell).toBeVisible();
     const waybillClass = (await firstWaybillCell.getAttribute('class')) || '';
     expect(waybillClass).toContain('text-[10px]');
@@ -161,15 +166,20 @@ test.describe
     await expect(outboundTable).toBeVisible({ timeout: 15000 });
 
     const outHeaders = outboundTable.locator('thead th');
-    await expect(outHeaders).toHaveCount(6);
-    await expect(outHeaders.nth(0)).toContainText('CHUYẾN XE / TRIP');
-    await expect(outHeaders.nth(1)).toContainText('XE & TÀI XẾ');
-    await expect(outHeaders.nth(2)).toContainText('MÃ VẬN ĐƠN');
+    await expect(outHeaders).toHaveCount(7);
+    await expect(outHeaders.nth(0)).toContainText('NGÀY');
+    await expect(outHeaders.nth(1)).toContainText('CHUYẾN XE / TRIP');
+    await expect(outHeaders.nth(2)).toContainText('XE & TÀI XẾ');
+    await expect(outHeaders.nth(3)).toContainText('MÃ VẬN ĐƠN');
 
     const outboundRows = outboundTable.locator('tbody tr', { hasText: /SD\d+/i });
     await expect(outboundRows.first()).toBeVisible({ timeout: 15000 });
     const outboundRowCount = await outboundRows.count();
     expect(outboundRowCount).toBeGreaterThan(0);
+
+    // Task 5: Verify Outbound first column displays date in dd/MM/yyyy format
+    const firstOutboundDateCell = outboundRows.first().locator('td').nth(0);
+    await expect(firstOutboundDateCell).toHaveText(/^\d{2}\/\d{2}\/\d{4}$/);
 
     const shot3 = await page.screenshot({ fullPage: false });
     saveEvidenceScreenshot('screenshot_03_task2_outbound_trip_board_waybills_verified.png', shot3);
@@ -262,5 +272,190 @@ test.describe
     await expect(page.locator('th', { hasText: 'MÃ VẬN ĐƠN' }).first()).toBeVisible({
       timeout: 15000
     });
+  });
+
+  test('Task 6: Editing a Chờ xử lý (PENDING) trip and clicking Lưu nháp persists updated info on both Inbound and Outbound', async ({
+    page
+  }) => {
+    test.setTimeout(60000);
+    await clearSession(page);
+    await page.goto(`${FRONTEND_URL}/auth/sign-in`);
+    await page.waitForLoadState('domcontentloaded');
+    await loginAs(page, USER_WAREHOUSE_HCM);
+
+    // ── Part A: Inbound Pending Trip Draft Edit & Re-open Persistence ──
+    await page.goto(`${FRONTEND_URL}/dashboard/warehouse/inbound`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const inboundTable = page.locator('table').first();
+    await expect(inboundTable).toBeVisible({ timeout: 15000 });
+    await expect(inboundTable.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+
+    let resumeInboundBtn = inboundTable.getByRole('button', { name: /Tiếp tục/i }).first();
+    const hasPendingInbound = await resumeInboundBtn
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+
+    if (!hasPendingInbound) {
+      // Create a fresh draft inbound trip first
+      const createBtn = page.getByRole('button', { name: /Tạo đơn nhập mới|Tạo đơn mới/i }).first();
+      await createBtn.click();
+      const plateInput = page.locator('input[placeholder*="29C"]').first();
+      await expect(plateInput).toBeVisible({ timeout: 8000 });
+      await plateInput.fill('51D-171.06');
+
+      const orderCodeInput = page.locator('input[placeholder="Mã vận đơn"]').first();
+      const uniqueDraftCode = `LTV1710-${Date.now().toString().slice(-4)}`;
+      await orderCodeInput.fill(uniqueDraftCode);
+      await orderCodeInput.press('Enter');
+
+      const saveNewDraftBtn = page.getByRole('button', { name: /Lưu nháp/i }).first();
+      await expect(saveNewDraftBtn).toBeEnabled({ timeout: 8000 });
+      await saveNewDraftBtn.click();
+
+      await expect(inboundTable).toBeVisible({ timeout: 15000 });
+      resumeInboundBtn = inboundTable.getByRole('button', { name: /Tiếp tục/i }).first();
+    }
+
+    await expect(resumeInboundBtn).toBeVisible({ timeout: 10000 });
+    const targetInboundRow = inboundTable
+      .locator('tbody tr', { has: page.getByRole('button', { name: /Tiếp tục/i }) })
+      .first();
+    const inboundTripCode = (
+      (await targetInboundRow.locator('td').nth(1).locator('span').first().textContent()) || ''
+    ).trim();
+    expect(inboundTripCode).toMatch(/^SD\d+/i);
+
+    await resumeInboundBtn.click();
+
+    const tripDialog = page.getByRole('dialog');
+    await expect(tripDialog).toBeVisible({ timeout: 10000 });
+
+    // Ensure license plate has a valid value and update driver name
+    const modalPlateInput = tripDialog.locator('input[placeholder*="29C"]').first();
+    await expect(modalPlateInput).toBeVisible({ timeout: 8000 });
+    const currentPlateVal = await modalPlateInput.inputValue();
+    if (!currentPlateVal.trim()) {
+      await modalPlateInput.fill('51D-171.06');
+    }
+
+    const updatedInboundDriver = `Tài xế Nháp ${Date.now().toString().slice(-4)}`;
+    const modalDriverInput = tripDialog.locator('input[placeholder*="Nguyễn Văn A"]').first();
+    await expect(modalDriverInput).toBeVisible({ timeout: 8000 });
+    await modalDriverInput.fill(updatedInboundDriver);
+    await expect(modalDriverInput).toHaveValue(updatedInboundDriver);
+
+    // Click "Lưu nháp" inside the modal and wait for API response
+    const saveInboundDraftBtn = tripDialog
+      .getByRole('button', { name: /Lưu nháp|Lưu thay đổi/i })
+      .first();
+    await expect(saveInboundDraftBtn).toBeVisible({ timeout: 8000 });
+    await expect(saveInboundDraftBtn).toBeEnabled({ timeout: 8000 });
+
+    const [inboundSaveRes] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().includes('/api/v1/warehouse/inbound/confirm') &&
+          res.request().method() === 'POST',
+        { timeout: 15000 }
+      ),
+      saveInboundDraftBtn.click()
+    ]);
+    expect([200, 201]).toContain(inboundSaveRes.status());
+
+    // Modal closes and board row immediately shows the updated driver name
+    await expect(tripDialog).toBeHidden({ timeout: 10000 });
+    const updatedInboundBoardRow = inboundTable
+      .locator('tbody tr', { hasText: inboundTripCode })
+      .first();
+    await expect(updatedInboundBoardRow).toContainText(updatedInboundDriver, { timeout: 10000 });
+
+    // Reopen the same pending inbound trip and verify the draft change persisted
+    await updatedInboundBoardRow.getByRole('button', { name: /Tiếp tục/i }).click();
+    await expect(tripDialog).toBeVisible({ timeout: 10000 });
+    await expect(tripDialog.locator('input[placeholder*="Nguyễn Văn A"]').first()).toHaveValue(
+      updatedInboundDriver
+    );
+    await page.keyboard.press('Escape');
+
+    // ── Part B: Outbound Pending Trip Draft Edit & Re-open Persistence ──
+    await page.goto(`${FRONTEND_URL}/dashboard/warehouse/outbound`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const outboundTable = page.locator('table').first();
+    await expect(outboundTable).toBeVisible({ timeout: 15000 });
+
+    const targetOutboundRow = outboundTable
+      .locator('tbody tr', { has: page.getByRole('button', { name: /Tiếp tục/i }) })
+      .first();
+    await expect(targetOutboundRow).toBeVisible({ timeout: 15000 });
+
+    const outboundTripCode = (
+      (await targetOutboundRow.locator('td').nth(1).locator('span').first().textContent()) || ''
+    ).trim();
+    expect(outboundTripCode).toMatch(/^SD\d+/i);
+
+    await targetOutboundRow.getByRole('button', { name: /Tiếp tục/i }).click();
+
+    // Edit driver name and note on the Outbound draft form
+    const outPlateInput = page.locator('input[placeholder*="29C"]').first();
+    await expect(outPlateInput).toBeVisible({ timeout: 10000 });
+    if (!(await outPlateInput.inputValue()).trim()) {
+      await outPlateInput.fill('51C-171.06');
+    }
+
+    const updatedOutboundDriver = `TX Xuất Nháp ${Date.now().toString().slice(-4)}`;
+    const outDriverInput = page.locator('input[placeholder*="Nguyễn Văn A"]').first();
+    await expect(outDriverInput).toBeVisible({ timeout: 8000 });
+    await outDriverInput.fill(updatedOutboundDriver);
+
+    const updatedOutboundNote = `Ghi chú nháp ${Date.now().toString().slice(-4)}`;
+    const firstRowNoteInput = page.locator('input[placeholder*="Ghi chú"]').first();
+    if (await firstRowNoteInput.isVisible().catch(() => false)) {
+      await firstRowNoteInput.fill(updatedOutboundNote);
+    }
+
+    const saveOutboundDraftBtn = page.getByRole('button', { name: /Lưu nháp/i }).first();
+    await expect(saveOutboundDraftBtn).toBeVisible({ timeout: 8000 });
+
+    const [outboundSaveRes] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().includes('/api/v1/warehouse/outbound/draft') &&
+          res.request().method() === 'POST',
+        { timeout: 15000 }
+      ),
+      saveOutboundDraftBtn.click()
+    ]);
+    expect([200, 201]).toContain(outboundSaveRes.status());
+
+    // Verify the Outbound Board immediately shows the updated driver name for that trip
+    await expect(outboundTable).toBeVisible({ timeout: 15000 });
+    const refreshedOutboundRow = outboundTable
+      .locator('tbody tr', { hasText: outboundTripCode })
+      .first();
+    await expect(refreshedOutboundRow).toContainText(updatedOutboundDriver, { timeout: 10000 });
+
+    // Reopen the same pending outbound trip via "Tiếp tục" and verify both driver & row note persisted
+    await refreshedOutboundRow.getByRole('button', { name: /Tiếp tục/i }).click();
+    await expect(page.locator('input[placeholder*="Nguyễn Văn A"]').first()).toHaveValue(
+      updatedOutboundDriver,
+      { timeout: 10000 }
+    );
+    if (
+      await page
+        .locator('input[placeholder*="Ghi chú"]')
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
+      await expect(page.locator('input[placeholder*="Ghi chú"]').first()).toHaveValue(
+        updatedOutboundNote
+      );
+    }
+
+    const shot5 = await page.screenshot({ fullPage: false });
+    saveEvidenceScreenshot('screenshot_05_task6_draft_trip_save_verified.png', shot5);
+    saveEvidenceScreenshot('screenshot_verified.png', shot5);
   });
 });
