@@ -24,7 +24,8 @@ import {
   IconAlertCircle,
   IconRotate
 } from '@tabler/icons-react';
-import { rollbackTrip } from '@/features/warehouse/api/trip-manifest';
+import { useQueryClient } from '@tanstack/react-query';
+import { rollbackTrip, tripManifestKeys } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -59,6 +60,7 @@ import {
 
 export default function WarehouseOutboundPage() {
   const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
 
   // Active View: 'BOARD' | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'
   const [activeView, setActiveView] = useState<'BOARD' | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'>(
@@ -497,7 +499,12 @@ export default function WarehouseOutboundPage() {
               ? Number(r.destinationHubId)
               : undefined,
           deliveryMode: r.deliveryMode || (r.destinationHubId ? 'HUB_L1' : 'DIRECT_CUSTOMER'),
-          deliveryAddress: resolvedAddr || undefined
+          deliveryAddress: resolvedAddr || undefined,
+          province: r.province?.trim() || undefined,
+          accompanyingDocs: r.accompanyingDocs?.trim() || undefined,
+          notes: r.notes?.trim() || undefined,
+          goodsDescription: r.goodsDescription?.trim() || undefined,
+          pickupAddress: r.pickupAddress?.trim() || undefined
         };
       });
 
@@ -681,9 +688,15 @@ export default function WarehouseOutboundPage() {
           : 'Đã lưu nháp phiếu xuất kho'
       );
       resetMode1Form();
-      // Switching back to BOARD triggers the board effect with the "Chờ xử lý" filter applied
+      // Switching back to BOARD and explicitly refreshing orders + manifest cache
+      // (needed even when boardStatus was already 'PENDING')
       setBoardStatus('PENDING');
       setActiveView('BOARD');
+      fetchOrders();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: tripManifestKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] })
+      ]);
     } catch (err: any) {
       showApiErrorToast(err, 'Không thể lưu nháp phiếu xuất kho');
     } finally {
@@ -806,6 +819,20 @@ export default function WarehouseOutboundPage() {
     }
   };
 
+  const formatTripDate = (raw?: string) => {
+    if (!raw) return '—';
+    const clean = String(raw).split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    }
+    return clean || '—';
+  };
+
   // Trip rows come pre-grouped from the backend (one row per SD trip dispatched from this hub)
   const vehicleGroups: InboundVehicleGroup[] = useMemo(
     () =>
@@ -813,13 +840,18 @@ export default function WarehouseOutboundPage() {
         const descs = Array.from(
           new Set((g.orders ?? []).map((x: any) => x.goodsDescription).filter(Boolean))
         ) as string[];
+        const rawDate =
+          g.dispatchDate ||
+          g.dispatchedAt ||
+          g.receiveDate ||
+          g.createdAt ||
+          g.orders?.[0]?.createdAt;
         return {
           groupKey: g.tripCode,
           licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'XE XUẤT KHO',
           driverName: g.driverName?.trim() || '',
           tripCode: g.tripCode,
-          receiveDate:
-            typeof g.dispatchDate === 'string' ? g.dispatchDate.split('T')[0] : undefined,
+          receiveDate: rawDate ? String(rawDate).split('T')[0] : undefined,
           // Status of the trip at this hub: origin stop is "Đã xử lý" once dispatched
           status: g.status ?? 'COMPLETED',
           isTransfer: !!g.isTransfer,
@@ -839,6 +871,18 @@ export default function WarehouseOutboundPage() {
       }),
     [tripGroups]
   );
+
+  useEffect(() => {
+    if (!selectedTripGroup) return;
+    const updated = vehicleGroups.find(
+      (g) =>
+        (g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode) ||
+        g.groupKey === selectedTripGroup.groupKey
+    );
+    if (updated) {
+      setSelectedTripGroup(updated);
+    }
+  }, [vehicleGroups]);
 
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Xuất tại kho" = the hub that dispatched this vehicle (hub of creator / dispatch transaction).
@@ -1098,6 +1142,7 @@ export default function WarehouseOutboundPage() {
                   <table className='w-full text-[11px] text-left'>
                     <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
+                        <th className='py-1.5 px-2 w-[85px] whitespace-nowrap'>NGÀY</th>
                         <th className='py-1.5 px-2 w-[115px] whitespace-nowrap'>
                           CHUYẾN XE / TRIP
                         </th>
@@ -1111,14 +1156,14 @@ export default function WarehouseOutboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoading ? (
                         <tr>
-                          <td colSpan={6} className='p-2 text-center text-gray-500'>
+                          <td colSpan={7} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn xuất kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className='p-2 text-center text-gray-400'>
+                          <td colSpan={7} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe xuất kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -1140,6 +1185,9 @@ export default function WarehouseOutboundPage() {
                               key={grp.groupKey}
                               className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                             >
+                              <td className='py-1 px-2 w-[85px] whitespace-nowrap align-top text-[10px] font-medium text-slate-600 dark:text-slate-400'>
+                                {formatTripDate(grp.receiveDate)}
+                              </td>
                               <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
                                 <div>
                                   <button

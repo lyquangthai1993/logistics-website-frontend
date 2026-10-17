@@ -341,6 +341,20 @@ export default function WarehouseInboundPage() {
     }
   }, [activeView, fetchInboundTrips]);
 
+  const formatTripDate = (raw?: string) => {
+    if (!raw) return '—';
+    const clean = String(raw).split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    }
+    return clean || '—';
+  };
+
   // Group inbound trips directly from backend response
   const vehicleGroups: InboundVehicleGroup[] = useMemo(
     () =>
@@ -348,17 +362,14 @@ export default function WarehouseInboundPage() {
         const descs = Array.from(
           new Set((g.orders ?? []).map((x: any) => x.goodsDescription).filter(Boolean))
         ) as string[];
+        const rawDate =
+          g.receiveDate || g.pickupDate || g.processedAt || g.createdAt || g.orders?.[0]?.createdAt;
         return {
           groupKey: g.tripCode || g.groupKey,
           licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'CHƯA GÁN XE',
           driverName: g.driverName?.trim() || '',
           tripCode: g.tripCode || '—',
-          receiveDate:
-            typeof g.receiveDate === 'string'
-              ? g.receiveDate.split('T')[0]
-              : typeof g.pickupDate === 'string'
-                ? g.pickupDate.split('T')[0]
-                : undefined,
+          receiveDate: rawDate ? String(rawDate).split('T')[0] : undefined,
           status: g.status ?? 'PENDING',
           isTransfer: !!g.isTransfer,
           orders: g.orders ?? [],
@@ -383,6 +394,18 @@ export default function WarehouseInboundPage() {
     () => vehicleGroups.flatMap((g) => g.orders ?? []),
     [vehicleGroups]
   );
+
+  useEffect(() => {
+    if (!selectedTripGroup) return;
+    const updated = vehicleGroups.find(
+      (g) =>
+        (g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode) ||
+        g.groupKey === selectedTripGroup.groupKey
+    );
+    if (updated) {
+      setSelectedTripGroup(updated);
+    }
+  }, [vehicleGroups]);
 
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
@@ -768,6 +791,7 @@ export default function WarehouseInboundPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
+          hubId: Number(user?.hubId ?? (user?.hub as any)?.id) || undefined,
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || undefined,
           receiveDate: receiveDate || undefined,
@@ -955,6 +979,7 @@ export default function WarehouseInboundPage() {
                   <table className='w-full text-[11px] text-left'>
                     <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
+                        <th className='py-1.5 px-2 w-[85px] whitespace-nowrap'>NGÀY</th>
                         <th className='py-1.5 px-2 w-[115px] whitespace-nowrap'>
                           CHUYẾN XE / TRIP
                         </th>
@@ -968,14 +993,14 @@ export default function WarehouseInboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={6} className='p-2 text-center text-gray-500'>
+                          <td colSpan={7} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className='p-2 text-center text-gray-400'>
+                          <td colSpan={7} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
@@ -995,6 +1020,9 @@ export default function WarehouseInboundPage() {
                               key={grp.groupKey}
                               className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                             >
+                              <td className='py-1 px-2 w-[85px] whitespace-nowrap align-top text-[10px] font-medium text-slate-600 dark:text-slate-400'>
+                                {formatTripDate(grp.receiveDate)}
+                              </td>
                               <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
                                 <div>
                                   <button
