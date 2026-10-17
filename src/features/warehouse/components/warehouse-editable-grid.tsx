@@ -875,8 +875,8 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           onBlur={handleBlur}
           disabled={isRowInbound}
           className={cn(
-            'h-7 px-1.5 text-[10px] font-mono font-bold uppercase text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
-            isSearching && 'pr-6'
+            'h-7 px-1 text-[10px] md:text-[10px] font-mono font-bold uppercase tracking-tight text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
+            isSearching && 'pr-5'
           )}
           title='Nhập mã đơn hàng (nhấn Enter hoặc Tab để tra cứu)'
         />
@@ -899,8 +899,8 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
         placeholder='Mã vận đơn'
         title='Nhập mã vận đơn (nhấn Enter hoặc Tab để tự động nhận diện và điền thông tin).'
         className={cn(
-          'h-7 px-1.5 text-[10px] font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500',
-          isSearching && 'pr-6',
+          'h-7 px-1 text-[10px] md:text-[10px] font-mono font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 focus:ring-blue-500 focus:border-blue-500',
+          isSearching && 'pr-5',
           !value.trim()
             ? 'border-red-400 bg-red-50/30 text-red-950 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200'
             : 'border-slate-300 dark:border-slate-700'

@@ -58,6 +58,7 @@ test.describe
 
     const orderInput = page.locator('input[placeholder="Mã vận đơn"]').first();
     await expect(orderInput).toBeVisible({ timeout: 10000 });
+    await expect(orderInput).toHaveClass(/md:text-\[10px\]/);
 
     // Track API requests to /api/v1/orders/:code while typing
     const orderLookupRequests: string[] = [];
@@ -148,12 +149,16 @@ test.describe
       expect(waybillHeaderBox.width).toBeGreaterThanOrEqual(180);
     }
 
-    // Check MÃ VẬN ĐƠN cell styling (text-[10px] text-gray-500)
+    // Check MÃ VẬN ĐƠN cell styling (text-[10px] text-gray-500) and comma separation on multi-order trips
     const firstWaybillCell = inboundRows.first().locator('td').nth(3).locator('div').first();
     await expect(firstWaybillCell).toBeVisible();
     const waybillClass = (await firstWaybillCell.getAttribute('class')) || '';
     expect(waybillClass).toContain('text-[10px]');
     expect(waybillClass).toContain('text-gray-500');
+
+    const multiOrderInboundRow = inboundRows.filter({ hasText: /\d+\s+đơn/i }).first();
+    await expect(multiOrderInboundRow).toBeVisible({ timeout: 10000 });
+    await expect(multiOrderInboundRow.locator('td').nth(3)).toContainText(', ');
 
     const shot2 = await page.screenshot({ fullPage: false });
     saveEvidenceScreenshot('screenshot_02_task2_inbound_trip_board_waybills_verified.png', shot2);
@@ -176,6 +181,10 @@ test.describe
     await expect(outboundRows.first()).toBeVisible({ timeout: 15000 });
     const outboundRowCount = await outboundRows.count();
     expect(outboundRowCount).toBeGreaterThan(0);
+
+    const multiOrderOutboundRow = outboundRows.filter({ hasText: /\d+\s+đơn/i }).first();
+    await expect(multiOrderOutboundRow).toBeVisible({ timeout: 10000 });
+    await expect(multiOrderOutboundRow.locator('td').nth(3)).toContainText(', ');
 
     // Task 5: Verify Outbound first column displays date in dd/MM/yyyy format
     const firstOutboundDateCell = outboundRows.first().locator('td').nth(0);
