@@ -58,7 +58,10 @@ import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
-import { TripStopStatusBadge, toTripStopStatus } from '@/features/warehouse/components/trip-stop-status-badge';
+import {
+  TripStopStatusBadge,
+  toTripStopStatus
+} from '@/features/warehouse/components/trip-stop-status-badge';
 import { formatWeight, formatVolume } from '@/lib/format';
 
 export default function WarehouseInboundPage() {
@@ -174,7 +177,6 @@ export default function WarehouseInboundPage() {
       setCancellingDraftCode(null);
     }
   };
-
 
   // Pallet Label A4 Modal State
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
@@ -339,6 +341,19 @@ export default function WarehouseInboundPage() {
     }
   }, [activeView, fetchInboundTrips]);
 
+  const formatTripDate = (raw?: string) => {
+    if (!raw) return '—';
+    const clean = String(raw).split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    }
+    return clean || '—';
+  };
 
   // Group inbound trips directly from backend response
   const vehicleGroups: InboundVehicleGroup[] = useMemo(
@@ -347,17 +362,14 @@ export default function WarehouseInboundPage() {
         const descs = Array.from(
           new Set((g.orders ?? []).map((x: any) => x.goodsDescription).filter(Boolean))
         ) as string[];
+        const rawDate =
+          g.receiveDate || g.pickupDate || g.processedAt || g.createdAt || g.orders?.[0]?.createdAt;
         return {
           groupKey: g.tripCode || g.groupKey,
           licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'CHƯA GÁN XE',
           driverName: g.driverName?.trim() || '',
           tripCode: g.tripCode || '—',
-          receiveDate:
-            typeof g.receiveDate === 'string'
-              ? g.receiveDate.split('T')[0]
-              : typeof g.pickupDate === 'string'
-                ? g.pickupDate.split('T')[0]
-                : undefined,
+          receiveDate: rawDate ? String(rawDate).split('T')[0] : undefined,
           status: g.status ?? 'PENDING',
           isTransfer: !!g.isTransfer,
           orders: g.orders ?? [],
@@ -383,6 +395,17 @@ export default function WarehouseInboundPage() {
     [vehicleGroups]
   );
 
+  useEffect(() => {
+    if (!selectedTripGroup) return;
+    const updated = vehicleGroups.find(
+      (g) =>
+        (g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode) ||
+        g.groupKey === selectedTripGroup.groupKey
+    );
+    if (updated) {
+      setSelectedTripGroup(updated);
+    }
+  }, [vehicleGroups]);
 
   const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
     // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
@@ -661,21 +684,10 @@ export default function WarehouseInboundPage() {
       );
 
       // Tự động chuẩn bị dữ liệu và hiển thị ngay Modal Phiếu Nhập Kho A4
-      const totalQty = mode1Rows.reduce(
-        (sum, r) => sum + (Number(r.totalQuantity) || 1),
-        0
-      );
-      const totalWt = mode1Rows.reduce(
-        (sum, r) => sum + (Number(r.totalWeight) || 0),
-        0
-      );
-      const totalVol = mode1Rows.reduce(
-        (sum, r) => sum + (Number(r.totalVolume) || 0),
-        0
-      );
-      const descs = Array.from(
-        new Set(mode1Rows.map((r) => r.goodsDescription).filter(Boolean))
-      );
+      const totalQty = mode1Rows.reduce((sum, r) => sum + (Number(r.totalQuantity) || 1), 0);
+      const totalWt = mode1Rows.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
+      const totalVol = mode1Rows.reduce((sum, r) => sum + (Number(r.totalVolume) || 0), 0);
+      const descs = Array.from(new Set(mode1Rows.map((r) => r.goodsDescription).filter(Boolean)));
       const goodsDesc =
         descs.length === 1
           ? descs[0]
@@ -708,8 +720,7 @@ export default function WarehouseInboundPage() {
         licensePlate: licensePlate.trim().toUpperCase(),
         driverName: driverName.trim(),
         originHub: user?.hub?.name || '',
-        destinationHub:
-          mode1Rows[0]?.deliveryAddress?.trim() || user?.hub?.name || '',
+        destinationHub: mode1Rows[0]?.deliveryAddress?.trim() || user?.hub?.name || '',
         createdAt: receiveDate || new Date(),
         items: receiptItems
       };
@@ -780,6 +791,7 @@ export default function WarehouseInboundPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
+          hubId: Number(user?.hubId ?? (user?.hub as any)?.id) || undefined,
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || undefined,
           receiveDate: receiveDate || undefined,
@@ -947,7 +959,6 @@ export default function WarehouseInboundPage() {
 
                   {/* Quick Actions: Expand/Collapse All & Refresh Metrics */}
                   <div className='flex items-center gap-1.5'>
-
                     <Button
                       variant='outline'
                       size='sm'
@@ -968,8 +979,12 @@ export default function WarehouseInboundPage() {
                   <table className='w-full text-[11px] text-left'>
                     <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
-                        <th className='py-1.5 px-2 w-[150px]'>CHUYẾN XE / TRIP</th>
-                        <th className='py-1.5 px-2 w-[150px]'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 w-[85px] whitespace-nowrap'>NGÀY</th>
+                        <th className='py-1.5 px-2 w-[115px] whitespace-nowrap'>
+                          CHUYẾN XE / TRIP
+                        </th>
+                        <th className='py-1.5 px-2 w-[160px]'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 min-w-[240px]'>MÃ VẬN ĐƠN</th>
                         <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
                         <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
                         <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
@@ -978,27 +993,37 @@ export default function WarehouseInboundPage() {
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                       {isLoadingOrders ? (
                         <tr>
-                          <td colSpan={5} className='p-2 text-center text-gray-500'>
+                          <td colSpan={7} className='p-2 text-center text-gray-500'>
                             <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                             Đang tải danh sách đơn nhập kho...
                           </td>
                         </tr>
                       ) : vehicleGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className='p-2 text-center text-gray-400'>
+                          <td colSpan={7} className='p-2 text-center text-gray-400'>
                             Không có chuyến xe nhập kho phù hợp bộ lọc
                           </td>
                         </tr>
                       ) : (
                         vehicleGroups.map((grp) => {
                           const isPending = toTripStopStatus(grp.status) === 'PENDING';
+                          const orderCodes = Array.from(
+                            new Set(
+                              (grp.orders ?? [])
+                                .map((o: any) => (o.orderCode || '').trim())
+                                .filter((code: string) => code && code !== '(Tự sinh khi lưu)')
+                            )
+                          );
 
                           return (
                             <tr
                               key={grp.groupKey}
                               className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                             >
-                              <td className='py-1 px-2'>
+                              <td className='py-1 px-2 w-[85px] whitespace-nowrap align-top text-[10px] font-medium text-slate-600 dark:text-slate-400'>
+                                {formatTripDate(grp.receiveDate)}
+                              </td>
+                              <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
                                 <div>
                                   <button
                                     type='button'
@@ -1018,7 +1043,7 @@ export default function WarehouseInboundPage() {
                                   </button>
                                 </div>
                               </td>
-                              <td className='py-1 px-2'>
+                              <td className='py-1 px-2 w-[160px] align-top'>
                                 <div className='text-[11px] space-y-0.5'>
                                   <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1'>
                                     <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
@@ -1034,7 +1059,19 @@ export default function WarehouseInboundPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px]'>
+                              <td className='py-1 px-2 min-w-[240px] align-top'>
+                                {orderCodes.length > 0 ? (
+                                  <div
+                                    className='text-[10px] text-gray-500 dark:text-slate-400 leading-snug break-words'
+                                    title={orderCodes.join(', ')}
+                                  >
+                                    {orderCodes.join(', ')}
+                                  </div>
+                                ) : (
+                                  <span className='text-[10px] text-gray-400 italic'>—</span>
+                                )}
+                              </td>
+                              <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px] align-top'>
                                 <div>{grp.totalQuantity} kiện</div>
                                 <div className='text-gray-400 text-[10px]'>
                                   {formatWeight(grp.totalWeight)} kg &bull;{' '}
@@ -1295,7 +1332,8 @@ export default function WarehouseInboundPage() {
                         </>
                       ) : (
                         <>
-                          <IconCircleCheck className='mr-1.5 h-4 w-4 text-emerald-400' /> Xác nhận nhập kho
+                          <IconCircleCheck className='mr-1.5 h-4 w-4 text-emerald-400' /> Xác nhận
+                          nhập kho
                         </>
                       )}
                     </Button>
