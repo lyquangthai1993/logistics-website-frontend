@@ -644,12 +644,31 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             return;
           }
 
-          // Trùng thực sự = cùng một dòng hàng (cùng id), không phải chỉ trùng mã đơn
-          const isDuplicate = usedIds.has(String(foundOrder.id));
-          if (isDuplicate) {
-            toast.warning(
-              `Dòng hàng ${foundOrder.orderCode} này đã được chọn ở một dòng khác trong phiếu xuất!`
+          // Trùng thực sự = cùng một dòng hàng (cùng id hoặc cùng mã vận đơn trên phiếu xuất)
+          const usedCodes = new Set(
+            otherRows.map((o) => o.orderCode?.trim().toUpperCase()).filter(Boolean)
+          );
+          const isDuplicate =
+            usedIds.has(String(foundOrder.id)) ||
+            (isOutbound && usedCodes.has(foundOrder.orderCode.trim().toUpperCase()));
+          if (isDuplicate && isOutbound) {
+            toast.error(
+              `Đơn hàng ${foundOrder.orderCode} đã được chọn ở một dòng khác trên phiếu xuất! Vui lòng gộp số lượng vào dòng đó.`
             );
+            lastSearchedCodeRef.current = '';
+            setValue('');
+            meta?.updateRow(idx, {
+              ...currentRow,
+              id: undefined,
+              orderCode: '',
+              goodsDescription: '',
+              totalQuantity: 1,
+              remainingQuantity: undefined,
+              quantityToExport: 1,
+              totalWeight: 0,
+              totalVolume: 0
+            });
+            return;
           }
 
           const updatedRow: WarehouseRowItem = {

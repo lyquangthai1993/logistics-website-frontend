@@ -316,6 +316,7 @@ export default function WarehouseOutboundPage() {
       if (isNoteView && orderIds.length > 0) {
         const query = new URLSearchParams({
           ids: Array.from(new Set(orderIds)).join(','),
+          flow: 'OUTBOUND_LOOKUP',
           limit: '100'
         });
         const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -329,18 +330,26 @@ export default function WarehouseOutboundPage() {
           throw { response: { data: errData, status: res.status } };
         }
 
-        // NestJS ResponseTransformInterceptor wraps payloads: { statusCode, message, data, ... }
+        // NestJS ResponseTransformInterceptor wraps payloads: { statusCode, message, data: { data, meta } }
         const json = await res.json();
-        const freshData: any[] = Array.isArray(json)
-          ? json
-          : Array.isArray(json?.data)
-            ? json.data
+        const payload = json?.meta ? json : (json?.data ?? json);
+        const freshData: any[] = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+            ? payload
             : [];
         const freshById = new Map(freshData.map((f) => [Number(f.id), f]));
+        const freshByCode = new Map(
+          freshData
+            .filter((f) => f.orderCode)
+            .map((f) => [String(f.orderCode).trim().toUpperCase(), f])
+        );
 
         const applyFresh = (rows: WarehouseRowItem[]) =>
           rows.map((r) => {
-            const fresh = freshById.get(Number(r.id));
+            const fresh =
+              freshById.get(Number(r.id)) ||
+              (r.orderCode ? freshByCode.get(r.orderCode.trim().toUpperCase()) : undefined);
             if (!fresh) return r;
             const stock = availableOutboundStock(fresh);
             const currentQty = Number(r.totalQuantity) || 0;
