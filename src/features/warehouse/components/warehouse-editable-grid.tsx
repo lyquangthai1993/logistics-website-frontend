@@ -79,6 +79,7 @@ export interface WarehouseRowItem {
   hubStatus?: string | null;
   destinationHub?: any;
   expectedInboundLicensePlate?: string | null;
+  isExistingOrder?: boolean;
 }
 
 declare module '@tanstack/react-table' {
@@ -488,6 +489,24 @@ function isRowInboundLocked(rowStatus?: string, isInboundTripMode?: boolean): bo
   return rowStatus === 'INBOUND' || rowStatus === 'IN_WAREHOUSE';
 }
 
+function isExistingInboundWaybillLocked(
+  row: WarehouseRowItem,
+  rowIndex: number,
+  meta?: { isOutboundMode?: boolean; allRows?: WarehouseRowItem[] }
+): boolean {
+  if (meta?.isOutboundMode) return false;
+  if (row.isExistingOrder) return true;
+  const code = row.orderCode?.trim().toUpperCase();
+  if (!code || code === '(TỰ SINH KHI LƯU)' || code === 'TỰ SINH') return false;
+  const allRows = meta?.allRows || [];
+  for (let i = 0; i < rowIndex; i++) {
+    if (allRows[i]?.orderCode?.trim().toUpperCase() === code) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function SttCell({ row }: CellContext<WarehouseRowItem, unknown>) {
   return (
     <span className='font-mono font-bold text-[10px] text-slate-600 dark:text-slate-300'>
@@ -728,6 +747,11 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
       inFlightCodeRef.current = trimmed;
       setIsSearching(true);
+      const allRows = meta?.allRows || [];
+      const currentRow = allRows[idx] || r;
+      const earlierMatch = allRows
+        .slice(0, idx)
+        .find((rowItem) => rowItem.orderCode?.trim().toUpperCase() === trimmed);
 
       try {
         const res = await apiClient.get<{ data?: any }>(
@@ -737,24 +761,29 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
         if (foundOrder && foundOrder.orderCode) {
           lastSearchedCodeRef.current = foundOrder.orderCode.trim().toUpperCase();
-          const allRows = meta?.allRows || [];
-          const currentRow = allRows[idx] || r;
+
+          const lockedDeliveryAddr =
+            (foundOrder.route?.includes('→') ? foundOrder.route.split('→')[1]?.trim() : '') ||
+            foundOrder.destinationHub ||
+            foundOrder.deliveryAddress ||
+            currentRow.deliveryAddress ||
+            '';
 
           const updatedRow: WarehouseRowItem = {
             ...currentRow,
             orderCode: foundOrder.orderCode,
+            isExistingOrder: true,
             goodsDescription: foundOrder.goodsDescription || currentRow.goodsDescription || '',
             pickupAddress:
-              foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress || '',
-            deliveryAddress:
-              foundOrder.destinationHub ||
-              foundOrder.deliveryAddress ||
-              (foundOrder.route?.includes('→') ? foundOrder.route.split('→')[1]?.trim() : '') ||
-              currentRow.deliveryAddress ||
+              currentRow.pickupAddress?.trim() ||
+              foundOrder.originHub ||
+              foundOrder.pickupAddress ||
               '',
+            deliveryAddress: lockedDeliveryAddr,
+            originalDeliveryAddress: lockedDeliveryAddr,
             province: foundOrder.province || currentRow.province || '',
             accompanyingDocs: foundOrder.accompanyingDocs || currentRow.accompanyingDocs || '',
-            notes: foundOrder.notes || currentRow.notes || '',
+            notes: currentRow.notes?.trim() || foundOrder.notes || '',
             destinationHubId: foundOrder.destinationHubId || currentRow.destinationHubId || null,
             destinationHub: foundOrder.destinationHubEntity || currentRow.destinationHub || null,
             deliveryMode: (foundOrder.destinationHubEntity?.level === 2
@@ -783,13 +812,37 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           meta?.updateRow(idx, updatedRow);
           setValue(foundOrder.orderCode);
           toast.success(
-            `Đã nhận diện đơn hàng ${foundOrder.orderCode} — Tự động điền thông tin chung!`
+            `Đã nhận diện đơn hàng ${foundOrder.orderCode} — Khóa thông tin gốc, chỉ chỉnh sửa Điểm lấy, Số kiện, Số kg, Số khối!`
           );
         }
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 404) {
-          // Mã mới, không tìm thấy trong DB - không báo lỗi vì nhập đơn mới là trường hợp bình thường
           lastSearchedCodeRef.current = trimmed;
+          if (earlierMatch) {
+            meta?.updateRow(idx, {
+              ...currentRow,
+              orderCode: trimmed,
+              isExistingOrder: true,
+              goodsDescription: earlierMatch.goodsDescription || currentRow.goodsDescription || '',
+              deliveryAddress: earlierMatch.deliveryAddress || currentRow.deliveryAddress || '',
+              province: earlierMatch.province || currentRow.province || '',
+              accompanyingDocs: earlierMatch.accompanyingDocs || currentRow.accompanyingDocs || '',
+              destinationHubId:
+                earlierMatch.destinationHubId ?? currentRow.destinationHubId ?? null,
+              destinationHub: earlierMatch.destinationHub ?? currentRow.destinationHub ?? null,
+              deliveryMode:
+                earlierMatch.deliveryMode || currentRow.deliveryMode || 'DIRECT_CUSTOMER'
+            });
+            toast.info(
+              `Mã vận đơn ${trimmed} trùng với dòng phía trên — Đã đồng bộ & khóa thông tin gốc!`
+            );
+          } else if (currentRow.isExistingOrder) {
+            meta?.updateRow(idx, {
+              ...currentRow,
+              orderCode: trimmed,
+              isExistingOrder: false
+            });
+          }
         }
       } finally {
         inFlightCodeRef.current = '';
@@ -818,7 +871,17 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
   const handleInboundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.value.toUpperCase();
     setValue(nextVal);
-    meta?.updateData(row.index, column.id, nextVal);
+    const allRows = meta?.allRows || [];
+    const currentRow = allRows[row.index] || row.original;
+    if (currentRow.isExistingOrder && nextVal.trim() !== lastSearchedCodeRef.current) {
+      meta?.updateRow(row.index, {
+        ...currentRow,
+        orderCode: nextVal,
+        isExistingOrder: false
+      });
+    } else {
+      meta?.updateData(row.index, column.id, nextVal);
+    }
 
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
@@ -953,6 +1016,11 @@ function GoodsDescriptionCell({
     row.original.status,
     table.options.meta?.isInboundTripMode
   );
+  const isLockedExistingWaybill = isExistingInboundWaybillLocked(
+    row.original,
+    row.index,
+    table.options.meta
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -971,9 +1039,14 @@ function GoodsDescriptionCell({
       <Input
         value={value}
         onChange={handleChange}
-        disabled={isRowInbound}
+        disabled={isRowInbound || isLockedExistingWaybill}
+        title={
+          isLockedExistingWaybill
+            ? 'Khóa cứng tên hàng theo thông tin lần đầu nhập của mã vận đơn'
+            : undefined
+        }
         placeholder=''
-        className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700'
+        className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
       />
     </div>
   );
@@ -1183,6 +1256,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
   };
 
   const isRowInbound = isRowInboundLocked(r.status, meta?.isInboundTripMode);
+  const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
   if (!isOutbound) {
@@ -1191,9 +1265,14 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
         rows={2}
         value={addressText}
         onChange={handleAddressTextChange}
-        disabled={isRowInbound}
+        disabled={isRowInbound || isLockedExistingWaybill}
+        title={
+          isLockedExistingWaybill
+            ? 'Khóa cứng địa điểm giao theo thông tin lần đầu nhập của mã vận đơn'
+            : undefined
+        }
         placeholder=''
-        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
+        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
       />
     );
   }
@@ -1271,6 +1350,11 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
     row.original.status,
     table.options.meta?.isInboundTripMode
   );
+  const isLockedExistingWaybill = isExistingInboundWaybillLocked(
+    row.original,
+    row.index,
+    table.options.meta
+  );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
 
@@ -1289,9 +1373,14 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
       rows={2}
       value={value}
       onChange={handleChange}
-      disabled={isRowInbound}
+      disabled={isRowInbound || isLockedExistingWaybill}
+      title={
+        isLockedExistingWaybill
+          ? 'Khóa cứng tỉnh/TP theo thông tin lần đầu nhập của mã vận đơn'
+          : undefined
+      }
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1305,6 +1394,11 @@ function AccompanyingDocsCell({
   const isRowInbound = isRowInboundLocked(
     row.original.status,
     table.options.meta?.isInboundTripMode
+  );
+  const isLockedExistingWaybill = isExistingInboundWaybillLocked(
+    row.original,
+    row.index,
+    table.options.meta
   );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -1324,9 +1418,14 @@ function AccompanyingDocsCell({
       type='text'
       value={value}
       onChange={handleChange}
-      disabled={isRowInbound}
+      disabled={isRowInbound || isLockedExistingWaybill}
+      title={
+        isLockedExistingWaybill
+          ? 'Khóa cứng chứng từ theo thông tin lần đầu nhập của mã vận đơn'
+          : undefined
+      }
       placeholder=''
-      className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-70 disabled:cursor-not-allowed'
+      className='h-7 px-1.5 text-[10px] font-medium border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
     />
   );
 }
