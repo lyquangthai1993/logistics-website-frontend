@@ -2,4 +2,12 @@ if [ "$CI" = "true" ] || [ "$HUSKY" = "0" ]; then
   exit 0
 fi
 
+# Chặn push trực tiếp vào master (chỉ cho phép merge PR vào dev rồi promote lên master qua CI)
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current_branch" = "master" ] && [ "$ALLOW_MASTER_PUSH" != "1" ]; then
+  echo "❌ [Husky] Chặn push trực tiếp vào branch 'master'!"
+  echo "💡 Quy tắc dự án: Code bắt buộc phải nhánh từ dev và đi qua GitHub PR."
+  exit 1
+fi
+
 npm run build
