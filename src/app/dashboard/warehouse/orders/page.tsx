@@ -10,11 +10,6 @@ import {
   IconBuildingWarehouse,
   IconPrinter,
   IconLoader2,
-  IconChevronsLeft,
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronDown,
-  IconChevronsRight,
   IconRefresh,
   IconTrash,
   IconEye,
@@ -184,8 +179,7 @@ export default function WarehouseOrdersPage() {
       const rows: any[][] = [];
 
       for (const order of orders) {
-        const itemsToExport =
-          Array.isArray(order.items) && order.items.length > 0 ? order.items : [order];
+        const itemsToExport = [order];
 
         for (const item of itemsToExport) {
           const rawStock = Number(item.hubStock ?? item.remainingQuantity ?? 0);
@@ -214,7 +208,7 @@ export default function WarehouseOrdersPage() {
                 ((item.inventoryTransactions || order.inventoryTransactions) as any[]) || [];
               const inTxs = txs
                 .filter((t: any) => t.type === 'INBOUND')
-                .sort(
+                .toSorted(
                   (a: any, b: any) =>
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
@@ -265,7 +259,9 @@ export default function WarehouseOrdersPage() {
             resolvedStatus === 'OUT_FOR_DELIVERY' ||
             resolvedStatus === 'DELIVERED' ||
             resolvedStatus === 'COMPLETED_OUTBOUND' ||
-            (stock === 0 && (statusFilter === 'COMPLETED_INBOUND' || Boolean(item.outboundDate || order.outboundDate)));
+            (stock === 0 &&
+              (statusFilter === 'COMPLETED_INBOUND' ||
+                Boolean(item.outboundDate || order.outboundDate)));
 
           let statusText = 'LƯU KHO';
           if (isDispatched) {
@@ -284,16 +280,16 @@ export default function WarehouseOrdersPage() {
 
           // RÀNG BUỘC SỐNG CÒN: Khi đơn ở trạng thái Lưu kho / Đơn nháp hoặc còn tồn kho > 0,
           // Cột M (Ngày xuất) và Cột N (Xe xuất) BẮT BUỘC ĐỂ TRỐNG ("")
-          const isStored = !isDispatched && (
-            stock > 0 ||
-            resolvedStatus === 'STORED' ||
-            resolvedStatus === 'INBOUND' ||
-            resolvedStatus === 'LUU_KHO' ||
-            resolvedStatus === 'IN_WAREHOUSE' ||
-            statusText === 'LƯU KHO' ||
-            statusText === 'ĐƠN NHÁP' ||
-            statusText === 'CHỜ NHẬP KHO'
-          );
+          const isStored =
+            !isDispatched &&
+            (stock > 0 ||
+              resolvedStatus === 'STORED' ||
+              resolvedStatus === 'INBOUND' ||
+              resolvedStatus === 'LUU_KHO' ||
+              resolvedStatus === 'IN_WAREHOUSE' ||
+              statusText === 'LƯU KHO' ||
+              statusText === 'ĐƠN NHÁP' ||
+              statusText === 'CHỜ NHẬP KHO');
 
           let outboundDateVal = '';
           let outboundTripVal = '';
@@ -312,7 +308,7 @@ export default function WarehouseOrdersPage() {
                   ((item.inventoryTransactions || order.inventoryTransactions) as any[]) || [];
                 const outTxs = txs
                   .filter((t: any) => t.type === 'OUTBOUND' || t.type === 'TRANSFER')
-                  .sort(
+                  .toSorted(
                     (a: any, b: any) =>
                       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                   );
@@ -513,16 +509,6 @@ export default function WarehouseOrdersPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Order codes whose member lines are expanded
-  const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
-  const toggleExpanded = (code: string) =>
-    setExpandedCodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) next.delete(code);
-      else next.add(code);
-      return next;
-    });
-
   const COLUMN_COUNT = 11;
 
   /** Date/time formatting helper */
@@ -704,7 +690,7 @@ export default function WarehouseOrdersPage() {
       >
         <IconPrinter className='h-4 w-4' />
       </Button>
-      {m.status === 'DRAFT' && (
+      {resolveDisplayStatus(m) === 'DRAFT' && (
         <Button
           size='sm'
           variant='ghost'
@@ -878,190 +864,79 @@ export default function WarehouseOrdersPage() {
                     </tr>
                   ) : (
                     data.map((row, idx) => {
-                      const members: any[] =
-                        Array.isArray(row.items) && row.items.length > 0 ? row.items : [row];
-                      const isMulti = members.length > 1;
-                      const isExpanded = isMulti && expandedCodes.has(row.orderCode);
                       const openDetail = (target: any) => {
                         setSelectedWaybill(target);
                         setIsDetailModalOpen(true);
                       };
 
                       return (
-                        <React.Fragment key={`${row.orderCode}-${row.id}`}>
-                          <tr
-                            onClick={() =>
-                              isMulti ? toggleExpanded(row.orderCode) : openDetail(members[0])
-                            }
-                            className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${
-                              isExpanded ? 'bg-blue-50/30 dark:bg-slate-800/30' : ''
-                            }`}
+                        <tr
+                          key={`${row.orderCode}-${row.id}`}
+                          onClick={() => openDetail(row)}
+                          className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors'
+                        >
+                          <td className='py-1 px-1.5 text-center font-mono text-gray-400 text-[10px]'>
+                            {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
+                          </td>
+                          <td className='py-1 px-1.5 font-mono text-slate-600 dark:text-slate-400 text-[10px]'>
+                            {formatDateTime(row.inboundDate || row.createdAt)}
+                          </td>
+                          <td className='py-1 px-1.5'>
+                            <div className='flex items-center gap-1'>
+                              <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
+                                {row.orderCode}
+                              </span>
+                            </div>
+                          </td>
+                          <td
+                            className='py-1 px-1.5 text-[10px] font-medium text-slate-800 dark:text-slate-200 max-w-[220px] truncate'
+                            title={row.goodsDescription || 'Hàng tổng hợp'}
                           >
-                            <td className='py-1 px-1.5 text-center font-mono text-gray-400 text-[10px]'>
-                              {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
-                            </td>
-                            <td className='py-1 px-1.5 font-mono text-slate-600 dark:text-slate-400 text-[10px]'>
-                              {formatDateTime(row.inboundDate || row.createdAt)}
-                            </td>
-                            <td className='py-1 px-1.5'>
-                              <div className='flex items-center gap-1'>
-                                {isMulti &&
-                                  (isExpanded ? (
-                                    <IconChevronDown className='h-3 w-3 text-slate-500 shrink-0' />
-                                  ) : (
-                                    <IconChevronRight className='h-3 w-3 text-slate-500 shrink-0' />
-                                  ))}
-                                <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
-                                  {row.orderCode}
-                                </span>
-                                {isMulti && (
-                                  <Badge
-                                    variant='outline'
-                                    className='text-[9px] px-1 py-0 h-3.5 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                  >
-                                    {members.length} dòng
-                                  </Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td
-                              className='py-1 px-1.5 text-[10px] font-medium text-slate-800 dark:text-slate-200 max-w-[220px] truncate'
-                              title={row.goodsDescription || 'Hàng tổng hợp'}
-                            >
-                              {row.goodsDescription || 'Hàng tổng hợp'}
-                            </td>
-                            <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
-                              {renderStock(row)}
-                            </td>
-                            <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
-                              {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')}
-                            </td>
-                            <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
-                              {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
-                                maximumFractionDigits: 3
-                              })}
-                            </td>
-                            <td
-                              className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-[140px] max-w-[200px] truncate'
-                              title={`Đích đến ban đầu: ${row.originalDestination || row.destinationHub || row.destinationHubEntity?.name || row.route || 'Giao khách lẻ'}${row.outboundDestination && row.outboundDestination !== (row.originalDestination || row.destinationHub) ? ` (Chặng xuất: ${row.outboundDestination})` : ''}`}
-                            >
-                              <div className='flex flex-col'>
-                                <span className='text-indigo-600 dark:text-indigo-400 font-medium truncate'>
-                                  {row.originalDestination || row.destinationHub || row.destinationHubEntity?.name || row.route || 'Giao khách lẻ'}
-                                </span>
-                                {row.outboundDestination &&
-                                  row.outboundDestination !== (row.originalDestination || row.destinationHub) && (
-                                    <span className='text-[9px] text-slate-400 dark:text-slate-500 truncate'>
-                                      Xuất: {row.outboundDestination}
-                                    </span>
-                                  )}
-                              </div>
-                            </td>
-                            <td className='py-1 px-1.5 text-center'>
-                              {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
-                            </td>
-                            <td className='py-1 px-1.5 text-center'>{renderOutboundDate(row)}</td>
-                            <td
-                              className='py-1 px-1.5 text-center'
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {isMulti ? (
-                                <div className='flex items-center justify-center gap-1'>
-                                  <Button
-                                    size='sm'
-                                    variant='ghost'
-                                    onClick={() => toggleExpanded(row.orderCode)}
-                                    className='h-7 px-1.5 text-[10px] text-slate-600 hover:text-blue-600 hover:bg-blue-50'
-                                    title='Xem từng dòng hàng của đơn'
-                                  >
-                                    {isExpanded ? 'Thu gọn' : 'Xem dòng'}
-                                  </Button>
-                                  <Button
-                                    size='sm'
-                                    variant='ghost'
-                                    onClick={() => openDetail(row)}
-                                    className='h-7 w-7 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50'
-                                    title='Xem chi tiết tổng hợp'
-                                  >
-                                    <IconEye className='h-4 w-4' />
-                                  </Button>
-                                </div>
-                              ) : (
-                                renderActions(members[0], openDetail)
-                              )}
-                            </td>
-                          </tr>
-
-                          {isExpanded &&
-                            members.map((m, mIdx) => (
-                              <tr
-                                key={`member-${m.id}`}
-                                onClick={() => openDetail(m)}
-                                className='bg-slate-50/60 dark:bg-slate-900/60 hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors'
-                              >
-                                <td className='py-1 px-1.5 text-center font-mono text-gray-300 text-[10px]'>
-                                  {mIdx + 1}
-                                </td>
-                                <td className='py-1 px-1.5 font-mono text-slate-500 text-[10px]'>
-                                  {formatDateTime(
-                                    m.inboundDate || m.createdAt || row.inboundDate || row.createdAt
-                                  )}
-                                </td>
-                                <td className='py-1 px-1.5 pl-3'>
-                                  <span className='font-mono text-slate-700 dark:text-slate-300 text-[10px] font-semibold'>
-                                    Dòng {mIdx + 1}
+                            {row.goodsDescription || 'Hàng tổng hợp'}
+                          </td>
+                          <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
+                            {renderStock(row)}
+                          </td>
+                          <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
+                            {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')}
+                          </td>
+                          <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
+                            {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
+                              maximumFractionDigits: 3
+                            })}
+                          </td>
+                          <td
+                            className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-[140px] max-w-[200px] truncate'
+                            title={`Đích đến ban đầu: ${row.originalDestination || row.destinationHub || row.destinationHubEntity?.name || row.route || 'Giao khách lẻ'}${row.outboundDestination && row.outboundDestination !== (row.originalDestination || row.destinationHub) ? ` (Chặng xuất: ${row.outboundDestination})` : ''}`}
+                          >
+                            <div className='flex flex-col'>
+                              <span className='text-indigo-600 dark:text-indigo-400 font-medium truncate'>
+                                {row.originalDestination ||
+                                  row.destinationHub ||
+                                  row.destinationHubEntity?.name ||
+                                  row.route ||
+                                  'Giao khách lẻ'}
+                              </span>
+                              {row.outboundDestination &&
+                                row.outboundDestination !==
+                                  (row.originalDestination || row.destinationHub) && (
+                                  <span className='text-[9px] text-slate-400 dark:text-slate-500 truncate'>
+                                    Xuất: {row.outboundDestination}
                                   </span>
-                                </td>
-                                <td
-                                  className='py-1 px-1.5 text-[10px] font-medium text-slate-700 dark:text-slate-300 max-w-[220px] truncate'
-                                  title={m.goodsDescription || '—'}
-                                >
-                                  {m.goodsDescription || '—'}
-                                </td>
-                                <td className='py-1 px-1.5 text-right font-mono text-[10px] whitespace-nowrap'>
-                                  {renderStock(m)}
-                                </td>
-                                <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
-                                  {(Number(m.totalWeight) || 0).toLocaleString('vi-VN')}
-                                </td>
-                                <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-600 dark:text-slate-400'>
-                                  {(Number(m.totalVolume) || 0).toLocaleString('vi-VN', {
-                                    maximumFractionDigits: 3
-                                  })}
-                                </td>
-                                <td
-                                  className='py-1 px-1.5 text-[10px] text-slate-600 dark:text-slate-400 min-w-[140px] max-w-[200px] truncate'
-                                  title={`Đích đến ban đầu: ${m.originalDestination || m.destinationHub || m.destinationHubEntity?.name || m.route || 'Giao khách lẻ'}${m.outboundDestination && m.outboundDestination !== (m.originalDestination || m.destinationHub) ? ` (Chặng xuất: ${m.outboundDestination})` : ''}`}
-                                >
-                                  <div className='flex flex-col'>
-                                    <span className='text-indigo-600 dark:text-indigo-400 font-medium truncate'>
-                                      {m.originalDestination ||
-                                        m.destinationHub ||
-                                        m.destinationHubEntity?.name ||
-                                        m.route ||
-                                        'Giao khách lẻ'}
-                                    </span>
-                                    {m.outboundDestination &&
-                                      m.outboundDestination !== (m.originalDestination || m.destinationHub) && (
-                                        <span className='text-[9px] text-slate-400 dark:text-slate-500 truncate'>
-                                          Xuất: {m.outboundDestination}
-                                        </span>
-                                      )}
-                                  </div>
-                                </td>
-                                <td className='py-1 px-1.5 text-center'>
-                                  {renderWarehouseOrderStatusBadge(resolveDisplayStatus(m))}
-                                </td>
-                                <td className='py-1 px-1.5 text-center'>{renderOutboundDate(m)}</td>
-                                <td
-                                  className='py-1 px-1.5 text-center'
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {renderActions(m, openDetail)}
-                                </td>
-                              </tr>
-                            ))}
-                        </React.Fragment>
+                                )}
+                            </div>
+                          </td>
+                          <td className='py-1 px-1.5 text-center'>
+                            {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
+                          </td>
+                          <td className='py-1 px-1.5 text-center'>{renderOutboundDate(row)}</td>
+                          <td
+                            className='py-1 px-1.5 text-center'
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {renderActions(row, openDetail)}
+                          </td>
+                        </tr>
                       );
                     })
                   )}
