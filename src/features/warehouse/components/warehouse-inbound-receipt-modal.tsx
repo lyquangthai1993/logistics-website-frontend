@@ -123,9 +123,21 @@ export function WarehouseInboundReceiptModal({
   // "Nhập Tại Kho" is the receiving warehouse: the warehouse manager's own hub first,
   // or the receiving hub resolved by the caller (never the customer pickup address).
   const currentHubName = (user?.hub?.name || data.originHub || '—').toUpperCase();
-  const formattedDate = data.createdAt
-    ? new Date(data.createdAt).toLocaleDateString('vi-VN')
-    : new Date().toLocaleDateString('vi-VN');
+  const formatReceiptDate = (raw?: string | Date) => {
+    if (!raw) return new Date().toLocaleDateString('vi-VN');
+    if (typeof raw === 'string') {
+      const clean = raw.split('T')[0];
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    const d = new Date(raw);
+    return !isNaN(d.getTime())
+      ? d.toLocaleDateString('vi-VN')
+      : new Date().toLocaleDateString('vi-VN');
+  };
+  const formattedDate = formatReceiptDate(data.createdAt);
   const rawItems =
     data.items && data.items.length > 0
       ? data.items
