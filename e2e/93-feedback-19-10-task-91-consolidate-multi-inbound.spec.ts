@@ -11,13 +11,18 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { loginAs, USER_WAREHOUSE_HCM } from './helpers/auth';
 
+const DEV_BACKEND_URL =
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'https://backend-tms-core-dev.up.railway.app/api/v1';
+
 const DEV_FRONTEND_URL =
-  process.env.PLAYWRIGHT_BASE_URL ?? process.env.BASE_URL ?? 'http://localhost:4000';
+  process.env.PLAYWRIGHT_BASE_URL ??
+  process.env.BASE_URL ??
+  'https://frontend-tms-core-dev.up.railway.app';
 
 const EVIDENCE_DIR = path.resolve(__dirname, '../../feedbacks/feedback_19_10_task_91');
 const SCREENSHOT_PATH = path.join(EVIDENCE_DIR, 'screenshot_feedback_19_10_task_91_verified.png');
-
-let existingSampleOrderCode = '';
 
 test.describe
   .serial('Feedback 19/10 (Task #91) — Gom 1 Dòng Đơn Nhập Nhiều Lần & Khóa Cứng Thông Tin Gốc', () => {
@@ -50,11 +55,6 @@ test.describe
     const rowCount = await tableRows.count();
     expect(rowCount).toBeGreaterThan(0);
 
-    // Lấy 1 mã vận đơn thực tế trên bảng để dùng cho test kiểm tra khóa trường gốc ở CASE-02
-    const firstCodeCell = tableRows.first().locator('td').nth(2);
-    existingSampleOrderCode = ((await firstCodeCell.innerText()) || '').trim();
-    expect(existingSampleOrderCode.length).toBeGreaterThan(2);
-
     // Xác nhận không còn nút "Xem dòng" / "Thu gọn" hoặc badge "{N} dòng" trên bảng Đơn hàng kho
     const expandButtons = page.locator('table tbody button', {
       hasText: /Xem dòng|Thu gọn/i
@@ -83,75 +83,109 @@ test.describe
       waitUntil: 'domcontentloaded'
     });
 
-    const pageHeader = page.locator('h1', { hasText: 'Nhập kho' });
-    await expect(pageHeader.first()).toBeVisible({ timeout: 25000 });
-
-    // Mở modal tạo phiếu nhập kho mới ("Tạo chuyến mới" / "Nhập kho mới")
-    const createInboundBtn = page
-      .locator('button', { hasText: /Tạo|Nhập kho mới|Nhận hàng/i })
+    // Chờ dữ liệu bảng danh sách chuyến xe tải xong (nút Tiếp tục / In phiếu nhập xuất hiện sau useEffect) để đảm bảo React hydration hoàn tất 100%
+    const hydratedTripActionBtn = page
+      .locator('table tbody button', { hasText: /Tiếp tục|In phiếu nhập/i })
       .first();
+    await expect(hydratedTripActionBtn).toBeVisible({ timeout: 25000 });
+
+    // Mở màn hình tạo đơn nhập mới ("Tạo đơn nhập mới" -> inline MODE1_CUSTOMER view)
+    const createInboundBtn = page.getByRole('button', { name: /Tạo đơn nhập mới/i }).first();
     await expect(createInboundBtn).toBeVisible({ timeout: 20000 });
     await createInboundBtn.click();
 
-    const modalDialog = page.locator('[role="dialog"]').first();
-    await expect(modalDialog).toBeVisible({ timeout: 15000 });
+    const backToListBtn = page.getByRole('button', { name: /Quay lại danh sách/i }).first();
+    await expect(backToListBtn).toBeVisible({ timeout: 15000 });
 
-    // Thêm dòng thứ 2 để kiểm tra nhập trùng mã vận đơn ngay trên lưới hoặc mã vận đơn đã có trên hệ thống
-    const addRowBtn = modalDialog.locator('button', { hasText: /Thêm dòng/i }).first();
-    if (await addRowBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await addRowBtn.click();
-    }
+    // Thêm dòng thứ 2 để kiểm tra nhập trùng mã vận đơn ngay trên lưới
+    const addRowBtn = page.getByRole('button', { name: /Thêm 1 dòng đơn mới/i }).first();
+    await expect(addRowBtn).toBeVisible({ timeout: 15000 });
+    await addRowBtn.click();
 
-    const gridRows = modalDialog.locator('table tbody tr');
-    await expect(gridRows.first()).toBeVisible({ timeout: 15000 });
+    const gridRows = page.locator('table tbody tr');
+    await expect(gridRows).toHaveCount(2, { timeout: 15000 });
 
-    const testCode = existingSampleOrderCode || 'TEST-LOCK-91';
-    const row0 = gridRows.first();
+    const testCode = 'TEST-LOCK-91';
+    const row0 = gridRows.nth(0);
     const row0Inputs = row0.locator('input');
     const row0Textareas = row0.locator('textarea');
 
-    // Nhập dòng 1 với mã vận đơn mẫu
-    const orderCodeInput0 = row0Inputs.first();
-    await orderCodeInput0.fill(testCode);
+    // Nhập dòng 1 với mã vận đơn mẫu và thông tin gốc lần đầu nhập
+    await row0Inputs.nth(0).fill(testCode);
+    await row0Inputs.nth(1).fill('Hàng gốc lần 1');
+    await row0Textareas.nth(0).fill('Kho Quận 1');
+    await row0Textareas.nth(1).fill('Bình Thạnh, HCM');
+    await row0Textareas.nth(2).fill('TP.HCM');
+    await row0Inputs.nth(5).fill('HĐ-001');
 
-    // Nếu là mã mới trên lưới, điền thông tin gốc ở dòng 1 rồi kiểm tra dòng 2 tự khóa theo dòng 1
-    if ((await gridRows.count()) >= 2) {
-      const goodsInput0 = row0Inputs.nth(1);
-      if (await goodsInput0.isEnabled()) {
-        await goodsInput0.fill('Hàng gốc lần 1');
+    const row1 = gridRows.nth(1);
+    const row1Inputs = row1.locator('input');
+    const row1Textareas = row1.locator('textarea');
+
+    // Nhập cùng mã vận đơn vào dòng 2 và nhấn Enter / blur để kích hoạt đồng bộ thông tin gốc
+    await row1Inputs.nth(0).fill(testCode);
+    await row1Inputs.nth(0).press('Enter');
+
+    // Kiểm tra trên dòng 2: Tên hàng hóa (input thứ 2), Địa chỉ giao (textarea thứ 2), Tỉnh/TP (textarea thứ 3), Chứng từ (input thứ 5) tự động lấy theo dòng 1 và bị khóa cứng (disabled)
+    const goodsInput1 = row1Inputs.nth(1);
+    const pickupTextarea1 = row1Textareas.nth(0);
+    const deliveryTextarea1 = row1Textareas.nth(1);
+    const provinceTextarea1 = row1Textareas.nth(2);
+    const qtyInput1 = row1Inputs.nth(2);
+    const weightInput1 = row1Inputs.nth(3);
+    const volumeInput1 = row1Inputs.nth(4);
+    const docsInput1 = row1Inputs.nth(5);
+
+    await expect(goodsInput1).toHaveValue('Hàng gốc lần 1');
+    await expect(deliveryTextarea1).toHaveValue('Bình Thạnh, HCM');
+    await expect(provinceTextarea1).toHaveValue('TP.HCM');
+    await expect(docsInput1).toHaveValue('HĐ-001');
+
+    await expect(goodsInput1).toBeDisabled();
+    await expect(deliveryTextarea1).toBeDisabled();
+    await expect(provinceTextarea1).toBeDisabled();
+    await expect(docsInput1).toBeDisabled();
+
+    // Kiểm tra Địa điểm lấy, Số lượng, Số kg, Số khối vẫn mở cho chỉnh sửa
+    await expect(pickupTextarea1).toBeEnabled();
+    await expect(qtyInput1).toBeEnabled();
+    await expect(weightInput1).toBeEnabled();
+    await expect(volumeInput1).toBeEnabled();
+  });
+
+  test('CASE-03: API Backend Dev gom 1 dòng duy nhất theo orderCode cho cả Đơn hàng kho và OUTBOUND_LOOKUP, lấy tên hàng/đích đến chuẩn theo lần đầu nhập', async ({
+    request
+  }) => {
+    const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
+      data: {
+        email: USER_WAREHOUSE_HCM.username || USER_WAREHOUSE_HCM.email,
+        password: USER_WAREHOUSE_HCM.password
+      },
+      timeout: 15000
+    });
+    expect(loginRes.ok()).toBeTruthy();
+    const loginJson = await loginRes.json();
+    const token = loginJson?.data?.token ?? loginJson?.token;
+    expect(token).toBeTruthy();
+
+    // Kiểm tra OUTBOUND_LOOKUP trả về danh sách đơn duy nhất theo orderCode (không trùng lặp mã vận đơn)
+    const lookupRes = await request.get(
+      `${DEV_BACKEND_URL}/warehouse/orders?flow=OUTBOUND_LOOKUP&limit=50`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000
       }
-      const deliveryTextarea0 = row0Textareas.nth(1);
-      if (await deliveryTextarea0.isEnabled()) {
-        await deliveryTextarea0.fill('Bình Thạnh, HCM');
-      }
+    );
+    expect(lookupRes.ok()).toBeTruthy();
+    const lookupJson = await lookupRes.json();
+    const rows: any[] = lookupJson?.data ?? [];
+    expect(rows.length).toBeGreaterThan(0);
 
-      const row1 = gridRows.nth(1);
-      const row1Inputs = row1.locator('input');
-      const row1Textareas = row1.locator('textarea');
-
-      // Nhập cùng mã vận đơn vào dòng 2
-      await row1Inputs.first().fill(testCode);
-
-      // Kiểm tra trên dòng 2: Tên hàng hóa (input thứ 2), Địa chỉ giao (textarea thứ 2), Tỉnh/TP (textarea thứ 3), Chứng từ (input thứ 5) bị khóa cứng (disabled)
-      const goodsInput1 = row1Inputs.nth(1);
-      const pickupTextarea1 = row1Textareas.nth(0);
-      const deliveryTextarea1 = row1Textareas.nth(1);
-      const provinceTextarea1 = row1Textareas.nth(2);
-      const qtyInput1 = row1Inputs.nth(2);
-      const weightInput1 = row1Inputs.nth(3);
-      const volumeInput1 = row1Inputs.nth(4);
-      const docsInput1 = row1Inputs.nth(5);
-
-      await expect(goodsInput1).toBeDisabled();
-      await expect(deliveryTextarea1).toBeDisabled();
-      await expect(provinceTextarea1).toBeDisabled();
-      await expect(docsInput1).toBeDisabled();
-
-      // Kiểm tra Địa điểm lấy, Số lượng, Số kg, Số khối vẫn mở cho chỉnh sửa
-      await expect(pickupTextarea1).toBeEnabled();
-      await expect(qtyInput1).toBeEnabled();
-      await expect(weightInput1).toBeEnabled();
-      await expect(volumeInput1).toBeEnabled();
+    const seenCodes = new Set<string>();
+    for (const r of rows) {
+      const code = (r.orderCode || '').trim().toUpperCase();
+      expect(seenCodes.has(code)).toBe(false);
+      seenCodes.add(code);
     }
   });
 });

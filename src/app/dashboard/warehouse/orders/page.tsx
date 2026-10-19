@@ -690,7 +690,7 @@ export default function WarehouseOrdersPage() {
       >
         <IconPrinter className='h-4 w-4' />
       </Button>
-      {m.status === 'DRAFT' && (
+      {resolveDisplayStatus(m) === 'DRAFT' && (
         <Button
           size='sm'
           variant='ghost'
