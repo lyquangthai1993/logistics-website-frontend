@@ -73,7 +73,13 @@ test.describe.serial('Feedback 19/10 — Bảo toàn đơn hàng trên Phiếu N
     // Chờ bảng tải dữ liệu
     await page.waitForSelector('table', { timeout: 20000 });
 
-    // 3. Tìm dòng chuyến xe SD62
+    // 3. Tìm dòng chuyến xe SD62 qua ô tìm kiếm
+    const searchInput = page.locator('input[placeholder*="Tìm mã chuyến"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 10000 });
+    await searchInput.click();
+    await searchInput.fill('sd62');
+    await page.waitForTimeout(1000); // Chờ debounce 300ms và API trả kết quả
+
     const tripRow = page.locator('tr').filter({ hasText: 'SD62' }).first();
     await expect(tripRow).toBeVisible({ timeout: 15000 });
 
