@@ -2255,17 +2255,6 @@ export function WarehouseTripDetailModal({
                 >
                   Đóng
                 </Button>
-                {!isCurrentHubPending && onOpenReceipt && (
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={() => handlePrintReceipt()}
-                    className='h-7 text-xs font-semibold text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 px-2'
-                  >
-                    <IconPrinter className='mr-1.5 h-3.5 w-3.5' /> In phiếu xe
-                  </Button>
-                )}
                 {isTransferTrip &&
                   (currentStep === 1 ? (
                     <Button
