@@ -107,7 +107,10 @@ test.describe.serial('Feedback 19/10 — Bảo toàn đơn hàng trên Phiếu N
     const totalRow = receiptTable.locator('tr').filter({ hasText: 'Tổng cộng' });
     await expect(totalRow).toContainText('232');
 
-    // 8. Chụp ảnh minh chứng nghiệm thu
+    // 8. Xác nhận Ngày/tháng/năm hiển thị 19/10/2026 (đồng bộ chuẩn xác với cột NGÀY của chuyến xe)
+    await expect(receiptModal).toContainText('19/10/2026');
+
+    // 9. Chụp ảnh minh chứng nghiệm thu
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
     console.log(`[E2E] Đã lưu ảnh nghiệm thu thành công tại: ${SCREENSHOT_PATH}`);
   });

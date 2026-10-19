@@ -571,7 +571,11 @@ export default function WarehouseInboundPage() {
       notes: grp.notes,
       driverName: grp.driverName,
       licensePlate: grp.licensePlate,
-      createdAt: effectiveOrders[0]?.createdAt || grp.orders[0]?.createdAt || new Date(),
+      createdAt:
+        grp.receiveDate ||
+        effectiveOrders[0]?.createdAt ||
+        grp.orders[0]?.createdAt ||
+        new Date(),
       items
     });
     setIsInboundReceiptModalOpen(true);
