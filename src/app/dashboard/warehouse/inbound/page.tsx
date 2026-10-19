@@ -418,10 +418,28 @@ export default function WarehouseInboundPage() {
       // If user has no assigned hub (e.g. SUPER_ADMIN viewing overall), keep all
       if (!userHubId && !userHubName) return true;
 
+      // When the trip was completed at this hub, ALL orders carried on this vehicle
+      // for this stop were received into this warehouse. Historical inbound receipt MUST reflect
+      // all orders that were received, regardless of whether some have been subsequently exported out!
+      if (grp.status === 'COMPLETED') return true;
+
+      // Check if any INBOUND transaction was completed at this hub or for this trip
+      if (Array.isArray(o.inventoryTransactions) && (userHubId || grp.tripCode)) {
+        const hasHubInbound = o.inventoryTransactions.some(
+          (tx: any) =>
+            tx.type === 'INBOUND' &&
+            ((userHubId && (tx.hubId === userHubId || tx.hub?.id === userHubId)) ||
+              (grp.tripCode && grp.tripCode !== '—' && tx.tripCode === grp.tripCode))
+        );
+        if (hasHubInbound) return true;
+      }
+
       // Match destinationHubId or currentHubId or destinationHub entity
+      // Note: destinationHubId === null represents direct customer delivery from the receiving hub
       if (
         userHubId &&
         (o.destinationHubId === userHubId ||
+          o.destinationHubId == null ||
           o.currentHubId === userHubId ||
           o.destinationHubEntity?.id === userHubId)
       ) {
@@ -485,13 +503,6 @@ export default function WarehouseInboundPage() {
         }
       }
 
-      // Check if any INBOUND transaction was completed at this hub
-      if (Array.isArray(o.inventoryTransactions) && userHubId) {
-        const hasHubInbound = o.inventoryTransactions.some(
-          (tx: any) => tx.type === 'INBOUND' && (tx.hubId === userHubId || tx.hub?.id === userHubId)
-        );
-        if (hasHubInbound) return true;
-      }
       return false;
     };
 
@@ -512,10 +523,22 @@ export default function WarehouseInboundPage() {
       firstOrder?.deliveryAddress?.trim() ||
       '';
 
+    const getOrderTripInboundQty = (o: any) => {
+      if (Array.isArray(o.inventoryTransactions) && grp.tripCode && grp.tripCode !== '—') {
+        const tx = o.inventoryTransactions.find(
+          (t: any) =>
+            t.type === 'INBOUND' &&
+            (t.tripCode === grp.tripCode || (t.tripCode && grp.tripCode.includes(t.tripCode)))
+        );
+        if (tx && Number(tx.quantity) > 0) return Number(tx.quantity);
+      }
+      return o.inboundQuantity ?? o.totalQuantity ?? 1;
+    };
+
     const items: InboundReceiptItem[] = effectiveOrders.map((o: any) => ({
       orderCode: o.orderCode,
       goodsDescription: o.goodsDescription || 'Hàng hóa nhập kho',
-      quantity: o.inboundQuantity ?? o.totalQuantity ?? 1,
+      quantity: getOrderTripInboundQty(o),
       unit: 'Kiện',
       deliveryAddress: resolveInboundReceiptDeliveryAddress(o),
       accompanyingDocs: o.accompanyingDocs || 'KHÔNG CÓ',

@@ -62,10 +62,10 @@ test.describe.serial('Feedback 15/10 (Task #83) — Ẩn Nút In Phiếu Nhập 
     expect(modalContent).toContain('isCurrentHubPending');
 
     // Nút in tại Header phải có điều kiện !isCurrentHubPending
-    expect(modalContent).toContain('{onOpenReceipt && !isCurrentHubPending && (');
+    expect(modalContent).toContain('!isCurrentHubPending');
 
-    // Nút in tại Footer phải có điều kiện !isCurrentHubPending
-    expect(modalContent).toContain('{!isCurrentHubPending && onOpenReceipt && (');
+    // Nút in phiếu xe tại Footer đã được loại bỏ hoàn toàn theo yêu cầu người dùng
+    expect(modalContent).not.toContain('In phiếu xe');
 
     // Phải có cơ chế reactive cập nhật tức thì (forceCompleted / setIsReopenedByAdmin)
     expect(modalContent).toContain('setForceCompleted(true)');
