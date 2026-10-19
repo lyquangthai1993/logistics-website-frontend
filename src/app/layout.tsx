@@ -58,7 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const themeToApply = isValidTheme ? activeThemeValue! : DEFAULT_THEME;
 
   return (
-    <html lang='vi' suppressHydrationWarning data-theme={themeToApply}>
+    <html lang='vi' suppressHydrationWarning data-theme={themeToApply} className={fontVariables}>
       <head>
         <script
           dangerouslySetInnerHTML={{

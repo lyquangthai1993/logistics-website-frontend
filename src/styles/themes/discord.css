@@ -31,9 +31,9 @@
   --sidebar-accent-foreground: oklch(1 0 180);
   --sidebar-border: oklch(0.9401 0 0);
   --sidebar-ring: oklch(0.683 0 180);
-  --font-sans: var(--font-google-sans-flex), ui-sans-serif, sans-serif;
-  --font-serif: var(--font-google-sans-flex), ui-sans-serif, serif;
-  --font-mono: var(--font-source-code-pro), ui-monospace, monospace;
+  --font-sans: var(--font-plus-jakarta-sans), var(--font-be-vietnam-pro), sans-serif;
+  --font-serif: var(--font-plus-jakarta-sans), var(--font-be-vietnam-pro), serif;
+  --font-mono: var(--font-source-code-pro), var(--font-jetbrains-mono), monospace;
   --radius: 0.75rem;
   --shadow-x: 0;
   --shadow-y: 8px;

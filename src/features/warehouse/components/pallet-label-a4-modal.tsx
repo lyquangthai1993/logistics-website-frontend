@@ -53,7 +53,10 @@ export function resolvePalletLabelDestination(item?: PalletLabelData | null): st
   // 3. Ưu tiên số 3: Trích xuất phần Tỉnh/TP ở cuối chuỗi địa chỉ giao hàng nếu có
   const addr = item.deliveryAddress?.trim() || item.originalDestination?.trim();
   if (addr) {
-    const parts = addr.split(',').map((p) => p.trim()).filter(Boolean);
+    const parts = addr
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (parts.length >= 2) {
       const lastPart = parts[parts.length - 1];
       // Nếu đoạn cuối là tên Tỉnh/TP (dưới 40 ký tự)
@@ -418,7 +421,11 @@ ${pagesHtml}
           <div
             id='pallet-label-print-area'
             className='w-full max-w-[850px] bg-white text-black rounded shadow-2xl border border-slate-300 font-sans select-none'
-            style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif", padding: '24px' }}
+            style={{
+              fontFamily:
+                "var(--font-be-vietnam-pro), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+              padding: '24px'
+            }}
           >
             {/* Row 1: Header Bar with QR Code */}
             <div className='flex items-center justify-between mb-3 relative'>
@@ -431,7 +438,10 @@ ${pagesHtml}
               />
               <h1
                 className='flex-1 text-center text-xl sm:text-3xl font-black tracking-wide uppercase text-black'
-                style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+                style={{
+                  fontFamily:
+                    "var(--font-be-vietnam-pro), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+                }}
               >
                 TEM NHẬN DIỆN HÀNG HÓA
               </h1>
@@ -441,7 +451,10 @@ ${pagesHtml}
             {/* Row 2: Sub Header (Kho & Tên hàng) */}
             <div
               className='flex justify-between items-center text-xs sm:text-sm font-bold text-black mb-4 px-1'
-              style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+              style={{
+                fontFamily:
+                  "var(--font-be-vietnam-pro), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+              }}
             >
               <div>
                 KHO : <span className='font-black'>{currentHubName}</span>
@@ -462,7 +475,10 @@ ${pagesHtml}
                   <td
                     colSpan={3}
                     className='px-3 py-1.5 text-center align-middle font-sans text-xl sm:text-3xl font-black tracking-wider text-black leading-tight'
-                    style={{ fontFamily: "Arial, 'Segoe UI', Tahoma, sans-serif" }}
+                    style={{
+                      fontFamily:
+                        'var(--font-jetbrains-mono), var(--font-be-vietnam-pro), var(--font-inter), monospace'
+                    }}
                   >
                     {currentItem.orderCode}
                   </td>

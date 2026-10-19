@@ -3,105 +3,52 @@ import {
   Inter,
   JetBrains_Mono,
   Merriweather,
-  Mulish,
-  Noto_Sans_Mono,
   Playfair_Display,
   Playpen_Sans,
   Plus_Jakarta_Sans,
-  Source_Code_Pro,
-  Space_Mono
+  Source_Code_Pro
 } from 'next/font/google';
 
 import { cn } from '@/lib/utils';
 
-// Primary UI Sans Font (Inter with full Vietnamese diacritics support)
-const fontSans = Inter({
+// Inter: Primary UI Sans Font (Full Vietnamese diacritics support)
+const fontInter = Inter({
   subsets: ['latin', 'vietnamese'],
-  variable: '--font-sans'
+  variable: '--font-inter'
 });
 
-// Primary UI Mono Font (JetBrains Mono with full Vietnamese support)
-const fontMono = JetBrains_Mono({
+// JetBrains Mono: Primary UI Mono Font (Code, manifests, data tables)
+const fontJetBrainsMono = JetBrains_Mono({
   subsets: ['latin', 'vietnamese'],
-  variable: '--font-mono'
+  variable: '--font-jetbrains-mono'
 });
 
-// Dedicated Vietnamese Typography Sans Font
+// Be Vietnam Pro: Dedicated Vietnamese Typography Sans Foundation
 const fontBeVietnamPro = Be_Vietnam_Pro({
   weight: ['300', '400', '500', '600', '700'],
   subsets: ['latin', 'vietnamese'],
   variable: '--font-be-vietnam-pro'
 });
 
-// Plus Jakarta Sans (Used in Discord, Supabase, Astro Vista themes)
-const fontGoogleSansFlex = Plus_Jakarta_Sans({
+// Plus Jakarta Sans: Modern Geometric Sans (Discord, Supabase, Astro Vista, WhatsApp)
+const fontPlusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin', 'vietnamese'],
-  variable: '--font-google-sans-flex'
+  variable: '--font-plus-jakarta-sans'
 });
 
-// Source Code Pro (Used in Discord theme)
+// Source Code Pro: Alternate Monospace (Discord theme)
 const fontSourceCodePro = Source_Code_Pro({
   subsets: ['latin', 'vietnamese'],
   variable: '--font-source-code-pro'
 });
 
-const fontInstrument = Inter({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-instrument'
-});
-
-const fontNotoMono = Noto_Sans_Mono({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-noto-mono'
-});
-
-const fontMullish = Mulish({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-mullish'
-});
-
-const fontInter = Inter({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-inter'
-});
-
-// Playpen Sans: Casual handwriting font with full Vietnamese support (replaces Architects Daughter)
-const fontArchitectsDaughter = Playpen_Sans({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-architects-daughter'
-});
-
+// Playpen Sans: Casual handwriting font with 100% Vietnamese support (Notebook theme)
 const fontPlaypenSans = Playpen_Sans({
   subsets: ['latin', 'vietnamese'],
   variable: '--font-playpen-sans'
 });
 
-const fontDMSans = Inter({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-dm-sans'
-});
-
-const fontFiraCode = JetBrains_Mono({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-fira-code'
-});
-
-const fontOutfit = Plus_Jakarta_Sans({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-outfit'
-});
-
-const fontSpaceMono = Space_Mono({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['400', '700'],
-  variable: '--font-space-mono'
-});
-
-const fontJetBrainsMono = JetBrains_Mono({
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-jetbrains-mono'
-});
-
+// Merriweather: Editorial Serif (Astro Vista theme)
 const fontMerriweather = Merriweather({
   subsets: ['latin', 'vietnamese'],
   weight: ['300', '400', '700'],
@@ -109,28 +56,19 @@ const fontMerriweather = Merriweather({
   preload: false
 });
 
+// Playfair Display: Elegant Display Serif (Zen theme)
 const fontPlayfairDisplay = Playfair_Display({
   subsets: ['latin', 'vietnamese'],
   variable: '--font-playfair-display'
 });
 
 export const fontVariables = cn(
-  fontSans.variable,
-  fontMono.variable,
-  fontBeVietnamPro.variable,
-  fontGoogleSansFlex.variable,
-  fontSourceCodePro.variable,
-  fontInstrument.variable,
-  fontNotoMono.variable,
-  fontMullish.variable,
   fontInter.variable,
-  fontArchitectsDaughter.variable,
-  fontPlaypenSans.variable,
-  fontDMSans.variable,
-  fontFiraCode.variable,
-  fontOutfit.variable,
-  fontSpaceMono.variable,
   fontJetBrainsMono.variable,
+  fontBeVietnamPro.variable,
+  fontPlusJakartaSans.variable,
+  fontSourceCodePro.variable,
+  fontPlaypenSans.variable,
   fontMerriweather.variable,
   fontPlayfairDisplay.variable
 );

@@ -31,7 +31,7 @@
   --sidebar-accent-foreground: oklch(0.3012 0 0);
   --sidebar-border: oklch(0.8434 0.0231 87.1621);
   --sidebar-ring: oklch(0.3012 0 0);
-  --font-sans: var(--font-inter), sans-serif;
+  --font-sans: var(--font-inter), var(--font-be-vietnam-pro), sans-serif;
   --font-serif: var(--font-playfair-display), serif;
   --font-mono: var(--font-jetbrains-mono), monospace;
   --radius: 0.5rem;
@@ -86,7 +86,7 @@
   --sidebar-accent-foreground: oklch(0.852 0.0205 100.6306);
   --sidebar-border: oklch(0.2931 0 0);
   --sidebar-ring: oklch(0.852 0.0205 100.6306);
-  --font-sans: var(--font-inter), sans-serif;
+  --font-sans: var(--font-inter), var(--font-be-vietnam-pro), sans-serif;
   --font-serif: var(--font-playfair-display), serif;
   --font-mono: var(--font-jetbrains-mono), monospace;
   --radius: 0.5rem;
