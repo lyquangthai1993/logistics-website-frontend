@@ -316,6 +316,7 @@ export default function WarehouseOutboundPage() {
       if (isNoteView && orderIds.length > 0) {
         const query = new URLSearchParams({
           ids: Array.from(new Set(orderIds)).join(','),
+          flow: 'OUTBOUND_LOOKUP',
           limit: '100'
         });
         const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -329,18 +330,26 @@ export default function WarehouseOutboundPage() {
           throw { response: { data: errData, status: res.status } };
         }
 
-        // NestJS ResponseTransformInterceptor wraps payloads: { statusCode, message, data, ... }
+        // NestJS ResponseTransformInterceptor wraps payloads: { statusCode, message, data: { data, meta } }
         const json = await res.json();
-        const freshData: any[] = Array.isArray(json)
-          ? json
-          : Array.isArray(json?.data)
-            ? json.data
+        const payload = json?.meta ? json : (json?.data ?? json);
+        const freshData: any[] = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+            ? payload
             : [];
         const freshById = new Map(freshData.map((f) => [Number(f.id), f]));
+        const freshByCode = new Map(
+          freshData
+            .filter((f) => f.orderCode)
+            .map((f) => [String(f.orderCode).trim().toUpperCase(), f])
+        );
 
         const applyFresh = (rows: WarehouseRowItem[]) =>
           rows.map((r) => {
-            const fresh = freshById.get(Number(r.id));
+            const fresh =
+              freshById.get(Number(r.id)) ||
+              (r.orderCode ? freshByCode.get(r.orderCode.trim().toUpperCase()) : undefined);
             if (!fresh) return r;
             const stock = availableOutboundStock(fresh);
             const currentQty = Number(r.totalQuantity) || 0;
@@ -406,7 +415,7 @@ export default function WarehouseOutboundPage() {
   };
 
   // Validate the note and build the request body shared by "Xác nhận xuất kho" and "Lưu nháp"
-  const buildOutboundRequest = (mode: 'CUSTOMER' | 'TRANSFER') => {
+  const buildOutboundRequest = async (mode: 'CUSTOMER' | 'TRANSFER') => {
     if (mode === 'CUSTOMER') {
       if (!outboundLicensePlate.trim()) {
         toast.error('Vui lòng nhập Biển số xe xuất kho (bắt buộc)');
@@ -420,10 +429,69 @@ export default function WarehouseOutboundPage() {
     }
 
     const activeRows = mode === 'CUSTOMER' ? mode1Rows : mode2Rows;
-    const validRows = activeRows.filter((r) => r.orderCode && r.orderCode.trim() !== '');
+    const rawValidRows = activeRows.filter(
+      (r) => r.orderCode && r.orderCode.trim() !== '' && !r.orderCode.startsWith('(Tự sinh')
+    );
 
-    if (validRows.length === 0) {
+    if (rawValidRows.length === 0) {
       toast.error('Vui lòng nhập hoặc chọn ít nhất một đơn hàng cần xuất kho');
+      return null;
+    }
+
+    // Auto-resolve any row that has orderCode but has not yet linked an order id (e.g. fast click or Excel paste)
+    const token = tokenManager.getAccessToken();
+    const validRows: WarehouseRowItem[] = [];
+    for (const rowItem of rawValidRows) {
+      if (rowItem.id && !isNaN(Number(rowItem.id))) {
+        validRows.push(rowItem);
+        continue;
+      }
+      const code = rowItem.orderCode.trim().toUpperCase();
+      try {
+        const q = new URLSearchParams({
+          page: '1',
+          limit: '20',
+          search: code,
+          flow: 'OUTBOUND_LOOKUP'
+        });
+        const resLookup = await fetch(`/api/v1/warehouse/orders?${q.toString()}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (resLookup.ok) {
+          const json = await resLookup.json().catch(() => null);
+          const payload = json?.meta ? json : (json?.data ?? json);
+          const list: any[] = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          const found = list.find((it) => it.orderCode?.trim().toUpperCase() === code);
+          if (found) {
+            const availStock = availableOutboundStock(found);
+            const reqQty = Number(rowItem.totalQuantity) || availStock;
+            validRows.push({
+              ...rowItem,
+              id: found.id,
+              orderCode: found.orderCode,
+              goodsDescription: found.goodsDescription || rowItem.goodsDescription || '',
+              remainingQuantity: availStock,
+              totalQuantity: reqQty,
+              quantityToExport: reqQty,
+              totalWeight: proportionalMetric(found.totalWeight, reqQty, found.totalQuantity),
+              totalVolume: proportionalMetric(found.totalVolume, reqQty, found.totalQuantity),
+              deliveryAddress:
+                rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || ''
+            });
+            continue;
+          }
+        }
+      } catch {
+        // fall through to missing id error below
+      }
+      toast.error(`Không tìm thấy đơn hàng "${code}" trong tồn kho khả dụng để xuất kho!`);
       return null;
     }
 
@@ -445,17 +513,29 @@ export default function WarehouseOutboundPage() {
     }
 
     const seenIds = new Map<string, number>();
+    const seenCodes = new Map<string, number>();
     for (let i = 0; i < validRows.length; i++) {
       const rid = validRows[i].id;
-      if (rid === undefined || rid === null || rid === '') continue;
-      const key = String(rid);
-      if (seenIds.has(key)) {
-        toast.error(
-          `Dòng hàng ${validRows[i].orderCode} đang bị chọn 2 lần trên phiếu. Vui lòng gộp số lượng vào một dòng.`
-        );
-        return null;
+      const rcode = validRows[i].orderCode?.trim().toUpperCase();
+      if (rid !== undefined && rid !== null && rid !== '') {
+        const key = String(rid);
+        if (seenIds.has(key)) {
+          toast.error(
+            `Dòng hàng ${validRows[i].orderCode} đang bị chọn 2 lần trên phiếu. Vui lòng gộp số lượng vào một dòng.`
+          );
+          return null;
+        }
+        seenIds.set(key, i);
       }
-      seenIds.set(key, i);
+      if (rcode) {
+        if (seenCodes.has(rcode)) {
+          toast.error(
+            `Dòng hàng ${validRows[i].orderCode} đang bị chọn 2 lần trên phiếu. Vui lòng gộp số lượng vào một dòng.`
+          );
+          return null;
+        }
+        seenCodes.set(rcode, i);
+      }
     }
 
     const orderIds = validRows.map((r) => Number(r.id)).filter((id) => !isNaN(id) && id > 0);
@@ -533,7 +613,7 @@ export default function WarehouseOutboundPage() {
       );
       return;
     }
-    const request = buildOutboundRequest(mode);
+    const request = await buildOutboundRequest(mode);
     if (!request) return;
     const { body, validRows, effectiveMode, primaryDestHubId, resolveRowOutboundDestination } =
       request;
@@ -662,7 +742,7 @@ export default function WarehouseOutboundPage() {
 
   // "Lưu nháp": persists the note as a draft trip (Chờ xử lý) — allocates SD code, no stock deduction
   const handleSaveDraftMode1 = async () => {
-    const request = buildOutboundRequest('CUSTOMER');
+    const request = await buildOutboundRequest('CUSTOMER');
     if (!request) return;
 
     setIsSavingDraft(true);
