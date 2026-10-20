@@ -1752,6 +1752,115 @@ export function WarehouseEditableGrid({
     [rows, onChange]
   );
 
+  // Auto-resolve outbound stock & orderId when rows are pasted or imported from Excel in Outbound mode
+  const hydrateOutboundRows = useCallback(
+    async (targetRows: WarehouseRowItem[]) => {
+      if (!isOutboundMode) return;
+      const needsLookup = targetRows.some(
+        (r) =>
+          r.orderCode &&
+          r.orderCode.trim() !== '' &&
+          !r.orderCode.startsWith('(Tự sinh') &&
+          !r.id
+      );
+      if (!needsLookup) return;
+
+      const token = tokenManager.getAccessToken();
+      const seenCodes = new Set<string>();
+      const hydrated: WarehouseRowItem[] = [];
+
+      for (const rowItem of targetRows) {
+        const code = rowItem.orderCode?.trim().toUpperCase();
+        if (!code || code.startsWith('(TỰ SINH')) {
+          hydrated.push(rowItem);
+          continue;
+        }
+        if (seenCodes.has(code)) {
+          toast.error(
+            `Đơn hàng ${code} bị trùng lặp nhiều dòng khi dán/nhập Excel! Đã tự động giữ lại 1 dòng duy nhất.`
+          );
+          continue;
+        }
+        seenCodes.add(code);
+
+        if (rowItem.id) {
+          hydrated.push(rowItem);
+          continue;
+        }
+
+        try {
+          const q = new URLSearchParams({
+            page: '1',
+            limit: '20',
+            search: code,
+            flow: 'OUTBOUND_LOOKUP'
+          });
+          const res = await fetch(`/api/v1/warehouse/orders?${q.toString()}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            }
+          });
+          if (res.ok) {
+            const json = await res.json().catch(() => null);
+            const payload = json?.meta ? json : (json?.data ?? json);
+            const list: any[] = Array.isArray(payload?.data)
+              ? payload.data
+              : Array.isArray(payload)
+                ? payload
+                : [];
+            const found = list.find((it) => it.orderCode?.trim().toUpperCase() === code);
+            if (found) {
+              const availStock = availableOutboundStock(found);
+              const requestedQty = Number(rowItem.totalQuantity) || 0;
+              const exportQty =
+                requestedQty > 0 && requestedQty <= availStock ? requestedQty : availStock;
+              hydrated.push({
+                ...rowItem,
+                id: found.id,
+                status: found.status,
+                hubStatus: found.hubStatus,
+                orderCode: found.orderCode,
+                goodsDescription: found.goodsDescription || rowItem.goodsDescription || '',
+                totalQuantity: exportQty,
+                remainingQuantity: availStock,
+                quantityToExport: exportQty,
+                inboundQuantity: found.inboundQuantity,
+                outboundQuantity: found.outboundQuantity,
+                totalWeight: proportionalMetric(found.totalWeight, exportQty, found.totalQuantity),
+                totalVolume: proportionalMetric(found.totalVolume, exportQty, found.totalQuantity),
+                pickupAddress:
+                  found.originHub || found.pickupAddress || rowItem.pickupAddress || '',
+                deliveryAddress:
+                  found.destinationHub ||
+                  found.deliveryAddress ||
+                  rowItem.deliveryAddress ||
+                  '',
+                originalDeliveryAddress:
+                  found.destinationHub ||
+                  found.deliveryAddress ||
+                  rowItem.deliveryAddress ||
+                  '',
+                province: found.province || rowItem.province || '',
+                accompanyingDocs: found.accompanyingDocs || rowItem.accompanyingDocs || '',
+                notes: rowItem.notes || found.notes || '',
+                destinationHubId: found.destinationHubId || null,
+                destinationHub: found.destinationHubEntity || null
+              });
+              continue;
+            }
+          }
+        } catch {
+          // ignore lookup failure and keep original row so validation catches it
+        }
+        hydrated.push(rowItem);
+      }
+
+      onChange(hydrated.length > 0 ? hydrated : targetRows);
+    },
+    [isOutboundMode, onChange]
+  );
+
   // Helper to append or replace pasted rows from Excel
   const applyPastedRows = useCallback(
     (newRows: WarehouseRowItem[]) => {
@@ -1765,17 +1874,20 @@ export function WarehouseEditableGrid({
         !rows[0].goodsDescription?.trim() &&
         !rows[0].deliveryAddress?.trim();
 
+      const merged = isCurrentDefaultOnly ? newRows : [...rows, ...newRows];
+      onChange(merged);
       if (isCurrentDefaultOnly) {
-        onChange(newRows);
         toast.success(`Đã dán thành công ${newRows.length} dòng hàng từ Excel`);
       } else {
-        onChange([...rows, ...newRows]);
         toast.success(
           `Đã dán thêm ${newRows.length} dòng hàng từ Excel (Tổng cộng: ${rows.length + newRows.length} dòng)`
         );
       }
+      if (isOutboundMode) {
+        void hydrateOutboundRows(merged);
+      }
     },
-    [rows, onChange]
+    [rows, onChange, isOutboundMode, hydrateOutboundRows]
   );
 
   // Smart Paste from Excel (TSV clipboard)
@@ -1838,6 +1950,22 @@ export function WarehouseEditableGrid({
       }
       return;
     }
+    if (isOutboundMode) {
+      const isDup = rows.some(
+        (r, idx) =>
+          idx !== lookupRowIndex &&
+          ((r.id !== undefined && r.id !== null && String(r.id) === String(order.id)) ||
+            (r.orderCode &&
+              order.orderCode &&
+              r.orderCode.trim().toUpperCase() === order.orderCode.trim().toUpperCase()))
+      );
+      if (isDup) {
+        toast.error(
+          `Đơn hàng ${order.orderCode} đã được chọn ở một dòng khác trên phiếu xuất! Vui lòng gộp số lượng vào dòng đó.`
+        );
+        return;
+      }
+    }
     const updated = [...rows];
     const destHubEntity = (order as any).destinationHubEntity;
     const destHubId =
@@ -1885,16 +2013,21 @@ export function WarehouseEditableGrid({
 
   // Handle import rows from Excel
   const handleImportExcelRows = (importedRows: WarehouseRowItem[], mode: 'REPLACE' | 'APPEND') => {
+    let merged: WarehouseRowItem[];
     if (mode === 'REPLACE') {
-      onChange(importedRows);
+      merged = importedRows;
     } else {
       const currentIsDefaultOnly =
         rows.length === 1 && !rows[0].goodsDescription && !rows[0].deliveryAddress;
       if (currentIsDefaultOnly) {
-        onChange(importedRows);
+        merged = importedRows;
       } else {
-        onChange([...rows, ...importedRows]);
+        merged = [...rows, ...importedRows];
       }
+    }
+    onChange(merged);
+    if (isOutboundMode) {
+      void hydrateOutboundRows(merged);
     }
   };
 
