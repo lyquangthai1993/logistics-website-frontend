@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useDebounce } from '@/hooks/use-debounce';
 import {
   IconSearch,
   IconBuildingWarehouse,
@@ -44,6 +45,11 @@ export default function WarehouseOrdersPage() {
     (user?.role as any)?.name === 'SUPER_ADMIN';
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
+  // Chỉ kích hoạt lọc tìm kiếm khi người dùng nhập từ 2 ký tự trở lên
+  const effectiveSearch = debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : '';
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
@@ -144,7 +150,7 @@ export default function WarehouseOrdersPage() {
         isExport: 'true',
         limit: '5000',
         ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
-        ...(search.trim() ? { search: search.trim() } : {})
+        ...(effectiveSearch ? { search: effectiveSearch } : {})
       });
 
       const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -469,6 +475,13 @@ export default function WarehouseOrdersPage() {
   };
 
   const fetchOrders = useCallback(() => {
+    // Tự động hủy bỏ request in-flight trước đó để triệt tiêu race condition và nghẽn mạng
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsLoading(true);
     const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
@@ -476,7 +489,7 @@ export default function WarehouseOrdersPage() {
       limit: pageSize.toString(),
       // One row per order code; lines sharing a code are returned in `items`
       groupBy: 'orderCode',
-      ...(search.trim() ? { search: search.trim() } : {}),
+      ...(effectiveSearch ? { search: effectiveSearch } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
     });
 
@@ -484,7 +497,8 @@ export default function WarehouseOrdersPage() {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
+      },
+      signal: controller.signal
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
@@ -498,15 +512,26 @@ export default function WarehouseOrdersPage() {
           dispatchedCount: resData?.meta?.dispatchedCount
         });
       })
-      .catch(() => {
+      .catch((err) => {
+        // Nếu request bị hủy chủ động khi người dùng gõ tiếp hoặc đổi tab, không hiển thị lỗi và không xóa dữ liệu
+        if (err?.name === 'AbortError' || controller.signal.aborted) {
+          return;
+        }
         setData([]);
         toast.error('Không tải được danh sách đơn hàng kho. Vui lòng thử lại.');
       })
-      .finally(() => setIsLoading(false));
-  }, [page, pageSize, search, statusFilter]);
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      });
+  }, [page, pageSize, effectiveSearch, statusFilter]);
 
   useEffect(() => {
     fetchOrders();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [fetchOrders]);
 
   const COLUMN_COUNT = 11;
@@ -793,9 +818,14 @@ export default function WarehouseOrdersPage() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  placeholder='Tìm kiếm theo mã đơn hoặc tên hàng...'
+                  placeholder='Tìm kiếm theo mã đơn hoặc tên hàng (tối thiểu 2 ký tự)...'
                   className='pl-9 h-9 text-xs'
                 />
+                {search.trim().length === 1 && (
+                  <span className='absolute right-3 top-2.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium pointer-events-none'>
+                    Nhập tối thiểu 2 ký tự...
+                  </span>
+                )}
               </div>
 
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
