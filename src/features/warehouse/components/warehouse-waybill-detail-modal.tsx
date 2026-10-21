@@ -223,7 +223,7 @@ export function WarehouseWaybillDetailModal({
       );
       if (txRes.ok) {
         const txData = await txRes.json();
-        setServerData(txData);
+        setServerData(txData?.data ?? txData);
       }
 
       // 2. Fetch activity logs
@@ -233,7 +233,7 @@ export function WarehouseWaybillDetailModal({
       );
       if (logRes.ok) {
         const logData = await logRes.json();
-        setActivityLogs(Array.isArray(logData) ? logData : []);
+        const logs = logData?.data ?? logData; setActivityLogs(Array.isArray(logs) ? logs : []);
       }
     } catch (err) {
       console.error('Failed to reload waybill data:', err);

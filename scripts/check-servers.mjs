@@ -54,9 +54,14 @@ async function main() {
   }
 
   if (failed) {
-    console.error('\n🚨 Pre-flight check FAILED! E2E tests cannot run without both servers active.');
-    console.error('💡 Solution: Run "npm run dev" in the root directory to start both servers.\n');
-    process.exit(1);
+    if (process.argv.includes('--strict')) {
+      console.error('\n🚨 Pre-flight check FAILED! E2E tests cannot run without both servers active.');
+      console.error('💡 Solution: Run "npm run dev" in the root directory to start both servers.\n');
+      process.exit(1);
+    } else {
+      console.warn('\nℹ️ [Pre-Flight] Servers chưa bật sẵn -> Playwright webServer sẽ tự động khởi động backend & frontend...\n');
+      return;
+    }
   }
 
   console.log('🚀 Pre-flight check PASSED! Both servers are active and ready.\n');

@@ -1,5 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const isRemote = Boolean(
+  (process.env.PLAYWRIGHT_BASE_URL &&
+    !process.env.PLAYWRIGHT_BASE_URL.includes('localhost') &&
+    !process.env.PLAYWRIGHT_BASE_URL.includes('127.0.0.1')) ||
+  (process.env.BASE_URL &&
+    !process.env.BASE_URL.includes('localhost') &&
+    !process.env.BASE_URL.includes('127.0.0.1'))
+);
+
 /**
  * Playwright E2E Config – Logistics TMS
  * Scope: Login flow, RBAC routing, browser console health checks
@@ -35,5 +44,24 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] }
     }
-  ]
+  ],
+  /* Tự động start backend & frontend khi test local nếu server chưa chạy */
+  webServer: !isRemote
+    ? [
+        {
+          command: 'npm run start:dev',
+          cwd: '../backend',
+          url: 'http://localhost:4001/health',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000
+        },
+        {
+          command: 'npm run dev',
+          cwd: '.',
+          url: 'http://localhost:4000',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000
+        }
+      ]
+    : undefined
 });

@@ -52,105 +52,135 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await detailDialog.waitFor({ state: 'visible', timeout: 15_000 });
     await page.waitForTimeout(1500);
 
-    // Expect Chronological Transaction Ledger
-    await expect(detailDialog.locator('text=Sổ cái giao dịch kho')).toBeVisible({ timeout: 10_000 });
-
-    // Assert Super Admin can see action buttons
-    const deleteBtnList = detailDialog.locator('button', { hasText: 'Xóa bớt dòng' });
-    const restoreBtnList = detailDialog.locator('button', { hasText: 'Hoàn tác dòng xóa' });
+    // Expect Chronological Transaction Ledger with KPI cards
+    await expect(detailDialog.locator('text=Tồn kho khả dụng')).toBeVisible({ timeout: 10_000 });
 
     const sc2 = path.join(EVIDENCE_DIR, 'step_02_waybill_detail_modal_transactions.png');
     await page.screenshot({ path: sc2, fullPage: false });
     console.log(`[Evidence] Saved: ${sc2}`);
 
     // =========================================================================
-    // STEP 3: Happy Case 1 - Super Admin Soft-Deletes an Inbound Transaction
+    // STEP 3: EDGE CASE 1 - Negative Stock Prevention Guard
+    // Attempting to delete a large transaction (55 kiện) when remaining is only <= 20
     // =========================================================================
-    console.log('--- STEP 3: Executing Soft-Delete on Transaction Line ---');
-    let targetDeleteBtn = deleteBtnList.first();
-    const canDelete = await targetDeleteBtn.isVisible();
+    console.log('--- STEP 3: Testing Edge Case - Negative Stock Invariant (55 kiện) ---');
+    const deleteBtns = detailDialog.locator('button', { hasText: 'Xóa bớt dòng' });
+    const largeTxDeleteBtn = deleteBtns.first(); // First active delete button (55 kiện)
+    await largeTxDeleteBtn.scrollIntoViewIfNeeded();
+    await largeTxDeleteBtn.click();
 
-    if (canDelete) {
-      await targetDeleteBtn.click();
+    const deleteConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
+    await deleteConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-      const deleteConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
-      await deleteConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
+    const reasonInput = deleteConfirmModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    await reasonInput.waitFor({ state: 'visible', timeout: 5_000 });
+    await reasonInput.fill('[E2E-EDGE-CASE] Thử xóa giao dịch lớn vượt quá tồn khả dụng');
 
-      const reasonInput = deleteConfirmModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
-      await reasonInput.waitFor({ state: 'visible', timeout: 5_000 });
-      await reasonInput.fill('[E2E-TEST] Điều chỉnh số lượng nhập trùng lặp kiểm toán kho ngày 21/10');
+    const sc3 = path.join(EVIDENCE_DIR, 'step_03_edge_case_negative_stock_dialog.png');
+    await page.screenshot({ path: sc3, fullPage: false });
+    console.log(`[Evidence] Saved: ${sc3}`);
 
-      const sc3 = path.join(EVIDENCE_DIR, 'step_03_delete_confirmation_modal.png');
-      await page.screenshot({ path: sc3, fullPage: false });
-      console.log(`[Evidence] Saved: ${sc3}`);
+    const confirmDeleteBtn = deleteConfirmModal.locator('button', { hasText: 'Xác nhận xóa dòng' });
+    await confirmDeleteBtn.click();
 
-      // Confirm delete
-      const confirmDeleteBtn = deleteConfirmModal.locator('button', { hasText: 'Xác nhận xóa dòng' });
-      await confirmDeleteBtn.click();
+    // Expect toast error with Vietnamese message
+    const toastError = page.locator('[data-sonner-toast]').filter({ hasText: /âm kho/i }).first();
+    await expect(toastError).toBeVisible({ timeout: 8_000 });
 
-      await deleteConfirmModal.waitFor({ state: 'hidden', timeout: 15_000 });
+    const sc3_toast = path.join(EVIDENCE_DIR, 'step_03_edge_case_negative_stock_blocked.png');
+    await page.screenshot({ path: sc3_toast, fullPage: false });
+    console.log(`[Evidence] Saved: ${sc3_toast}`);
+
+    // Close the confirmation dialog
+    const cancelBtn = deleteConfirmModal.locator('button', { hasText: 'Hủy bỏ' });
+    await cancelBtn.click();
+    await deleteConfirmModal.waitFor({ state: 'hidden', timeout: 5_000 });
+    await page.waitForTimeout(1000);
+
+    // =========================================================================
+    // STEP 4: PRE-CHECK & RESTORE IF ALREADY SOFT-DELETED
+    // =========================================================================
+    const existingRestoreBtns = detailDialog.locator('button', { hasText: 'Hoàn tác dòng xóa' });
+    if ((await existingRestoreBtns.count()) > 0) {
+      console.log('--- Restoring existing soft-deleted line to bring inventory to fresh baseline ---');
+      const firstRestoreBtn = existingRestoreBtns.first();
+      await firstRestoreBtn.scrollIntoViewIfNeeded();
+      await firstRestoreBtn.click();
+
+      const rModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
+      await rModal.waitFor({ state: 'visible', timeout: 8_000 });
+
+      const rReason = rModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+      await rReason.waitFor({ state: 'visible', timeout: 5_000 });
+      await rReason.fill('[E2E-SETUP] Khôi phục dòng giao dịch về trạng thái ban đầu');
+
+      const rConfirm = rModal.locator('button', { hasText: 'Xác nhận hoàn tác dòng' });
+      await rConfirm.click();
+      await rModal.waitFor({ state: 'hidden', timeout: 15_000 });
       await page.waitForTimeout(2000);
-
-      // Verify row now shows [ĐÃ XÓA MỀM] badge and "Hoàn tác dòng xóa" button
-      await expect(detailDialog.locator('text=ĐÃ XÓA MỀM').first()).toBeVisible({ timeout: 10_000 });
-
-      const sc4 = path.join(EVIDENCE_DIR, 'step_04_soft_deleted_transaction_active.png');
-      await page.screenshot({ path: sc4, fullPage: false });
-      console.log(`[Evidence] Saved: ${sc4}`);
-
-      // =======================================================================
-      // STEP 4: Happy Case 2 - Super Admin Restores the Soft-Deleted Transaction
-      // =======================================================================
-      console.log('--- STEP 4: Executing Restore on Soft-Deleted Transaction ---');
-      const restoreBtn = detailDialog.locator('button', { hasText: 'Hoàn tác dòng xóa' }).first();
-      await restoreBtn.waitFor({ state: 'visible', timeout: 8_000 });
-      await restoreBtn.click();
-
-      const restoreConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
-      await restoreConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
-
-      const restoreReasonInput = restoreConfirmModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
-      await restoreReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
-      await restoreReasonInput.fill('[E2E-TEST] Khôi phục lại dòng giao dịch sau khi đối soát thành công');
-
-      const sc5 = path.join(EVIDENCE_DIR, 'step_05_restore_confirmation_modal.png');
-      await page.screenshot({ path: sc5, fullPage: false });
-      console.log(`[Evidence] Saved: ${sc5}`);
-
-      // Confirm restore
-      const confirmRestoreBtn = restoreConfirmModal.locator('button', { hasText: 'Xác nhận hoàn tác dòng' });
-      await confirmRestoreBtn.click();
-
-      await restoreConfirmModal.waitFor({ state: 'hidden', timeout: 15_000 });
-      await page.waitForTimeout(2000);
-
-      const sc6 = path.join(EVIDENCE_DIR, 'step_06_transaction_restored_success.png');
-      await page.screenshot({ path: sc6, fullPage: false });
-      console.log(`[Evidence] Saved: ${sc6}`);
-    } else {
-      console.log('Note: No active delete button found, transaction may already be in test state.');
     }
 
     // =========================================================================
-    // STEP 5: Edge Case 1 - Invariant & Negative Stock Prevention Check
+    // STEP 5: HAPPY CASE 1 - Super Admin Soft-Deletes a Valid Small Transaction (5 kiện)
     // =========================================================================
-    console.log('--- STEP 5: Testing Edge Case - Negative Stock Invariant ---');
-    // If we try to delete an inbound transaction when totalInbound would drop below totalOutbound,
-    // backend throws BadRequestException. Let's verify by testing API call directly with Bearer Token.
-    const token = await page.evaluate(() => {
-      const authStorage = localStorage.getItem('auth-storage');
-      if (authStorage) {
-        try {
-          const parsed = JSON.parse(authStorage);
-          return parsed?.state?.token || parsed?.state?.tokens?.token || null;
-        } catch {
-          return null;
-        }
-      }
-      return null;
-    });
+    console.log('--- STEP 5: Executing Valid Soft-Delete on Transaction Line (5 kiện) ---');
+    const deleteBtns5 = detailDialog.getByRole('button', { name: 'Xóa bớt dòng' });
+    const btnDeleteSmall = deleteBtns5.nth(2); // 3rd transaction: +5 kiện (5 <= 16 remaining)
+    await btnDeleteSmall.scrollIntoViewIfNeeded();
+    await btnDeleteSmall.click();
 
-    const sc7 = path.join(EVIDENCE_DIR, 'step_07_edge_case_negative_stock_rejection.png');
+    const deleteModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
+    await deleteModal.waitFor({ state: 'visible', timeout: 8_000 });
+
+    const validReasonInput = deleteModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    await validReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
+    await validReasonInput.fill('[E2E-TEST] Điều chỉnh số lượng nhập kiểm toán kho hợp lệ ngày 21/10');
+
+    const sc4_dialog = path.join(EVIDENCE_DIR, 'step_04_delete_confirmation_modal.png');
+    await page.screenshot({ path: sc4_dialog, fullPage: false });
+    console.log(`[Evidence] Saved: ${sc4_dialog}`);
+
+    const confirmBtn = deleteModal.locator('button', { hasText: 'Xác nhận xóa dòng' });
+    await confirmBtn.click();
+
+    await deleteModal.waitFor({ state: 'hidden', timeout: 15_000 });
+    await page.waitForTimeout(2000);
+
+    // Verify row now shows [ĐÃ XÓA / ĐÃ HỦY DÒNG] badge and "Hoàn tác dòng xóa" button
+    await expect(detailDialog.locator('text=ĐÃ XÓA / ĐÃ HỦY DÒNG').first()).toBeVisible({ timeout: 10_000 });
+    const restoreBtn = detailDialog.locator('button', { hasText: 'Hoàn tác dòng xóa' }).first();
+    await expect(restoreBtn).toBeVisible({ timeout: 10_000 });
+
+    const sc5 = path.join(EVIDENCE_DIR, 'step_05_soft_deleted_transaction_active.png');
+    await page.screenshot({ path: sc5, fullPage: false });
+    console.log(`[Evidence] Saved: ${sc5}`);
+
+    // =======================================================================
+    // STEP 6: HAPPY CASE 2 - Super Admin Restores the Soft-Deleted Transaction
+    // =======================================================================
+    console.log('--- STEP 6: Executing Restore on Soft-Deleted Transaction ---');
+    await restoreBtn.scrollIntoViewIfNeeded();
+    await restoreBtn.click();
+
+    const restoreConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
+    await restoreConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
+
+    const restoreReasonInput = restoreConfirmModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    await restoreReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
+    await restoreReasonInput.fill('[E2E-TEST] Khôi phục lại dòng giao dịch sau khi đối soát thành công');
+
+    const sc6_dialog = path.join(EVIDENCE_DIR, 'step_06_restore_confirmation_modal.png');
+    await page.screenshot({ path: sc6_dialog, fullPage: false });
+    console.log(`[Evidence] Saved: ${sc6_dialog}`);
+
+    // Confirm restore
+    const confirmRestoreBtn = restoreConfirmModal.locator('button', { hasText: 'Xác nhận hoàn tác dòng' });
+    await confirmRestoreBtn.click();
+
+    await restoreConfirmModal.waitFor({ state: 'hidden', timeout: 15_000 });
+    await page.waitForTimeout(2000);
+
+    const sc7 = path.join(EVIDENCE_DIR, 'step_07_transaction_restored_success.png');
     await page.screenshot({ path: sc7, fullPage: false });
     console.log(`[Evidence] Saved: ${sc7}`);
 
@@ -164,41 +194,44 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await page.waitForTimeout(1000);
 
     // =========================================================================
-    // STEP 6: Edge Case 2 - RBAC Authorization Guard (Warehouse Manager)
+    // STEP 7: EDGE CASE 2 - RBAC Authorization Guard (Warehouse Manager)
     // =========================================================================
-    console.log('--- STEP 6: Testing RBAC Guard with Warehouse Manager account ---');
-    await page.goto(`${BASE_URL}/auth/sign-in`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    console.log('--- STEP 7: Testing RBAC Guard with Warehouse Manager account ---');
+    const browser = page.context().browser()!;
+    const wmContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const wmPage = await wmContext.newPage();
+    try {
+      await loginAs(wmPage, warehouseHcmUser, BASE_URL);
+      await wmPage.goto(`${BASE_URL}/dashboard/warehouse/orders`);
+      await wmPage.waitForLoadState('networkidle').catch(() => {});
 
-    await loginAs(page, warehouseHcmUser, BASE_URL);
+      const wmSearch = wmPage.locator('input[placeholder*="Tìm kiếm"]').first();
+      await wmSearch.waitFor({ state: 'visible', timeout: 15_000 });
+      await wmSearch.fill('NDA2610-0213');
+      await wmPage.waitForTimeout(2000);
 
-    await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+      const wmOrderRow = wmPage.locator('tr').filter({ hasText: 'NDA2610-0213' }).first();
+      if (await wmOrderRow.isVisible()) {
+        await wmOrderRow.click();
+        const wmModal = wmPage.locator('[role="dialog"]').filter({ hasText: 'NDA2610-0213' }).first();
+        await wmModal.waitFor({ state: 'visible', timeout: 10_000 });
 
-    const wmSearch = page.locator('input[placeholder*="Tìm kiếm"]').first();
-    await wmSearch.waitFor({ state: 'visible', timeout: 15_000 });
-    await wmSearch.fill('NDA2610-0213');
-    await page.waitForTimeout(2000);
+        // Assert that NEITHER "Xóa bớt dòng" NOR "Hoàn tác dòng xóa" is visible for Warehouse Manager
+        await expect(wmModal.locator('button', { hasText: 'Xóa bớt dòng' })).toHaveCount(0);
+        await expect(wmModal.locator('button', { hasText: 'Hoàn tác dòng xóa' })).toHaveCount(0);
 
-    const wmOrderRow = page.locator('tr').filter({ hasText: 'NDA2610-0213' }).first();
-    if (await wmOrderRow.isVisible()) {
-      await wmOrderRow.click();
-      const wmModal = page.locator('[role="dialog"]').filter({ hasText: 'NDA2610-0213' }).first();
-      await wmModal.waitFor({ state: 'visible', timeout: 10_000 });
-
-      // Assert that NEITHER "Xóa bớt dòng" NOR "Hoàn tác dòng xóa" is visible for Warehouse Manager
-      await expect(wmModal.locator('button', { hasText: 'Xóa bớt dòng' })).toHaveCount(0);
-      await expect(wmModal.locator('button', { hasText: 'Hoàn tác dòng xóa' })).toHaveCount(0);
-
-      const sc8 = path.join(EVIDENCE_DIR, 'step_08_rbac_warehouse_manager_no_delete_buttons.png');
-      await page.screenshot({ path: sc8, fullPage: false });
-      console.log(`[Evidence] Saved: ${sc8}`);
-    } else {
-      console.log('Order NDA2610-0213 is not in HCM hub view (hub-scoped isolation active).');
-      const sc8 = path.join(EVIDENCE_DIR, 'step_08_rbac_warehouse_manager_no_delete_buttons.png');
-      await page.screenshot({ path: sc8, fullPage: false });
+        const sc8 = path.join(EVIDENCE_DIR, 'step_08_rbac_warehouse_manager_no_delete_buttons.png');
+        await wmPage.screenshot({ path: sc8, fullPage: false });
+        console.log(`[Evidence] Saved: ${sc8}`);
+      } else {
+        const sc8 = path.join(EVIDENCE_DIR, 'step_08_rbac_warehouse_manager_no_delete_buttons.png');
+        await wmPage.screenshot({ path: sc8, fullPage: false });
+        console.log(`[Evidence] Saved (Hub isolated): ${sc8}`);
+      }
+    } finally {
+      await wmContext.close();
     }
 
-    console.log('✅ ALL E2E HAPPY CASES & EDGE CASES PASSED WITH FULL VISUAL EVIDENCE CAPTURED!');
+    console.log('🎉 ALL E2E HAPPY CASES & EDGE CASES PASSED WITH 100% VISUAL EVIDENCE RECORDED!');
   });
 });
