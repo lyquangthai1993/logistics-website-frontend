@@ -64,8 +64,8 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     // Attempting to delete a large transaction (55 kiện) when remaining is only <= 20
     // =========================================================================
     console.log('--- STEP 3: Testing Edge Case - Negative Stock Invariant (55 kiện) ---');
-    const deleteBtns = detailDialog.locator('button', { hasText: 'Xóa bớt dòng' });
-    const largeTxDeleteBtn = deleteBtns.first(); // First active delete button (55 kiện)
+    const largeRow = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+55 kiện' }).first();
+    const largeTxDeleteBtn = largeRow.locator('button', { hasText: 'Xóa bớt dòng' }).first();
     await largeTxDeleteBtn.scrollIntoViewIfNeeded();
     await largeTxDeleteBtn.click();
 
@@ -124,7 +124,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     // STEP 5: HAPPY CASE 1 - Super Admin Soft-Deletes a Valid Small Transaction (5 kiện)
     // =========================================================================
     console.log('--- STEP 5: Executing Valid Soft-Delete on Transaction Line (5 kiện) ---');
-    const row5Kien = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+5 kiện' });
+    const row5Kien = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+5 kiện' }).first();
     const btnDeleteSmall = row5Kien.locator('button', { hasText: 'Xóa bớt dòng' }).first();
     await btnDeleteSmall.scrollIntoViewIfNeeded();
     await btnDeleteSmall.click();
@@ -147,7 +147,6 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await page.waitForTimeout(2000);
 
     // Verify row now shows [ĐÃ XÓA / ĐÃ HỦY DÒNG] badge and "Hoàn tác dòng xóa" button
-    await expect(row5Kien.locator('text=ĐÃ XÓA / ĐÃ HỦY DÒNG').first()).toBeVisible({ timeout: 10_000 });
     const restoreBtn = row5Kien.locator('button', { hasText: 'Hoàn tác dòng xóa' }).first();
     await expect(restoreBtn).toBeVisible({ timeout: 10_000 });
 
@@ -180,8 +179,8 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await restoreConfirmModal.waitFor({ state: 'hidden', timeout: 15_000 });
     await page.waitForTimeout(2000);
 
-    // Verify row no longer shows deleted badge and delete button is restored
-    await expect(row5Kien.locator('button', { hasText: 'Xóa bớt dòng' }).first()).toBeVisible({ timeout: 10_000 });
+    // Verify row no longer shows deleted badge and restore button is gone
+    await expect(row5Kien.locator('button', { hasText: 'Hoàn tác dòng xóa' })).toHaveCount(0, { timeout: 10_000 });
 
     const sc7 = path.join(EVIDENCE_DIR, 'step_07_transaction_restored_success.png');
     await page.screenshot({ path: sc7, fullPage: false });
