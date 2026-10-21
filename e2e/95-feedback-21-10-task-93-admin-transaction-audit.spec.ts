@@ -63,8 +63,8 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     // STEP 3: EDGE CASE 1 - Negative Stock Prevention Guard
     // Attempting to delete a large transaction (55 kiện) when remaining is only <= 20
     // =========================================================================
-    console.log('--- STEP 3: Testing Edge Case - Negative Stock Invariant (55 kiện) ---');
-    const largeRow = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+55 kiện' }).first();
+    console.log('--- STEP 3: Testing Edge Case - Negative Stock Invariant (213 kiện > tồn khả dụng) ---');
+    const largeRow = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+213 kiện' }).first();
     const largeTxDeleteBtn = largeRow.locator('button', { hasText: 'Xóa bớt dòng' }).first();
     await largeTxDeleteBtn.scrollIntoViewIfNeeded();
     await largeTxDeleteBtn.click();
