@@ -1004,6 +1004,7 @@ export default function WarehouseOrdersPage() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           waybill={selectedWaybill}
+          onSuccess={fetchOrders}
           onPrintLabel={(w) => {
             setIsDetailModalOpen(false);
             setPrintData({
