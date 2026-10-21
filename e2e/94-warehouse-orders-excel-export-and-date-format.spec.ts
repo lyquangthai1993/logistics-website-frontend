@@ -19,7 +19,7 @@ test.describe.serial('Warehouse Orders — Excel Export Clean Header/Footer & Da
     }
   });
 
-  test('CASE-01: Static Code Audit — Loại bỏ header thống kê, dòng TỔNG CỘNG và bỏ giờ ở ngày nhập/xuất', () => {
+  test('CASE-01: Static Code Audit — Loại bỏ header thống kê, dòng TỔNG CỘNG, bỏ giờ và chỉ để biển số xe', () => {
     const pagePath = path.resolve(__dirname, '../src/app/dashboard/warehouse/orders/page.tsx');
     expect(fs.existsSync(pagePath)).toBeTruthy();
     const content = fs.readFileSync(pagePath, 'utf-8');
@@ -45,6 +45,13 @@ test.describe.serial('Warehouse Orders — Excel Export Clean Header/Footer & Da
     // 5. Kiểm tra UI table dùng formatDate
     expect(content).toContain('formatDate(row.inboundDate || row.createdAt)');
     expect(content).toContain('formatDate(r.outboundDate)');
+
+    // 6. Kiểm tra cột phương tiện chỉ để biển số xe, không ghép mã chuyến xe
+    expect(content).toContain("'BIỂN SỐ XE NHẬP HÀNG'");
+    expect(content).toContain("'BIỂN SỐ XE XUẤT HÀNG'");
+    expect(content).not.toContain("'CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG'");
+    expect(content).not.toContain("'CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG'");
+    expect(content).toContain('inboundPlateDisplay');
   });
 
   test('CASE-02: Live UI Table & Excel Export Audit — Kiểm tra cột ngày chỉ hiển thị DD/MM/YYYY và file Excel chuẩn', async ({
@@ -95,6 +102,7 @@ test.describe.serial('Warehouse Orders — Excel Export Clean Header/Footer & Da
     expect(headerRow[0]).toBe('STT');
     expect(headerRow[1]).toBe('MÃ VẬN ĐƠN');
     expect(headerRow[2]).toBe('NGÀY NHẬP KHO');
+    expect(headerRow[3]).toBe('BIỂN SỐ XE NHẬP HÀNG');
 
     // Không tồn tại dòng nào chứa "SPIDER EXPRESS" hay "TỔNG CỘNG"
     for (const row of sheetData) {
