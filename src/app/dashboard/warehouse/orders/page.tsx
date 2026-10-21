@@ -170,16 +170,9 @@ export default function WarehouseOrdersPage() {
 
       const pad = (n: number) => String(n).padStart(2, '0');
       const now = new Date();
-      const nowFormatted = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
       const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
 
       const hubTitle = currentHubName || user?.hub?.name || 'Tất cả các Hub';
-      const reporterName = user?.name || user?.email || 'Thủ kho';
-
-      let totalStock = 0;
-      let totalOriginalQty = 0;
-      let totalWeight = 0;
-      let totalVolume = 0;
 
       let stt = 1;
       const rows: any[][] = [];
@@ -200,10 +193,7 @@ export default function WarehouseOrdersPage() {
           const itemWeight = Number(item.totalWeight ?? 0);
           const itemVolume = Number(item.totalVolume ?? 0);
 
-          totalStock += stock;
-          totalOriginalQty += total;
-          totalWeight += itemWeight;
-          totalVolume += itemVolume;
+
 
           // Inbound Vehicle (Cột D)
           const inboundTripDisplay =
@@ -303,7 +293,7 @@ export default function WarehouseOrdersPage() {
           if (!isStored) {
             const rawOutboundDate = item.outboundDate || order.outboundDate;
             if (rawOutboundDate) {
-              outboundDateVal = formatDateTime(rawOutboundDate);
+              outboundDateVal = formatDate(rawOutboundDate);
             }
 
             const rawOutboundTrip =
@@ -357,7 +347,7 @@ export default function WarehouseOrdersPage() {
           rows.push([
             stt++, // Cột A: STT
             order.orderCode, // Cột B: MÃ VẬN ĐƠN
-            formatDateTime(inboundDateStr), // Cột C: NGÀY NHẬP KHO
+            formatDate(inboundDateStr), // Cột C: NGÀY NHẬP KHO
             inboundTripDisplay || '—', // Cột D: CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG
             item.goodsDescription || order.goodsDescription || 'Hàng hóa tổng hợp', // Cột E: TÊN HÀNG HÓA
             stock, // Cột F: SỐ KIỆN TỒN KHO
@@ -377,13 +367,6 @@ export default function WarehouseOrdersPage() {
       const totalOrdersCount = orders.length;
 
       const wsData: any[][] = [
-        [`SPIDER EXPRESS LOGISTICS TMS - BÁO CÁO ĐƠN HÀNG ${tabConfig.titleSuffix}`],
-        [`Kho / Trạm Hub: ${hubTitle}`],
-        [`Thời điểm xuất: ${nowFormatted} | Người lập báo cáo: ${reporterName}`],
-        [
-          `Thống kê tổng quan: Tổng số đơn: ${totalOrdersCount} đơn | Tổng số kiện tồn: ${totalStock} kiện | Tổng khối lượng: ${totalWeight.toFixed(1)} kg | Tổng thể tích: ${totalVolume.toFixed(3)} m³`
-        ],
-        [], // Dòng 5 trống ngăn cách Header và Bảng kê
         [
           'STT', // Cột A
           'MÃ VẬN ĐƠN', // Cột B
@@ -401,24 +384,7 @@ export default function WarehouseOrdersPage() {
           'CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG', // Cột N
           'SỐ NGÀY LƯU KHO' // Cột O
         ],
-        ...rows,
-        [
-          '',
-          '',
-          '',
-          '',
-          'TỔNG CỘNG',
-          totalStock,
-          totalOriginalQty,
-          Math.round(totalWeight * 10) / 10,
-          Math.round(totalVolume * 1000) / 1000,
-          '',
-          '',
-          '',
-          '',
-          '',
-          ''
-        ]
+        ...rows
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -536,8 +502,8 @@ export default function WarehouseOrdersPage() {
 
   const COLUMN_COUNT = 11;
 
-  /** Date/time formatting helper */
-  const formatDateTime = (dateStr?: string | null) => {
+  /** Date formatting helper: chỉ hiển thị ngày (dd/MM/yyyy), bỏ giờ */
+  const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
@@ -545,9 +511,7 @@ export default function WarehouseOrdersPage() {
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const year = d.getFullYear();
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      return `${hours}:${minutes} ${day}/${month}/${year}`;
+      return `${day}/${month}/${year}`;
     } catch {
       return '—';
     }
@@ -577,7 +541,7 @@ export default function WarehouseOrdersPage() {
 
     return (
       <span className='font-mono text-slate-700 dark:text-slate-300 text-[10px]'>
-        {formatDateTime(r.outboundDate)}
+        {formatDate(r.outboundDate)}
       </span>
     );
   };
@@ -909,7 +873,7 @@ export default function WarehouseOrdersPage() {
                             {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
                           </td>
                           <td className='py-1 px-1.5 font-mono text-slate-600 dark:text-slate-400 text-[10px]'>
-                            {formatDateTime(row.inboundDate || row.createdAt)}
+                            {formatDate(row.inboundDate || row.createdAt)}
                           </td>
                           <td className='py-1 px-1.5'>
                             <div className='flex items-center gap-1'>
