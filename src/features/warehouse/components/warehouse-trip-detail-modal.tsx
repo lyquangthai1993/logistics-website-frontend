@@ -1064,6 +1064,7 @@ export function WarehouseTripDetailModal({
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'available-outbound-orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
       ]);
       // TUYỆT ĐỐI KHÔNG GỌI onOpenReceipt (không in phiếu nhập kho lẻ)
@@ -1135,6 +1136,7 @@ export function WarehouseTripDetailModal({
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'available-outbound-orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
       ]);
       onSuccess?.();
