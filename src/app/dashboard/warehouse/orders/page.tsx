@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useDebounce } from '@/hooks/use-debounce';
 import {
   IconSearch,
   IconBuildingWarehouse,
@@ -14,6 +13,7 @@ import {
   IconRefresh,
   IconTrash,
   IconEye,
+  IconX,
   IconTruck,
   IconFileSpreadsheet,
   IconUpload
@@ -45,9 +45,27 @@ export default function WarehouseOrdersPage() {
     (user?.role as any)?.name === 'SUPER_ADMIN';
 
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 350);
-  // Chỉ kích hoạt lọc tìm kiếm khi người dùng nhập từ 2 ký tự trở lên
-  const effectiveSearch = debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : '';
+  const [appliedSearch, setAppliedSearch] = useState('');
+
+  const handleSearchSubmit = () => {
+    setPage(1);
+    setAppliedSearch(search.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setPage(1);
+  };
+
+  const effectiveSearch = appliedSearch.trim();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -170,16 +188,9 @@ export default function WarehouseOrdersPage() {
 
       const pad = (n: number) => String(n).padStart(2, '0');
       const now = new Date();
-      const nowFormatted = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
       const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
 
       const hubTitle = currentHubName || user?.hub?.name || 'Tất cả các Hub';
-      const reporterName = user?.name || user?.email || 'Thủ kho';
-
-      let totalStock = 0;
-      let totalOriginalQty = 0;
-      let totalWeight = 0;
-      let totalVolume = 0;
 
       let stt = 1;
       const rows: any[][] = [];
@@ -200,15 +211,14 @@ export default function WarehouseOrdersPage() {
           const itemWeight = Number(item.totalWeight ?? 0);
           const itemVolume = Number(item.totalVolume ?? 0);
 
-          totalStock += stock;
-          totalOriginalQty += total;
-          totalWeight += itemWeight;
-          totalVolume += itemVolume;
 
-          // Inbound Vehicle (Cột D)
-          const inboundTripDisplay =
-            item.inboundTripDisplay ||
-            order.inboundTripDisplay ||
+
+          // Inbound Vehicle License Plate (Cột D: Biển số xe nhập)
+          const inboundPlateDisplay =
+            item.inboundLicensePlate ||
+            order.inboundLicensePlate ||
+            item.vehicleLicensePlate ||
+            order.vehicleLicensePlate ||
             (() => {
               const txs =
                 ((item.inventoryTransactions || order.inventoryTransactions) as any[]) || [];
@@ -218,17 +228,15 @@ export default function WarehouseOrdersPage() {
                   (a: any, b: any) =>
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
-              const code = inTxs[0]?.tripCode || null;
-              const plate =
-                inTxs[0]?.licensePlate ||
-                item.vehicleLicensePlate ||
-                order.vehicleLicensePlate ||
-                null;
-              if (code && plate) return `${code} (${plate})`;
-              if (code) return code;
-              if (plate) return plate;
-              return '—';
-            })();
+              return inTxs[0]?.licensePlate || null;
+            })() ||
+            (() => {
+              const raw = item.inboundTripDisplay || order.inboundTripDisplay;
+              if (!raw) return null;
+              const m = raw.match(/\(([^)]+)\)/);
+              return m ? m[1] : raw;
+            })() ||
+            '—';
 
           const inboundDateStr =
             item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
@@ -303,12 +311,12 @@ export default function WarehouseOrdersPage() {
           if (!isStored) {
             const rawOutboundDate = item.outboundDate || order.outboundDate;
             if (rawOutboundDate) {
-              outboundDateVal = formatDateTime(rawOutboundDate);
+              outboundDateVal = formatDate(rawOutboundDate);
             }
 
-            const rawOutboundTrip =
-              item.outboundTripDisplay ||
-              order.outboundTripDisplay ||
+            const rawOutboundPlate =
+              item.outboundLicensePlate ||
+              order.outboundLicensePlate ||
               (() => {
                 const txs =
                   ((item.inventoryTransactions || order.inventoryTransactions) as any[]) || [];
@@ -318,14 +326,16 @@ export default function WarehouseOrdersPage() {
                     (a: any, b: any) =>
                       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                   );
-                const code = outTxs[0]?.tripCode || null;
-                const plate = outTxs[0]?.licensePlate || null;
-                if (code && plate) return `${code} (${plate})`;
-                if (code) return code;
-                if (plate) return plate;
-                return '';
-              })();
-            outboundTripVal = rawOutboundTrip || '';
+                return outTxs[0]?.licensePlate || null;
+              })() ||
+              (() => {
+                const raw = item.outboundTripDisplay || order.outboundTripDisplay;
+                if (!raw) return null;
+                const m = raw.match(/\(([^)]+)\)/);
+                return m ? m[1] : raw;
+              })() ||
+              '';
+            outboundTripVal = rawOutboundPlate || '';
           }
 
           let storageDaysVal = 0;
@@ -357,8 +367,8 @@ export default function WarehouseOrdersPage() {
           rows.push([
             stt++, // Cột A: STT
             order.orderCode, // Cột B: MÃ VẬN ĐƠN
-            formatDateTime(inboundDateStr), // Cột C: NGÀY NHẬP KHO
-            inboundTripDisplay || '—', // Cột D: CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG
+            formatDate(inboundDateStr), // Cột C: NGÀY NHẬP KHO
+            inboundPlateDisplay || '—', // Cột D: BIỂN SỐ XE NHẬP HÀNG
             item.goodsDescription || order.goodsDescription || 'Hàng hóa tổng hợp', // Cột E: TÊN HÀNG HÓA
             stock, // Cột F: SỐ KIỆN TỒN KHO
             total, // Cột G: TỔNG KIỆN ĐƠN
@@ -377,18 +387,11 @@ export default function WarehouseOrdersPage() {
       const totalOrdersCount = orders.length;
 
       const wsData: any[][] = [
-        [`SPIDER EXPRESS LOGISTICS TMS - BÁO CÁO ĐƠN HÀNG ${tabConfig.titleSuffix}`],
-        [`Kho / Trạm Hub: ${hubTitle}`],
-        [`Thời điểm xuất: ${nowFormatted} | Người lập báo cáo: ${reporterName}`],
-        [
-          `Thống kê tổng quan: Tổng số đơn: ${totalOrdersCount} đơn | Tổng số kiện tồn: ${totalStock} kiện | Tổng khối lượng: ${totalWeight.toFixed(1)} kg | Tổng thể tích: ${totalVolume.toFixed(3)} m³`
-        ],
-        [], // Dòng 5 trống ngăn cách Header và Bảng kê
         [
           'STT', // Cột A
           'MÃ VẬN ĐƠN', // Cột B
           'NGÀY NHẬP KHO', // Cột C
-          'CHUYẾN XE / BIỂN SỐ XE NHẬP HÀNG', // Cột D
+          'BIỂN SỐ XE NHẬP HÀNG', // Cột D
           'TÊN HÀNG HÓA', // Cột E
           'SỐ KIỆN TỒN KHO', // Cột F
           'TỔNG KIỆN ĐƠN', // Cột G
@@ -398,27 +401,10 @@ export default function WarehouseOrdersPage() {
           'TỈNH / THÀNH PHỐ', // Cột K
           'TRẠNG THÁI', // Cột L
           'NGÀY XUẤT KHO', // Cột M
-          'CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG', // Cột N
+          'BIỂN SỐ XE XUẤT HÀNG', // Cột N
           'SỐ NGÀY LƯU KHO' // Cột O
         ],
-        ...rows,
-        [
-          '',
-          '',
-          '',
-          '',
-          'TỔNG CỘNG',
-          totalStock,
-          totalOriginalQty,
-          Math.round(totalWeight * 10) / 10,
-          Math.round(totalVolume * 1000) / 1000,
-          '',
-          '',
-          '',
-          '',
-          '',
-          ''
-        ]
+        ...rows
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -426,7 +412,7 @@ export default function WarehouseOrdersPage() {
         { wch: 6 }, // A: STT
         { wch: 18 }, // B: MÃ VẬN ĐƠN
         { wch: 18 }, // C: NGÀY NHẬP KHO
-        { wch: 24 }, // D: CHUYẾN XE / BKS NHẬP HÀNG
+        { wch: 20 }, // D: BIỂN SỐ XE NHẬP HÀNG
         { wch: 28 }, // E: TÊN HÀNG HÓA
         { wch: 14 }, // F: SỐ KIỆN TỒN KHO
         { wch: 14 }, // G: TỔNG KIỆN ĐƠN
@@ -436,7 +422,7 @@ export default function WarehouseOrdersPage() {
         { wch: 18 }, // K: TỈNH / THÀNH PHỐ
         { wch: 16 }, // L: TRẠNG THÁI
         { wch: 18 }, // M: NGÀY XUẤT KHO
-        { wch: 24 }, // N: CHUYẾN XE / BKS XUẤT HÀNG
+        { wch: 20 }, // N: BIỂN SỐ XE XUẤT HÀNG
         { wch: 16 } // O: SỐ NGÀY LƯU KHO
       ];
 
@@ -536,8 +522,8 @@ export default function WarehouseOrdersPage() {
 
   const COLUMN_COUNT = 11;
 
-  /** Date/time formatting helper */
-  const formatDateTime = (dateStr?: string | null) => {
+  /** Date formatting helper: chỉ hiển thị ngày (dd/MM/yyyy), bỏ giờ */
+  const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
@@ -545,9 +531,7 @@ export default function WarehouseOrdersPage() {
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const year = d.getFullYear();
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      return `${hours}:${minutes} ${day}/${month}/${year}`;
+      return `${day}/${month}/${year}`;
     } catch {
       return '—';
     }
@@ -577,7 +561,7 @@ export default function WarehouseOrdersPage() {
 
     return (
       <span className='font-mono text-slate-700 dark:text-slate-300 text-[10px]'>
-        {formatDateTime(r.outboundDate)}
+        {formatDate(r.outboundDate)}
       </span>
     );
   };
@@ -811,20 +795,30 @@ export default function WarehouseOrdersPage() {
             {/* Toolbar */}
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div className='relative flex-1 min-w-[260px]'>
-                <IconSearch className='absolute left-3 top-2.5 h-4 w-4 text-gray-400' />
+                <button
+                  type='button'
+                  onClick={handleSearchSubmit}
+                  className='absolute left-3 top-2.5 text-gray-400 hover:text-[#0F3D62] dark:hover:text-blue-400 transition-colors'
+                  title='Nhấn để tìm kiếm'
+                >
+                  <IconSearch className='h-4 w-4' />
+                </button>
                 <Input
                   value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder='Tìm kiếm theo mã đơn hoặc tên hàng (tối thiểu 2 ký tự)...'
-                  className='pl-9 h-9 text-xs'
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder='Tìm kiếm theo mã đơn hoặc tên hàng... (Nhấn Enter để tìm)'
+                  className='pl-9 pr-8 h-8.5 text-xs'
                 />
-                {search.trim().length === 1 && (
-                  <span className='absolute right-3 top-2.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium pointer-events-none'>
-                    Nhập tối thiểu 2 ký tự...
-                  </span>
+                {search && (
+                  <button
+                    type='button'
+                    onClick={handleClearSearch}
+                    className='absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                    title='Xóa tìm kiếm'
+                  >
+                    <IconX className='h-3.5 w-3.5' />
+                  </button>
                 )}
               </div>
 
@@ -909,7 +903,7 @@ export default function WarehouseOrdersPage() {
                             {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
                           </td>
                           <td className='py-1 px-1.5 font-mono text-slate-600 dark:text-slate-400 text-[10px]'>
-                            {formatDateTime(row.inboundDate || row.createdAt)}
+                            {formatDate(row.inboundDate || row.createdAt)}
                           </td>
                           <td className='py-1 px-1.5'>
                             <div className='flex items-center gap-1'>
@@ -1004,6 +998,7 @@ export default function WarehouseOrdersPage() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           waybill={selectedWaybill}
+          onSuccess={fetchOrders}
           onPrintLabel={(w) => {
             setIsDetailModalOpen(false);
             setPrintData({

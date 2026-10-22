@@ -28,7 +28,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { rollbackTrip, tripManifestKeys } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
-import { useDebounce } from '@/hooks/use-debounce';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -69,7 +68,25 @@ export default function WarehouseOutboundPage() {
 
   // Board Filter & Data
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
+  const [appliedSearch, setAppliedSearch] = useState('');
+
+  const handleSearchSubmit = () => {
+    setPage(1);
+    setAppliedSearch(search.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setPage(1);
+  };
   // Processing status at this hub: PENDING = Chờ xử lý (nháp), COMPLETED = Đã xử lý (đã xuất)
   const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
   const [tripGroups, setTripGroups] = useState<any[]>([]);
@@ -245,7 +262,7 @@ export default function WarehouseOutboundPage() {
   // Reset page to 1 when search, tab, or dates change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, boardStatus, fromDate, toDate]);
+  }, [appliedSearch, boardStatus, fromDate, toDate]);
 
   // Fetch Board Trips (one row per SD trip of this hub: drafts + dispatched) + tab counters (same query)
   const fetchOrders = useCallback(() => {
@@ -254,7 +271,7 @@ export default function WarehouseOutboundPage() {
     const query = new URLSearchParams({
       page: page.toString(),
       limit: pageSize.toString(),
-      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(fromDate ? { fromDate } : {}),
       ...(toDate ? { toDate } : {})
@@ -295,7 +312,7 @@ export default function WarehouseOutboundPage() {
         showApiErrorToast(err, 'Không thể tải danh sách chuyến xe xuất kho');
       })
       .finally(() => setIsLoading(false));
-  }, [page, pageSize, debouncedSearch, boardStatus, fromDate, toDate]);
+  }, [page, pageSize, appliedSearch, boardStatus, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -1133,13 +1150,31 @@ export default function WarehouseOutboundPage() {
                   <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
                     {/* Search Box */}
                     <div className='relative flex-1 min-w-[200px]'>
-                      <IconSearch className='absolute left-3 top-2.5 h-4 w-4 text-gray-400' />
+                      <button
+                        type='button'
+                        onClick={handleSearchSubmit}
+                        className='absolute left-3 top-2.5 text-gray-400 hover:text-[#0F3D62] dark:hover:text-blue-400 transition-colors'
+                        title='Nhấn để tìm kiếm'
+                      >
+                        <IconSearch className='h-4 w-4' />
+                      </button>
                       <Input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder='Tìm kiếm theo mã đơn, biển số xe, tên hàng...'
-                        className='pl-9 h-9 text-xs'
+                        onKeyDown={handleSearchKeyDown}
+                        placeholder='Tìm kiếm theo mã đơn, biển số xe, tên hàng... (Nhấn Enter để tìm)'
+                        className='pl-9 pr-8 h-8.5 text-xs'
                       />
+                      {search && (
+                        <button
+                          type='button'
+                          onClick={handleClearSearch}
+                          className='absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                          title='Xóa tìm kiếm'
+                        >
+                          <IconX className='h-3.5 w-3.5' />
+                        </button>
+                      )}
                     </div>
 
                     {/* Date Range: Từ ngày -> Đến ngày */}

@@ -85,6 +85,25 @@ export function WarehouseOutboundTransferFlow({
 
   // Step 2 Selection State
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+
+  const handleSearchSubmit = () => {
+    setPage(1);
+    setAppliedSearch(search.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setPage(1);
+  };
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'INBOUND' | 'DRAFT'>('ALL');
   const [warehouseOrders, setWarehouseOrders] = useState<StoredOrderItem[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -132,7 +151,7 @@ export function WarehouseOutboundTransferFlow({
     const query = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
-      ...(search.trim() ? { search: search.trim() } : {}),
+      ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
     });
 
@@ -182,7 +201,7 @@ export function WarehouseOutboundTransferFlow({
         showApiErrorToast(err, 'Không tải được danh sách hàng tồn kho');
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [page, limit, search, statusFilter, user?.hub?.name]);
+  }, [page, limit, appliedSearch, statusFilter, user?.hub?.name]);
 
   useEffect(() => {
     fetchWarehouseOrders();

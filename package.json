@@ -18,7 +18,7 @@
     "format": "oxfmt --write . '!**/*.md' '!**/*.mdc' '!**/*.mdx' '!**/*.yml' '!**/*.yaml'",
     "format:check": "oxfmt --check . '!**/*.md' '!**/*.mdc' '!**/*.mdx' '!**/*.yml' '!**/*.yaml'",
     "prepare": "husky",
-    "e2e:check": "node scripts/check-servers.mjs",
+    "e2e:check": "node scripts/check-servers.mjs --strict",
     "e2e": "node scripts/check-servers.mjs && playwright test",
     "e2e:console": "node scripts/check-servers.mjs && playwright test e2e/01-console-health.spec.ts",
     "e2e:login": "node scripts/check-servers.mjs && playwright test e2e/02-login-flow.spec.ts",

@@ -169,6 +169,7 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     const searchInput = page.getByPlaceholder(/Tìm mã chuyến, xe, tài xế, mã đơn/i).first();
     if (await searchInput.isVisible()) {
       await searchInput.fill(TARGET_TRIP_CODE);
+      await searchInput.press("Enter");
       await page.waitForTimeout(1000);
     }
 
@@ -243,6 +244,7 @@ test.describe.serial('Feedback 13/10 (Task #37): Completed Trip Hub Operation Lo
     const searchInput = page.getByPlaceholder(/Tìm mã chuyến, xe, tài xế, mã đơn/i).first();
     if (await searchInput.isVisible()) {
       await searchInput.fill(TARGET_TRIP_CODE);
+      await searchInput.press("Enter");
       await page.waitForTimeout(1000);
     }
 

@@ -78,6 +78,7 @@ test.describe.serial('Feedback 19/10 — Bảo toàn đơn hàng trên Phiếu N
     await expect(searchInput).toBeVisible({ timeout: 10000 });
     await searchInput.click();
     await searchInput.fill('sd62');
+    await searchInput.press('Enter');
     await page.waitForTimeout(1000); // Chờ debounce 300ms và API trả kết quả
 
     const tripRow = page.locator('tr').filter({ hasText: 'SD62' }).first();

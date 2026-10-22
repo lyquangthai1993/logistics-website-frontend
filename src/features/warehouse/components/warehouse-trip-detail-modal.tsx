@@ -1064,6 +1064,7 @@ export function WarehouseTripDetailModal({
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'available-outbound-orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
       ]);
       // TUYỆT ĐỐI KHÔNG GỌI onOpenReceipt (không in phiếu nhập kho lẻ)
@@ -1135,6 +1136,7 @@ export function WarehouseTripDetailModal({
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'inbound-trips'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'available-outbound-orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'outbound-trips'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'orders'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] })
       ]);
       onSuccess?.();
@@ -2244,17 +2246,43 @@ export function WarehouseTripDetailModal({
 
           {/* Action Buttons */}
           <div className='flex items-center gap-2'>
-            {effectiveReadOnly ? (
-              <>
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={onClose}
+              disabled={isSaving || isConfirming || isRollingBack}
+              className='h-7 text-xs font-semibold border-slate-300'
+            >
+              Đóng
+            </Button>
+
+            {/* Rollback action for Admin when trip is completed (accessible in both view and edit modes) */}
+            {isAdmin &&
+              (isCurrentHubCompleted ||
+                [
+                  'COMPLETED',
+                  'INBOUND',
+                  'STORED',
+                  'DISPATCHED',
+                  'OUT_FOR_DELIVERY',
+                  'DELIVERED'
+                ].includes(tripGroup.status?.toUpperCase())) &&
+              !isReopenedByAdmin && (
                 <Button
                   type='button'
                   variant='outline'
                   size='sm'
-                  onClick={onClose}
-                  className='h-7 text-xs font-semibold border-slate-300'
+                  onClick={() => setIsRollbackConfirmOpen(true)}
+                  className='h-7 text-xs font-semibold text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+                  title='Mở lại chuyến xe đã xử lý về trạng thái Chờ xử lý để chỉnh sửa thông tin (Rollback tồn kho)'
                 >
-                  Đóng
+                  <IconRotate className='mr-1 h-3.5 w-3.5' /> Mở lại chuyến xe (Rollback)
                 </Button>
+              )}
+
+            {effectiveReadOnly ? (
+              <>
                 {isTransferTrip &&
                   (currentStep === 1 ? (
                     <Button
@@ -2279,40 +2307,6 @@ export function WarehouseTripDetailModal({
               </>
             ) : currentStep === 1 ? (
               <>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={onClose}
-                  disabled={isSaving || isConfirming || isRollingBack}
-                  className='h-7 text-xs font-semibold border-slate-300'
-                >
-                  Đóng
-                </Button>
-
-                {/* Rollback action for Admin when trip is completed */}
-                {isAdmin &&
-                  (isCurrentHubCompleted ||
-                    [
-                      'COMPLETED',
-                      'INBOUND',
-                      'STORED',
-                      'DISPATCHED',
-                      'OUT_FOR_DELIVERY',
-                      'DELIVERED'
-                    ].includes(tripGroup.status?.toUpperCase())) &&
-                  !isReopenedByAdmin && (
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      onClick={() => setIsRollbackConfirmOpen(true)}
-                      className='h-7 text-xs font-semibold text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
-                      title='Mở lại chuyến xe đã xử lý về trạng thái Chờ xử lý để chỉnh sửa thông tin (Rollback tồn kho)'
-                    >
-                      <IconRotate className='mr-1 h-3.5 w-3.5' /> Mở lại chuyến xe (Rollback)
-                    </Button>
-                  )}
 
                 {!effectiveReadOnly && !manifestPending && (
                   <Button
