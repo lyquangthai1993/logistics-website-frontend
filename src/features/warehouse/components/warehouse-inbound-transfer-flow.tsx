@@ -86,6 +86,23 @@ export function WarehouseInboundTransferFlow({
   const [tripsList, setTripsList] = useState<InboundTripItem[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);
   const [tripSearch, setTripSearch] = useState('');
+  const [appliedTripSearch, setAppliedTripSearch] = useState('');
+
+  const handleSearchSubmit = () => {
+    setAppliedTripSearch(tripSearch.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setTripSearch('');
+    setAppliedTripSearch('');
+  };
   const [selectedTrip, setSelectedTrip] = useState<InboundTripItem | null>(null);
 
   // Bước 2: kiểm đếm theo bảng kê chuyến
@@ -113,7 +130,7 @@ export function WarehouseInboundTransferFlow({
     const token = tokenManager.getAccessToken();
     const query = new URLSearchParams({
       limit: '20',
-      ...(tripSearch.trim() ? { search: tripSearch.trim() } : {})
+      ...(appliedTripSearch.trim() ? { search: appliedTripSearch.trim() } : {})
     });
 
     fetch(`/api/v1/warehouse/inbound-trips?${query.toString()}`, {
@@ -140,12 +157,11 @@ export function WarehouseInboundTransferFlow({
       .finally(() => {
         if (seq === tripRequestSeq.current) setIsLoadingTrips(false);
       });
-  }, [tripSearch]);
+  }, [appliedTripSearch]);
 
   useEffect(() => {
-    const timer = setTimeout(fetchTrips, tripSearch.trim() ? 300 : 0);
-    return () => clearTimeout(timer);
-  }, [fetchTrips, tripSearch]);
+    fetchTrips();
+  }, [fetchTrips, appliedTripSearch]);
 
   // Khởi tạo trạng thái kiểm đếm khi bảng kê chuyến tải xong
   useEffect(() => {

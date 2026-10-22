@@ -33,6 +33,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();
     await searchInput.waitFor({ state: 'visible', timeout: 15_000 });
     await searchInput.fill('NDA2610-0213');
+    await searchInput.press('Enter');
     await page.waitForTimeout(2000);
 
     const orderRow = page.locator('tr').filter({ hasText: 'NDA2610-0213' }).first();

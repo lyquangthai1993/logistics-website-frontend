@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useDebounce } from '@/hooks/use-debounce';
 import {
   IconSearch,
   IconBuildingWarehouse,
@@ -14,6 +13,7 @@ import {
   IconRefresh,
   IconTrash,
   IconEye,
+  IconX,
   IconTruck,
   IconFileSpreadsheet,
   IconUpload
@@ -45,9 +45,27 @@ export default function WarehouseOrdersPage() {
     (user?.role as any)?.name === 'SUPER_ADMIN';
 
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 350);
-  // Chỉ kích hoạt lọc tìm kiếm khi người dùng nhập từ 2 ký tự trở lên
-  const effectiveSearch = debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : '';
+  const [appliedSearch, setAppliedSearch] = useState('');
+
+  const handleSearchSubmit = () => {
+    setPage(1);
+    setAppliedSearch(search.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setPage(1);
+  };
+
+  const effectiveSearch = appliedSearch.trim();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -777,20 +795,30 @@ export default function WarehouseOrdersPage() {
             {/* Toolbar */}
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div className='relative flex-1 min-w-[260px]'>
-                <IconSearch className='absolute left-3 top-2.5 h-4 w-4 text-gray-400' />
+                <button
+                  type='button'
+                  onClick={handleSearchSubmit}
+                  className='absolute left-3 top-2.5 text-gray-400 hover:text-[#0F3D62] dark:hover:text-blue-400 transition-colors'
+                  title='Nhấn để tìm kiếm'
+                >
+                  <IconSearch className='h-4 w-4' />
+                </button>
                 <Input
                   value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder='Tìm kiếm theo mã đơn hoặc tên hàng (tối thiểu 2 ký tự)...'
-                  className='pl-9 h-9 text-xs'
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder='Tìm kiếm theo mã đơn hoặc tên hàng... (Nhấn Enter để tìm)'
+                  className='pl-9 pr-8 h-8.5 text-xs'
                 />
-                {search.trim().length === 1 && (
-                  <span className='absolute right-3 top-2.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium pointer-events-none'>
-                    Nhập tối thiểu 2 ký tự...
-                  </span>
+                {search && (
+                  <button
+                    type='button'
+                    onClick={handleClearSearch}
+                    className='absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                    title='Xóa tìm kiếm'
+                  >
+                    <IconX className='h-3.5 w-3.5' />
+                  </button>
                 )}
               </div>
 

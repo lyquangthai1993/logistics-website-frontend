@@ -39,6 +39,7 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
       const searchInput = page.locator('input[placeholder*="Tìm mã chuyến"]');
       await searchInput.waitFor({ state: 'visible', timeout: 10_000 });
       await searchInput.fill('SD208');
+      await searchInput.press('Enter');
       await page.waitForTimeout(2500);
 
       const tripButton = page.locator('button', { hasText: 'SD208' }).first();

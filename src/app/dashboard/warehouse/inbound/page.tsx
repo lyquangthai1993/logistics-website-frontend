@@ -28,7 +28,6 @@ import {
 import { rollbackTrip } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
-import { useDebounce } from '@/hooks/use-debounce';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -74,7 +73,25 @@ export default function WarehouseInboundPage() {
 
   // Inbound Board State (sq2P6)
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 2000);
+  const [appliedSearch, setAppliedSearch] = useState('');
+
+  const handleSearchSubmit = () => {
+    setPage(1);
+    setAppliedSearch(search.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setPage(1);
+  };
   const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -285,7 +302,7 @@ export default function WarehouseInboundPage() {
   // Reset page to 1 when search, status, or dates change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, boardStatus, fromDate, toDate]);
+  }, [appliedSearch, boardStatus, fromDate, toDate]);
 
   // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
   const fetchInboundTrips = useCallback(() => {
@@ -294,7 +311,7 @@ export default function WarehouseInboundPage() {
     const query = new URLSearchParams({
       page: page.toString(),
       limit: pageSize.toString(),
-      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(fromDate ? { fromDate } : {}),
       ...(toDate ? { toDate } : {})
@@ -333,7 +350,7 @@ export default function WarehouseInboundPage() {
         setMeta({ total: 0, totalPages: 1 });
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, debouncedSearch, boardStatus, fromDate, toDate]);
+  }, [page, pageSize, appliedSearch, boardStatus, fromDate, toDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -913,13 +930,31 @@ export default function WarehouseInboundPage() {
                   <div className='flex flex-wrap items-center gap-2 flex-1 min-w-[280px]'>
                     {/* Search Box */}
                     <div className='relative flex-1 min-w-[200px]'>
-                      <IconSearch className='absolute left-3 top-2.5 h-4 w-4 text-gray-400' />
+                      <button
+                        type='button'
+                        onClick={handleSearchSubmit}
+                        className='absolute left-3 top-2.5 text-gray-400 hover:text-[#0F3D62] dark:hover:text-blue-400 transition-colors'
+                        title='Nhấn để tìm kiếm'
+                      >
+                        <IconSearch className='h-4 w-4' />
+                      </button>
                       <Input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder='Tìm mã chuyến, xe, tài xế, mã đơn, tên hàng...'
-                        className='pl-9 h-8.5 text-xs'
+                        onKeyDown={handleSearchKeyDown}
+                        placeholder='Tìm mã chuyến, xe, tài xế, mã đơn, tên hàng... (Nhấn Enter để tìm)'
+                        className='pl-9 pr-8 h-8.5 text-xs'
                       />
+                      {search && (
+                        <button
+                          type='button'
+                          onClick={handleClearSearch}
+                          className='absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                          title='Xóa tìm kiếm'
+                        >
+                          <IconX className='h-3.5 w-3.5' />
+                        </button>
+                      )}
                     </div>
 
                     {/* Date Range: Từ ngày -> Đến ngày */}
