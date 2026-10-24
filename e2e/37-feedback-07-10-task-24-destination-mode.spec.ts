@@ -43,13 +43,14 @@ let originalCustAddress = 'Ba Đình, Hà Nội';
 let level1Hub: { id: number; name: string } | null = null;
 let level2Hub: { id: number; name: string } | null = null;
 
-test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Customer / Hub L1 / Xe Bo)', () => {
+test.describe
+  .serial('Feedback 07/10 Task 24: Delivery Destination Modes (Customer / Hub L1 / Xe Bo)', () => {
   test.beforeAll(async ({ request }) => {
     // 1. Authenticate against Backend (try Da Nang manager first, then Admin)
     for (const email of [DAD_MANAGER_EMAIL, ADMIN_EMAIL]) {
       for (const pwd of PASSWORDS) {
         const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-          data: { email, password: pwd },
+          data: { email, password: pwd }
         });
         if (loginRes.ok()) {
           const loginJson = await loginRes.json();
@@ -63,7 +64,7 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
     // 2. Fetch active hubs to discover Level 1 and Level 2 hubs
     const hubsRes = await request.get(`${DEV_BACKEND_URL}/hubs/active`, {
-      headers: { Authorization: `Bearer ${userToken}` },
+      headers: { Authorization: `Bearer ${userToken}` }
     });
     if (hubsRes.ok()) {
       const hubsJson = await hubsRes.json();
@@ -79,7 +80,7 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
     // 3. Locate an active trip with lines
     const tripsRes = await request.get(`${DEV_BACKEND_URL}/warehouse/inbound-trips`, {
-      headers: { Authorization: `Bearer ${userToken}` },
+      headers: { Authorization: `Bearer ${userToken}` }
     });
     if (tripsRes.ok()) {
       const tripsJson = await tripsRes.json();
@@ -104,14 +105,15 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
         const line = manifest.lines[manifest.lines.length - 1];
         testOrderId = line.id;
         testOrderCode = line.orderCode;
-        originalCustAddress = line.originalDeliveryAddress || line.deliveryAddress || 'Ba Đình, Hà Nội';
+        originalCustAddress =
+          line.originalDeliveryAddress || line.deliveryAddress || 'Ba Đình, Hà Nội';
       }
     }
   });
 
   // ── SCENARIO 1 & 2: API - UPDATE TRIP ORDER DESTINATION TO HUB_L1 ──
   test('API: Update trip order destination to HUB_L1 and verify manifest returns deliveryMode', async ({
-    request,
+    request
   }) => {
     if (!testOrderId) {
       test.skip(!testOrderId, 'No test order found on trip');
@@ -127,11 +129,14 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
           deliveryMode: 'HUB_L1',
           destinationHubId: level1Hub!.id,
           deliveryAddress: level1Hub!.name,
-          notes: 'Test E2E: Điều chuyển về Hub Cấp 1',
-        },
+          notes: 'Test E2E: Điều chuyển về Hub Cấp 1'
+        }
       }
     );
-    expect(patchRes.ok(), `Failed to patch destination to HUB_L1: ${patchRes.status()}`).toBeTruthy();
+    expect(
+      patchRes.ok(),
+      `Failed to patch destination to HUB_L1: ${patchRes.status()}`
+    ).toBeTruthy();
     const patchJson = await patchRes.json();
     const data = patchJson?.data ?? patchJson;
     expect(data.success).toBe(true);
@@ -156,9 +161,7 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
   });
 
   // ── SCENARIO 3: API - UPDATE TRIP ORDER DESTINATION TO XE_BO ──
-  test('API: Update trip order destination to XE_BO (Satellite route)', async ({
-    request,
-  }) => {
+  test('API: Update trip order destination to XE_BO (Satellite route)', async ({ request }) => {
     if (!testOrderId) {
       test.skip(!testOrderId, 'No test order found on trip');
       return;
@@ -172,11 +175,14 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
           deliveryMode: 'XE_BO',
           destinationHubId: level2Hub!.id,
           deliveryAddress: level2Hub!.name,
-          notes: 'Test E2E: Điều chuyển Tuyến Xe Bo',
-        },
+          notes: 'Test E2E: Điều chuyển Tuyến Xe Bo'
+        }
       }
     );
-    expect(patchRes.ok(), `Failed to patch destination to XE_BO: ${patchRes.status()}`).toBeTruthy();
+    expect(
+      patchRes.ok(),
+      `Failed to patch destination to XE_BO: ${patchRes.status()}`
+    ).toBeTruthy();
     const patchJson = await patchRes.json();
     const data = patchJson?.data ?? patchJson;
     expect(data.success).toBe(true);
@@ -199,7 +205,7 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
   // ── SCENARIO 4: API - RESET TO ORIGINAL CUSTOMER ADDRESS (DIRECT_CUSTOMER) ──
   test('API: Reset destination to DIRECT_CUSTOMER and verify customer address restored', async ({
-    request,
+    request
   }) => {
     if (!testOrderId) {
       test.skip(!testOrderId, 'No test order found on trip');
@@ -214,11 +220,14 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
           deliveryMode: 'DIRECT_CUSTOMER',
           destinationHubId: null,
           deliveryAddress: originalCustAddress,
-          notes: 'Test E2E: Khôi phục địa chỉ khách ban đầu',
-        },
+          notes: 'Test E2E: Khôi phục địa chỉ khách ban đầu'
+        }
       }
     );
-    expect(patchRes.ok(), `Failed to reset destination to DIRECT_CUSTOMER: ${patchRes.status()}`).toBeTruthy();
+    expect(
+      patchRes.ok(),
+      `Failed to reset destination to DIRECT_CUSTOMER: ${patchRes.status()}`
+    ).toBeTruthy();
     const patchJson = await patchRes.json();
     const data = patchJson?.data ?? patchJson;
     expect(data.success).toBe(true);
@@ -241,7 +250,7 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
   // ── SCENARIO 5 & 6: BROWSER UI - INTERACTIVE DESTINATION CELL, MODAL SELECTION & EVIDENCE ──
   test('Browser UI: Step 2 displays interactive destination cell, opens modal, and updates destination', async ({
-    page,
+    page
   }) => {
     // 1. Sign in to Frontend
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
@@ -257,7 +266,9 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
     await page.waitForLoadState('domcontentloaded');
 
     // 3. Open Trip Detail Modal (prioritize activeTripCode)
-    let tripDetailBtn = page.locator(`button[title*="chi tiết chuyến xe"]:has-text("${activeTripCode}")`).first();
+    let tripDetailBtn = page
+      .locator(`button[title*="chi tiết chuyến xe"]:has-text("${activeTripCode}")`)
+      .first();
     const hasActiveTripBtn = await tripDetailBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!hasActiveTripBtn) {
       tripDetailBtn = page.locator('button[title*="chi tiết chuyến xe"]').first();
@@ -269,7 +280,7 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
     await expect(tripModal).toBeVisible({ timeout: 15000 });
 
     // 4. Switch to Step 2: Xuất hàng mới lên xe
-    const step2Btn = tripModal.locator('button', { hasText: '2. Xuất hàng mới lên xe' });
+    const step2Btn = tripModal.locator('button', { hasText: 'Xuất hàng mới lên xe' });
     await expect(step2Btn).toBeVisible({ timeout: 10000 });
     await step2Btn.click();
 
@@ -280,7 +291,10 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
     // Capture screenshot of Step 2 table with destination column
     const step2Screenshot = await tripModal.screenshot();
-    saveEvidenceScreenshot('screenshot_01_step2_interactive_destination_cell_verified.png', step2Screenshot);
+    saveEvidenceScreenshot(
+      'screenshot_01_step2_interactive_destination_cell_verified.png',
+      step2Screenshot
+    );
     saveEvidenceScreenshot('screenshot_verified.png', step2Screenshot);
 
     // Look for change destination button or edit destination button
@@ -299,10 +313,15 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
       // Capture screenshot of Destination Selection Modal
       const modalScreenshot = await destModal.screenshot();
-      saveEvidenceScreenshot('screenshot_02_destination_selection_modal_verified.png', modalScreenshot);
+      saveEvidenceScreenshot(
+        'screenshot_02_destination_selection_modal_verified.png',
+        modalScreenshot
+      );
 
       // Select Level 1 hub: Polaris Hub - Hưng Yên
-      const hubCard = destModal.locator('div.cursor-pointer', { hasText: 'Polaris Hub - Hưng Yên' }).first();
+      const hubCard = destModal
+        .locator('div.cursor-pointer', { hasText: 'Polaris Hub - Hưng Yên' })
+        .first();
       const hasHubCard = await hubCard.isVisible({ timeout: 4000 }).catch(() => false);
       if (hasHubCard) {
         await hubCard.click();
@@ -313,15 +332,23 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
 
         // Capture screenshot of updated Hub L1 destination badge
         const updatedScreenshot = await tripModal.screenshot();
-        saveEvidenceScreenshot('screenshot_03_destination_updated_hub_l1_verified.png', updatedScreenshot);
+        saveEvidenceScreenshot(
+          'screenshot_03_destination_updated_hub_l1_verified.png',
+          updatedScreenshot
+        );
 
         // Click "Quay lại địa chỉ thường" if visible
-        const resetBtn = tripModal.locator('button', { hasText: 'Quay lại địa chỉ thường' }).first();
+        const resetBtn = tripModal
+          .locator('button', { hasText: 'Quay lại địa chỉ thường' })
+          .first();
         if (await resetBtn.isVisible()) {
           await resetBtn.click();
           await page.waitForTimeout(1000);
           const resetScreenshot = await tripModal.screenshot();
-          saveEvidenceScreenshot('screenshot_04_reset_to_original_customer_address_verified.png', resetScreenshot);
+          saveEvidenceScreenshot(
+            'screenshot_04_reset_to_original_customer_address_verified.png',
+            resetScreenshot
+          );
         }
       }
     }
@@ -330,5 +357,3 @@ test.describe.serial('Feedback 07/10 Task 24: Delivery Destination Modes (Custom
     expect(await page.locator('div[role="dialog"]').first().isVisible()).toBe(true);
   });
 });
-
-

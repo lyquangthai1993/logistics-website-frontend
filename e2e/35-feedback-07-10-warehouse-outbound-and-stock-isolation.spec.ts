@@ -42,11 +42,12 @@ let adminToken = '';
 let targetTripCode = '';
 let currentHubId = 1;
 
-test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection & Stock Isolation', () => {
+test.describe
+  .serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection & Stock Isolation', () => {
   test.beforeAll(async ({ request }) => {
     // 1. Authenticate against Backend
     const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-      data: { email: ADMIN_EMAIL, password: PASSWORD },
+      data: { email: ADMIN_EMAIL, password: PASSWORD }
     });
     expect(loginRes.ok(), `Login failed: ${loginRes.status()}`).toBeTruthy();
     const loginJson = await loginRes.json();
@@ -58,7 +59,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
     // 2. Locate an active trip manifest
     const tripsRes = await request.get(`${DEV_BACKEND_URL}/warehouse/inbound-trips`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { Authorization: `Bearer ${adminToken}` }
     });
     if (tripsRes.ok()) {
       const tripsJson = await tripsRes.json();
@@ -72,7 +73,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
   // ── TEST 1: API - TRIP MANIFEST CARRIES DESTINATION HUB PRIORITY (TASK 07/10) ──
   test('API: GET /warehouse/trips/:tripCode/manifest returns destinationHub correctly', async ({
-    request,
+    request
   }) => {
     if (!targetTripCode) {
       test.skip(!targetTripCode, 'No active trip available for manifest check');
@@ -82,7 +83,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
     const res = await request.get(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(targetTripCode)}/manifest`,
       {
-        headers: { Authorization: `Bearer ${adminToken}` },
+        headers: { Authorization: `Bearer ${adminToken}` }
       }
     );
 
@@ -99,13 +100,15 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
       expect(firstLine).toHaveProperty('orderCode');
       expect(firstLine).toHaveProperty('destinationHub');
       expect(typeof firstLine.destinationHub === 'string').toBeTruthy();
-      console.log(`[MANIFEST LINE ${firstLine.orderCode}] destinationHub: "${firstLine.destinationHub}"`);
+      console.log(
+        `[MANIFEST LINE ${firstLine.orderCode}] destinationHub: "${firstLine.destinationHub}"`
+      );
     }
   });
 
   // ── TEST 2: API - BATCH APPEND STORED ORDERS (TASK 10) ──
   test('API: POST /warehouse/trips/:tripCode/append-stored-orders validation and contract', async ({
-    request,
+    request
   }) => {
     if (!targetTripCode) {
       test.skip(!targetTripCode, 'No active trip available for append stored orders');
@@ -116,7 +119,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
     const availRes = await request.get(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(targetTripCode)}/available-outbound-orders`,
       {
-        headers: { Authorization: `Bearer ${adminToken}` },
+        headers: { Authorization: `Bearer ${adminToken}` }
       }
     );
 
@@ -131,7 +134,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(targetTripCode)}/append-stored-orders`,
       {
         headers: { Authorization: `Bearer ${adminToken}` },
-        data: { orderIds: [] },
+        data: { orderIds: [] }
       }
     );
     expect([400, 422]).toContain(badRes.status());
@@ -145,8 +148,8 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
           headers: { Authorization: `Bearer ${adminToken}` },
           data: {
             orderIds: [orderToAppend.id],
-            notes: 'E2E automated batch append stored test',
-          },
+            notes: 'E2E automated batch append stored test'
+          }
         }
       );
 
@@ -162,11 +165,11 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
   // ── TEST 3: API - HUB SCOPE ISOLATION & ZERO STOCK GUARD (TASK 12) ──
   test('API: GET /warehouse/orders strict Hub scoping and zero-stock stored filter', async ({
-    request,
+    request
   }) => {
     // Authenticate as Andromeda Hub - HCM Warehouse Manager
     const hcmLoginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-      data: { email: WAREHOUSE_HCM_EMAIL, password: PASSWORD },
+      data: { email: WAREHOUSE_HCM_EMAIL, password: PASSWORD }
     });
     expect(hcmLoginRes.ok(), `HCM login failed: ${hcmLoginRes.status()}`).toBeTruthy();
     const hcmJson = await hcmLoginRes.json();
@@ -177,7 +180,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
     const storedRes = await request.get(
       `${DEV_BACKEND_URL}/warehouse/orders?status=INBOUND&page=1&limit=50`,
       {
-        headers: { Authorization: `Bearer ${hcmToken}` },
+        headers: { Authorization: `Bearer ${hcmToken}` }
       }
     );
 
@@ -201,7 +204,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
   // ── TEST 4: BROWSER UI - OUTBOUND RECEIPT & STORED SELECTION MODAL (TASKS 07/10, 10, 11) ──
   test('Browser UI: Outbound modal "Kho đích / Nơi giao", stored selection table without "TRẠNG THÁI"', async ({
-    page,
+    page
   }) => {
     // 1. Sign in to Frontend
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
@@ -224,7 +227,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
     await expect(tripModal).toBeVisible({ timeout: 10000 });
 
     // Switch to Step 2: Xuất hàng mới lên xe
-    const step2Btn = tripModal.locator('button', { hasText: '2. Xuất hàng mới lên xe' });
+    const step2Btn = tripModal.locator('button', { hasText: 'Xuất hàng mới lên xe' });
     await expect(step2Btn).toBeVisible();
     await step2Btn.click();
 
@@ -253,15 +256,21 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
     // Capture screenshot of stored selection modal without redundant status
     const selectScreenshot = await selectModal.screenshot();
-    saveEvidenceScreenshot(EVIDENCE_DIR_07, '02_e2e_select_stored_orders_clean_columns.png', selectScreenshot);
+    saveEvidenceScreenshot(
+      EVIDENCE_DIR_07,
+      '02_e2e_select_stored_orders_clean_columns.png',
+      selectScreenshot
+    );
 
     // Close select modal & trip modal
     const closeSelectBtn = selectModal.locator('button', { hasText: 'Đóng' }).first();
-    if (await closeSelectBtn.count() > 0) {
+    if ((await closeSelectBtn.count()) > 0) {
       await closeSelectBtn.click();
     }
-    const closeTripBtn = tripModal.locator('button[aria-label="Close"], button:has-text("✕"), button:has-text("Đóng")').first();
-    if (await closeTripBtn.count() > 0) {
+    const closeTripBtn = tripModal
+      .locator('button[aria-label="Close"], button:has-text("✕"), button:has-text("Đóng")')
+      .first();
+    if ((await closeTripBtn.count()) > 0) {
       await closeTripBtn.click().catch(() => {});
     }
 
@@ -271,7 +280,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
     // Look for print receipt button in outbound page
     const printReceiptBtn = page.locator('button', { hasText: /in phiếu/i }).first();
-    if (await printReceiptBtn.count() > 0) {
+    if ((await printReceiptBtn.count()) > 0) {
       await printReceiptBtn.click();
 
       const receiptModal = page.locator('div[role="dialog"]').last();
@@ -283,10 +292,14 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
       // Capture screenshot of standardized Outbound Receipt modal
       const receiptScreenshot = await receiptModal.screenshot();
-      saveEvidenceScreenshot(EVIDENCE_DIR_07, '01_e2e_outbound_receipt_destination_header.png', receiptScreenshot);
+      saveEvidenceScreenshot(
+        EVIDENCE_DIR_07,
+        '01_e2e_outbound_receipt_destination_header.png',
+        receiptScreenshot
+      );
 
       const closeReceiptBtn = receiptModal.locator('button', { hasText: 'Đóng' }).first();
-      if (await closeReceiptBtn.count() > 0) {
+      if ((await closeReceiptBtn.count()) > 0) {
         await closeReceiptBtn.click();
       }
     }
@@ -294,7 +307,7 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
   // ── TEST 5: BROWSER UI - WAREHOUSE ORDERS PAGE ZERO-STOCK ISOLATION (TASK 12) ──
   test('Browser UI: /dashboard/warehouse/orders zero-stock orders guard & Andromeda isolation', async ({
-    page,
+    page
   }) => {
     // 1. Sign in as Andromeda Hub - HCM Warehouse Manager
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
@@ -328,6 +341,10 @@ test.describe.serial('Feedback 07/10 Suite: Outbound Receipt, Stored Selection &
 
     // Capture screenshot of clean LƯU KHO tab
     const ordersScreenshot = await page.screenshot();
-    saveEvidenceScreenshot(EVIDENCE_DIR_12, '01_e2e_warehouse_orders_clean_stored_tab.png', ordersScreenshot);
+    saveEvidenceScreenshot(
+      EVIDENCE_DIR_12,
+      '01_e2e_warehouse_orders_clean_stored_tab.png',
+      ordersScreenshot
+    );
   });
 });
