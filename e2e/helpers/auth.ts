@@ -155,3 +155,15 @@ export async function clearSession(page: Page): Promise<void> {
     }
   });
 }
+
+export {
+  findOrderInPaginatedTable,
+  findTripFast,
+  findTripInPaginatedTable,
+  getTripLocator,
+  openTripFromPaginatedTable,
+  readTablePagination,
+  waitForTableLoaded,
+  type FindTripOptions,
+  type TablePaginationState
+} from './pagination';
