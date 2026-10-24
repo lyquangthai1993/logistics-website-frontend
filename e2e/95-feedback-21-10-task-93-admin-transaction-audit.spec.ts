@@ -73,7 +73,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     const deleteConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
     await deleteConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-    const reasonInput = deleteConfirmModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    const reasonInput = deleteConfirmModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
     await reasonInput.waitFor({ state: 'visible', timeout: 5_000 });
     await reasonInput.fill('[E2E-EDGE-CASE] Thử xóa giao dịch lớn vượt quá tồn khả dụng');
 
@@ -111,7 +111,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
       const rModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
       await rModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-      const rReason = rModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+      const rReason = rModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
       await rReason.waitFor({ state: 'visible', timeout: 5_000 });
       await rReason.fill('[E2E-SETUP] Khôi phục dòng giao dịch về trạng thái ban đầu');
 
@@ -133,7 +133,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     const deleteModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
     await deleteModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-    const validReasonInput = deleteModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    const validReasonInput = deleteModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
     await validReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
     await validReasonInput.fill('[E2E-TEST] Điều chỉnh số lượng nhập kiểm toán kho hợp lệ ngày 21/10');
 
@@ -165,7 +165,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     const restoreConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
     await restoreConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-    const restoreReasonInput = restoreConfirmModal.locator('input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    const restoreReasonInput = restoreConfirmModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
     await restoreReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
     await restoreReasonInput.fill('[E2E-TEST] Khôi phục lại dòng giao dịch sau khi đối soát thành công');
 
