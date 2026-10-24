@@ -1502,7 +1502,7 @@ export function WarehouseTripDetailModal({
                 <span className='w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]'>
                   1
                 </span>
-                <span>1. Nhập hàng & Dỡ kho</span>
+                <span>Nhập hàng & Dỡ kho</span>
                 {manifest?.currentHubStatus === 'COMPLETED' && (
                   <Badge
                     variant='outline'
@@ -1528,7 +1528,7 @@ export function WarehouseTripDetailModal({
                 <span className='w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]'>
                   2
                 </span>
-                <span>2. Xuất hàng mới lên xe</span>
+                <span>Xuất hàng mới lên xe</span>
                 <span className='text-[10px] text-slate-400 font-normal'>(Tùy chọn)</span>
                 {outboundBreakdown.hubOutboundLines.length > 0 && (
                   <Badge className='bg-blue-600 text-white text-[9px] px-1 py-0 h-3.5'>
@@ -1641,7 +1641,7 @@ export function WarehouseTripDetailModal({
           )}
 
           {/* Top Card: Vehicle Information */}
-          <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0'>
+          <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0 rounded-md'>
             <CardContent className='p-1 grid grid-cols-1 md:grid-cols-3 gap-2'>
               {/* 1. Ngày nhận / xuất */}
               <div>
@@ -1726,7 +1726,7 @@ export function WarehouseTripDetailModal({
           {/* MAIN WORKFLOW AREA */}
           {currentStep === 1 ? (
             /* BƯỚC 1: NHẬP HÀNG & DỠ KHO */
-            <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0'>
+            <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0 rounded-md'>
               <CardContent className='p-1 space-y-1.5'>
                 <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800'>
                   <span className='text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5'>
@@ -1928,7 +1928,7 @@ export function WarehouseTripDetailModal({
             </Card>
           ) : (
             /* BƯỚC 2: XUẤT HÀNG MỚI LÊN XE (OUTBOUND STAGE) */
-            <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0'>
+            <Card className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs py-0 rounded-md'>
               <CardContent className='p-1 space-y-1.5'>
                 <div className='flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800'>
                   <div>
