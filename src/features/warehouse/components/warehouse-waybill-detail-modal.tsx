@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   IconBuildingWarehouse,
@@ -770,8 +771,8 @@ export function WarehouseWaybillDetailModal({
                                     <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
                                       kiện
                                     </span>
-                                    <Input
-                                      type="text"
+                                    <Textarea
+                                      rows={2}
                                       data-testid={`input-edit-tx-reason-${tx.id}`}
                                       value={editingTx.reason}
                                       onChange={(e) =>
@@ -780,7 +781,7 @@ export function WarehouseWaybillDetailModal({
                                         )
                                       }
                                       onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
                                           e.preventDefault();
                                           handleSaveEditQuantity(tx);
                                         } else if (e.key === 'Escape') {
@@ -789,8 +790,8 @@ export function WarehouseWaybillDetailModal({
                                         }
                                       }}
                                       disabled={editingTx.isSaving}
-                                      placeholder="Lý do điều chỉnh..."
-                                      className="h-7 w-44 sm:w-56 px-2 text-[11px]"
+                                      placeholder="Nhập lý do điều chỉnh..."
+                                      className="min-h-[42px] w-52 sm:w-64 px-2 py-1 text-[11px] resize-y"
                                     />
                                     <Button
                                       type="button"
@@ -1335,13 +1336,15 @@ export function WarehouseWaybillDetailModal({
               <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                 Lý do điều chỉnh <span className="text-rose-500">*</span>
               </label>
-              <Input
+              <Textarea
+                rows={3}
+                data-testid="textarea-action-reason"
                 value={actionModal.reason}
                 onChange={(e) =>
                   setActionModal((prev) => ({ ...prev, reason: e.target.value }))
                 }
                 placeholder="Nhập lý do điều chỉnh tồn kho (bắt buộc)..."
-                className="text-xs h-8"
+                className="text-xs min-h-[72px] resize-y"
                 disabled={actionModal.isSubmitting}
                 autoFocus
               />

@@ -103,6 +103,9 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
     await expect(reasonInput).toBeVisible({ timeout: 5_000 });
     await expect(saveBtn).toBeVisible({ timeout: 5_000 });
 
+    const inlineReasonTag = await reasonInput.evaluate((el) => el.tagName);
+    expect(inlineReasonTag).toBe('TEXTAREA');
+
     await qtyInput.fill(String(adjustedQty));
     await reasonInput.fill(
       `[E2E-TEST] Điều chỉnh số lượng kiện từ ${originalQty} lên ${adjustedQty} kiện`,
@@ -150,6 +153,28 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
     await expect(qtyDisplay).toContainText(`${originalQty} kiện`, {
       timeout: 10_000,
     });
+
+    // =========================================================================
+    // STEP 4.5: Verify "Lý do điều chỉnh" in Delete Confirmation Modal is a Textarea
+    // =========================================================================
+    const deleteBtn = detailDialog.locator('button', { hasText: 'Xóa bớt dòng' }).first();
+    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
+    await deleteBtn.click();
+
+    const deleteConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch kho' }).first();
+    await expect(deleteConfirmModal).toBeVisible({ timeout: 5_000 });
+
+    const modalReasonTextarea = deleteConfirmModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"]').first();
+    await expect(modalReasonTextarea).toBeVisible({ timeout: 5_000 });
+
+    await page.screenshot({
+      path: path.join(EVIDENCE_DIR, 'screenshot_05_delete_modal_reason_textarea_verified.png'),
+      fullPage: false,
+    });
+
+    const cancelDeleteBtn = deleteConfirmModal.locator('button', { hasText: 'Hủy bỏ' }).first();
+    await cancelDeleteBtn.click();
+    await expect(deleteConfirmModal).toBeHidden({ timeout: 5_000 });
 
     // =========================================================================
     // STEP 5: RBAC Verification - Warehouse Manager Must NOT See Pencil Icon
