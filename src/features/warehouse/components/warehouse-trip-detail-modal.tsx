@@ -42,6 +42,7 @@ import { WarehouseDestinationModal } from './warehouse-destination-modal';
 import { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';
 import { renderWarehouseOrderStatusBadge } from './warehouse-tables/columns';
 import { formatWeight, formatVolume } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import {
   useTripManifestQuery,
   tripManifestKeys,
@@ -113,18 +114,23 @@ export function WarehouseTripDetailModal({
   } = useTripManifestQuery(manifestTripCode, isOpen, tripGroup?.hubId);
 
   // 1. Kiểm tra vai trò Quản trị viên
-  const isAdmin =
+  const isAdmin = Boolean(
     user?.role === 'SUPER_ADMIN' ||
+    (user?.role as any) === 'ADMIN' ||
     (user?.role as any)?.id === 1 ||
     (user?.role as any)?.name === 'SUPER_ADMIN' ||
-    manifest?.userRole === 'SUPER_ADMIN';
+    (user?.role as any)?.name === 'ADMIN' ||
+    manifest?.userRole === 'SUPER_ADMIN'
+  );
 
   const [forceCompleted, setForceCompleted] = useState<boolean | null>(null);
   const [isReopenedByAdmin, setIsReopenedByAdmin] = useState(false);
+  const [adminEditMode, setAdminEditMode] = useState(false);
 
   useEffect(() => {
     setForceCompleted(null);
     setIsReopenedByAdmin(false);
+    setAdminEditMode(false);
   }, [tripGroup?.tripCode, isOpen]);
 
   // 2. Kiểm tra trạng thái xử lý của Hub hiện tại (Chờ xử lý / Đã xử lý)
@@ -416,8 +422,8 @@ export function WarehouseTripDetailModal({
   // Auto-resolve read-only mode based on business status
   const effectiveReadOnly = useMemo(() => {
     if (isMobile) return true;
-    if (isReopenedByAdmin) return false;
-    if (readOnly && !isReopenedByAdmin) return true;
+    if (isReopenedByAdmin || (isAdmin && adminEditMode)) return false;
+    if (readOnly && !isReopenedByAdmin && !(isAdmin && adminEditMode)) return true;
     if (!tripGroup) return true;
 
     // Khi trạm dừng tại kho này đã COMPLETED và tài khoản không phải Admin:
@@ -428,7 +434,13 @@ export function WarehouseTripDetailModal({
 
     if (isTallyMode && manifest) {
       if (!manifest.currentHubId) return true;
-      if (manifest.currentHubStatus === 'COMPLETED' && !isAdmin && !isReopenedByAdmin) return true;
+      if (
+        manifest.currentHubStatus === 'COMPLETED' &&
+        !isAdmin &&
+        !isReopenedByAdmin &&
+        !adminEditMode
+      )
+        return true;
       return !manifest.lines.some((l) => !l.isReceivedHere);
     }
 
@@ -455,10 +467,12 @@ export function WarehouseTripDetailModal({
     isMobile,
     readOnly,
     isReopenedByAdmin,
+    adminEditMode,
     tripGroup,
     isTallyMode,
     manifest,
     isHubAccountLocked,
+    isCurrentHubPending,
     isAdmin
   ]);
 
@@ -732,8 +746,20 @@ export function WarehouseTripDetailModal({
 
           const rowQty =
             mode === 'OUTBOUND'
-              ? Number(o.exportedQuantity ?? o.outboundQuantity ?? o.totalQuantity ?? 1)
-              : Number(o.totalQuantity ?? o.inboundQuantity ?? 1);
+              ? Number(
+                  o.exportedQuantity ??
+                    o.outboundQuantity ??
+                    o.quantityAllocated ??
+                    o.totalQuantity ??
+                    1
+                )
+              : Number(
+                  o.quantityAllocated ??
+                    o.expectedQuantity ??
+                    o.inboundQuantity ??
+                    o.totalQuantity ??
+                    1
+                );
 
           return {
             id: o.id,
@@ -744,11 +770,18 @@ export function WarehouseTripDetailModal({
             remainingQuantity: o.remainingQuantity,
             inboundQuantity: o.inboundQuantity,
             outboundQuantity: o.outboundQuantity,
+            quantityAllocated: o.quantityAllocated,
+            weightAllocated: o.weightAllocated,
+            volumeAllocated: o.volumeAllocated,
             totalWeight: Number(
-              mode === 'OUTBOUND' ? (o.exportedWeight ?? o.totalWeight ?? 0) : (o.totalWeight ?? 0)
+              mode === 'OUTBOUND'
+                ? (o.exportedWeight ?? o.weightAllocated ?? o.totalWeight ?? 0)
+                : (o.weightAllocated ?? o.totalWeight ?? 0)
             ),
             totalVolume: Number(
-              mode === 'OUTBOUND' ? (o.exportedVolume ?? o.totalVolume ?? 0) : (o.totalVolume ?? 0)
+              mode === 'OUTBOUND'
+                ? (o.exportedVolume ?? o.volumeAllocated ?? o.totalVolume ?? 0)
+                : (o.volumeAllocated ?? o.totalVolume ?? 0)
             ),
             deliveryMode: resolvedDeliveryMode,
             deliveryAddress: deliveryAddr,
@@ -1532,16 +1565,27 @@ export function WarehouseTripDetailModal({
             </div>
           )}
 
-          {!readOnly && isAdmin && isCurrentHubCompleted && (
+          {isAdmin && (isCurrentHubCompleted || readOnly) && (
             <div
               data-testid='admin-override-banner'
-              className='bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 text-[10px] px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-blue-300 dark:border-blue-800'
+              className='bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 text-[10px] px-2.5 py-1.5 rounded flex items-center justify-between gap-1.5 border border-blue-300 dark:border-blue-800'
             >
-              <IconShieldCheck className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0' />
-              <span>
-                <strong className='font-bold'>Chế độ Quản trị viên: </strong>Chuyến xe đã xử lý tại
-                trạm này. Bạn có đặc quyền chỉnh sửa thông tin đơn hàng trong chuyến xe.
-              </span>
+              <div className='flex items-center gap-1.5'>
+                <IconShieldCheck className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0' />
+                <span>
+                  <strong className='font-bold'>Chế độ Quản trị viên: </strong>Bạn có đặc quyền
+                  chỉnh sửa nâng cao chuyến xe và đơn hàng (kể cả khi đã chốt sổ cái).
+                </span>
+              </div>
+              <Button
+                type='button'
+                size='sm'
+                variant={adminEditMode ? 'default' : 'outline'}
+                onClick={() => setAdminEditMode(!adminEditMode)}
+                className='h-6 text-[10px] px-2 font-semibold'
+              >
+                {adminEditMode ? 'Khóa chỉnh sửa' : 'Bật chỉnh sửa'}
+              </Button>
             </div>
           )}
 
@@ -1830,13 +1874,13 @@ export function WarehouseTripDetailModal({
                               {r.goodsDescription || '—'}
                             </td>
                             <td className='py-1 px-1.5 text-right font-bold text-slate-800 dark:text-slate-200'>
-                              {r.totalQuantity}
+                              {r.quantityAllocated ?? r.totalQuantity}
                             </td>
                             <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
-                              {formatWeight(r.totalWeight)}
+                              {formatWeight(r.weightAllocated ?? r.totalWeight)}
                             </td>
                             <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
-                              {formatVolume(r.totalVolume)}
+                              {formatVolume(r.volumeAllocated ?? r.totalVolume)}
                             </td>
                             <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
                               {r.deliveryAddress || '—'}
@@ -1874,6 +1918,7 @@ export function WarehouseTripDetailModal({
                     rows={rows}
                     onChange={setRows}
                     isOutboundMode={false}
+                    isAdmin={isAdmin}
                     isInboundTripMode={mode === 'INBOUND' && isCurrentHubPending}
                     onInboundSingleOrder={handleInboundSingleOrder}
                     loadingRowIndex={inboundLoadingIndex}
@@ -2307,7 +2352,6 @@ export function WarehouseTripDetailModal({
               </>
             ) : currentStep === 1 ? (
               <>
-
                 {!effectiveReadOnly && !manifestPending && (
                   <Button
                     type='button'
@@ -2357,11 +2401,21 @@ export function WarehouseTripDetailModal({
                       type='button'
                       onClick={handleConfirmInbound}
                       disabled={isSaving || isConfirming || rows.length === 0}
-                      className='h-7 bg-[#0F3D62] hover:bg-[#0c314f] text-white px-2.5 font-bold shadow-xs text-xs'
+                      className={cn(
+                        'h-7 text-white px-2.5 font-bold shadow-xs text-xs',
+                        isCurrentHubCompleted && isAdmin
+                          ? 'bg-blue-600 hover:bg-blue-700'
+                          : 'bg-[#0F3D62] hover:bg-[#0c314f]'
+                      )}
                     >
                       {isConfirming ? (
                         <>
-                          <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> Đang nhập kho...
+                          <IconLoader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> Đang xử lý...
+                        </>
+                      ) : isCurrentHubCompleted && isAdmin ? (
+                        <>
+                          <IconDeviceFloppy className='mr-1 h-3.5 w-3.5 text-white' /> Lưu thay đổi
+                          (Admin)
                         </>
                       ) : (
                         <>
