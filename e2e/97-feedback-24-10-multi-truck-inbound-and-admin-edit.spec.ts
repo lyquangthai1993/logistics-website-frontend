@@ -60,20 +60,34 @@ test.describe
     // Chờ bảng danh sách chuyến xe hiển thị
     await page.waitForTimeout(2000);
 
-    // Tra cứu chuyến SD365
-    const searchInput = page
-      .locator(
-        'input[placeholder*="Tìm kiếm"], input[placeholder*="Tìm chuyến"], input[type="search"]'
-      )
-      .first();
-    if (await searchInput.isVisible()) {
-      await searchInput.fill('SD365');
+    // Chuyển sang tab "Đã xử lý" vì chuyến SD365/SD328 đã xử lý xong
+    const completedTab = page.getByRole('button', { name: /Đã xử lý/i }).first();
+    if (await completedTab.isVisible()) {
+      await completedTab.click();
       await page.waitForTimeout(1000);
     }
 
+    // Tra cứu chuyến SD365
+    const searchInput = page
+      .getByPlaceholder(/Tìm mã chuyến/i)
+      .or(page.locator('input[placeholder*="Tìm"]').first());
+    const searchBtn = page.locator('button[title="Nhấn để tìm kiếm"]').first();
+
+    if (await searchInput.isVisible()) {
+      await searchInput.fill('SD365');
+      await searchInput.press('Enter');
+      if (await searchBtn.isVisible()) {
+        await searchBtn.click();
+      }
+      await page.waitForTimeout(1500);
+    }
+
     // Tìm dòng hoặc nút mở chuyến SD365
-    const sd365Trigger = page.locator('text=SD365').first();
-    await expect(sd365Trigger).toBeVisible({ timeout: 10000 });
+    const sd365Trigger = page
+      .locator('button:has-text("SD365")')
+      .or(page.getByText('SD365'))
+      .first();
+    await expect(sd365Trigger).toBeVisible({ timeout: 15000 });
     await sd365Trigger.click();
 
     // Chờ modal chi tiết chuyến xe xuất hiện
@@ -104,11 +118,18 @@ test.describe
     // Tra cứu chuyến SD328
     if (await searchInput.isVisible()) {
       await searchInput.fill('SD328');
-      await page.waitForTimeout(1000);
+      await searchInput.press('Enter');
+      if (await searchBtn.isVisible()) {
+        await searchBtn.click();
+      }
+      await page.waitForTimeout(1500);
     }
 
-    const sd328Trigger = page.locator('text=SD328').first();
-    await expect(sd328Trigger).toBeVisible({ timeout: 10000 });
+    const sd328Trigger = page
+      .locator('button:has-text("SD328")')
+      .or(page.getByText('SD328'))
+      .first();
+    await expect(sd328Trigger).toBeVisible({ timeout: 15000 });
     await sd328Trigger.click();
 
     await expect(modal).toBeVisible({ timeout: 10000 });
@@ -131,19 +152,22 @@ test.describe
   test('Case 2: Warehouse Orders Ledger displays NAV2610-0128 with total 72 packages', async ({
     page
   }) => {
+    await loginAs(page, USER_WAREHOUSE_HCM);
     await page.goto('/dashboard/warehouse/orders');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
-    const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();
+    const searchInput = page
+      .getByPlaceholder(/Tìm kiếm/i)
+      .or(page.locator('input[placeholder*="Tìm"]').first());
     if (await searchInput.isVisible()) {
       await searchInput.fill('NAV2610-0128');
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(1500);
+      await searchInput.press('Enter');
+      await page.waitForTimeout(2000);
     }
 
     const row = page.locator('tr:has-text("NAV2610-0128")').first();
-    await expect(row).toBeVisible({ timeout: 10000 });
+    await expect(row).toBeVisible({ timeout: 15000 });
     const rowContent = await row.innerText();
     expect(rowContent).toContain('72');
 
@@ -153,51 +177,35 @@ test.describe
   test('Case 3: Inbound receiving form allows quantity editing for already INBOUND orders', async ({
     page
   }) => {
+    await loginAs(page, USER_WAREHOUSE_HCM);
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
-    // Mở modal tiếp nhận xe mới
-    const newTripBtn = page
-      .locator('button:has-text("Tiếp nhận xe mới"), button:has-text("Nhập kho từ xe")')
-      .first();
-    if (await newTripBtn.isVisible()) {
-      await newTripBtn.click();
-      await page.waitForTimeout(1000);
+    // Mở màn hình tạo đơn nhập mới (Mode 1 Customer)
+    const newInboundBtn = page.getByRole('button', { name: /Tạo đơn nhập mới/i }).first();
+    await expect(newInboundBtn).toBeVisible({ timeout: 10000 });
+    await newInboundBtn.click();
+    await page.waitForTimeout(1000);
 
-      const modal = page.locator('div[role="dialog"]').first();
-      if (await modal.isVisible()) {
-        // Nhập biển số xe test
-        const plateInput = modal
-          .locator('input[placeholder*="29C-12345"], input[name="licensePlate"]')
-          .first();
-        if (await plateInput.isVisible()) {
-          await plateInput.fill('51C-TEST-MULTI');
-        }
+    // Nhập mã đơn NAV2610-0128 vào dòng bảng
+    const codeInput = page.locator('input[placeholder="Mã vận đơn"]').first();
+    await expect(codeInput).toBeVisible({ timeout: 10000 });
+    await codeInput.fill('NAV2610-0128');
+    await codeInput.press('Enter');
+    await page.waitForTimeout(1500);
 
-        // Nhập mã đơn NAV2610-0128 vào dòng bảng
-        const codeInput = modal.locator('input[placeholder="Mã vận đơn"]').first();
-        if (await codeInput.isVisible()) {
-          await codeInput.fill('NAV2610-0128');
-          await codeInput.press('Enter');
-          await page.waitForTimeout(1000);
+    // Kiểm tra ô Số kiện không bị disabled
+    const qtyInput = page.locator('input[type="number"]').first();
+    await expect(qtyInput).toBeVisible({ timeout: 8000 });
+    const isDisabled = await qtyInput.isDisabled();
+    expect(isDisabled).toBe(false);
 
-          // Kiểm tra ô Số kiện không bị disabled
-          const qtyInput = modal.locator('input[type="number"]').first();
-          await expect(qtyInput).toBeVisible();
-          const isDisabled = await qtyInput.isDisabled();
-          expect(isDisabled).toBe(false);
+    // Nhập thử số kiện mới (ví dụ: 15)
+    await qtyInput.fill('15');
+    expect(await qtyInput.inputValue()).toBe('15');
 
-          // Nhập thử số kiện mới (ví dụ: 15)
-          await qtyInput.fill('15');
-          expect(await qtyInput.inputValue()).toBe('15');
-        }
-
-        await modal.screenshot({ path: STEP_04_PATH });
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(1000);
-      }
-    }
+    await page.screenshot({ path: STEP_04_PATH });
   });
 
   test('Case 4: Super Admin can toggle Edit Mode and save changes on completed trip SD328', async ({
@@ -209,19 +217,33 @@ test.describe
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
-    // Tra cứu và mở chuyến SD328
-    const searchInput = page
-      .locator(
-        'input[placeholder*="Tìm kiếm"], input[placeholder*="Tìm chuyến"], input[type="search"]'
-      )
-      .first();
-    if (await searchInput.isVisible()) {
-      await searchInput.fill('SD328');
+    // Chuyển sang tab "Đã xử lý"
+    const completedTab = page.getByRole('button', { name: /Đã xử lý/i }).first();
+    if (await completedTab.isVisible()) {
+      await completedTab.click();
       await page.waitForTimeout(1000);
     }
 
-    const sd328Trigger = page.locator('text=SD328').first();
-    await expect(sd328Trigger).toBeVisible({ timeout: 10000 });
+    // Tra cứu và mở chuyến SD328
+    const searchInput = page
+      .getByPlaceholder(/Tìm mã chuyến/i)
+      .or(page.locator('input[placeholder*="Tìm"]').first());
+    const searchBtn = page.locator('button[title="Nhấn để tìm kiếm"]').first();
+
+    if (await searchInput.isVisible()) {
+      await searchInput.fill('SD328');
+      await searchInput.press('Enter');
+      if (await searchBtn.isVisible()) {
+        await searchBtn.click();
+      }
+      await page.waitForTimeout(1500);
+    }
+
+    const sd328Trigger = page
+      .locator('button:has-text("SD328")')
+      .or(page.getByText('SD328'))
+      .first();
+    await expect(sd328Trigger).toBeVisible({ timeout: 15000 });
     await sd328Trigger.click();
 
     const modal = page.locator('div[role="dialog"]').first();
