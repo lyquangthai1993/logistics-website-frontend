@@ -49,17 +49,17 @@ export default defineConfig({
   webServer: !isRemote
     ? [
         {
-          command: 'npm run start:dev',
+          command: 'npm run start:prod',
           cwd: '../backend',
-          url: 'http://localhost:4001/health',
-          reuseExistingServer: !process.env.CI,
+          url: 'http://localhost:3001/api/v1/health',
+          reuseExistingServer: true,
           timeout: 120_000
         },
         {
-          command: 'npm run dev',
+          command: 'npm run start',
           cwd: '.',
           url: 'http://localhost:4000',
-          reuseExistingServer: !process.env.CI,
+          reuseExistingServer: true,
           timeout: 120_000
         }
       ]
