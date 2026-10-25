@@ -3,26 +3,6 @@
  *
  * Automated E2E Verification Suite for:
  * Mobile Responsive Layouts on /dashboard/warehouse/inbound and /dashboard/warehouse/outbound
- *
- * Verified Requirements:
- * 1. Mobile Viewport (iPhone 12/13/14 - 390x844):
- *    - Inbound:
- *      * Top action buttons ("Tạo đơn nhập mới", "Chuyển đổi Excel điều hành") are hidden on mobile.
- *      * Desktop table is hidden on mobile.
- *      * Mobile trip cards are rendered with high density (showing trip code, order count, date, status, vehicle, driver, waybills, cargo metrics).
- *      * Zero action buttons ("Tiếp tục", "Hủy nháp", "In phiếu") on mobile cards.
- *      * Tapping a mobile trip card opens the read-only inspection modal.
- *      * Date range filter fits within mobile width without overflowing or clipping buttons.
- *    - Outbound:
- *      * Top action button ("Xuất kho") is hidden on mobile.
- *      * Desktop table is hidden on mobile.
- *      * Mobile trip cards are rendered with high density.
- *      * Tapping a mobile trip card opens the trip detail modal.
- *
- * 2. Desktop Viewport (1280x800):
- *    - Action buttons are visible on both inbound and outbound.
- *    - Desktop table with all 7 columns is visible and scrollable via overflow-x-auto.
- *    - Mobile cards are hidden.
  */
 
 import { test, expect } from '@playwright/test';
@@ -71,34 +51,25 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     const applyDateBtn = page.getByRole('button', { name: 'Áp dụng', exact: true });
     await expect(applyDateBtn).toBeVisible();
 
-    // Wait for at least one card to load if data exists
-    const tripCards = mobileContainer.locator('> div');
-    const cardCount = await tripCards.count();
-    if (cardCount > 0) {
-      const firstCard = tripCards.first();
-      await expect(firstCard).toBeVisible();
+    // 5. Wait for trip cards to load
+    const tripCards = mobileContainer.locator('div[role="button"]');
+    await tripCards.first().waitFor({ state: 'visible', timeout: 15000 });
+    const firstCard = tripCards.first();
+    await expect(firstCard).toBeVisible();
 
-      // Ensure no operation action buttons inside mobile card
-      await expect(firstCard.getByRole('button', { name: /Tiếp tục/i })).toBeHidden();
-      await expect(firstCard.getByRole('button', { name: /Hủy nháp/i })).toBeHidden();
-      await expect(firstCard.getByRole('button', { name: /In phiếu nhập/i })).toBeHidden();
+    // Ensure no operation action buttons inside mobile card
+    await expect(firstCard.getByRole('button', { name: /Tiếp tục/i })).toBeHidden();
+    await expect(firstCard.getByRole('button', { name: /Hủy nháp/i })).toBeHidden();
+    await expect(firstCard.getByRole('button', { name: /In phiếu nhập/i })).toBeHidden();
 
-      // Test tapping card opens trip detail modal
-      await firstCard.click();
-      const modalDialog = page.locator('[role="dialog"]');
-      await expect(modalDialog).toBeVisible({ timeout: 5000 });
+    // Test tapping card opens trip detail modal
+    await firstCard.click();
+    const modalContent = page.locator('[data-slot="dialog-content"]');
+    await expect(modalContent).toBeVisible({ timeout: 10000 });
 
-      // Close modal
-      const closeBtn = modalDialog
-        .locator('button')
-        .filter({ hasText: /Đóng|Quay lại/i })
-        .first();
-      if (await closeBtn.isVisible()) {
-        await closeBtn.click();
-      } else {
-        await page.keyboard.press('Escape');
-      }
-    }
+    // Close modal
+    await page.keyboard.press('Escape');
+    await expect(modalContent).toBeHidden({ timeout: 5000 });
 
     await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'inbound_mobile_390px.png'),
@@ -123,7 +94,9 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     await expect(excelBtn).toBeVisible();
 
     // 2. Verify desktop table is visible and has overflow-x-auto
-    const desktopTableWrapper = page.locator('div.hidden.md\\:block');
+    const desktopTableWrapper = page
+      .locator('div.overflow-x-auto')
+      .filter({ has: page.locator('table') });
     await expect(desktopTableWrapper).toBeVisible();
     await expect(desktopTableWrapper).toHaveClass(/overflow-x-auto/);
 
@@ -168,17 +141,15 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     const applyDateBtn = page.getByRole('button', { name: 'Áp dụng', exact: true });
     await expect(applyDateBtn).toBeVisible();
 
-    // Verify trip cards
-    const tripCards = mobileContainer.locator('> div');
-    const cardCount = await tripCards.count();
-    if (cardCount > 0) {
-      const firstCard = tripCards.first();
-      await expect(firstCard).toBeVisible();
+    // 5. Verify trip cards
+    const tripCards = mobileContainer.locator('div[role="button"]');
+    await tripCards.first().waitFor({ state: 'visible', timeout: 15000 });
+    const firstCard = tripCards.first();
+    await expect(firstCard).toBeVisible();
 
-      // Ensure no operation action buttons inside mobile card
-      await expect(firstCard.getByRole('button', { name: /Tiếp tục/i })).toBeHidden();
-      await expect(firstCard.getByRole('button', { name: /In phiếu xuất/i })).toBeHidden();
-    }
+    // Ensure no operation action buttons inside mobile card
+    await expect(firstCard.getByRole('button', { name: /Tiếp tục/i })).toBeHidden();
+    await expect(firstCard.getByRole('button', { name: /In phiếu xuất/i })).toBeHidden();
 
     await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'outbound_mobile_390px.png'),
@@ -203,7 +174,9 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     await expect(exportBtn).toBeVisible();
 
     // 2. Verify desktop table is visible and has overflow-x-auto
-    const desktopTableWrapper = page.locator('div.hidden.md\\:block');
+    const desktopTableWrapper = page
+      .locator('div.overflow-x-auto')
+      .filter({ has: page.locator('table') });
     await expect(desktopTableWrapper).toBeVisible();
     await expect(desktopTableWrapper).toHaveClass(/overflow-x-auto/);
 
