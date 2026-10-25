@@ -22,7 +22,8 @@ import {
   IconPencil,
   IconTrash,
   IconAlertCircle,
-  IconRotate
+  IconRotate,
+  IconChevronRight
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { rollbackTrip, tripManifestKeys } from '@/features/warehouse/api/trip-manifest';
@@ -1158,7 +1159,7 @@ export default function WarehouseOutboundPage() {
                 {activeView === 'BOARD' && (
                   <Button
                     onClick={handleOpenNewMode1}
-                    className='bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm h-8 px-2.5'
+                    className='hidden md:inline-flex bg-[#0F3D62] text-white hover:bg-[#0c314f] text-xs font-bold shadow-sm h-8 px-2.5'
                   >
                     <IconPlus className='mr-1 h-4 w-4' /> Xuất kho
                   </Button>
@@ -1191,11 +1192,11 @@ export default function WarehouseOutboundPage() {
             {/* Toolbar with Search, Date Range Filter, Status Tabs & Refresh Button */}
             <Card className='bg-white dark:bg-slate-900 shadow-sm border py-0'>
               <CardContent className='p-1 space-y-1.5'>
-                <div className='flex flex-wrap items-center justify-between gap-2'>
+                <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-2'>
                   {/* Search Box & Date Range Filter */}
-                  <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
+                  <div className='flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0'>
                     {/* Search Box */}
-                    <div className='relative flex-1 min-w-[200px]'>
+                    <div className='relative flex-1 min-w-0'>
                       <button
                         type='button'
                         onClick={handleSearchSubmit}
@@ -1209,7 +1210,7 @@ export default function WarehouseOutboundPage() {
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
                         placeholder='Tìm kiếm theo mã đơn, biển số xe, tên hàng... (Nhấn Enter để tìm)'
-                        className='pl-9 pr-8 h-8.5 text-xs'
+                        className='pl-9 pr-8 h-8.5 text-xs w-full'
                       />
                       {search && (
                         <button
@@ -1224,8 +1225,8 @@ export default function WarehouseOutboundPage() {
                     </div>
 
                     {/* Date Range: Từ ngày -> Đến ngày */}
-                    <div className='flex items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700'>
-                      <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium'>
+                    <div className='flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto'>
+                      <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium shrink-0'>
                         <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
                         <span>Từ:</span>
                       </div>
@@ -1235,79 +1236,83 @@ export default function WarehouseOutboundPage() {
                         value={fromDate}
                         max={toDate}
                         onChange={(e) => setFromDate(e.target.value)}
-                        className='px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                        className='flex-1 sm:flex-initial min-w-[110px] px-1.5 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                       />
-                      <span className='text-slate-400 font-medium px-0.5'>đến:</span>
+                      <span className='text-slate-400 font-medium px-0.5 shrink-0'>đến:</span>
                       <input
                         type='date'
                         aria-label='Đến ngày'
                         value={toDate}
                         min={fromDate}
                         onChange={(e) => setToDate(e.target.value)}
-                        className='px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                        className='flex-1 sm:flex-initial min-w-[110px] px-1.5 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                       />
-                      <Button
-                        type='button'
-                        size='sm'
-                        onClick={handleApplyDateRange}
-                        className='h-7 px-2.5 text-xs font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
-                        title='Áp dụng bộ lọc theo khoảng thời gian'
-                      >
-                        Áp dụng
-                      </Button>
-                      {(appliedFromDate !== getDefaultFromDate() ||
-                        appliedToDate !== getDefaultToDate()) && (
-                        <button
+                      <div className='flex items-center gap-1 shrink-0 ml-auto sm:ml-0'>
+                        <Button
                           type='button'
-                          onClick={handleResetDateRange}
-                          className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium cursor-pointer'
-                          title='Đặt lại về tháng này'
+                          size='sm'
+                          onClick={handleApplyDateRange}
+                          className='h-7 px-2.5 text-xs font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
+                          title='Áp dụng bộ lọc theo khoảng thời gian'
                         >
-                          Đặt lại
-                        </button>
-                      )}
+                          Áp dụng
+                        </Button>
+                        {(appliedFromDate !== getDefaultFromDate() ||
+                          appliedToDate !== getDefaultToDate()) && (
+                          <button
+                            type='button'
+                            onClick={handleResetDateRange}
+                            className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium cursor-pointer'
+                            title='Đặt lại về tháng này'
+                          >
+                            Đặt lại
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Processing Status Tabs (trip status at this hub) */}
-                  <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto'>
-                    {[
-                      { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
-                      { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
-                      { key: 'COMPLETED', label: `Đã xử lý (${tripCounts.completedCount ?? 0})` }
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        onClick={() => setBoardStatus(tab.key as typeof boardStatus)}
-                        className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
-                          boardStatus === tab.key
-                            ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
-                            : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Processing Status Tabs & Refresh Button */}
+                  <div className='flex items-center justify-between gap-1.5 w-full md:w-auto overflow-x-auto'>
+                    <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold shrink-0'>
+                      {[
+                        { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
+                        { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
+                        { key: 'COMPLETED', label: `Đã xử lý (${tripCounts.completedCount ?? 0})` }
+                      ].map((tab) => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setBoardStatus(tab.key as typeof boardStatus)}
+                          className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                            boardStatus === tab.key
+                              ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
+                              : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
 
-                  {/* Refresh Metrics Button */}
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={handleRefreshMetrics}
-                    disabled={isRefreshing}
-                    className='h-9 text-xs font-bold border-slate-300'
-                  >
-                    <IconRefresh
-                      className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`}
-                    />
-                    Cập nhật lại thông số
-                  </Button>
+                    {/* Refresh Metrics Button */}
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={handleRefreshMetrics}
+                      disabled={isRefreshing}
+                      className='h-8 text-xs font-bold border-slate-300 shrink-0 ml-auto md:ml-0'
+                    >
+                      <IconRefresh
+                        className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`}
+                      />
+                      <span>Cập nhật</span>
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Outbound Board Table (Frame sq2P6 parity với Inbound) */}
-                <div className='border rounded-lg overflow-hidden'>
-                  <table className='w-full text-[11px] text-left'>
+                {/* Desktop Outbound Board Table (Frame sq2P6 parity với Inbound) */}
+                <div className='hidden md:block border rounded-lg overflow-x-auto'>
+                  <table className='w-full min-w-[900px] text-[11px] text-left'>
                     <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px]'>
                       <tr>
                         <th className='py-1.5 px-2 w-[85px] whitespace-nowrap'>NGÀY</th>
@@ -1477,6 +1482,113 @@ export default function WarehouseOutboundPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Outbound Trip Cards (Chế độ xem gọn cho thiết bị di động - xem thông tin chính, không chứa nút thao tác) */}
+                <div className='block md:hidden space-y-2'>
+                  {isLoading ? (
+                    <div className='p-6 text-center text-gray-500 bg-white dark:bg-slate-900 border rounded-lg'>
+                      <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
+                      <p className='text-xs'>Đang tải danh sách đơn xuất kho...</p>
+                    </div>
+                  ) : vehicleGroups.length === 0 ? (
+                    <div className='p-6 text-center text-gray-400 bg-white dark:bg-slate-900 border rounded-lg'>
+                      <IconTruck className='h-8 w-8 mx-auto mb-2 opacity-30 text-slate-400' />
+                      <p className='text-xs'>Không có chuyến xe xuất kho phù hợp bộ lọc</p>
+                    </div>
+                  ) : (
+                    vehicleGroups.map((grp) => {
+                      const isDispatched = grp.status === 'COMPLETED';
+                      const orderCodes = Array.from(
+                        new Set(
+                          (grp.orders ?? [])
+                            .map((o: any) => (o.orderCode || '').trim())
+                            .filter((code: string) => code && code !== '(Tự sinh khi lưu)')
+                        )
+                      );
+
+                      return (
+                        <div
+                          key={`mobile-${grp.groupKey}`}
+                          role='button'
+                          tabIndex={0}
+                          onClick={() => handleOpenTripDetail(grp)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleOpenTripDetail(grp);
+                            }
+                          }}
+                          className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-700 active:bg-blue-50/30 transition-all cursor-pointer space-y-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500'
+                        >
+                          {/* Row 1: Mã chuyến xe + Số đơn + Ngày xuất + Trạng thái */}
+                          <div className='flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-1.5'>
+                            <div className='flex items-center gap-1.5 flex-wrap'>
+                              <span className='font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400'>
+                                {grp.tripCode}
+                              </span>
+                              {grp.orders.length > 1 && (
+                                <Badge
+                                  variant='outline'
+                                  className='text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold'
+                                >
+                                  {grp.orders.length} đơn
+                                </Badge>
+                              )}
+                              <span className='text-[10px] text-slate-400 dark:text-slate-500 font-medium'>
+                                • {formatTripDate(grp.receiveDate)}
+                              </span>
+                            </div>
+                            <div className='shrink-0'>
+                              <TripStopStatusBadge
+                                status={isDispatched ? 'COMPLETED' : 'PENDING'}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Row 2: Biển số xe & Tên tài xế */}
+                          <div className='flex items-center justify-between text-xs gap-2'>
+                            <div className='flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-100'>
+                              <IconTruck className='h-3.5 w-3.5 text-blue-600 shrink-0' />
+                              <span>{grp.licensePlate}</span>
+                            </div>
+                            {grp.driverName && (
+                              <div className='text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[160px]'>
+                                {grp.driverName}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Row 3: Danh sách mã vận đơn */}
+                          {orderCodes.length > 0 && (
+                            <div className='text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1 leading-snug'>
+                              <span className='font-semibold text-slate-500 dark:text-slate-400 mr-1'>
+                                Vận đơn:
+                              </span>
+                              <span className='font-mono break-all'>{orderCodes.join(', ')}</span>
+                            </div>
+                          )}
+
+                          {/* Row 4: Số kiện, Tải trọng & Thể tích + Nút xem chi tiết */}
+                          <div className='flex items-center justify-between pt-0.5 text-[11px] text-slate-600 dark:text-slate-300'>
+                            <div className='flex items-center gap-2 font-medium'>
+                              <span className='font-bold text-slate-800 dark:text-slate-100'>
+                                {grp.totalQuantity} kiện
+                              </span>
+                              <span className='text-slate-300 dark:text-slate-600'>|</span>
+                              <span>{formatWeight(grp.totalWeight)} kg</span>
+                              <span className='text-slate-300 dark:text-slate-600'>|</span>
+                              <span>{formatVolume(grp.totalVolume)} m³</span>
+                            </div>
+                            <div className='text-[10px] text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-0.5 shrink-0'>
+                              <span>Chi tiết</span>
+                              <IconChevronRight className='h-3 w-3' />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Pagination Bar with Page Size Selector */}
