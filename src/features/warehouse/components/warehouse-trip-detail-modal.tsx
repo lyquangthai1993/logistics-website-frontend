@@ -566,11 +566,56 @@ export function WarehouseTripDetailModal({
   const [isConfirming, setIsConfirming] = useState(false);
   const [inboundLoadingIndex, setInboundLoadingIndex] = useState<number | null>(null);
 
-  // Fill vehicle info from the manifest when the board group did not carry it
+  // Fill vehicle info and sync lines from manifest when available
   useEffect(() => {
     if (!isOpen || !manifest) return;
     setLicensePlate((prev) => prev || manifest.licensePlate || '');
     setDriverName((prev) => prev || manifest.driverName || '');
+
+    // Synchronize rows with authoritative manifest lines
+    if (Array.isArray(manifest.lines)) {
+      if (manifest.lines.length === 0) {
+        setRows([]);
+      } else if (
+        (tripGroup?.orders?.length ?? 0) === 0 ||
+        isManifestTripCode(tripGroup?.tripCode)
+      ) {
+        const mappedFromManifest: WarehouseRowItem[] = manifest.lines.map((l: any) => {
+          const outHubEntity =
+            l.destinationHubEntity ||
+            (l.destinationHub
+              ? { id: l.destinationHubId, name: l.destinationHub, code: '' }
+              : null);
+          return {
+            id: l.id,
+            orderCode: l.orderCode || '',
+            pickupAddress: l.pickupAddress || l.originHub || '',
+            goodsDescription: l.goodsDescription || '',
+            totalQuantity: Number(
+              l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 1
+            ),
+            remainingQuantity: l.remainingQuantity,
+            inboundQuantity: l.receivedQuantity,
+            outboundQuantity: l.quantityAllocated,
+            quantityAllocated: l.quantityAllocated,
+            weightAllocated: l.weightAllocated,
+            volumeAllocated: l.volumeAllocated,
+            totalWeight: Number(l.weightAllocated ?? l.totalWeight ?? 0),
+            totalVolume: Number(l.volumeAllocated ?? l.totalVolume ?? 0),
+            deliveryMode: l.deliveryMode || 'DIRECT_CUSTOMER',
+            deliveryAddress: l.deliveryAddress || '',
+            province: l.province || '',
+            accompanyingDocs: l.accompanyingDocs || '',
+            notes: l.notes || '',
+            destinationHubId: l.destinationHubId,
+            destinationHub: outHubEntity,
+            status: l.status,
+            hubStatus: l.hubStatus
+          };
+        });
+        setRows(mappedFromManifest);
+      }
+    }
   }, [isOpen, manifest]);
 
   const tallySummary = useMemo(() => {
@@ -813,28 +858,15 @@ export function WarehouseTripDetailModal({
         });
         setRows(mappedRows);
       } else {
-        setRows([
-          {
-            orderCode: '',
-            pickupAddress: '',
-            goodsDescription: '',
-            totalQuantity: 1,
-            totalWeight: 0,
-            totalVolume: 0,
-            deliveryMode: 'DIRECT_CUSTOMER',
-            deliveryAddress: '',
-            province: '',
-            accompanyingDocs: '',
-            notes: ''
-          }
-        ]);
+        setRows([]);
       }
     }
   }, [tripGroup, isOpen, user?.hub?.name, mode]);
 
   // Aggregate summaries
   const totals = useMemo(() => {
-    return rows.reduce(
+    const validRows = rows.filter((r) => Boolean(r && (r.orderCode?.trim() || r.id)));
+    return validRows.reduce(
       (acc, r) => {
         acc.totalQty += Number(r.totalQuantity) || 0;
         acc.totalWeight += Number(r.totalWeight) || 0;
@@ -1857,73 +1889,85 @@ export function WarehouseTripDetailModal({
                         </tr>
                       </thead>
                       <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
-                        {rows.map((r, i) => (
-                          <tr
-                            key={r.id || i}
-                            className='hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                          >
-                            <td className='py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
-                              {String(i + 1).padStart(2, '0')}
-                            </td>
-                            <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
-                              {r.orderCode}
-                            </td>
-                            {mode === 'OUTBOUND' ? (
-                              <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200'>
-                                {r.expectedInboundLicensePlate ? (
-                                  <span className='inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 uppercase'>
-                                    <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
-                                    {r.expectedInboundLicensePlate}
-                                  </span>
-                                ) : (
-                                  '—'
-                                )}
-                              </td>
-                            ) : (
-                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
-                                {r.pickupAddress || '—'}
-                              </td>
-                            )}
-                            <td className='py-1 px-1.5 font-medium text-slate-900 dark:text-white'>
-                              {r.goodsDescription || '—'}
-                            </td>
-                            <td className='py-1 px-1.5 text-right font-bold text-slate-800 dark:text-slate-200'>
-                              {r.quantityAllocated ?? r.totalQuantity}
-                            </td>
-                            <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
-                              {formatWeight(r.weightAllocated ?? r.totalWeight)}
-                            </td>
-                            <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
-                              {formatVolume(r.volumeAllocated ?? r.totalVolume)}
-                            </td>
-                            <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
-                              {r.deliveryAddress || '—'}
-                            </td>
-                            <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400'>
-                              {r.province || '—'}
-                            </td>
-                            <td className='py-1 px-1.5 text-center'>
-                              <Badge variant='outline' className='text-[9px] px-1 py-0 h-4'>
-                                {r.accompanyingDocs || 'Không có'}
-                              </Badge>
-                            </td>
-                            <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
-                              {r.notes || '—'}
-                            </td>
-                            <td className='py-1 px-1.5 text-center'>
-                              <Button
-                                type='button'
-                                variant='outline'
-                                size='sm'
-                                onClick={() => handlePrintLabelForOrder(r)}
-                                className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 px-1.5 font-semibold'
-                                title='In tem nhận diện hàng hóa A4'
-                              >
-                                <IconPrinter className='h-3 w-3 mr-1' /> In tem
-                              </Button>
+                        {rows.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={12}
+                              className='py-8 text-center text-xs text-slate-400 italic bg-white dark:bg-slate-900'
+                            >
+                              Chuyến xe không có dòng hàng nào (toàn bộ đơn hàng đã bị xóa hoặc chưa
+                              được gán).
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          rows.map((r, i) => (
+                            <tr
+                              key={r.id || i}
+                              className='hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                            >
+                              <td className='py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
+                                {String(i + 1).padStart(2, '0')}
+                              </td>
+                              <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                                {r.orderCode}
+                              </td>
+                              {mode === 'OUTBOUND' ? (
+                                <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200'>
+                                  {r.expectedInboundLicensePlate ? (
+                                    <span className='inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 uppercase'>
+                                      <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
+                                      {r.expectedInboundLicensePlate}
+                                    </span>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                              ) : (
+                                <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
+                                  {r.pickupAddress || '—'}
+                                </td>
+                              )}
+                              <td className='py-1 px-1.5 font-medium text-slate-900 dark:text-white'>
+                                {r.goodsDescription || '—'}
+                              </td>
+                              <td className='py-1 px-1.5 text-right font-bold text-slate-800 dark:text-slate-200'>
+                                {r.quantityAllocated ?? r.totalQuantity}
+                              </td>
+                              <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
+                                {formatWeight(r.weightAllocated ?? r.totalWeight)}
+                              </td>
+                              <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
+                                {formatVolume(r.volumeAllocated ?? r.totalVolume)}
+                              </td>
+                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
+                                {r.deliveryAddress || '—'}
+                              </td>
+                              <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400'>
+                                {r.province || '—'}
+                              </td>
+                              <td className='py-1 px-1.5 text-center'>
+                                <Badge variant='outline' className='text-[9px] px-1 py-0 h-4'>
+                                  {r.accompanyingDocs || 'Không có'}
+                                </Badge>
+                              </td>
+                              <td className='py-1 px-1.5 text-slate-500 text-[10px]'>
+                                {r.notes || '—'}
+                              </td>
+                              <td className='py-1 px-1.5 text-center'>
+                                <Button
+                                  type='button'
+                                  variant='outline'
+                                  size='sm'
+                                  onClick={() => handlePrintLabelForOrder(r)}
+                                  className='h-6 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 px-1.5 font-semibold'
+                                  title='In tem nhận diện hàng hóa A4'
+                                >
+                                  <IconPrinter className='h-3 w-3 mr-1' /> In tem
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -2259,7 +2303,9 @@ export function WarehouseTripDetailModal({
               <div className='flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300'>
                 <span>
                   Tổng số đơn:{' '}
-                  <strong className='text-slate-900 dark:text-white'>{rows.length}</strong>
+                  <strong className='text-slate-900 dark:text-white'>
+                    {rows.filter((r) => Boolean(r && (r.orderCode?.trim() || r.id))).length}
+                  </strong>
                 </span>
                 <span>&bull;</span>
                 <span>
