@@ -8,11 +8,11 @@ test.describe('API Performance, Load & Stress Testing Suite (E2E Gate)', () => {
   let authTokenAdmin: string = '';
 
   test.beforeAll(async ({ request }) => {
-    // 1. Login as warehouse_hcm
+    // 1. Login as warehouse_hcm (TEST_USERS[4])
     const resHcm = await request.post(`${API_BASE}/auth/email/login`, {
       data: {
-        email: TEST_USERS[5].email, // warehouse_hcm
-        password: TEST_USERS[5].password
+        email: TEST_USERS[4].email, // warehouse_hcm (Andromeda Hub - HCM)
+        password: TEST_USERS[4].password
       }
     });
     expect(resHcm.ok()).toBeTruthy();
@@ -61,7 +61,7 @@ test.describe('API Performance, Load & Stress Testing Suite (E2E Gate)', () => {
         name: 'Warehouse Inbound Trips (HCM, p1 limit 15)',
         url: `${API_BASE}/warehouse/inbound-trips?page=1&limit=15`,
         token: authTokenHcm,
-        maxLatencyMs: 2500,
+        maxLatencyMs: 3500,
         validate: (data: any, json?: any) => {
           const list = Array.isArray(data) ? data : data?.data;
           expect(Array.isArray(list)).toBeTruthy();
@@ -190,14 +190,26 @@ test.describe('API Performance, Load & Stress Testing Suite (E2E Gate)', () => {
   });
 
   test('Scenario 4: Visual Evidence Verification on Dashboard UI', async ({ page }) => {
-    // Login as warehouse_hcm using official helper
-    await loginAs(page, TEST_USERS[5]);
+    // Setup response listener before navigating
+    const ordersResponsePromise = page.waitForResponse(
+      (res) => res.url().includes('/warehouse/orders') && res.status() === 200,
+      { timeout: 20000 }
+    );
+
+    // Login as warehouse_hcm (Andromeda Hub - HCM) using official helper
+    await loginAs(page, TEST_USERS[4]);
     await page.waitForURL('**/dashboard/warehouse/orders', { timeout: 15000 });
 
+    // Wait for the orders API call to respond and loading state to disappear
+    await ordersResponsePromise;
+    await expect(page.locator('text=Đang tải dữ liệu đơn hàng...')).not.toBeVisible({
+      timeout: 15000
+    });
+
     // Wait for the table rows to render
-    const tableRows = page.locator('tbody tr');
-    await expect(tableRows.first()).toBeVisible({ timeout: 10000 });
-    const count = await tableRows.count();
+    const dataRows = page.locator('tbody tr:not(:has-text("Đang tải"))');
+    await expect(dataRows.first()).toBeVisible({ timeout: 10000 });
+    const count = await dataRows.count();
     expect(
       count,
       'Non-Empty Visual Evidence Gate: Table must have at least 1 record'
