@@ -37,6 +37,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [roleId, setRoleId] = useState('2');
   const [statusId, setStatusId] = useState('1');
   const [hubId, setHubId] = useState('');
@@ -69,6 +70,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
         setStatusId('1');
         setHubId('');
       }
+      setShowPassword(false);
     }
   }, [user, open]);
 
@@ -127,7 +129,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
         email: trimmedEmail,
-        ...(trimmedUsername ? { username: trimmedUsername } : {}),
+        username: trimmedUsername || null,
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
         status: { id: Number(statusId) },
@@ -275,16 +277,31 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
             >
               {isEdit ? 'Mật khẩu mới (Tùy chọn)' : 'Mật khẩu *'}
             </label>
-            <Input
-              id='input-user-password'
-              type='password'
-              required={!isEdit}
-              autoComplete='new-password'
-              className='h-8.5 text-xs'
-              placeholder={isEdit ? 'Để trống nếu không muốn đổi' : 'Tối thiểu 6 ký tự'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className='relative'>
+              <Input
+                id='input-user-password'
+                type={showPassword ? 'text' : 'password'}
+                required={!isEdit}
+                autoComplete='new-password'
+                className='h-8.5 text-xs pr-8.5'
+                placeholder={isEdit ? 'Để trống nếu không muốn đổi' : 'Tối thiểu 6 ký tự'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type='button'
+                onClick={() => setShowPassword((prev) => !prev)}
+                className='absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md cursor-pointer'
+                title={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <Icons.eyeOff className='h-4 w-4' />
+                ) : (
+                  <Icons.eye className='h-4 w-4' />
+                )}
+              </button>
+            </div>
           </div>
 
           <div className='grid grid-cols-2 gap-2'>
