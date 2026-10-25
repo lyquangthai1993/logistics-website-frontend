@@ -48,10 +48,12 @@ export default async function OrdersListing() {
 
   const queryClient = getQueryClient();
 
-  // Prefetch orders list, KPI stats, and active hubs in parallel
-  void queryClient.prefetchQuery(ordersQueryOptions(filters));
-  void queryClient.prefetchQuery(ordersStatsQueryOptions(dateRange.from, dateRange.to));
-  void queryClient.prefetchQuery(activeHubsQueryOptions());
+  // Prefetch orders list, KPI stats, and active hubs safely in parallel
+  await Promise.allSettled([
+    queryClient.prefetchQuery(ordersQueryOptions(filters)),
+    queryClient.prefetchQuery(ordersStatsQueryOptions(dateRange.from, dateRange.to)),
+    queryClient.prefetchQuery(activeHubsQueryOptions())
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

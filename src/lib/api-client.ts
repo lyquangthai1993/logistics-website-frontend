@@ -36,23 +36,48 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
     return config;
   }
 
-  let token = tokenManager.getAccessToken();
-  const refreshToken = tokenManager.getRefreshToken();
+  let token: string | undefined = undefined;
 
-  // Proactive Refresh: If access token is expired or within 10s of expiry, refresh first
-  if (token && tokenManager.isTokenExpiringSoon(token, 10) && refreshToken) {
+  if (typeof window === 'undefined') {
+    // Server-side execution (Server Components, SSR)
     try {
-      token = await tokenManager.refreshToken();
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      token = cookieStore.get('access_token')?.value;
     } catch {
-      // Refresh failed, proceed and let 401 handler manage logout
+      // Outside Next.js request context (e.g. build / static phase)
     }
-  }
+  } else {
+    // Client-side execution
+    token =
+      typeof tokenManager?.getAccessToken === 'function'
+        ? tokenManager.getAccessToken()
+        : undefined;
+    const refreshToken =
+      typeof tokenManager?.getRefreshToken === 'function'
+        ? tokenManager.getRefreshToken()
+        : undefined;
 
-  // Sync token back to useAuthStore if read from cookie (Client-side only)
-  if (typeof window !== 'undefined' && typeof useAuthStore?.getState === 'function') {
-    const storeToken = useAuthStore.getState()?.accessToken;
-    if (token && token !== storeToken) {
-      useAuthStore.getState().setAccessToken(token, refreshToken);
+    // Proactive Refresh: If access token is expired or within 10s of expiry, refresh first
+    if (
+      token &&
+      typeof tokenManager?.isTokenExpiringSoon === 'function' &&
+      tokenManager.isTokenExpiringSoon(token, 10) &&
+      refreshToken
+    ) {
+      try {
+        token = await tokenManager.refreshToken();
+      } catch {
+        // Refresh failed, proceed and let 401 handler manage logout
+      }
+    }
+
+    // Sync token back to useAuthStore if read from cookie (Client-side only)
+    if (typeof useAuthStore?.getState === 'function') {
+      const storeToken = useAuthStore.getState()?.accessToken;
+      if (token && token !== storeToken) {
+        useAuthStore.getState().setAccessToken(token, refreshToken);
+      }
     }
   }
 
