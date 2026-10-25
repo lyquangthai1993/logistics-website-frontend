@@ -75,6 +75,20 @@ export interface InboundVehicleGroup {
   goodsDescription: string;
   notes?: string;
   hubId?: number;
+  creator?: {
+    id?: number | null;
+    name?: string | null;
+    username?: string | null;
+    email?: string | null;
+  } | null;
+  operator?: {
+    id?: number | null;
+    name?: string | null;
+    username?: string | null;
+    email?: string | null;
+  } | null;
+  creatorName?: string | null;
+  operatorName?: string | null;
 }
 
 interface WarehouseTripDetailModalProps {
