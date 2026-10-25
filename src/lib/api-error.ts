@@ -39,7 +39,8 @@ const ERROR_CODE_TRANSLATIONS: Record<string, string> = {
   emailNotExists: 'Địa chỉ Email này chưa được đăng ký trong hệ thống.',
   emailAlreadyExists: 'Địa chỉ Email này đã được sử dụng trên hệ thống. Vui lòng dùng email khác.',
   usernameAlreadyExists: 'Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên đăng nhập khác.',
-  userReactivated: 'Tài khoản từng bị xóa trước đây đã được tự động khôi phục và cập nhật thông tin thành công.',
+  userReactivated:
+    'Tài khoản từng bị xóa trước đây đã được tự động khôi phục và cập nhật thông tin thành công.',
   userNotFound: 'Không tìm thấy thông tin tài khoản.',
   invalidCredentials: 'Thông tin tài khoản hoặc mật khẩu không hợp lệ.',
   tokenExpired: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
@@ -91,16 +92,20 @@ export function formatApiError(
       }
     }
 
-    // 2. Prioritize clean user-facing message from backend if available
-    if (typeof errorData.message === 'string' && errorData.message.trim().length > 0) {
-      // Check if message is a known technical code
-      const translatedMsg = ERROR_CODE_TRANSLATIONS[errorData.message.trim()];
-      if (translatedMsg) return translatedMsg;
+    // 2. Prioritize detailed field validation errors if generic validation message was returned
+    const isGenericValidationMessage =
+      typeof errorData.message === 'string' &&
+      (errorData.message.includes('Validation failed') ||
+        errorData.message.includes('Dữ liệu không hợp lệ'));
 
-      // If message is a non-empty string provided by backend, return it directly
-      return errorData.message.trim();
-    } else if (Array.isArray(errorData.message) && errorData.message.length > 0) {
-      return errorData.message.map((m) => ERROR_CODE_TRANSLATIONS[m] || m).join(', ');
+    if (!isGenericValidationMessage) {
+      if (typeof errorData.message === 'string' && errorData.message.trim().length > 0) {
+        const translatedMsg = ERROR_CODE_TRANSLATIONS[errorData.message.trim()];
+        if (translatedMsg) return translatedMsg;
+        return errorData.message.trim();
+      } else if (Array.isArray(errorData.message) && errorData.message.length > 0) {
+        return errorData.message.map((m) => ERROR_CODE_TRANSLATIONS[m] || m).join(', ');
+      }
     }
 
     // 3. Field validation errors map (translate codes or format nicely)
@@ -111,7 +116,6 @@ export function formatApiError(
           .map(([field, msg]) => {
             const rawMsg = Array.isArray(msg) ? msg.join(', ') : String(msg);
             const localizedMsg = ERROR_CODE_TRANSLATIONS[rawMsg] || rawMsg;
-            // If the message is already translated or human-readable, format nicely
             return `${field}: ${localizedMsg}`;
           });
 
@@ -123,6 +127,12 @@ export function formatApiError(
       } else if (typeof errorData.errors === 'string' && errorData.errors.trim().length > 0) {
         return ERROR_CODE_TRANSLATIONS[errorData.errors.trim()] || errorData.errors;
       }
+    }
+
+    // Fallback to errorData.message if generic message had no detailed field errors
+    if (typeof errorData.message === 'string' && errorData.message.trim().length > 0) {
+      const translatedMsg = ERROR_CODE_TRANSLATIONS[errorData.message.trim()];
+      return translatedMsg || errorData.message.trim();
     }
   }
 

@@ -127,7 +127,7 @@ export function UserFormDialog({ user, open, onOpenChange }: UserFormDialogProps
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
         email: trimmedEmail,
-        ...(trimmedUsername ? { username: trimmedUsername } : {}),
+        username: trimmedUsername || null,
         ...(password ? { password } : {}),
         role: { id: Number(roleId) },
         status: { id: Number(statusId) },
