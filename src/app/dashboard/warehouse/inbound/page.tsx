@@ -117,6 +117,25 @@ export default function WarehouseInboundPage() {
 
   const [fromDate, setFromDate] = useState(getDefaultFromDate);
   const [toDate, setToDate] = useState(getDefaultToDate);
+  const [appliedFromDate, setAppliedFromDate] = useState(getDefaultFromDate);
+  const [appliedToDate, setAppliedToDate] = useState(getDefaultToDate);
+
+  const handleApplyDateRange = () => {
+    setPage(1);
+    setAppliedFromDate(fromDate);
+    setAppliedToDate(toDate);
+  };
+
+  const handleResetDateRange = () => {
+    const d = new Date();
+    const defFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    const defTo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    setFromDate(defFrom);
+    setToDate(defTo);
+    setAppliedFromDate(defFrom);
+    setAppliedToDate(defTo);
+    setPage(1);
+  };
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [tripGroups, setTripGroups] = useState<any[]>([]);
@@ -327,15 +346,21 @@ export default function WarehouseInboundPage() {
       const sp = new URLSearchParams(window.location.search);
       const qFrom = sp.get('fromDate');
       const qTo = sp.get('toDate');
-      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) setFromDate(qFrom);
-      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) setToDate(qTo);
+      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) {
+        setFromDate(qFrom);
+        setAppliedFromDate(qFrom);
+      }
+      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) {
+        setToDate(qTo);
+        setAppliedToDate(qTo);
+      }
     }
   }, []);
 
-  // Reset page to 1 when search, status, or dates change
+  // Reset page to 1 when search, status, or applied dates change
   useEffect(() => {
     setPage(1);
-  }, [appliedSearch, boardStatus, fromDate, toDate]);
+  }, [appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
 
   // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
   const fetchInboundTrips = useCallback(() => {
@@ -346,8 +371,8 @@ export default function WarehouseInboundPage() {
       limit: pageSize.toString(),
       ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
-      ...(fromDate ? { fromDate } : {}),
-      ...(toDate ? { toDate } : {})
+      ...(appliedFromDate ? { fromDate: appliedFromDate } : {}),
+      ...(appliedToDate ? { toDate: appliedToDate } : {})
     });
 
     fetch(`/api/v1/warehouse/inbound-trips?${query.toString()}`, {
@@ -383,7 +408,7 @@ export default function WarehouseInboundPage() {
         setMeta({ total: 0, totalPages: 1 });
       })
       .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, appliedSearch, boardStatus, fromDate, toDate]);
+  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -1010,14 +1035,21 @@ export default function WarehouseInboundPage() {
                         onChange={(e) => setToDate(e.target.value)}
                         className='px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                       />
-                      {(fromDate !== getDefaultFromDate() || toDate !== getDefaultToDate()) && (
+                      <Button
+                        type='button'
+                        size='sm'
+                        onClick={handleApplyDateRange}
+                        className='h-7 px-2.5 text-xs font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
+                        title='Áp dụng bộ lọc theo khoảng thời gian'
+                      >
+                        Áp dụng
+                      </Button>
+                      {(appliedFromDate !== getDefaultFromDate() ||
+                        appliedToDate !== getDefaultToDate()) && (
                         <button
                           type='button'
-                          onClick={() => {
-                            setFromDate(getDefaultFromDate());
-                            setToDate(getDefaultToDate());
-                          }}
-                          className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium'
+                          onClick={handleResetDateRange}
+                          className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium cursor-pointer'
                           title='Đặt lại về tháng này'
                         >
                           Đặt lại
