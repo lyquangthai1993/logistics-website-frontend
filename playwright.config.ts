@@ -51,7 +51,7 @@ export default defineConfig({
         {
           command: 'npm run start:prod',
           cwd: '../backend',
-          url: 'http://localhost:3001/api/v1/health',
+          url: 'http://localhost:4001/api/v1/health',
           reuseExistingServer: true,
           timeout: 120_000
         },

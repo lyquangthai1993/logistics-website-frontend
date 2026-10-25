@@ -70,12 +70,14 @@ test.describe('[Login Page] UI baseline', () => {
 
 // ── Per-role login flow ────────────────────────────────────────────────────
 for (const user of TEST_USERS) {
-  test.describe(`[Login Flow] Role: ${user.role}`, () => {
+  test.describe(`[Login Flow] Role: ${user.role} (${user.username})`, () => {
     test.afterEach(async ({ page }) => {
       await clearSession(page);
     });
 
-    test(`✅ ${user.role} can log in and reaches dashboard`, async ({ page }) => {
+    test(`✅ ${user.role} (${user.username}) can log in and reaches dashboard`, async ({
+      page
+    }) => {
       const logger = collectConsoleLogs(page);
 
       await loginAs(page, user);
@@ -96,7 +98,7 @@ for (const user of TEST_USERS) {
       expect(errors, `${user.role}: browser errors found after login`).toHaveLength(0);
     });
 
-    test(`🔒 ${user.role} is redirected to /auth/sign-in when unauthenticated`, async ({
+    test(`🔒 ${user.role} (${user.username}) is redirected to /auth/sign-in when unauthenticated`, async ({
       page
     }) => {
       await clearSession(page);
@@ -104,7 +106,7 @@ for (const user of TEST_USERS) {
       await expect(page).toHaveURL(/\/auth\/sign-in/);
     });
 
-    test(`🛡️ ${user.role} session persists in localStorage auth-storage and SSR cookie`, async ({
+    test(`🛡️ ${user.role} (${user.username}) session persists in localStorage auth-storage and SSR cookie`, async ({
       page
     }) => {
       await loginAs(page, user);
