@@ -1,5 +1,3 @@
-'use client';
-
 import { useAuthStore, type User } from '@/stores/use-auth-store';
 import axios from 'axios';
 
