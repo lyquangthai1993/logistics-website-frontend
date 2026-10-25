@@ -93,8 +93,30 @@ export default function WarehouseInboundPage() {
     setPage(1);
   };
   const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+
+  // Date Range Filter: Default from 1st of current month to today (aligned with Outbound & URL params)
+  const getDefaultFromDate = () => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const qFrom = sp.get('fromDate');
+      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) return qFrom;
+    }
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  };
+
+  const getDefaultToDate = () => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const qTo = sp.get('toDate');
+      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) return qTo;
+    }
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const [fromDate, setFromDate] = useState(getDefaultFromDate);
+  const [toDate, setToDate] = useState(getDefaultToDate);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [tripGroups, setTripGroups] = useState<any[]>([]);
@@ -296,6 +318,17 @@ export default function WarehouseInboundPage() {
       }
     } catch (e) {
       console.error('Lỗi nạp dữ liệu từ converter:', e);
+    }
+  }, []);
+
+  // Đồng bộ ngày từ URL searchParams nếu có (e.g. ?fromDate=2026-10-01&toDate=2026-10-25)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const qFrom = sp.get('fromDate');
+      const qTo = sp.get('toDate');
+      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) setFromDate(qFrom);
+      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) setToDate(qTo);
     }
   }, []);
 
@@ -589,10 +622,7 @@ export default function WarehouseInboundPage() {
       driverName: grp.driverName,
       licensePlate: grp.licensePlate,
       createdAt:
-        grp.receiveDate ||
-        effectiveOrders[0]?.createdAt ||
-        grp.orders[0]?.createdAt ||
-        new Date(),
+        grp.receiveDate || effectiveOrders[0]?.createdAt || grp.orders[0]?.createdAt || new Date(),
       items
     });
     setIsInboundReceiptModalOpen(true);
@@ -980,17 +1010,17 @@ export default function WarehouseInboundPage() {
                         onChange={(e) => setToDate(e.target.value)}
                         className='px-2 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                       />
-                      {(fromDate || toDate) && (
+                      {(fromDate !== getDefaultFromDate() || toDate !== getDefaultToDate()) && (
                         <button
                           type='button'
                           onClick={() => {
-                            setFromDate('');
-                            setToDate('');
+                            setFromDate(getDefaultFromDate());
+                            setToDate(getDefaultToDate());
                           }}
                           className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium'
-                          title='Xóa bộ lọc ngày'
+                          title='Đặt lại về tháng này'
                         >
-                          Xóa
+                          Đặt lại
                         </button>
                       )}
                     </div>

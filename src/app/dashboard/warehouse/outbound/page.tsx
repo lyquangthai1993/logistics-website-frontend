@@ -142,13 +142,23 @@ export default function WarehouseOutboundPage() {
     setIsTripDetailModalOpen(true);
   };
 
-  // Date Range Filter: Default from 1st of current month to today
+  // Date Range Filter: Default from 1st of current month to today (supports URL params)
   const getDefaultFromDate = () => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const qFrom = sp.get('fromDate');
+      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) return qFrom;
+    }
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
   };
 
   const getDefaultToDate = () => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const qTo = sp.get('toDate');
+      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) return qTo;
+    }
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
@@ -258,6 +268,17 @@ export default function WarehouseOutboundPage() {
     limit: 20,
     totalPages: 1
   });
+
+  // Đồng bộ ngày từ URL searchParams nếu có
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const qFrom = sp.get('fromDate');
+      const qTo = sp.get('toDate');
+      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) setFromDate(qFrom);
+      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) setToDate(qTo);
+    }
+  }, []);
 
   // Reset page to 1 when search, tab, or dates change
   useEffect(() => {
