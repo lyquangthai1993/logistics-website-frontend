@@ -51,6 +51,11 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     const applyDateBtn = page.getByRole('button', { name: 'Áp dụng', exact: true });
     await expect(applyDateBtn).toBeVisible();
 
+    // Verify refresh button exists as an icon button on mobile
+    const refreshBtn = page.getByTitle(/Làm mới dữ liệu/i);
+    await expect(refreshBtn).toBeVisible();
+    await expect(refreshBtn).toHaveClass(/w-8/);
+
     // 5. Wait for trip cards to load
     const tripCards = mobileContainer.locator('div[role="button"]');
     await tripCards.first().waitFor({ state: 'visible', timeout: 15000 });
@@ -135,11 +140,16 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     await expect(mobileContainer).toBeVisible();
 
     // 4. Verify search and date range filter fit cleanly
-    const searchInput = page.getByPlaceholder(/Tìm kiếm theo mã đơn/i);
+    const searchInput = page.getByPlaceholder(/Tìm mã đơn/i);
     await expect(searchInput).toBeVisible();
 
     const applyDateBtn = page.getByRole('button', { name: 'Áp dụng', exact: true });
     await expect(applyDateBtn).toBeVisible();
+
+    // Verify refresh button exists as an icon button on mobile
+    const refreshBtn = page.getByTitle(/Cập nhật lại thông số/i);
+    await expect(refreshBtn).toBeVisible();
+    await expect(refreshBtn).toHaveClass(/w-8/);
 
     // 5. Verify trip cards
     const tripCards = mobileContainer.locator('div[role="button"]');
