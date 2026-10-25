@@ -1209,7 +1209,7 @@ export default function WarehouseOutboundPage() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
-                        placeholder='Tìm kiếm theo mã đơn, biển số xe, tên hàng... (Nhấn Enter để tìm)'
+                        placeholder='Tìm mã đơn, xe, tài xế, tên hàng...'
                         className='pl-9 pr-8 h-8.5 text-xs w-full'
                       />
                       {search && (
@@ -1225,34 +1225,36 @@ export default function WarehouseOutboundPage() {
                     </div>
 
                     {/* Date Range: Từ ngày -> Đến ngày */}
-                    <div className='flex flex-wrap sm:flex-nowrap items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto'>
-                      <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium shrink-0'>
-                        <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
-                        <span>Từ:</span>
+                    <div className='flex flex-col sm:flex-row sm:items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto'>
+                      <div className='flex items-center gap-1 w-full sm:w-auto'>
+                        <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium shrink-0'>
+                          <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
+                          <span>Từ:</span>
+                        </div>
+                        <input
+                          type='date'
+                          aria-label='Từ ngày'
+                          value={fromDate}
+                          max={toDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                          className='flex-1 sm:flex-initial min-w-[100px] px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                        />
+                        <span className='text-slate-400 font-medium px-0.5 shrink-0'>đến:</span>
+                        <input
+                          type='date'
+                          aria-label='Đến ngày'
+                          value={toDate}
+                          min={fromDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                          className='flex-1 sm:flex-initial min-w-[100px] px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                        />
                       </div>
-                      <input
-                        type='date'
-                        aria-label='Từ ngày'
-                        value={fromDate}
-                        max={toDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        className='flex-1 sm:flex-initial min-w-[110px] px-1.5 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
-                      />
-                      <span className='text-slate-400 font-medium px-0.5 shrink-0'>đến:</span>
-                      <input
-                        type='date'
-                        aria-label='Đến ngày'
-                        value={toDate}
-                        min={fromDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        className='flex-1 sm:flex-initial min-w-[110px] px-1.5 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
-                      />
-                      <div className='flex items-center gap-1 shrink-0 ml-auto sm:ml-0'>
+                      <div className='flex items-center gap-1 shrink-0 justify-end sm:justify-start w-full sm:w-auto'>
                         <Button
                           type='button'
                           size='sm'
                           onClick={handleApplyDateRange}
-                          className='h-7 px-2.5 text-xs font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
+                          className='h-7 flex-1 sm:flex-initial px-2.5 text-xs font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
                           title='Áp dụng bộ lọc theo khoảng thời gian'
                         >
                           Áp dụng
@@ -1262,7 +1264,7 @@ export default function WarehouseOutboundPage() {
                           <button
                             type='button'
                             onClick={handleResetDateRange}
-                            className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium cursor-pointer'
+                            className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium cursor-pointer shrink-0'
                             title='Đặt lại về tháng này'
                           >
                             Đặt lại
@@ -1273,8 +1275,8 @@ export default function WarehouseOutboundPage() {
                   </div>
 
                   {/* Processing Status Tabs & Refresh Button */}
-                  <div className='flex items-center justify-between gap-1.5 w-full md:w-auto overflow-x-auto'>
-                    <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold shrink-0'>
+                  <div className='flex items-center justify-between gap-1.5 w-full md:w-auto'>
+                    <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto scrollbar-none flex-1 md:flex-initial'>
                       {[
                         { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
                         { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
@@ -1283,7 +1285,7 @@ export default function WarehouseOutboundPage() {
                         <button
                           key={tab.key}
                           onClick={() => setBoardStatus(tab.key as typeof boardStatus)}
-                          className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                          className={`px-2 sm:px-2.5 py-1 rounded-md transition-all whitespace-nowrap text-[11px] sm:text-xs ${
                             boardStatus === tab.key
                               ? 'bg-white text-[#0F3D62] shadow-sm font-bold dark:bg-slate-700 dark:text-white'
                               : 'text-gray-600 hover:text-slate-900 dark:text-gray-400'
@@ -1294,18 +1296,19 @@ export default function WarehouseOutboundPage() {
                       ))}
                     </div>
 
-                    {/* Refresh Metrics Button */}
+                    {/* Refresh Metrics Button (Icon only on mobile, text on desktop) */}
                     <Button
                       variant='outline'
                       size='sm'
                       onClick={handleRefreshMetrics}
                       disabled={isRefreshing}
-                      className='h-8 text-xs font-bold border-slate-300 shrink-0 ml-auto md:ml-0'
+                      className='h-8 w-8 sm:w-auto p-0 sm:px-2.5 text-xs font-bold border-slate-300 shrink-0 ml-auto md:ml-0'
+                      title='Cập nhật lại thông số'
                     >
                       <IconRefresh
-                        className={`mr-1.5 h-4 w-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`}
+                        className={`h-4 w-4 text-blue-600 sm:mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`}
                       />
-                      <span>Cập nhật</span>
+                      <span className='hidden sm:inline'>Cập nhật</span>
                     </Button>
                   </div>
                 </div>
