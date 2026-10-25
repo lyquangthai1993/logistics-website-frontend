@@ -53,6 +53,7 @@ import {
   WarehouseTripDetailModal,
   InboundVehicleGroup
 } from '@/features/warehouse/components/warehouse-trip-detail-modal';
+import { TripDateTooltip } from '@/features/warehouse/components';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
@@ -460,7 +461,11 @@ export default function WarehouseInboundPage() {
                 ? descs[0]
                 : `${descs[0]} (+${descs.length - 1} loại hàng)`),
           notes: g.notes || '',
-          hubId: g.hubId ? Number(g.hubId) : undefined
+          hubId: g.hubId ? Number(g.hubId) : undefined,
+          creator: g.creator || null,
+          operator: g.operator || null,
+          creatorName: g.creatorName || g.creator?.name || null,
+          operatorName: g.operatorName || g.operator?.name || null
         };
       }),
     [tripGroups]
@@ -1155,7 +1160,11 @@ export default function WarehouseInboundPage() {
                               className='hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                             >
                               <td className='py-1 px-2 w-[85px] whitespace-nowrap align-top text-[10px] font-medium text-slate-600 dark:text-slate-400'>
-                                {formatTripDate(grp.receiveDate)}
+                                <TripDateTooltip
+                                  dateText={formatTripDate(grp.receiveDate)}
+                                  creatorName={grp.creatorName}
+                                  operatorName={grp.operatorName}
+                                />
                               </td>
                               <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
                                 <div>
@@ -1328,9 +1337,12 @@ export default function WarehouseInboundPage() {
                                   {grp.orders.length} đơn
                                 </Badge>
                               )}
-                              <span className='text-[10px] text-slate-400 dark:text-slate-500 font-medium'>
-                                • {formatTripDate(grp.receiveDate)}
-                              </span>
+                              <TripDateTooltip
+                                dateText={`• ${formatTripDate(grp.receiveDate)}`}
+                                creatorName={grp.creatorName}
+                                operatorName={grp.operatorName}
+                                className='text-[10px] text-slate-400 dark:text-slate-500 font-medium'
+                              />
                             </div>
                             <div className='shrink-0'>
                               <TripStopStatusBadge status={grp.status} />
