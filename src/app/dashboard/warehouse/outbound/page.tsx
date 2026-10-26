@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,6 +95,8 @@ export default function WarehouseOutboundPage() {
   // SD code of the draft trip currently opened on the note (null = new note)
   const [draftTripCode, setDraftTripCode] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isSavingDraftRef = useRef(false);
   const [cancellingDraftCode, setCancellingDraftCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -672,21 +674,29 @@ export default function WarehouseOutboundPage() {
 
   // Submit Outbound
   const handleSubmitOutbound = async (mode: 'CUSTOMER' | 'TRANSFER') => {
+    if (isSubmitting || isSubmittingRef.current || isSavingDraft || isSavingDraftRef.current)
+      return;
+
     if (hasDraftOrdersInNote) {
       toast.error(
         "Chuyến xe đang chứa đơn hàng nháp. Chuyến xe có đơn nháp chỉ được phép ở trạng thái 'Chờ xử lý'. Vui lòng chọn 'Lưu nháp' chuyến xe hoặc duyệt đơn hàng trước khi xuất kho."
       );
       return;
     }
-    const request = await buildOutboundRequest(mode);
-    if (!request) return;
-    const { body, validRows, effectiveMode, primaryDestHubId, resolveRowOutboundDestination } =
-      request;
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
 
     try {
+      const request = await buildOutboundRequest(mode);
+      if (!request) {
+        setIsSubmitting(false);
+        isSubmittingRef.current = false;
+        return;
+      }
+      const { body, validRows, effectiveMode, primaryDestHubId, resolveRowOutboundDestination } =
+        request;
       const res = await fetch('/api/v1/warehouse/outbound/confirm', {
         method: 'POST',
         headers: {
@@ -772,6 +782,9 @@ export default function WarehouseOutboundPage() {
       showApiErrorToast(err, 'Lỗi khi xuất kho');
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+      }, 1500);
     }
   };
 
@@ -807,12 +820,19 @@ export default function WarehouseOutboundPage() {
 
   // "Lưu nháp": persists the note as a draft trip (Chờ xử lý) — allocates SD code, no stock deduction
   const handleSaveDraftMode1 = async () => {
-    const request = await buildOutboundRequest('CUSTOMER');
-    if (!request) return;
+    if (isSubmitting || isSubmittingRef.current || isSavingDraft || isSavingDraftRef.current)
+      return;
 
+    isSavingDraftRef.current = true;
     setIsSavingDraft(true);
     const token = tokenManager.getAccessToken();
     try {
+      const request = await buildOutboundRequest('CUSTOMER');
+      if (!request) {
+        setIsSavingDraft(false);
+        isSavingDraftRef.current = false;
+        return;
+      }
       const res = await fetch('/api/v1/warehouse/outbound/draft', {
         method: 'POST',
         headers: {
@@ -846,6 +866,9 @@ export default function WarehouseOutboundPage() {
       showApiErrorToast(err, 'Không thể lưu nháp phiếu xuất kho');
     } finally {
       setIsSavingDraft(false);
+      setTimeout(() => {
+        isSavingDraftRef.current = false;
+      }, 1500);
     }
   };
 
