@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -281,9 +281,11 @@ export default function WarehouseInboundPage() {
     } catch {}
   }, []);
 
-  // Submitting State
+  // Submitting State with Double-Submit Debounce Guard
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isSavingDraftRef = useRef(false);
 
   // KPI Stats
   const [kpiStats, setKpiStats] = useState({
@@ -690,6 +692,9 @@ export default function WarehouseInboundPage() {
 
   // Submit Mode 1 (Direct Customer Inbound)
   const handleSubmitMode1 = async () => {
+    if (isSubmitting || isSubmittingRef.current || isSavingDraft || isSavingDraftRef.current)
+      return;
+
     if (!licensePlate.trim()) {
       toast.error('Vui lòng nhập Biển số xe tiếp nhận');
       return;
@@ -736,6 +741,7 @@ export default function WarehouseInboundPage() {
       }
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     const token = tokenManager.getAccessToken();
 
@@ -841,11 +847,17 @@ export default function WarehouseInboundPage() {
       showApiErrorToast(err, 'Lỗi khi tiếp nhận hàng vào kho');
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+      }, 1500);
     }
   };
 
   // Submit Mode 1 as Draft (Lưu nháp đơn hàng nhập kho)
   const handleSaveDraftMode1 = async () => {
+    if (isSubmitting || isSubmittingRef.current || isSavingDraft || isSavingDraftRef.current)
+      return;
+
     if (mode1Rows.length === 0) {
       toast.error('Vui lòng có ít nhất 1 dòng hàng để lưu nháp');
       return;
@@ -864,6 +876,7 @@ export default function WarehouseInboundPage() {
       }
     }
 
+    isSavingDraftRef.current = true;
     setIsSavingDraft(true);
     const token = tokenManager.getAccessToken();
 
@@ -919,6 +932,9 @@ export default function WarehouseInboundPage() {
       showApiErrorToast(err, 'Lỗi khi lưu nháp đơn hàng');
     } finally {
       setIsSavingDraft(false);
+      setTimeout(() => {
+        isSavingDraftRef.current = false;
+      }, 1500);
     }
   };
 
@@ -1573,7 +1589,7 @@ export default function WarehouseInboundPage() {
 
                     <Button
                       onClick={handleSubmitMode1}
-                      disabled={isSubmitting || mode1Rows.length === 0}
+                      disabled={isSubmitting || isSavingDraft || mode1Rows.length === 0}
                       className='bg-[#0F3D62] hover:bg-[#0c314f] text-white px-3 font-bold shadow-md h-8 text-xs'
                     >
                       {isSubmitting ? (
