@@ -855,25 +855,25 @@ export default function WarehouseOrdersPage() {
                     <th className='hidden md:table-cell py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center md:sticky md:left-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
                       STT
                     </th>
-                    <th className='py-1 px-1 w-[82px] min-w-[82px] max-w-[82px] text-center font-mono sticky left-0 md:left-[35px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1 w-[82px] min-w-[82px] max-w-[82px] text-center md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
                       NGÀY NHẬP
                     </th>
-                    <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap font-mono sticky left-[81px] md:left-[116px] z-20 bg-slate-50 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap md:sticky md:left-[118px] z-20 bg-slate-50 dark:bg-slate-800 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-slate-200 dark:border-slate-700'>
                       MÃ VẬN ĐƠN
                     </th>
                     <th className='py-1 px-1.5 min-w-[160px] border-b border-slate-200 dark:border-slate-700'>
                       TÊN HÀNG HÓA
                     </th>
                     <th
-                      className='py-1 px-1.5 w-[95px] text-right font-mono border-b border-slate-200 dark:border-slate-700'
+                      className='py-1 px-1.5 w-[95px] text-right border-b border-slate-200 dark:border-slate-700'
                       title='Số lượng đang nằm tại kho / tổng số lượng của đơn'
                     >
                       SỐ LƯỢNG
                     </th>
-                    <th className='py-1 px-1.5 w-[85px] text-right font-mono border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-[85px] text-right border-b border-slate-200 dark:border-slate-700'>
                       SỐ KG
                     </th>
-                    <th className='py-1 px-1.5 w-[80px] text-right font-mono border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-[80px] text-right border-b border-slate-200 dark:border-slate-700'>
                       CBM
                     </th>
                     <th className='py-1 px-1.5 min-w-[140px] border-b border-slate-200 dark:border-slate-700'>
@@ -882,7 +882,7 @@ export default function WarehouseOrdersPage() {
                     <th className='py-1 px-1.5 w-[100px] text-center border-b border-slate-200 dark:border-slate-700'>
                       TRẠNG THÁI
                     </th>
-                    <th className='py-1 px-1.5 w-[110px] text-center font-mono border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-[110px] text-center border-b border-slate-200 dark:border-slate-700'>
                       NGÀY XUẤT
                     </th>
                     <th className='py-1 px-1.5 w-[80px] text-center border-b border-slate-200 dark:border-slate-700'>
@@ -920,10 +920,10 @@ export default function WarehouseOrdersPage() {
                           <td className='hidden md:table-cell py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center font-mono text-gray-400 text-[10px] md:sticky md:left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
                             {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
                           </td>
-                          <td className='py-1 px-1 w-[82px] min-w-[82px] max-w-[82px] text-center font-mono text-slate-600 dark:text-slate-400 text-[10px] sticky left-0 md:left-[35px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
+                          <td className='py-1 px-1 w-[82px] min-w-[82px] max-w-[82px] text-center font-mono text-slate-600 dark:text-slate-400 text-[10px] md:sticky md:left-[36px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
                             {formatDate(row.inboundDate || row.createdAt)}
                           </td>
-                          <td className='py-1 px-1.5 min-w-[110px] whitespace-nowrap sticky left-[81px] md:left-[116px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-b border-gray-100 dark:border-gray-800'>
+                          <td className='py-1 px-1.5 min-w-[110px] whitespace-nowrap md:sticky md:left-[118px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-gray-100 dark:border-gray-800'>
                             <div className='flex items-center gap-1'>
                               <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
                                 {row.orderCode}
