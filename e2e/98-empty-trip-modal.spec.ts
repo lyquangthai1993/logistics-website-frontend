@@ -29,11 +29,8 @@ test.describe('[Warehouse Trip Detail] Empty Trip Lines Verification', () => {
       await tripCodeBtn.click();
       await page.waitForTimeout(1500);
 
-      // Verify tiêu đề modal
-      await expect(page.getByText('Bảng kê chi tiết các dòng hàng trên chuyến xe')).toBeVisible();
-
       // Verify đếm dòng hàng là 0 dòng hàng
-      await expect(page.getByText('0 dòng hàng')).toBeVisible();
+      await expect(page.getByText('0 dòng hàng').first()).toBeVisible();
 
       // Verify dòng thông báo rỗng
       await expect(page.getByText('Chuyến xe không có dòng hàng nào')).toBeVisible();

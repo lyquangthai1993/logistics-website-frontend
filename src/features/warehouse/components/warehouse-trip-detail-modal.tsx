@@ -1780,14 +1780,16 @@ export function WarehouseTripDetailModal({
                     <span>
                       {isTallyMode
                         ? `Kiểm đếm dỡ hàng tại ${currentStopHubName ?? 'kho này'}`
-                        : 'Bảng kê chi tiết các dòng hàng trên chuyến xe'}
+                        : `${rows.length ?? 0} dòng hàng`}
                     </span>
                   </span>
 
                   <div className='flex items-center gap-2'>
-                    <span className='text-[11px] text-gray-500'>
-                      {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} dòng hàng
-                    </span>
+                    {isTallyMode && (
+                      <span className='text-[11px] text-gray-500'>
+                        {manifest?.lines.length ?? 0} dòng hàng
+                      </span>
+                    )}
                     {/* Nút duy nhất bốc thêm đơn dọc đường về Hub */}
                     {!effectiveReadOnly &&
                       !isMobile &&
