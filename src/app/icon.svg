@@ -1,0 +1,82 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Gradient (Deep Navy to Maritime Blue) -->
+    <linearGradient id="bg-grad" x1="48" y1="32" x2="464" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#144B78"/>
+      <stop offset="50%" stop-color="#0F3D62"/>
+      <stop offset="100%" stop-color="#072034"/>
+    </linearGradient>
+
+    <!-- Outer Rim Subtle Glow -->
+    <linearGradient id="rim-grad" x1="48" y1="32" x2="464" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#2563EB" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#00F2FE" stop-opacity="0.7"/>
+    </linearGradient>
+
+    <!-- Dynamic S-Vector Cyan Gradient -->
+    <linearGradient id="s-cyan-grad" x1="120" y1="100" x2="400" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F2FE"/>
+      <stop offset="45%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- Isometric Top Facet Highlight -->
+    <linearGradient id="top-facet-grad" x1="256" y1="88" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#0284C7" stop-opacity="0.45"/>
+    </linearGradient>
+
+    <!-- Drop Shadow Filter for Floating Depth -->
+    <filter id="glow-shadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#00F2FE" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- 1. Background Squircle (Smooth rounded container) -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg-grad)"/>
+  <rect x="24" y="24" width="464" height="464" rx="112" stroke="url(#rim-grad)" stroke-width="12" stroke-opacity="0.75"/>
+
+  <!-- 2. Isometric Logistics Nexus Facets (Background 3D cargo box) -->
+  <!-- Top Roof Facet -->
+  <path d="M256 94L398 174L256 254L114 174Z" fill="url(#top-facet-grad)"/>
+  <path d="M256 94L398 174L256 254L114 174Z" stroke="#BAE6FD" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- Left Shaded Facet -->
+  <path d="M114 174L256 254V418L114 338Z" fill="#0B2F4E" fill-opacity="0.95"/>
+  <path d="M114 174L256 254V418L114 338Z" stroke="#0284C7" stroke-width="4" stroke-opacity="0.45"/>
+
+  <!-- Right Facet -->
+  <path d="M256 254L398 174V338L256 418Z" fill="#051C30" fill-opacity="0.95"/>
+  <path d="M256 254L398 174V338L256 418Z" stroke="#0369A1" stroke-width="4" stroke-opacity="0.35"/>
+
+  <!-- 3. Dynamic "S" Transit Wave (Spider Express Speed Curve) -->
+  <!-- High contrast, bold electric curve weaving through the nexus -->
+  <path d="M372 168C372 168 316 128 252 144C180 162 164 212 196 244C236 284 352 268 356 336C360 404 284 424 232 416C176 408 140 372 140 372"
+        stroke="url(#s-cyan-grad)"
+        stroke-width="50"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        filter="url(#glow-shadow)"/>
+
+  <!-- Inner High-Intensity Core Line of the S -->
+  <path d="M372 168C372 168 316 128 252 144C180 162 164 212 196 244C236 284 352 268 356 336C360 404 284 424 232 416C176 408 140 372 140 372"
+        stroke="#FFFFFF"
+        stroke-width="18"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-opacity="0.95"/>
+
+  <!-- 4. Logistics Waypoint Nodes (3-Tier S-Hub Connected Network) -->
+  <!-- Top Node (First-mile Inbound) -->
+  <circle cx="372" cy="168" r="26" fill="#00F2FE"/>
+  <circle cx="372" cy="168" r="14" fill="#FFFFFF"/>
+
+  <!-- Central Nexus Node (Hub Middle-mile Transfer) -->
+  <circle cx="256" cy="254" r="30" fill="#38BDF8"/>
+  <circle cx="256" cy="254" r="16" fill="#FFFFFF"/>
+
+  <!-- Bottom Node (Last-mile Outbound) -->
+  <circle cx="140" cy="372" r="26" fill="#00F2FE"/>
+  <circle cx="140" cy="372" r="14" fill="#FFFFFF"/>
+</svg>

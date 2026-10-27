@@ -18,31 +18,38 @@ const META_THEME_COLORS = {
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
-    default: 'Logistics TMS - Hệ Thống Quản Lý Vận Tải',
-    template: '%s | Logistics TMS'
+    default: 'Spider Express TMS - Hệ Thống Quản Lý Vận Tải',
+    template: '%s | Spider Express TMS'
   },
   description:
-    'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
+    'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp Spider Express - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }]
+  },
   openGraph: {
-    title: 'Logistics TMS - Hệ Thống Quản Lý Vận Tải',
+    title: 'Spider Express TMS - Hệ Thống Quản Lý Vận Tải',
     description:
-      'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
-    siteName: 'Logistics TMS',
+      'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp Spider Express - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
+    siteName: 'Spider Express TMS',
     type: 'website',
     images: [
       {
         url: '/shadcn-dashboard.png',
         width: 3200,
         height: 1600,
-        alt: 'Logistics TMS Dashboard'
+        alt: 'Spider Express TMS Dashboard'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Logistics TMS - Hệ Thống Quản Lý Vận Tải',
+    title: 'Spider Express TMS - Hệ Thống Quản Lý Vận Tải',
     description:
-      'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
+      'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp Spider Express - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
     images: ['/shadcn-dashboard.png']
   }
 };
