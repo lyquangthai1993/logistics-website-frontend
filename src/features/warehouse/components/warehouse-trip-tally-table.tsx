@@ -128,10 +128,10 @@ export function WarehouseTripTallyTable({
                   />
                 )}
               </th>
-              <th className='py-1 px-1.5 w-[32px] text-center sticky left-0 sm:left-[28px] z-30 bg-slate-100 dark:bg-slate-800'>
+              <th className='py-1 px-1 w-[32px] min-w-[32px] max-w-[32px] text-center sticky left-0 sm:left-[28px] z-30 bg-slate-100 dark:bg-slate-800'>
                 STT
               </th>
-              <th className='py-1 px-1.5 min-w-[120px] sticky left-[32px] sm:left-[60px] z-30 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+              <th className='py-1 px-1.5 min-w-[120px] whitespace-nowrap sticky left-[31px] sm:left-[59px] z-30 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                 MÃ VẬN ĐƠN
               </th>
               <th className='py-1 px-1.5 min-w-[130px]'>KHO NHẬN / NƠI GIAO</th>
@@ -187,10 +187,10 @@ export function WarehouseTripTallyTable({
                         />
                       )}
                     </td>
-                    <td className='py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 sm:left-[28px] z-10 bg-white dark:bg-slate-900'>
+                    <td className='py-1 px-1 w-[32px] min-w-[32px] max-w-[32px] text-center font-bold text-slate-500 sticky left-0 sm:left-[28px] z-10 bg-white dark:bg-slate-900'>
                       {String(i + 1).padStart(2, '0')}
                     </td>
-                    <td className='py-1 px-1.5 sticky left-[32px] sm:left-[60px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                    <td className='py-1 px-1.5 min-w-[120px] whitespace-nowrap sticky left-[31px] sm:left-[59px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                       <div className='text-[11px] font-mono font-bold text-blue-700 dark:text-blue-300'>
                         {l.orderCode}
                       </div>
