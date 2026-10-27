@@ -25,10 +25,10 @@ export const metadata: Metadata = {
     'Hệ thống Quản lý Vận tải (TMS) chuyên nghiệp Spider Express - Quản lý đơn hàng, điều phối vận tải, quản lý đội xe và kho bãi.',
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' }
+      { url: '/icon.svg?v=2', type: 'image/svg+xml' },
+      { url: '/favicon.ico?v=2', sizes: 'any' }
     ],
-    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }]
+    apple: [{ url: '/apple-icon.png?v=2', sizes: '180x180', type: 'image/png' }]
   },
   openGraph: {
     title: 'Spider Express TMS - Hệ Thống Quản Lý Vận Tải',
