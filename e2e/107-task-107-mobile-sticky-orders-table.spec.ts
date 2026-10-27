@@ -26,7 +26,7 @@ test.describe
     }
   });
 
-  test('CASE-01: Static Code Audit — Verify STT hidden on mobile, Ngày Nhập & Mã Vận Đơn sticky', () => {
+  test('CASE-01: Static Code Audit — Verify STT hidden on mobile, Ngày Nhập & Mã Vận Đơn md:sticky only, no font-mono on Vietnamese th', () => {
     const pagePath = path.resolve(__dirname, '../src/app/dashboard/warehouse/orders/page.tsx');
     expect(fs.existsSync(pagePath)).toBeTruthy();
     const content = fs.readFileSync(pagePath, 'utf-8');
@@ -34,17 +34,18 @@ test.describe
     // 1. Verify STT header and cell are hidden on mobile
     expect(content).toContain('hidden md:table-cell py-1 px-1 w-[36px]');
 
-    // 2. Verify Ngày Nhập header and cell are sticky left-0 on mobile, md:left-[35px] on desktop
-    expect(content).toContain('sticky left-0 md:left-[35px]');
+    // 2. Verify Ngày Nhập header and cell are md:sticky md:left-[36px] on desktop (not sticky on mobile)
+    expect(content).toContain('md:sticky md:left-[36px]');
 
-    // 3. Verify Mã Vận Đơn is sticky left-[81px] on mobile, md:left-[116px] on desktop
-    expect(content).toContain('sticky left-[81px] md:left-[116px]');
+    // 3. Verify Mã Vận Đơn is md:sticky md:left-[118px] on desktop (not sticky on mobile)
+    expect(content).toContain('md:sticky md:left-[118px]');
 
-    // 4. Verify table border-separate border-spacing-0
-    expect(content).toContain('border-separate border-spacing-0');
+    // 4. Verify no font-mono on SỐ LƯỢNG, NGÀY NHẬP, NGÀY XUẤT in th headers
+    expect(content).not.toContain('w-[95px] text-right font-mono border-b');
+    expect(content).not.toContain('w-[110px] text-center font-mono border-b');
   });
 
-  test('CASE-02: Mobile Viewport — STT hidden, Ngày Nhập & Mã Vận Đơn fixed/sticky on scroll', async ({
+  test('CASE-02: Mobile Viewport — STT hidden, full smooth scroll with no mobile column sticky overlap', async ({
     browser
   }) => {
     const context = await browser.newContext({
@@ -68,31 +69,27 @@ test.describe
     const sttHeader = table.locator('th:has-text("STT")');
     await expect(sttHeader).toBeHidden();
 
-    // Assert Ngày Nhập header is VISIBLE on mobile and sticky
+    // Assert Ngày Nhập header is VISIBLE on mobile and NOT sticky on mobile
     const dateHeader = table.locator('th:has-text("NGÀY NHẬP")');
     await expect(dateHeader).toBeVisible();
     const dateHeaderStyle = await dateHeader.evaluate((el) => {
       const computed = window.getComputedStyle(el);
       return {
-        position: computed.position,
-        left: computed.left
+        position: computed.position
       };
     });
-    expect(dateHeaderStyle.position).toBe('sticky');
-    expect(dateHeaderStyle.left).toBe('0px');
+    expect(dateHeaderStyle.position).toBe('static');
 
-    // Assert Mã Vận Đơn header is VISIBLE on mobile and sticky
+    // Assert Mã Vận Đơn header is VISIBLE on mobile and NOT sticky on mobile
     const codeHeader = table.locator('th:has-text("MÃ VẬN ĐƠN")');
     await expect(codeHeader).toBeVisible();
     const codeHeaderStyle = await codeHeader.evaluate((el) => {
       const computed = window.getComputedStyle(el);
       return {
-        position: computed.position,
-        left: computed.left
+        position: computed.position
       };
     });
-    expect(codeHeaderStyle.position).toBe('sticky');
-    expect(codeHeaderStyle.left).toBe('81px');
+    expect(codeHeaderStyle.position).toBe('static');
 
     // Check row cells if data exists
     const rows = table.locator('tbody tr');
@@ -104,25 +101,23 @@ test.describe
       const sttCell = firstRowCells.first();
       await expect(sttCell).toBeHidden();
 
-      // Second cell (Ngày Nhập) is sticky at left: 0px
+      // Second cell (Ngày Nhập) is static on mobile
       const dateCell = firstRowCells.nth(1);
       await expect(dateCell).toBeVisible();
       const dateCellStyle = await dateCell.evaluate((el) => {
         const computed = window.getComputedStyle(el);
-        return { position: computed.position, left: computed.left };
+        return { position: computed.position };
       });
-      expect(dateCellStyle.position).toBe('sticky');
-      expect(dateCellStyle.left).toBe('0px');
+      expect(dateCellStyle.position).toBe('static');
 
-      // Third cell (Mã Vận Đơn) is sticky at left: 81px
+      // Third cell (Mã Vận Đơn) is static on mobile
       const codeCell = firstRowCells.nth(2);
       await expect(codeCell).toBeVisible();
       const codeCellStyle = await codeCell.evaluate((el) => {
         const computed = window.getComputedStyle(el);
-        return { position: computed.position, left: computed.left };
+        return { position: computed.position };
       });
-      expect(codeCellStyle.position).toBe('sticky');
-      expect(codeCellStyle.left).toBe('81px');
+      expect(codeCellStyle.position).toBe('static');
     }
 
     // Scroll horizontally right inside table container
@@ -131,12 +126,6 @@ test.describe
       el.scrollLeft = 300;
     });
     await page.waitForTimeout(500);
-
-    // Verify after horizontal scroll, Ngày Nhập and Mã Vận Đơn remain pinned in viewport
-    const dateHeaderAfterScroll = await dateHeader.boundingBox();
-    const codeHeaderAfterScroll = await codeHeader.boundingBox();
-    expect(dateHeaderAfterScroll).not.toBeNull();
-    expect(codeHeaderAfterScroll).not.toBeNull();
 
     // Capture visual evidence screenshot on mobile
     await page.screenshot({ path: SCREENSHOT_MOBILE_PATH, fullPage: false });
