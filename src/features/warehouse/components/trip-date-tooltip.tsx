@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface TripDateTooltipProps {
   dateText: string;
@@ -29,22 +29,28 @@ export function TripDateTooltip({
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger
+    <Popover>
+      <PopoverTrigger
         render={
-          <span
+          <button
+            type='button'
             data-testid='trip-date-tooltip-trigger'
             title={titleText}
-            className={`cursor-help underline decoration-dotted decoration-slate-300 dark:decoration-slate-600 underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${className || ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className={`cursor-pointer text-left inline-flex items-center underline decoration-dotted decoration-slate-300 dark:decoration-slate-600 underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors focus:outline-none ${className || ''}`}
           />
         }
       >
         {dateText}
-      </TooltipTrigger>
-      <TooltipContent
+      </PopoverTrigger>
+      <PopoverContent
         side='top'
         align='start'
-        className='p-2 bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-lg text-[10px] leading-tight select-none z-50'
+        sideOffset={4}
+        onClick={(e) => e.stopPropagation()}
+        className='p-2 w-auto max-w-xs bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl text-[10px] leading-tight select-none z-50 rounded-md'
       >
         {cleanCreator && cleanOperator && cleanCreator !== cleanOperator ? (
           <div className='flex flex-col gap-1'>
@@ -65,7 +71,7 @@ export function TripDateTooltip({
         ) : (
           <div className='text-slate-400 italic'>Chưa có thông tin người thao tác</div>
         )}
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 }

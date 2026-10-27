@@ -1780,14 +1780,16 @@ export function WarehouseTripDetailModal({
                     <span>
                       {isTallyMode
                         ? `Kiểm đếm dỡ hàng tại ${currentStopHubName ?? 'kho này'}`
-                        : 'Bảng kê chi tiết các dòng hàng trên chuyến xe'}
+                        : `${rows.length ?? 0} dòng hàng`}
                     </span>
                   </span>
 
                   <div className='flex items-center gap-2'>
-                    <span className='text-[11px] text-gray-500'>
-                      {(isTallyMode ? manifest?.lines.length : rows.length) ?? 0} dòng hàng
-                    </span>
+                    {isTallyMode && (
+                      <span className='text-[11px] text-gray-500'>
+                        {manifest?.lines.length ?? 0} dòng hàng
+                      </span>
+                    )}
                     {/* Nút duy nhất bốc thêm đơn dọc đường về Hub */}
                     {!effectiveReadOnly &&
                       !isMobile &&
@@ -1866,14 +1868,16 @@ export function WarehouseTripDetailModal({
                     <table className='w-full text-[10px] text-left'>
                       <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                         <tr>
-                          <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
+                          <th className='py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
                             STT
                           </th>
-                          <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                          <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap sticky left-[35px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                             MÃ VẬN ĐƠN
                           </th>
                           {mode === 'OUTBOUND' ? (
-                            <th className='py-1 px-1.5 min-w-[140px]'>BIỂN SỐ XE NHẬP DỰ KIẾN</th>
+                            <th className='py-1 px-1.5 min-w-[140px] hidden md:table-cell'>
+                              BIỂN SỐ XE NHẬP DỰ KIẾN
+                            </th>
                           ) : (
                             <th className='py-1 px-1.5 min-w-[130px]'>ĐIỂM BỐC HÀNG</th>
                           )}
@@ -1905,14 +1909,14 @@ export function WarehouseTripDetailModal({
                               key={r.id || i}
                               className='hover:bg-slate-50 dark:hover:bg-slate-800/50'
                             >
-                              <td className='py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
+                              <td className='py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
                                 {String(i + 1).padStart(2, '0')}
                               </td>
-                              <td className='py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                              <td className='py-1 px-1.5 min-w-[110px] whitespace-nowrap font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[35px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                                 {r.orderCode}
                               </td>
                               {mode === 'OUTBOUND' ? (
-                                <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200'>
+                                <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200 hidden md:table-cell'>
                                   {r.expectedInboundLicensePlate ? (
                                     <span className='inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 uppercase'>
                                       <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
@@ -2032,10 +2036,10 @@ export function WarehouseTripDetailModal({
                   <table className='w-full text-[10px] text-left'>
                     <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                       <tr>
-                        <th className='py-1 px-1.5 w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
+                        <th className='py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
                           STT
                         </th>
-                        <th className='py-1 px-1.5 w-[130px] sticky left-[36px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                        <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap sticky left-[35px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                           MÃ VẬN ĐƠN
                         </th>
                         <th className='py-1 px-1.5 w-[110px]'>NGUỒN HÀNG</th>
@@ -2074,12 +2078,12 @@ export function WarehouseTripDetailModal({
                               }
                             >
                               <td
-                                className={`py-1 px-1.5 text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}
+                                className={`py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}
                               >
                                 {String(i + 1).padStart(2, '0')}
                               </td>
                               <td
-                                className={`py-1 px-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[36px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}
+                                className={`py-1 px-1.5 min-w-[110px] whitespace-nowrap font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[35px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}
                               >
                                 {l.orderCode}
                               </td>
