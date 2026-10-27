@@ -1873,7 +1873,9 @@ export function WarehouseTripDetailModal({
                             MÃ VẬN ĐƠN
                           </th>
                           {mode === 'OUTBOUND' ? (
-                            <th className='py-1 px-1.5 min-w-[140px]'>BIỂN SỐ XE NHẬP DỰ KIẾN</th>
+                            <th className='py-1 px-1.5 min-w-[140px] hidden md:table-cell'>
+                              BIỂN SỐ XE NHẬP DỰ KIẾN
+                            </th>
                           ) : (
                             <th className='py-1 px-1.5 min-w-[130px]'>ĐIỂM BỐC HÀNG</th>
                           )}
@@ -1912,7 +1914,7 @@ export function WarehouseTripDetailModal({
                                 {r.orderCode}
                               </td>
                               {mode === 'OUTBOUND' ? (
-                                <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200'>
+                                <td className='py-1 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200 hidden md:table-cell'>
                                   {r.expectedInboundLicensePlate ? (
                                     <span className='inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 uppercase'>
                                       <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
