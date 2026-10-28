@@ -19,10 +19,12 @@ test.describe('Task #109: Inbound & Outbound Tablet Filter Responsive Layout (Ze
     const header = page.locator('h1', { hasText: 'Nhập kho' });
     await expect(header).toBeVisible();
 
-    // Assert table has real database rows (> 0)
-    const tripRows = page.locator('tbody tr');
-    await expect(tripRows.first()).toBeVisible({ timeout: 15000 });
-    const count = await tripRows.count();
+    // Wait for real data rows (not loading/empty state row)
+    const dataRows = page.locator('tbody tr').filter({
+      hasNotText: /Đang tải|Không tìm thấy|Chưa có/i
+    });
+    await expect(dataRows.first()).toBeVisible({ timeout: 20000 });
+    const count = await dataRows.count();
     expect(count).toBeGreaterThan(0);
 
     // 4. Verify Search Box is visible and NOT crushed to 0px
