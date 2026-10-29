@@ -94,8 +94,12 @@ test.describe.serial('Feedback 29/10 — Khóa Xác Nhận Xuất Kho & Kiểm T
       await page.waitForTimeout(1500);
     }
 
-    // 3. Tìm nút "Tiếp tục" trong cột thao tác của dòng đầu tiên
-    const continueBtn = page.locator('button:has-text("Tiếp tục")').first();
+    // 3. Tìm chuyến xe gom khách Chờ xử lý có nút "Tiếp tục" (ưu tiên chuyến có nhiều đơn như SD685)
+    const tripRows = page.locator('table tbody tr', { has: page.locator('button:has-text("Tiếp tục")') });
+    await expect(tripRows.first()).toBeVisible({ timeout: 15000 });
+    const multiOrderTrip = tripRows.filter({ hasText: 'đơn' }).first();
+    const targetTrip = (await multiOrderTrip.isVisible().catch(() => false)) ? multiOrderTrip : tripRows.first();
+    const continueBtn = targetTrip.locator('button:has-text("Tiếp tục")').first();
     await expect(continueBtn).toBeVisible({ timeout: 15000 });
 
     // Click nút Tiếp tục để mở modal chi tiết chuyến xe
