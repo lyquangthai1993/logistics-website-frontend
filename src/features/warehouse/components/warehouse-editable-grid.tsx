@@ -2379,7 +2379,7 @@ export function WarehouseEditableGrid({
                   className={cn(
                     'align-top group',
                     isRowInbound
-                      ? 'opacity-50 bg-slate-50/80 dark:bg-slate-800/40 transition-opacity'
+                      ? 'bg-slate-50/60 dark:bg-slate-800/30 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors'
                       : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                   )}
                 >
