@@ -610,7 +610,8 @@ export function WarehouseTripDetailModal({
             destinationHubId: l.destinationHubId,
             destinationHub: outHubEntity,
             status: l.status,
-            hubStatus: l.hubStatus
+            hubStatus: l.hubStatus,
+            isReceivedInTrip: Boolean(l.isReceivedHere || (Number(l.receivedQuantity) > 0))
           };
         });
         setRows(mappedFromManifest);
@@ -853,6 +854,7 @@ export function WarehouseTripDetailModal({
               (o.destinationHub ? { id: outHubId, name: o.destinationHub, code: '' } : null),
             status: o.status,
             hubStatus: o.hubStatus,
+            isReceivedInTrip: Boolean(o.isReceivedHere || (Number(o.receivedQuantity) > 0)),
             expectedInboundLicensePlate: expPlate
           };
         });
@@ -1132,7 +1134,7 @@ export function WarehouseTripDetailModal({
       }
 
       // Cập nhật trạng thái dòng đơn sang INBOUND trong state bảng
-      setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND' } : r)));
+      setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND', isReceivedInTrip: true } : r)));
 
       toast.success(
         `Đã nhập kho đơn hàng ${row.orderCode.trim().toUpperCase()} thành công! Sẵn sàng xuất kho.`

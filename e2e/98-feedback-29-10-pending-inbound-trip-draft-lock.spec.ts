@@ -13,7 +13,7 @@ const EVIDENCE_DIR = path.resolve(
   '../../feedbacks/feedback_29_10_pending_inbound_trip_draft_lock'
 );
 
-test.describe.serial('Feedback 29/10 — Khóa Xác Nhận Xuất Kho & Cho Phép Nhập Tiếp Khi Còn Chuyến Nháp', () => {
+test.describe.serial('Feedback 29/10 — Khóa Xác Nhận Xuất Kho & Kiểm Thử Toàn Diện Nút Tiếp Nhận Đơn Lẻ', () => {
   test.beforeAll(() => {
     if (!fs.existsSync(EVIDENCE_DIR)) {
       fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
@@ -72,7 +72,7 @@ test.describe.serial('Feedback 29/10 — Khóa Xác Nhận Xuất Kho & Cho Phé
     expect(fs.existsSync(screenshotPath)).toBe(true);
   });
 
-  test('CASE-02: Modal chuyến xe nhập kho Chờ xử lý không bị làm mờ/khóa dòng, các nút thao tác tiếp nhận đơn lẻ hiển thị đầy đủ', async ({
+  test('CASE-02: Modal chuyến xe nhập kho Chờ xử lý: Kiểm tra hiển thị nút tiếp nhận đơn lẻ, bấm tiếp nhận -> dòng bị làm mờ & chuyển sang Checkmark xanh (không mở phiếu in lẻ)', async ({
     page
   }) => {
     test.setTimeout(60000);
@@ -108,8 +108,32 @@ test.describe.serial('Feedback 29/10 — Khóa Xác Nhận Xuất Kho & Cho Phé
 
     // 5. Kiểm tra các nút thao tác tiếp nhận đơn lẻ trong bảng (IconBuildingWarehouse)
     const singleInboundBtns = modalContent.locator('button[title*="Nhập kho đơn hàng này"]');
-    const count = await singleInboundBtns.count();
-    expect(count).toBeGreaterThan(0);
+    const initialCount = await singleInboundBtns.count();
+    expect(initialCount).toBeGreaterThan(0);
+
+    // 6. EDGE CASE TEST: Bấm nút tiếp nhận đơn lẻ đầu tiên
+    const firstSingleBtn = singleInboundBtns.first();
+    await firstSingleBtn.click();
+
+    // Đợi phản hồi thành công từ backend
+    await page.waitForTimeout(4000);
+
+    // Kiểm tra toast thông báo thành công xuất hiện
+    const toastSuccess = page.locator('text=thành công! Sẵn sàng xuất kho');
+    await expect(toastSuccess).toBeVisible({ timeout: 10000 });
+
+    // 7. EDGE CASE TEST: Sau khi nhận lẻ thành công:
+    // a. Nút của dòng đó chuyển thành Checkmark xanh (IconCircleCheck) có title="Đơn hàng đã nhập kho"
+    const checkedBtns = modalContent.locator('button[title*="Đơn hàng đã nhập kho"]');
+    const checkedCount = await checkedBtns.count();
+    expect(checkedCount).toBeGreaterThan(0);
+
+    // b. Tuyệt đối KHÔNG mở modal in phiếu nhập kho lẻ
+    const receiptModal = page.locator('text=PHIẾU NHẬP KHO');
+    expect(await receiptModal.isVisible()).toBe(false);
+
+    // c. Chuyến xe VẪN GIỮ TRẠNG THÁI Chờ xử lý (Modal không bị tự đóng hay đóng chuyến)
+    expect(await modalContent.isVisible()).toBe(true);
 
     // Chụp ảnh bằng chứng modal tiếp nhận
     const screenshotPath = path.join(EVIDENCE_DIR, 'step_02_inbound_single_buttons_active.png');

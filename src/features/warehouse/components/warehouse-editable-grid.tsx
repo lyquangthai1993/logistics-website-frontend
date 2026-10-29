@@ -86,6 +86,7 @@ export interface WarehouseRowItem {
   hasPendingInboundTrip?: boolean;
   pendingInboundTripCodes?: string[];
   pendingInboundQuantity?: number;
+  isReceivedInTrip?: boolean;
 }
 
 declare module '@tanstack/react-table' {
@@ -493,17 +494,23 @@ export function mapPastedColsToRow(cols: string[], defaultPickup = ''): Warehous
 // ── Stable Cell Components (Defined Outside to Prevent Unmounting & Focus Loss) ──
 
 function isRowInboundLocked(
-  rowStatus?: string,
+  row: WarehouseRowItem,
   isInboundTripMode?: boolean,
   isAdmin?: boolean,
   allowInboundEdit?: boolean
 ): boolean {
   if (isAdmin) return false;
   if (allowInboundEdit) return false;
-  // Khi chuyến xe đang ở chế độ Chờ xử lý (isInboundTripMode = true),
-  // không khóa các dòng đơn kể cả khi đơn đó đã từng nhập một phần trước đó
-  if (isInboundTripMode) return false;
-  return rowStatus === 'INBOUND' || rowStatus === 'IN_WAREHOUSE' || rowStatus === 'COMPLETED_INBOUND';
+  if (isInboundTripMode) {
+    // Trong chuyến xe nhập kho (INBOUND Trip):
+    // Dòng chỉ bị khóa (và coi là đã nhập kho) nếu CHÍNH DÒNG NÀY trên chuyến xe đã được tiếp nhận
+    return Boolean(row?.isReceivedInTrip);
+  }
+  return (
+    row?.status === 'INBOUND' ||
+    row?.status === 'IN_WAREHOUSE' ||
+    row?.status === 'COMPLETED_INBOUND'
+  );
 }
 
 function isExistingInboundWaybillLocked(
@@ -964,7 +971,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
   };
 
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1019,7 +1026,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
 function PickupAddressCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1055,7 +1062,7 @@ function GoodsDescriptionCell({
   table
 }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1129,7 +1136,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
 
   const isRowInbound = isRowInboundLocked(
-    r.status,
+    r,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1168,7 +1175,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 
 function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1212,7 +1219,7 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
 
 function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1307,7 +1314,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(r.status, meta?.isInboundTripMode, meta?.isAdmin);
+  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin);
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
@@ -1399,7 +1406,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
 
 function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1445,7 +1452,7 @@ function AccompanyingDocsCell({
   table
 }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1486,7 +1493,7 @@ function AccompanyingDocsCell({
 
 function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1522,7 +1529,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
-  const isOrderInbound = isRowInboundLocked(r.status, isInboundTripMode, meta?.isAdmin);
+  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin);
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   const resolvedHubForPrint =
@@ -2379,7 +2386,7 @@ export function WarehouseEditableGrid({
           <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
             {table.getRowModel().rows.map((row) => {
               const isRowInbound = isRowInboundLocked(
-                row.original.status,
+                row.original,
                 table.options.meta?.isInboundTripMode,
                 table.options.meta?.isAdmin
               );
