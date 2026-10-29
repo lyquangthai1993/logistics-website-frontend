@@ -807,7 +807,7 @@ export function WarehouseOutboundTransferFlow({
             <CardContent className='p-1 space-y-2'>
               <div className='flex flex-wrap items-center justify-between gap-2'>
                 {/* Search Bar */}
-                <div className='relative flex-1 min-w-[260px]'>
+                <div className='relative flex-1 min-w-65'>
                   <IconSearch className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
                   <Input
                     value={search}
@@ -894,13 +894,13 @@ export function WarehouseOutboundTransferFlow({
                           className='rounded text-blue-600 h-4 w-4 border-slate-300'
                         />
                       </th>
-                      <th className='p-3 w-[200px]'>MÃ ĐƠN HÀNG</th>
-                      <th className='p-3 w-[220px]'>TÊN HÀNG</th>
-                      <th className='p-3 text-right w-[90px]'>SỐ KIỆN</th>
-                      <th className='p-3 text-right w-[100px]'>SỐ KG</th>
-                      <th className='p-3 text-right w-[90px]'>SỐ M³</th>
-                      <th className='p-3 text-center w-[120px]'>NGÀY NHẬP KHO</th>
-                      <th className='p-3 text-center w-[100px]'>HÀNH ĐỘNG</th>
+                      <th className='p-3 w-50'>MÃ ĐƠN HÀNG</th>
+                      <th className='p-3 w-55'>TÊN HÀNG</th>
+                      <th className='p-3 text-right w-22.5'>SỐ KIỆN</th>
+                      <th className='p-3 text-right w-25'>SỐ KG</th>
+                      <th className='p-3 text-right w-22.5'>SỐ M³</th>
+                      <th className='p-3 text-center w-30'>NGÀY NHẬP KHO</th>
+                      <th className='p-3 text-center w-25'>HÀNH ĐỘNG</th>
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
@@ -1164,13 +1164,13 @@ export function WarehouseOutboundTransferFlow({
               <thead className='bg-[#F1F5F9] dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                 <tr>
                   <th className='p-3 w-10 text-center sticky left-0 z-20 bg-[#F1F5F9] dark:bg-slate-800'>STT</th>
-                  <th className='p-3 w-[200px] sticky left-10 z-20 bg-[#F1F5F9] dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ ĐƠN HÀNG</th>
-                  <th className='p-3 w-[220px]'>TÊN HÀNG</th>
-                  <th className='p-3 text-right w-[90px]'>SỐ KIỆN</th>
-                  <th className='p-3 text-right w-[110px]'>SỐ KG</th>
-                  <th className='p-3 text-right w-[100px]'>SỐ M³</th>
-                  <th className='p-3 w-[240px]'>HUB NHẬN / ĐỊA CHỈ GIAO</th>
-                  <th className='p-3 text-center w-[80px]'>IN TEM</th>
+                  <th className='p-3 w-50 sticky left-10 z-20 bg-[#F1F5F9] dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>MÃ ĐƠN HÀNG</th>
+                  <th className='p-3 w-55'>TÊN HÀNG</th>
+                  <th className='p-3 text-right w-22.5'>SỐ KIỆN</th>
+                  <th className='p-3 text-right w-27.5'>SỐ KG</th>
+                  <th className='p-3 text-right w-25'>SỐ M³</th>
+                  <th className='p-3 w-60'>HUB NHẬN / ĐỊA CHỈ GIAO</th>
+                  <th className='p-3 text-center w-20'>IN TEM</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>

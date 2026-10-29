@@ -10,13 +10,13 @@ function StatCardSkeleton() {
   return (
     <Card className='@container/card'>
       <CardHeader>
-        <Skeleton className='h-4 w-[120px]' />
-        <Skeleton className='h-8 w-[100px]' />
-        <Skeleton className='ml-auto h-6 w-[70px] rounded-full' />
+        <Skeleton className='h-4 w-30' />
+        <Skeleton className='h-8 w-25' />
+        <Skeleton className='ml-auto h-6 w-17.5 rounded-full' />
       </CardHeader>
       <CardFooter className='flex-col items-start gap-1.5'>
-        <Skeleton className='h-4 w-[160px]' />
-        <Skeleton className='h-4 w-[130px]' />
+        <Skeleton className='h-4 w-40' />
+        <Skeleton className='h-4 w-32.5' />
       </CardFooter>
     </Card>
   );
@@ -28,7 +28,7 @@ export default function OverviewLoading() {
       <div className='flex flex-1 flex-col gap-4'>
         {/* Header */}
         <div className='flex items-center justify-between'>
-          <Skeleton className='h-8 w-[220px]' />
+          <Skeleton className='h-8 w-55' />
         </div>
 
         {/* Stat Cards — 4 columns */}

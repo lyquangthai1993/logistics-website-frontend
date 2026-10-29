@@ -489,15 +489,15 @@ export function WarehouseExcelImportModal({
                   <thead className="bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10">
                     <tr>
                       <th className="p-2.5 w-[45px] text-center">STT</th>
-                      <th className="p-2.5 w-[140px]">MÃ VẬN ĐƠN</th>
-                      <th className="p-2.5 min-w-[180px]">TÊN HÀNG</th>
+                      <th className="p-2.5 w-35">MÃ VẬN ĐƠN</th>
+                      <th className="p-2.5 min-w-45">TÊN HÀNG</th>
                       <th className="p-2.5 text-center w-[85px]">SỐ KIỆN</th>
                       <th className="p-2.5 text-right w-[95px]">SỐ KG</th>
                       <th className="p-2.5 text-right w-[85px]">SỐ M³</th>
-                      <th className="p-2.5 min-w-[200px]">ĐỊA CHỈ GIAO</th>
-                      <th className="p-2.5 min-w-[120px]">TỈNH/TP</th>
-                      <th className="p-2.5 min-w-[110px] text-center">CHỨNG TỪ</th>
-                      <th className="p-2.5 text-center w-[90px]">TRẠNG THÁI</th>
+                      <th className="p-2.5 min-w-50">ĐỊA CHỈ GIAO</th>
+                      <th className="p-2.5 min-w-30">TỈNH/TP</th>
+                      <th className="p-2.5 min-w-27.5 text-center">CHỨNG TỪ</th>
+                      <th className="p-2.5 text-center w-22.5">TRẠNG THÁI</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -534,12 +534,12 @@ export function WarehouseExcelImportModal({
                           {r.totalVolume}
                         </td>
                         <td className="p-2.5 text-slate-700 dark:text-slate-300">
-                          <span className="truncate block max-w-[220px]" title={r.deliveryAddress}>
+                          <span className="truncate block max-w-55" title={r.deliveryAddress}>
                             {r.deliveryAddress || <span className="text-red-500 italic">Chưa nhập</span>}
                           </span>
                         </td>
                         <td className="p-2.5 text-slate-700 dark:text-slate-300">
-                          <span className="truncate block max-w-[130px]" title={r.province}>
+                          <span className="truncate block max-w-32.5" title={r.province}>
                             {r.province || <span className="text-gray-400">—</span>}
                           </span>
                         </td>

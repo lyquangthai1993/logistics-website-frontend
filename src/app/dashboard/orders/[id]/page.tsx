@@ -825,7 +825,7 @@ export default function OrderDetailPage() {
 
       {/* Modal: External Vehicle Configuration */}
       <Dialog open={isExternalModalOpen} onOpenChange={setIsExternalModalOpen}>
-        <DialogContent className='sm:max-w-[550px]'>
+        <DialogContent className='sm:max-w-137.5'>
           <DialogHeader>
             <DialogTitle className='text-lg font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400'>
               <IconTruck className='h-5 w-5' />
@@ -930,7 +930,7 @@ export default function OrderDetailPage() {
 
       {/* Modal: Edit Order Information */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className='sm:max-w-[500px]'>
+        <DialogContent className='sm:max-w-125'>
           <DialogHeader>
             <DialogTitle className='text-lg font-bold flex items-center gap-2'>
               <IconEdit className='h-5 w-5 text-blue-500' />

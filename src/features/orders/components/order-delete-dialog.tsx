@@ -36,7 +36,7 @@ export function OrderDeleteDialog({ order, open, onOpenChange }: OrderDeleteDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[460px]'>
+      <DialogContent className='sm:max-w-115'>
         <DialogHeader>
           <DialogTitle className='text-destructive flex items-center gap-2'>
             <IconAlertTriangle className='h-5 w-5' />

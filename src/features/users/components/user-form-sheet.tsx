@@ -184,7 +184,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className='flex flex-col sm:max-w-[480px] p-2'>
+      <SheetContent className='flex flex-col sm:max-w-120 p-2'>
         <SheetHeader className='px-1 pt-1'>
           <SheetTitle className='flex items-center gap-2 text-base font-bold text-[#0F3D62] dark:text-blue-400'>
             <Icons.user className='h-4 w-4' />
@@ -211,7 +211,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                   id='input-user-first-name'
                   required
                   autoComplete='off'
-                  className='h-8.5 text-xs'
+                  className='h-8 text-xs'
                   placeholder='VD: Nguyễn Văn'
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -228,7 +228,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                   id='input-user-last-name'
                   required
                   autoComplete='off'
-                  className='h-8.5 text-xs'
+                  className='h-8 text-xs'
                   placeholder='VD: An'
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -248,7 +248,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                 type='email'
                 required
                 autoComplete='off'
-                className='h-8.5 text-xs'
+                className='h-8 text-xs'
                 placeholder='VD: user@logistics.vn'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -284,7 +284,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
               <Input
                 id='input-user-username'
                 autoComplete='off'
-                className='h-8.5 text-xs'
+                className='h-8 text-xs'
                 placeholder='VD: quanlikho1'
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -303,7 +303,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                 type='password'
                 required={!isEdit}
                 autoComplete='new-password'
-                className='h-8.5 text-xs'
+                className='h-8 text-xs'
                 placeholder={isEdit ? 'Để trống nếu không muốn đổi mật khẩu' : 'Tối thiểu 6 ký tự'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -327,7 +327,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                   id='select-user-role'
                   value={roleId}
                   onChange={(e) => setRoleId(e.target.value)}
-                  className='w-full h-8.5 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer'
+                  className='w-full h-8 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer'
                 >
                   {ROLE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -348,7 +348,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                   id='select-user-status'
                   value={statusId}
                   onChange={(e) => setStatusId(e.target.value)}
-                  className='w-full h-8.5 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer'
+                  className='w-full h-8 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer'
                 >
                   {STATUS_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -374,7 +374,7 @@ export function UserFormSheet({ user, open, onOpenChange }: UserFormSheetProps) 
                   value={hubId}
                   onChange={(e) => setHubId(e.target.value)}
                   disabled={hubsLoading}
-                  className='w-full h-8.5 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer disabled:opacity-50'
+                  className='w-full h-8 px-2.5 text-xs bg-background border border-input rounded-md cursor-pointer disabled:opacity-50'
                 >
                   <option value=''>
                     {hubsLoading ? 'Đang tải danh sách kho...' : '— Chưa gán kho —'}

@@ -291,18 +291,18 @@ export function WarehouseLookupModal({
           <table className='w-full border-collapse text-left text-[10px]'>
             <thead className='sticky top-0 z-10 border-b border-slate-200 bg-slate-100 font-bold text-slate-700 uppercase dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'>
               <tr>
-                <th className='w-[150px] px-1.5 py-1'>Mã đơn hàng</th>
-                <th className='min-w-[220px] px-1.5 py-1'>Tên hàng hóa</th>
+                <th className='w-37.5 px-1.5 py-1'>Mã đơn hàng</th>
+                <th className='min-w-55 px-1.5 py-1'>Tên hàng hóa</th>
                 <th
-                  className='w-[100px] px-1.5 py-1 text-right'
+                  className='w-25 px-1.5 py-1 text-right'
                   title='Số kiện đang nằm tại kho này, có thể xuất'
                 >
                   Tồn khả dụng
                 </th>
-                <th className='w-[90px] px-1.5 py-1 text-right'>Số kg</th>
-                <th className='w-[80px] px-1.5 py-1 text-right'>CBM</th>
-                <th className='w-[100px] px-1.5 py-1 text-center'>Trạng thái</th>
-                <th className='w-[140px] px-1.5 py-1 text-center'>Thao tác</th>
+                <th className='w-22.5 px-1.5 py-1 text-right'>Số kg</th>
+                <th className='w-20 px-1.5 py-1 text-right'>CBM</th>
+                <th className='w-25 px-1.5 py-1 text-center'>Trạng thái</th>
+                <th className='w-35 px-1.5 py-1 text-center'>Thao tác</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900'>
@@ -376,7 +376,7 @@ export function WarehouseLookupModal({
                       <td className='px-1.5 py-1 text-slate-800 dark:text-slate-200'>
                         <div className='font-semibold'>{row.goodsDescription || '—'}</div>
                         {row.route && (
-                          <div className='max-w-[260px] truncate text-[9px] text-slate-400'>
+                          <div className='max-w-65 truncate text-[9px] text-slate-400'>
                             {row.route}
                           </div>
                         )}

@@ -122,7 +122,7 @@ export function VehicleFormDialog({ vehicle, open, onOpenChange }: VehicleFormDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[520px]' id='vehicle-form-dialog'>
+      <DialogContent className='sm:max-w-130' id='vehicle-form-dialog'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2 text-lg font-bold'>
             <IconTruck className='h-5 w-5 text-primary' />

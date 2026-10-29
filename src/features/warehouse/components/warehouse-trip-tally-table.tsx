@@ -119,7 +119,7 @@ export function WarehouseTripTallyTable({
         <table className='w-full text-[10px] text-left'>
           <thead className='sticky top-0 z-20 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
             <tr>
-              <th className='hidden sm:table-cell py-1 px-1.5 w-[28px] text-center sticky left-0 z-30 bg-slate-100 dark:bg-slate-800'>
+              <th className='hidden sm:table-cell py-1 px-1.5 w-7 text-center sticky left-0 z-30 bg-slate-100 dark:bg-slate-800'>
                 {!isEffectiveReadOnly && (
                   <Checkbox
                     checked={allChecked}
@@ -128,21 +128,21 @@ export function WarehouseTripTallyTable({
                   />
                 )}
               </th>
-              <th className='py-1 px-1 w-[32px] min-w-[32px] max-w-[32px] text-center sticky left-0 sm:left-[28px] z-30 bg-slate-100 dark:bg-slate-800'>
+              <th className='py-1 px-1 w-8 min-w-8 max-w-8 text-center sticky left-0 sm:left-[28px] z-30 bg-slate-100 dark:bg-slate-800'>
                 STT
               </th>
-              <th className='py-1 px-1.5 min-w-[120px] whitespace-nowrap sticky left-[31px] sm:left-[59px] z-30 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+              <th className='py-1 px-1.5 min-w-30 whitespace-nowrap sticky left-[31px] sm:left-[59px] z-30 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                 MÃ VẬN ĐƠN
               </th>
-              <th className='py-1 px-1.5 min-w-[130px]'>KHO NHẬN / NƠI GIAO</th>
-              <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
-              <th className='py-1 px-1.5 text-right w-[60px]'>KIỆN HĐ</th>
-              <th className='py-1 px-1.5 text-right w-[60px]'>KG HĐ</th>
-              <th className='py-1 px-1.5 text-right w-[60px]'>M³ HĐ</th>
-              <th className='py-1 px-1.5 text-right w-[64px]'>DỰ KIẾN DỠ</th>
-              <th className='py-1 px-1.5 text-right w-[80px]'>THỰC NHẬN</th>
-              <th className='py-1 px-1.5 text-right w-[56px]'>CHÊNH</th>
-              <th className='py-1 px-1.5 min-w-[160px]'>LÝ DO CHÊNH LỆCH</th>
+              <th className='py-1 px-1.5 min-w-32.5'>KHO NHẬN / NƠI GIAO</th>
+              <th className='py-1 px-1.5 min-w-35'>TÊN HÀNG HÓA</th>
+              <th className='py-1 px-1.5 text-right w-15'>KIỆN HĐ</th>
+              <th className='py-1 px-1.5 text-right w-15'>KG HĐ</th>
+              <th className='py-1 px-1.5 text-right w-15'>M³ HĐ</th>
+              <th className='py-1 px-1.5 text-right w-16'>DỰ KIẾN DỠ</th>
+              <th className='py-1 px-1.5 text-right w-20'>THỰC NHẬN</th>
+              <th className='py-1 px-1.5 text-right w-14'>CHÊNH</th>
+              <th className='py-1 px-1.5 min-w-40'>LÝ DO CHÊNH LỆCH</th>
               {onPrintLabel && <th className='py-1 px-1.5 w-[75px] text-center'>THAO TÁC</th>}
             </tr>
           </thead>
@@ -187,10 +187,10 @@ export function WarehouseTripTallyTable({
                         />
                       )}
                     </td>
-                    <td className='py-1 px-1 w-[32px] min-w-[32px] max-w-[32px] text-center font-bold text-slate-500 sticky left-0 sm:left-[28px] z-10 bg-white dark:bg-slate-900'>
+                    <td className='py-1 px-1 w-8 min-w-8 max-w-8 text-center font-bold text-slate-500 sticky left-0 sm:left-[28px] z-10 bg-white dark:bg-slate-900'>
                       {String(i + 1).padStart(2, '0')}
                     </td>
-                    <td className='py-1 px-1.5 min-w-[120px] whitespace-nowrap sticky left-[31px] sm:left-[59px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                    <td className='py-1 px-1.5 min-w-30 whitespace-nowrap sticky left-[31px] sm:left-[59px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                       <div className='text-[11px] font-mono font-bold text-blue-700 dark:text-blue-300'>
                         {l.orderCode}
                       </div>
@@ -227,7 +227,7 @@ export function WarehouseTripTallyTable({
                             )}
                           </div>
                           <div
-                            className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]'
+                            className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-45'
                             title={l.deliveryAddress || l.destinationHub || ''}
                           >
                             {l.deliveryAddress || l.destinationHub || 'Giao tận nơi'}
@@ -255,7 +255,7 @@ export function WarehouseTripTallyTable({
                               </Badge>
                             )}
                           </div>
-                          <div className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]'>
+                          <div className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-45'>
                             {l.destinationHubEntity?.name ?? l.destinationHub ?? '—'}
                           </div>
                         </div>
@@ -281,7 +281,7 @@ export function WarehouseTripTallyTable({
                               </Badge>
                             )}
                           </div>
-                          <div className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]'>
+                          <div className='text-[10px] text-slate-700 dark:text-slate-300 truncate max-w-45'>
                             {l.destinationHubEntity?.name ?? l.destinationHub ?? '—'}
                           </div>
                         </div>
@@ -324,7 +324,7 @@ export function WarehouseTripTallyTable({
                               actualQuantity: e.target.value === '' ? '' : Number(e.target.value)
                             })
                           }
-                          className='h-7 w-[68px] ml-auto text-right text-[10px] font-bold px-1'
+                          className='h-7 w-17 ml-auto text-right text-[10px] font-bold px-1'
                           aria-label={`Số kiện thực nhận đơn ${l.orderCode}`}
                         />
                       )}

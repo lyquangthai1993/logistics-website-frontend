@@ -195,7 +195,7 @@ export function OrderEditDialog({ order, open, onOpenChange }: OrderEditDialogPr
                 rows={6}
                 value={goodsDescription}
                 onChange={(e) => setGoodsDescription(e.target.value)}
-                className='min-h-[140px] resize-y text-sm bg-white dark:bg-slate-950'
+                className='min-h-35 resize-y text-sm bg-white dark:bg-slate-950'
               />
             </div>
 
@@ -212,7 +212,7 @@ export function OrderEditDialog({ order, open, onOpenChange }: OrderEditDialogPr
                 rows={6}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className='min-h-[140px] resize-y text-sm bg-white dark:bg-slate-950'
+                className='min-h-35 resize-y text-sm bg-white dark:bg-slate-950'
               />
             </div>
           </div>

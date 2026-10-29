@@ -369,7 +369,7 @@ export default function WarehouseExcelConverterPage() {
                   <select
                     value={selectedSheet}
                     onChange={(e) => handleSheetChange(e.target.value)}
-                    className='h-8 text-xs font-semibold bg-slate-50 dark:bg-slate-800 border rounded-md px-2 min-w-[120px] focus:outline-none focus:ring-1 focus:ring-blue-600'
+                    className='h-8 text-xs font-semibold bg-slate-50 dark:bg-slate-800 border rounded-md px-2 min-w-30 focus:outline-none focus:ring-1 focus:ring-blue-600'
                   >
                     {sheetNames.map((s) => (
                       <option key={s} value={s}>
@@ -477,7 +477,7 @@ export default function WarehouseExcelConverterPage() {
                   <th className='py-1 px-1.5 w-16 text-right'>Số kiện (*)</th>
                   <th className='py-1 px-1.5 w-16 text-right'>Số KG (*)</th>
                   <th className='py-1 px-1.5 w-16 text-right'>Số m³ (*)</th>
-                  <th className='py-1 px-1.5 min-w-[200px]'>Địa chỉ giao (*)</th>
+                  <th className='py-1 px-1.5 min-w-50'>Địa chỉ giao (*)</th>
                   <th className='py-1 px-1.5 w-24'>Tỉnh / TP</th>
                   <th className='py-1 px-1.5 w-24'>Chứng từ</th>
                   <th className='py-1 px-1.5 w-28'>Ghi chú</th>

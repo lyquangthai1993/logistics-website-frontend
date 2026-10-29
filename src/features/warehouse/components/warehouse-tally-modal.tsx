@@ -200,9 +200,9 @@ export function WarehouseTallyModal({
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800 whitespace-nowrap">
                     <tr>
                       <th className="p-2.5 w-[45px] text-center">STT</th>
-                      <th className="p-2.5 min-w-[160px]">MÃ ĐƠN HÀNG *</th>
-                      <th className="p-2.5 min-w-[180px]">TÊN HÀNG *</th>
-                      <th className="p-2.5 text-center min-w-[90px]">SỐ KIỆN *</th>
+                      <th className="p-2.5 min-w-40">MÃ ĐƠN HÀNG *</th>
+                      <th className="p-2.5 min-w-45">TÊN HÀNG *</th>
+                      <th className="p-2.5 text-center min-w-22.5">SỐ KIỆN *</th>
                       <th className="p-2.5 text-right min-w-[95px]">SỐ KG *</th>
                       <th className="p-2.5 text-right min-w-[85px]">SỐ M³ *</th>
                       <th className="p-2.5 text-center min-w-[75px]">TEM</th>
@@ -214,7 +214,7 @@ export function WarehouseTallyModal({
                       <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
                         {waybill.orderCode}
                       </td>
-                      <td className="p-2.5 font-semibold text-slate-900 dark:text-white max-w-[220px] truncate" title={waybill.goodsDescription || 'Hàng hóa tiếp nhận'}>
+                      <td className="p-2.5 font-semibold text-slate-900 dark:text-white max-w-55 truncate" title={waybill.goodsDescription || 'Hàng hóa tiếp nhận'}>
                         {waybill.goodsDescription || 'Hàng hóa tiếp nhận'}
                       </td>
                       <td className="p-2.5 text-center">
@@ -335,7 +335,7 @@ export function WarehouseTallyModal({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-0.5">
+                <div className="grid grid-cols-2 gap-2 max-h-55 overflow-y-auto pr-0.5">
                   {photos.map((url, idx) => (
                     <div
                       key={idx}

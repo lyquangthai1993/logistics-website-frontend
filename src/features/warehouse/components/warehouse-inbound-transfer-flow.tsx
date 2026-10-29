@@ -633,7 +633,7 @@ export function WarehouseInboundTransferFlow({
 
             <div className='p-2 space-y-1.5 overflow-y-auto flex-1'>
               <div className='flex flex-wrap items-center justify-between gap-2'>
-                <div className='relative min-w-[280px] max-w-md flex-1'>
+                <div className='relative min-w-70 max-w-md flex-1'>
                   <IconSearch className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400' />
                   <Input
                     value={tripSearch}
@@ -717,7 +717,7 @@ export function WarehouseInboundTransferFlow({
                           </div>
 
                           <div className='flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80'>
-                            <div className='flex items-center gap-1.5 flex-1 min-w-[200px]'>
+                            <div className='flex items-center gap-1.5 flex-1 min-w-50'>
                               <IconUser className='h-3.5 w-3.5 text-slate-400 flex-shrink-0' />
                               <div className='flex flex-col'>
                                 <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wider'>

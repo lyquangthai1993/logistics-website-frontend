@@ -1224,7 +1224,7 @@ export default function WarehouseOutboundPage() {
                   {/* Search Box & Date Range Filter */}
                   <div className='flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1.5 flex-1 min-w-0'>
                     {/* Search Box */}
-                    <div className='relative flex-1 min-w-[200px] sm:min-w-[220px]'>
+                    <div className='relative flex-1 min-w-50 sm:min-w-55'>
                       <button
                         type='button'
                         onClick={handleSearchSubmit}
@@ -1238,7 +1238,7 @@ export default function WarehouseOutboundPage() {
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
                         placeholder='Tìm mã đơn, xe, tài xế, tên hàng...'
-                        className='pl-9 pr-8 h-8.5 text-xs w-full'
+                        className='pl-9 pr-8 h-8 text-xs w-full'
                       />
                       {search && (
                         <button
@@ -1265,7 +1265,7 @@ export default function WarehouseOutboundPage() {
                           value={fromDate}
                           max={toDate}
                           onChange={(e) => setFromDate(e.target.value)}
-                          className='flex-1 sm:flex-initial min-w-[100px] px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                          className='flex-1 sm:flex-initial min-w-25 px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                         />
                         <span className='text-slate-400 font-medium px-0.5 shrink-0'>đến:</span>
                         <input
@@ -1274,7 +1274,7 @@ export default function WarehouseOutboundPage() {
                           value={toDate}
                           min={fromDate}
                           onChange={(e) => setToDate(e.target.value)}
-                          className='flex-1 sm:flex-initial min-w-[100px] px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                          className='flex-1 sm:flex-initial min-w-25 px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                         />
                       </div>
                       <div className='flex items-center gap-1 shrink-0 justify-end sm:justify-start w-full sm:w-auto'>
@@ -1350,11 +1350,11 @@ export default function WarehouseOutboundPage() {
                         <th className='py-1.5 px-2 w-[115px] whitespace-nowrap'>
                           CHUYẾN XE / TRIP
                         </th>
-                        <th className='py-1.5 px-2 w-[160px]'>XE & TÀI XẾ</th>
-                        <th className='py-1.5 px-2 min-w-[240px]'>MÃ VẬN ĐƠN</th>
-                        <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
-                        <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
-                        <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
+                        <th className='py-1.5 px-2 w-40'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 min-w-60'>MÃ VẬN ĐƠN</th>
+                        <th className='py-1.5 px-2 text-right w-32.5'>SỐ KIỆN / TẢI TRỌNG</th>
+                        <th className='py-1.5 px-2 w-25 text-center'>TRẠNG THÁI</th>
+                        <th className='py-1.5 px-2 text-center w-45'>THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
@@ -1416,7 +1416,7 @@ export default function WarehouseOutboundPage() {
                                   </button>
                                 </div>
                               </td>
-                              <td className='py-1 px-2 w-[160px] align-top'>
+                              <td className='py-1 px-2 w-40 align-top'>
                                 <div className='text-[11px] space-y-0.5'>
                                   <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1'>
                                     <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
@@ -1424,7 +1424,7 @@ export default function WarehouseOutboundPage() {
                                   </div>
                                   {grp.driverName && (
                                     <div
-                                      className='text-[10px] text-gray-500 truncate max-w-[140px]'
+                                      className='text-[10px] text-gray-500 truncate max-w-35'
                                       title={grp.driverName}
                                     >
                                       {grp.driverName}
@@ -1432,7 +1432,7 @@ export default function WarehouseOutboundPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className='py-1 px-2 min-w-[240px] align-top'>
+                              <td className='py-1 px-2 min-w-60 align-top'>
                                 {orderCodes.length > 0 ? (
                                   <div
                                     className='text-[10px] text-gray-500 dark:text-slate-400 leading-snug break-words'
@@ -1522,12 +1522,12 @@ export default function WarehouseOutboundPage() {
                 {/* Mobile Outbound Trip Cards (Chế độ xem gọn cho thiết bị di động - xem thông tin chính, không chứa nút thao tác) */}
                 <div className='block md:hidden space-y-2'>
                   {isLoading ? (
-                    <div className='p-6 text-center text-gray-500 bg-white dark:bg-slate-900 border rounded-lg'>
+                    <div className='p-3 text-center text-gray-500 bg-white dark:bg-slate-900 border rounded-lg'>
                       <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                       <p className='text-xs'>Đang tải danh sách đơn xuất kho...</p>
                     </div>
                   ) : vehicleGroups.length === 0 ? (
-                    <div className='p-6 text-center text-gray-400 bg-white dark:bg-slate-900 border rounded-lg'>
+                    <div className='p-3 text-center text-gray-400 bg-white dark:bg-slate-900 border rounded-lg'>
                       <IconTruck className='h-8 w-8 mx-auto mb-2 opacity-30 text-slate-400' />
                       <p className='text-xs'>Không có chuyến xe xuất kho phù hợp bộ lọc</p>
                     </div>
@@ -1591,7 +1591,7 @@ export default function WarehouseOutboundPage() {
                               <span>{grp.licensePlate}</span>
                             </div>
                             {grp.driverName && (
-                              <div className='text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[160px]'>
+                              <div className='text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-40'>
                                 {grp.driverName}
                               </div>
                             )}

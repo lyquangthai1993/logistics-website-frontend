@@ -186,7 +186,7 @@ function SearchableHubSelect({
         type='button'
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          'w-full h-[32px] text-[10px] font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
+          'w-full h-8 text-[10px] font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
           'bg-[#F8FAFC] dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800',
           isXeBo
             ? 'border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 focus:ring-1 focus:ring-purple-500'
@@ -1035,7 +1035,7 @@ function PickupAddressCell({ getValue, row, column, table }: CellContext<Warehou
       onChange={handleChange}
       disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1316,7 +1316,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
             : undefined
         }
         placeholder=''
-        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
       />
     );
   }
@@ -1358,7 +1358,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
             onChange={handleAddressTextChange}
             disabled={isRowInbound}
             placeholder='Địa chỉ giao khách...'
-            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px] disabled:opacity-70 disabled:cursor-not-allowed'
+            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-10 disabled:opacity-70 disabled:cursor-not-allowed'
           />
           <button
             type='button'
@@ -1425,7 +1425,7 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
           : undefined
       }
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1503,7 +1503,7 @@ function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowIte
       onChange={handleChange}
       disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }

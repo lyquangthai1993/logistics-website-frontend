@@ -101,7 +101,7 @@ export function DriverFormDialog({ driver, open, onOpenChange }: DriverFormDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[500px]' id='driver-form-dialog'>
+      <DialogContent className='sm:max-w-125' id='driver-form-dialog'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2 text-lg font-bold'>
             <IconUserCheck className='h-5 w-5 text-primary' />
