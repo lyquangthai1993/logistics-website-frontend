@@ -217,12 +217,20 @@ export default function WarehouseOutboundPage() {
     }
   ]);
 
+  const hasPendingInboundInNote = useMemo(() => {
+    return mode1Rows.some((r) => {
+      return Boolean(r.hasPendingInboundTrip || (r.pendingInboundTripCodes && r.pendingInboundTripCodes.length > 0));
+    });
+  }, [mode1Rows]);
+
   const hasDraftOrdersInNote = useMemo(() => {
     return mode1Rows.some((r) => {
       const st = (r.hubStatus ?? r.status ?? '').toUpperCase();
       return ['DRAFT', 'PENDING', 'WAITING'].includes(st);
     });
   }, [mode1Rows]);
+
+  const isOutboundConfirmationBlocked = hasDraftOrdersInNote || hasPendingInboundInNote;
 
   // Transfer Mode 2 Stepper State
   const [transferHubId, setTransferHubId] = useState<string>('2');
@@ -550,7 +558,10 @@ export default function WarehouseOutboundPage() {
               totalWeight: proportionalMetric(found.totalWeight, reqQty, found.totalQuantity),
               totalVolume: proportionalMetric(found.totalVolume, reqQty, found.totalQuantity),
               deliveryAddress:
-                rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || ''
+                rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || '',
+              hasPendingInboundTrip: Boolean(found.hasPendingInboundTrip),
+              pendingInboundTripCodes: found.pendingInboundTripCodes || [],
+              pendingInboundQuantity: found.pendingInboundQuantity || 0
             });
             continue;
           }
@@ -680,6 +691,12 @@ export default function WarehouseOutboundPage() {
     if (hasDraftOrdersInNote) {
       toast.error(
         "Chuyến xe đang chứa đơn hàng nháp. Chuyến xe có đơn nháp chỉ được phép ở trạng thái 'Chờ xử lý'. Vui lòng chọn 'Lưu nháp' chuyến xe hoặc duyệt đơn hàng trước khi xuất kho."
+      );
+      return;
+    }
+    if (hasPendingInboundInNote) {
+      toast.error(
+        "Chuyến xe đang chứa đơn hàng còn chuyến nhập kho nháp (chưa hoàn tất nhập kho). Chuyến xe chỉ được phép ở trạng thái 'Chờ xử lý'. Vui lòng chọn 'Lưu nháp' chuyến xe hoặc hoàn tất chuyến nhập kho trước khi xác nhận xuất kho."
       );
       return;
     }
@@ -1718,14 +1735,19 @@ export default function WarehouseOutboundPage() {
                 </div>
               </div>
 
-              {hasDraftOrdersInNote && (
+              {isOutboundConfirmationBlocked && (
                 <div className='flex items-center gap-1.5 p-1.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-[11px] mb-2'>
                   <IconAlertCircle className='h-4 w-4 shrink-0 text-amber-600' />
                   <span>
-                    <strong>Lưu ý nghiệp vụ:</strong> Phiếu xuất này chứa đơn hàng đang ở trạng thái{' '}
-                    <strong>Đơn nháp</strong>. Chuyến xe sẽ được lưu ở trạng thái{' '}
+                    <strong>Lưu ý nghiệp vụ:</strong> Phiếu xuất này chứa{' '}
+                    {hasPendingInboundInNote ? (
+                      <>đơn hàng <strong>còn chuyến nhập nháp chưa hoàn tất</strong> (cần hoàn tất nhập kho trước)</>
+                    ) : (
+                      <>đơn hàng đang ở trạng thái <strong>Đơn nháp</strong></>
+                    )}
+                    . Chuyến xe sẽ được lưu ở trạng thái{' '}
                     <strong>Chờ xử lý</strong> và không thể chuyển sang <strong>Đã xử lý</strong>{' '}
-                    cho đến khi các đơn hàng được duyệt chính thức.
+                    cho đến khi các chuyến nhập / đơn hàng được hoàn tất chính thức.
                   </span>
                 </div>
               )}
@@ -1751,18 +1773,18 @@ export default function WarehouseOutboundPage() {
                   Hủy bỏ
                 </Button>
                 <div className='flex items-center gap-2'>
-                  {hasDraftOrdersInNote && (
+                  {isOutboundConfirmationBlocked && (
                     <span className='text-[11px] text-amber-600 dark:text-amber-400 font-medium'>
-                      ⚠️ Có đơn nháp — Chỉ được Lưu nháp
+                      ⚠️ {hasPendingInboundInNote ? 'Còn chuyến nhập nháp — Chỉ được Lưu nháp' : 'Có đơn nháp — Chỉ được Lưu nháp'}
                     </span>
                   )}
                   <Button
-                    variant={hasDraftOrdersInNote ? 'default' : 'outline'}
+                    variant={isOutboundConfirmationBlocked ? 'default' : 'outline'}
                     size='sm'
                     onClick={handleSaveDraftMode1}
                     disabled={isSavingDraft || isSubmitting}
                     className={`text-xs font-bold ${
-                      hasDraftOrdersInNote
+                      isOutboundConfirmationBlocked
                         ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
                         : 'border-slate-300'
                     }`}
@@ -1842,9 +1864,9 @@ export default function WarehouseOutboundPage() {
                   </Button>
                   <Button
                     onClick={() => handleSubmitOutbound('CUSTOMER')}
-                    disabled={isSubmitting || isSavingDraft || hasDraftOrdersInNote}
+                    disabled={isSubmitting || isSavingDraft || isOutboundConfirmationBlocked}
                     className={`px-2 font-bold h-9 text-xs shadow-xs ${
-                      hasDraftOrdersInNote
+                      isOutboundConfirmationBlocked
                         ? 'bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500'
                         : 'bg-[#0F3D62] text-white hover:bg-[#0c314f]'
                     }`}

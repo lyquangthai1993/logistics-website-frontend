@@ -83,6 +83,9 @@ export interface WarehouseRowItem {
   destinationHub?: any;
   expectedInboundLicensePlate?: string | null;
   isExistingOrder?: boolean;
+  hasPendingInboundTrip?: boolean;
+  pendingInboundTripCodes?: string[];
+  pendingInboundQuantity?: number;
 }
 
 declare module '@tanstack/react-table' {
@@ -497,8 +500,10 @@ function isRowInboundLocked(
 ): boolean {
   if (isAdmin) return false;
   if (allowInboundEdit) return false;
-  if (!isInboundTripMode) return false;
-  return rowStatus === 'INBOUND' || rowStatus === 'IN_WAREHOUSE';
+  // Khi chuyến xe đang ở chế độ Chờ xử lý (isInboundTripMode = true),
+  // không khóa các dòng đơn kể cả khi đơn đó đã từng nhập một phần trước đó
+  if (isInboundTripMode) return false;
+  return rowStatus === 'INBOUND' || rowStatus === 'IN_WAREHOUSE' || rowStatus === 'COMPLETED_INBOUND';
 }
 
 function isExistingInboundWaybillLocked(
@@ -723,7 +728,10 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             notes: foundOrder.notes || '',
             destinationHubId: foundOrder.destinationHubId || null,
             destinationHub: foundOrder.destinationHubEntity || null,
-            deliveryMode: 'DIRECT_CUSTOMER'
+            deliveryMode: 'DIRECT_CUSTOMER',
+            hasPendingInboundTrip: Boolean(foundOrder.hasPendingInboundTrip),
+            pendingInboundTripCodes: foundOrder.pendingInboundTripCodes || [],
+            pendingInboundQuantity: foundOrder.pendingInboundQuantity || 0
           };
 
           meta?.updateRow(idx, updatedRow);
@@ -1869,7 +1877,10 @@ export function WarehouseEditableGrid({
                 accompanyingDocs: found.accompanyingDocs || rowItem.accompanyingDocs || '',
                 notes: rowItem.notes || found.notes || '',
                 destinationHubId: found.destinationHubId || null,
-                destinationHub: found.destinationHubEntity || null
+                destinationHub: found.destinationHubEntity || null,
+                hasPendingInboundTrip: Boolean(found.hasPendingInboundTrip),
+                pendingInboundTripCodes: found.pendingInboundTripCodes || [],
+                pendingInboundQuantity: found.pendingInboundQuantity || 0
               });
               continue;
             }

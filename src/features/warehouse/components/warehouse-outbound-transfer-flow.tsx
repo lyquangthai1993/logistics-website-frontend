@@ -240,11 +240,19 @@ export function WarehouseOutboundTransferFlow({
     };
   }, [selectedOrders]);
 
+  const hasPendingInboundSelected = useMemo(() => {
+    return selectedOrders.some((o: any) =>
+      Boolean(o.hasPendingInboundTrip || (o.pendingInboundTripCodes && o.pendingInboundTripCodes.length > 0))
+    );
+  }, [selectedOrders]);
+
   const hasDraftOrdersSelected = useMemo(() => {
     return selectedOrders.some((o) =>
       ['DRAFT', 'PENDING', 'WAITING'].includes(String(o.status).toUpperCase())
     );
   }, [selectedOrders]);
+
+  const isTransferConfirmationBlocked = hasDraftOrdersSelected || hasPendingInboundSelected;
 
   // Toggle order checkbox selection
   const handleToggleSelect = (orderId: number | string) => {
@@ -301,6 +309,12 @@ export function WarehouseOutboundTransferFlow({
     if (hasDraftOrdersSelected) {
       toast.error(
         'Chuyến luân chuyển chứa đơn nháp, chỉ có thể bấm "Lưu nháp" ở trạng thái Chờ xử lý.'
+      );
+      return;
+    }
+    if (hasPendingInboundSelected) {
+      toast.error(
+        'Chuyến luân chuyển chứa đơn hàng còn chuyến nhập kho nháp (chưa hoàn tất nhập kho). Chuyến xe chỉ được phép ở trạng thái Chờ xử lý. Vui lòng chọn "Lưu nháp" hoặc hoàn tất chuyến nhập kho trước.'
       );
       return;
     }
@@ -1251,14 +1265,19 @@ export function WarehouseOutboundTransferFlow({
 
           {/* Sticky Footer for Step 3 (Frame ol_sticky_footer) */}
           <div className='flex flex-col gap-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-md'>
-            {hasDraftOrdersSelected && (
+            {isTransferConfirmationBlocked && (
               <div className='flex items-center gap-1.5 p-1.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-[11px]'>
                 <IconAlertCircle className='h-4 w-4 shrink-0 text-amber-600' />
                 <span>
-                  <strong>Lưu ý nghiệp vụ:</strong> Chuyến luân chuyển này chứa đơn hàng đang ở
-                  trạng thái <strong>Đơn nháp</strong>. Chuyến xe sẽ được lưu ở trạng thái{' '}
+                  <strong>Lưu ý nghiệp vụ:</strong> Chuyến luân chuyển này chứa{' '}
+                  {hasPendingInboundSelected ? (
+                    <>đơn hàng <strong>còn chuyến nhập nháp chưa hoàn tất</strong> (cần hoàn tất nhập kho trước)</>
+                  ) : (
+                    <>đơn hàng đang ở trạng thái <strong>Đơn nháp</strong></>
+                  )}
+                  . Chuyến xe sẽ được lưu ở trạng thái{' '}
                   <strong>Chờ xử lý</strong> và không thể chuyển sang <strong>Đã xử lý</strong> cho
-                  đến khi các đơn hàng được duyệt chính thức.
+                  đến khi các chuyến nhập / đơn hàng được hoàn tất chính thức.
                 </span>
               </div>
             )}
@@ -1273,17 +1292,17 @@ export function WarehouseOutboundTransferFlow({
               </Button>
 
               <div className='flex items-center gap-2'>
-                {hasDraftOrdersSelected && (
+                {isTransferConfirmationBlocked && (
                   <span className='text-[11px] text-amber-600 dark:text-amber-400 font-medium'>
-                    ⚠️ Có đơn nháp — Chỉ được Lưu nháp
+                    ⚠️ {hasPendingInboundSelected ? 'Còn chuyến nhập nháp — Chỉ được Lưu nháp' : 'Có đơn nháp — Chỉ được Lưu nháp'}
                   </span>
                 )}
                 <Button
-                  variant={hasDraftOrdersSelected ? 'default' : 'outline'}
+                  variant={isTransferConfirmationBlocked ? 'default' : 'outline'}
                   onClick={handleSaveTransferDraft}
                   disabled={isSavingDraft || isSubmitting}
                   className={`text-xs font-semibold ${
-                    hasDraftOrdersSelected
+                    isTransferConfirmationBlocked
                       ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
                       : ''
                   }`}
@@ -1301,15 +1320,17 @@ export function WarehouseOutboundTransferFlow({
                 </Button>
                 <Button
                   onClick={handleConfirmOutboundTransfer}
-                  disabled={isSubmitting || isSavingDraft || hasDraftOrdersSelected}
+                  disabled={isSubmitting || isSavingDraft || isTransferConfirmationBlocked}
                   className={`font-bold text-xs px-2 shadow-sm flex items-center gap-2 ${
-                    hasDraftOrdersSelected
+                    isTransferConfirmationBlocked
                       ? 'bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500'
                       : 'bg-[#0F3D62] hover:bg-[#0c314f] text-white'
                   }`}
                   title={
-                    hasDraftOrdersSelected
-                      ? 'Chuyến luân chuyển có đơn nháp chỉ được phép Lưu nháp (Chờ xử lý)'
+                    isTransferConfirmationBlocked
+                      ? hasPendingInboundSelected
+                        ? 'Chuyến luân chuyển có đơn hàng còn chuyến nhập nháp chỉ được phép Lưu nháp (Chờ xử lý)'
+                        : 'Chuyến luân chuyển có đơn nháp chỉ được phép Lưu nháp (Chờ xử lý)'
                       : undefined
                   }
                 >
