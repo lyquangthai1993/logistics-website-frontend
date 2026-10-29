@@ -214,7 +214,7 @@ export function WarehouseSelectStoredOrdersModal({
 
         {/* Toolbar: Live Search, Destination Filter & Quick Actions */}
         <div className='flex flex-wrap items-center justify-between gap-1.5 px-0.5'>
-          <div className='flex flex-wrap items-center gap-1.5 flex-1 min-w-[200px]'>
+          <div className='flex flex-wrap items-center gap-1.5 flex-1 min-w-50'>
             <div className='relative w-72 md:w-80'>
               <IconSearch className='absolute left-2 top-2 h-3.5 w-3.5 text-slate-400' />
               <Input
@@ -287,7 +287,7 @@ export function WarehouseSelectStoredOrdersModal({
         </div>
 
         {/* Table: Compact Density Viewport (Max Height 62vh, 10 Standard Columns) */}
-        <div className='flex-1 border border-slate-200 dark:border-slate-700 rounded-lg overflow-y-auto max-h-[62vh] min-h-[360px]'>
+        <div className='flex-1 border border-slate-200 dark:border-slate-700 rounded-lg overflow-y-auto max-h-[62vh] min-h-90'>
           <table className='w-full text-[10px] text-left border-collapse'>
             <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 uppercase'>
               <tr>
@@ -300,14 +300,14 @@ export function WarehouseSelectStoredOrdersModal({
                   />
                 </th>
                 <th className='py-1 px-1.5 w-10 text-center font-bold text-slate-500'>STT</th>
-                <th className='py-1 px-1.5 w-[140px] whitespace-nowrap'>MÃ VẬN ĐƠN</th>
-                <th className='py-1 px-1.5 min-w-[180px] max-w-[260px]'>TÊN HÀNG HÓA</th>
-                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>SỐ LƯỢNG</th>
+                <th className='py-1 px-1.5 w-35 whitespace-nowrap'>MÃ VẬN ĐƠN</th>
+                <th className='py-1 px-1.5 min-w-45 max-w-65'>TÊN HÀNG HÓA</th>
+                <th className='py-1 px-1.5 text-right w-20 whitespace-nowrap'>SỐ LƯỢNG</th>
                 <th className='py-1 px-1.5 text-right w-[85px] whitespace-nowrap'>SỐ KG</th>
-                <th className='py-1 px-1.5 text-right w-[80px] whitespace-nowrap'>CBM</th>
-                <th className='py-1 px-1.5 min-w-[200px] whitespace-nowrap'>KHO ĐÍCH / NƠI GIAO</th>
-                <th className='py-1 px-1.5 w-[100px] text-center whitespace-nowrap'>NGÀY NHẬP</th>
-                <th className='py-1 px-1.5 min-w-[150px]'>GHI CHÚ</th>
+                <th className='py-1 px-1.5 text-right w-20 whitespace-nowrap'>CBM</th>
+                <th className='py-1 px-1.5 min-w-50 whitespace-nowrap'>KHO ĐÍCH / NƠI GIAO</th>
+                <th className='py-1 px-1.5 w-25 text-center whitespace-nowrap'>NGÀY NHẬP</th>
+                <th className='py-1 px-1.5 min-w-37.5'>GHI CHÚ</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
@@ -382,7 +382,7 @@ export function WarehouseSelectStoredOrdersModal({
                           </span>
                         )}
                       </td>
-                      <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 min-w-[180px] max-w-[260px] truncate'>
+                      <td className='py-1 px-1.5 font-medium text-slate-800 dark:text-slate-200 min-w-45 max-w-65 truncate'>
                         {o.goodsDescription || 'Hàng lưu kho'}
                       </td>
                       <td className='py-1 px-1.5 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap'>
@@ -400,13 +400,13 @@ export function WarehouseSelectStoredOrdersModal({
                           maximumFractionDigits: 2,
                         })}
                       </td>
-                      <td className='py-1 px-1.5 font-semibold text-slate-700 dark:text-slate-300 min-w-[200px] whitespace-nowrap'>
+                      <td className='py-1 px-1.5 font-semibold text-slate-700 dark:text-slate-300 min-w-50 whitespace-nowrap'>
                         {destName}
                       </td>
                       <td className='py-1 px-1.5 text-center text-slate-500 whitespace-nowrap'>
                         {dateStr}
                       </td>
-                      <td className='py-1 px-1.5 text-slate-500 text-[10px] truncate min-w-[150px]'>
+                      <td className='py-1 px-1.5 text-slate-500 text-[10px] truncate min-w-37.5'>
                         {o.notes || '—'}
                       </td>
                     </tr>

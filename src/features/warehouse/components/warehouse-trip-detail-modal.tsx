@@ -610,7 +610,8 @@ export function WarehouseTripDetailModal({
             destinationHubId: l.destinationHubId,
             destinationHub: outHubEntity,
             status: l.status,
-            hubStatus: l.hubStatus
+            hubStatus: l.hubStatus,
+            isReceivedInTrip: Boolean(l.isReceivedHere || (Number(l.receivedQuantity) > 0))
           };
         });
         setRows(mappedFromManifest);
@@ -853,6 +854,7 @@ export function WarehouseTripDetailModal({
               (o.destinationHub ? { id: outHubId, name: o.destinationHub, code: '' } : null),
             status: o.status,
             hubStatus: o.hubStatus,
+            isReceivedInTrip: Boolean(o.isReceivedHere || (Number(o.receivedQuantity) > 0)),
             expectedInboundLicensePlate: expPlate
           };
         });
@@ -1132,7 +1134,7 @@ export function WarehouseTripDetailModal({
       }
 
       // Cập nhật trạng thái dòng đơn sang INBOUND trong state bảng
-      setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND' } : r)));
+      setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND', isReceivedInTrip: true } : r)));
 
       toast.success(
         `Đã nhập kho đơn hàng ${row.orderCode.trim().toUpperCase()} thành công! Sẵn sàng xuất kho.`
@@ -1868,28 +1870,28 @@ export function WarehouseTripDetailModal({
                     <table className='w-full text-[10px] text-left'>
                       <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                         <tr>
-                          <th className='py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
+                          <th className='py-1 px-1 w-9 min-w-9 max-w-9 text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
                             STT
                           </th>
-                          <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap sticky left-[35px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                          <th className='py-1 px-1.5 min-w-27.5 whitespace-nowrap sticky left-[35px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                             MÃ VẬN ĐƠN
                           </th>
                           {mode === 'OUTBOUND' ? (
-                            <th className='py-1 px-1.5 min-w-[140px] hidden md:table-cell'>
+                            <th className='py-1 px-1.5 min-w-35 hidden md:table-cell'>
                               BIỂN SỐ XE NHẬP DỰ KIẾN
                             </th>
                           ) : (
-                            <th className='py-1 px-1.5 min-w-[130px]'>ĐIỂM BỐC HÀNG</th>
+                            <th className='py-1 px-1.5 min-w-32.5'>ĐIỂM BỐC HÀNG</th>
                           )}
-                          <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
+                          <th className='py-1 px-1.5 min-w-35'>TÊN HÀNG HÓA</th>
                           <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
                           <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KG</th>
                           <th className='py-1 px-1.5 text-right w-[65px]'>SỐ M³</th>
-                          <th className='py-1 px-1.5 min-w-[150px]'>ĐỊA CHỈ GIAO</th>
-                          <th className='py-1 px-1.5 w-[90px]'>TỈNH / TP</th>
+                          <th className='py-1 px-1.5 min-w-37.5'>ĐỊA CHỈ GIAO</th>
+                          <th className='py-1 px-1.5 w-22.5'>TỈNH / TP</th>
                           <th className='py-1 px-1.5 w-[85px] text-center'>CHỨNG TỪ</th>
-                          <th className='py-1 px-1.5 min-w-[110px]'>GHI CHÚ</th>
-                          <th className='py-1 px-1.5 w-[80px] text-center'>THAO TÁC</th>
+                          <th className='py-1 px-1.5 min-w-27.5'>GHI CHÚ</th>
+                          <th className='py-1 px-1.5 w-20 text-center'>THAO TÁC</th>
                         </tr>
                       </thead>
                       <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
@@ -1909,10 +1911,10 @@ export function WarehouseTripDetailModal({
                               key={r.id || i}
                               className='hover:bg-slate-50 dark:hover:bg-slate-800/50'
                             >
-                              <td className='py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
+                              <td className='py-1 px-1 w-9 min-w-9 max-w-9 text-center font-bold text-slate-500 sticky left-0 z-10 bg-white dark:bg-slate-900'>
                                 {String(i + 1).padStart(2, '0')}
                               </td>
-                              <td className='py-1 px-1.5 min-w-[110px] whitespace-nowrap font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[35px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                              <td className='py-1 px-1.5 min-w-27.5 whitespace-nowrap font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[35px] z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                                 {r.orderCode}
                               </td>
                               {mode === 'OUTBOUND' ? (
@@ -2036,20 +2038,20 @@ export function WarehouseTripDetailModal({
                   <table className='w-full text-[10px] text-left'>
                     <thead className='bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700'>
                       <tr>
-                        <th className='py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
+                        <th className='py-1 px-1 w-9 min-w-9 max-w-9 text-center sticky left-0 z-20 bg-slate-100 dark:bg-slate-800'>
                           STT
                         </th>
-                        <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap sticky left-[35px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
+                        <th className='py-1 px-1.5 min-w-27.5 whitespace-nowrap sticky left-[35px] z-20 bg-slate-100 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700'>
                           MÃ VẬN ĐƠN
                         </th>
-                        <th className='py-1 px-1.5 w-[110px]'>NGUỒN HÀNG</th>
-                        <th className='py-1 px-1.5 min-w-[140px]'>TÊN HÀNG HÓA</th>
+                        <th className='py-1 px-1.5 w-27.5'>NGUỒN HÀNG</th>
+                        <th className='py-1 px-1.5 min-w-35'>TÊN HÀNG HÓA</th>
                         <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KIỆN</th>
                         <th className='py-1 px-1.5 text-right w-[65px]'>SỐ KG</th>
                         <th className='py-1 px-1.5 text-right w-[65px]'>SỐ M³</th>
-                        <th className='py-1 px-1.5 min-w-[140px]'>KHO ĐÍCH / NƠI GIAO</th>
-                        <th className='py-1 px-1.5 min-w-[120px]'>GHI CHÚ</th>
-                        <th className='py-1 px-1.5 text-center w-[70px]'>THAO TÁC</th>
+                        <th className='py-1 px-1.5 min-w-35'>KHO ĐÍCH / NƠI GIAO</th>
+                        <th className='py-1 px-1.5 min-w-30'>GHI CHÚ</th>
+                        <th className='py-1 px-1.5 text-center w-17.5'>THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900'>
@@ -2078,12 +2080,12 @@ export function WarehouseTripDetailModal({
                               }
                             >
                               <td
-                                className={`py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}
+                                className={`py-1 px-1 w-9 min-w-9 max-w-9 text-center font-bold text-slate-500 sticky left-0 z-10 ${stickyBg}`}
                               >
                                 {String(i + 1).padStart(2, '0')}
                               </td>
                               <td
-                                className={`py-1 px-1.5 min-w-[110px] whitespace-nowrap font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[35px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}
+                                className={`py-1 px-1.5 min-w-27.5 whitespace-nowrap font-mono font-bold text-blue-700 dark:text-blue-300 sticky left-[35px] z-10 ${stickyBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] border-r border-slate-200 dark:border-slate-700`}
                               >
                                 {l.orderCode}
                               </td>
@@ -2113,7 +2115,7 @@ export function WarehouseTripDetailModal({
                               <td className='py-1 px-1.5 text-right text-slate-700 dark:text-slate-300'>
                                 {formatVolume(l.totalVolume || l.volumeAllocated)}
                               </td>
-                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 font-semibold min-w-[200px]'>
+                              <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300 font-semibold min-w-50'>
                                 {isNewlyLoadedHere
                                   ? (() => {
                                       const effectiveMode =

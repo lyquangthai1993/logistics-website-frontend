@@ -20,7 +20,7 @@ interface TaskColumnProps extends Omit<React.ComponentProps<typeof KanbanColumn>
 
 export function TaskColumn({ value, tasks, ...props }: TaskColumnProps) {
   return (
-    <KanbanColumn value={value} className='w-full shrink-0 md:w-[320px]' {...props}>
+    <KanbanColumn value={value} className='w-full shrink-0 md:w-80' {...props}>
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-2'>
           <span className='text-sm font-semibold'>{COLUMN_TITLES[value] ?? value}</span>

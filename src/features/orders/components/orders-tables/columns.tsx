@@ -146,7 +146,7 @@ export const columns: ColumnDef<Order>[] = [
             <span>{destShort}</span>
           </div>
           <span
-            className='text-xs text-slate-400 block mt-0.5 truncate max-w-[200px]'
+            className='text-xs text-slate-400 block mt-0.5 truncate max-w-50'
             title={`${order.originHub || ''} → ${order.destinationHub || ''}`}
           >
             {order.destinationHub || '—'}
@@ -194,14 +194,14 @@ export const columns: ColumnDef<Order>[] = [
       return (
         <div className='text-slate-600 dark:text-slate-400'>
           <span
-            className='truncate block max-w-[180px]'
+            className='truncate block max-w-45'
             title={order.goodsDescription || 'Chưa có mô tả'}
           >
             {order.goodsDescription || '—'}
           </span>
           {order.externalNote && (
             <span
-              className='text-[11px] text-amber-700 dark:text-amber-300 block truncate max-w-[180px] font-medium mt-0.5'
+              className='text-[11px] text-amber-700 dark:text-amber-300 block truncate max-w-45 font-medium mt-0.5'
               title={`Lý do xe ngoài: ${order.externalNote}`}
             >
               🚚 {order.externalNote}

@@ -59,7 +59,7 @@ export function CellAction({ data }: CellActionProps) {
 
       {/* Soft Delete Confirmation Alert Modal */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className='sm:max-w-[460px]'>
+        <DialogContent className='sm:max-w-115'>
           <DialogHeader>
             <DialogTitle className='text-destructive flex items-center gap-2'>
               <Icons.warning className='h-5 w-5' />

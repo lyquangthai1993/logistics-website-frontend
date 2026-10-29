@@ -126,7 +126,7 @@ export const FilePreview: FC<FilePreviewProps> = ({
                 : 'bg-muted hover:bg-muted/80',
               file.type.startsWith('image/') && file.url
                 ? 'h-14 w-14 justify-center'
-                : 'max-w-[220px] min-w-[180px] p-2 pr-8'
+                : 'max-w-55 min-w-45 p-2 pr-8'
             )}
           >
             {file.isUploading && (

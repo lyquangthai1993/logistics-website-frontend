@@ -86,7 +86,7 @@ export function NotificationCenter() {
       </PopoverTrigger>
       <PopoverContent
         align='end'
-        className='w-[calc(100vw-2rem)] p-0 sm:w-[360px] flex flex-col max-h-[480px] overflow-hidden'
+        className='w-[calc(100vw-2rem)] p-0 sm:w-90 flex flex-col max-h-120 overflow-hidden'
         sideOffset={8}
       >
         {/* Header */}
@@ -121,7 +121,7 @@ export function NotificationCenter() {
         <Separator className='shrink-0' />
 
         {/* List content */}
-        <ScrollArea className='flex-1 max-h-[320px] min-h-[140px] overflow-y-auto'>
+        <ScrollArea className='flex-1 max-h-80 min-h-35 overflow-y-auto'>
           {isLoading ? (
             <div className='flex items-center justify-center py-10'>
               <Icons.spinner className='text-muted-foreground h-4 w-4 animate-spin' />

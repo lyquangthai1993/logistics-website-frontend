@@ -653,7 +653,7 @@ export default function WarehouseOrdersPage() {
           </div>
         )}
         {driver && (
-          <div className='text-[9px] text-gray-400 truncate max-w-[120px]' title={driver}>
+          <div className='text-[9px] text-gray-400 truncate max-w-30' title={driver}>
             {driver}
           </div>
         )}
@@ -792,7 +792,7 @@ export default function WarehouseOrdersPage() {
           <CardContent className='p-1 space-y-1.5'>
             {/* Toolbar */}
             <div className='flex flex-wrap items-center justify-between gap-2'>
-              <div className='relative flex-1 min-w-[260px]'>
+              <div className='relative flex-1 min-w-65'>
                 <button
                   type='button'
                   onClick={handleSearchSubmit}
@@ -806,7 +806,7 @@ export default function WarehouseOrdersPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   placeholder='Tìm kiếm theo mã đơn hoặc tên hàng... (Nhấn Enter để tìm)'
-                  className='pl-9 pr-8 h-8.5 text-xs'
+                  className='pl-9 pr-8 h-8 text-xs'
                 />
                 {search && (
                   <button
@@ -852,16 +852,16 @@ export default function WarehouseOrdersPage() {
               <table className='w-full text-[11px] text-left min-w-[1050px] border-separate border-spacing-0'>
                 <thead className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b text-[10px] sticky top-0 z-10 uppercase'>
                   <tr>
-                    <th className='hidden md:table-cell py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center md:sticky md:left-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
+                    <th className='hidden md:table-cell py-1 px-1 w-9 min-w-9 max-w-9 text-center md:sticky md:left-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
                       STT
                     </th>
-                    <th className='py-1 px-1 w-[82px] min-w-[82px] max-w-[82px] text-center md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1 w-20.5 min-w-20.5 max-w-20.5 text-center md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
                       NGÀY NHẬP
                     </th>
-                    <th className='py-1 px-1.5 min-w-[110px] whitespace-nowrap md:sticky md:left-[118px] z-20 bg-slate-50 dark:bg-slate-800 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[118px] z-20 bg-slate-50 dark:bg-slate-800 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-slate-200 dark:border-slate-700'>
                       MÃ VẬN ĐƠN
                     </th>
-                    <th className='py-1 px-1.5 min-w-[160px] border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 min-w-40 border-b border-slate-200 dark:border-slate-700'>
                       TÊN HÀNG HÓA
                     </th>
                     <th
@@ -873,19 +873,19 @@ export default function WarehouseOrdersPage() {
                     <th className='py-1 px-1.5 w-[85px] text-right border-b border-slate-200 dark:border-slate-700'>
                       SỐ KG
                     </th>
-                    <th className='py-1 px-1.5 w-[80px] text-right border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-20 text-right border-b border-slate-200 dark:border-slate-700'>
                       CBM
                     </th>
-                    <th className='py-1 px-1.5 min-w-[140px] border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 min-w-35 border-b border-slate-200 dark:border-slate-700'>
                       ĐÍCH ĐẾN
                     </th>
-                    <th className='py-1 px-1.5 w-[100px] text-center border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-25 text-center border-b border-slate-200 dark:border-slate-700'>
                       TRẠNG THÁI
                     </th>
-                    <th className='py-1 px-1.5 w-[110px] text-center border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-27.5 text-center border-b border-slate-200 dark:border-slate-700'>
                       NGÀY XUẤT
                     </th>
-                    <th className='py-1 px-1.5 w-[80px] text-center border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 w-20 text-center border-b border-slate-200 dark:border-slate-700'>
                       THAO TÁC
                     </th>
                   </tr>
@@ -917,13 +917,13 @@ export default function WarehouseOrdersPage() {
                           onClick={() => openDetail(row)}
                           className='group hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors'
                         >
-                          <td className='hidden md:table-cell py-1 px-1 w-[36px] min-w-[36px] max-w-[36px] text-center font-mono text-gray-400 text-[10px] md:sticky md:left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
+                          <td className='hidden md:table-cell py-1 px-1 w-9 min-w-9 max-w-9 text-center font-mono text-gray-400 text-[10px] md:sticky md:left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
                             {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
                           </td>
-                          <td className='py-1 px-1 w-[82px] min-w-[82px] max-w-[82px] text-center font-mono text-slate-600 dark:text-slate-400 text-[10px] md:sticky md:left-[36px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
+                          <td className='py-1 px-1 w-20.5 min-w-20.5 max-w-20.5 text-center font-mono text-slate-600 dark:text-slate-400 text-[10px] md:sticky md:left-[36px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
                             {formatDate(row.inboundDate || row.createdAt)}
                           </td>
-                          <td className='py-1 px-1.5 min-w-[110px] whitespace-nowrap md:sticky md:left-[118px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-gray-100 dark:border-gray-800'>
+                          <td className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[118px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-gray-100 dark:border-gray-800'>
                             <div className='flex items-center gap-1'>
                               <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
                                 {row.orderCode}
@@ -931,7 +931,7 @@ export default function WarehouseOrdersPage() {
                             </div>
                           </td>
                           <td
-                            className='py-1 px-1.5 text-[10px] font-medium text-slate-800 dark:text-slate-200 max-w-[220px] truncate'
+                            className='py-1 px-1.5 text-[10px] font-medium text-slate-800 dark:text-slate-200 max-w-55 truncate'
                             title={row.goodsDescription || 'Hàng tổng hợp'}
                           >
                             {row.goodsDescription || 'Hàng tổng hợp'}
@@ -948,7 +948,7 @@ export default function WarehouseOrdersPage() {
                             })}
                           </td>
                           <td
-                            className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-[140px] max-w-[200px] truncate'
+                            className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-35 max-w-50 truncate'
                             title={`Đích đến ban đầu: ${row.originalDestination || row.destinationHub || row.destinationHubEntity?.name || row.route || 'Giao khách lẻ'}${row.outboundDestination && row.outboundDestination !== (row.originalDestination || row.destinationHub) ? ` (Chặng xuất: ${row.outboundDestination})` : ''}`}
                           >
                             <div className='flex flex-col'>

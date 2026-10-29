@@ -28,7 +28,7 @@ export function DeleteConfirmDialog({
 }: DeleteConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent id='delete-confirm-dialog' className='sm:max-w-[420px]'>
+      <DialogContent id='delete-confirm-dialog' className='sm:max-w-105'>
         <DialogHeader>
           <DialogTitle className='text-destructive'>Xác Nhận Xóa</DialogTitle>
         </DialogHeader>

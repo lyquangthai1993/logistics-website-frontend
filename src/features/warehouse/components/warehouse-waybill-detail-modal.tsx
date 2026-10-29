@@ -791,7 +791,7 @@ export function WarehouseWaybillDetailModal({
                                       }}
                                       disabled={editingTx.isSaving}
                                       placeholder="Nhập lý do điều chỉnh..."
-                                      className="min-h-[42px] w-52 sm:w-64 px-2 py-1 text-[11px] resize-y"
+                                      className="min-h-10.5 w-52 sm:w-64 px-2 py-1 text-[11px] resize-y"
                                     />
                                     <Button
                                       type="button"
@@ -1142,17 +1142,17 @@ export function WarehouseWaybillDetailModal({
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 text-[11px]">
                     <tr>
-                      <th className="py-2.5 px-3 w-[50px] text-center">STT</th>
-                      <th className="py-2.5 px-3 w-[150px]">MÃ VẬN ĐƠN</th>
+                      <th className="py-2.5 px-3 w-12.5 text-center">STT</th>
+                      <th className="py-2.5 px-3 w-37.5">MÃ VẬN ĐƠN</th>
                       <th className="py-2.5 px-3">ĐỊA CHỈ NHẬN HÀNG</th>
                       <th className="py-2.5 px-3">TÊN HÀNG HÓA</th>
-                      <th className="py-2.5 px-3 text-right w-[90px]">SỐ LƯỢNG</th>
-                      <th className="py-2.5 px-3 text-right w-[100px]">SỐ KG</th>
-                      <th className="py-2.5 px-3 text-right w-[90px]">CBM</th>
+                      <th className="py-2.5 px-3 text-right w-22.5">SỐ LƯỢNG</th>
+                      <th className="py-2.5 px-3 text-right w-25">SỐ KG</th>
+                      <th className="py-2.5 px-3 text-right w-22.5">CBM</th>
                       <th className="py-2.5 px-3">ĐỊA CHỈ GIAO HÀNG</th>
                       <th className="py-2.5 px-3">TỈNH / TP</th>
-                      <th className="py-2.5 px-3 text-center w-[120px]">CHỨNG TỪ</th>
-                      <th className="py-2.5 px-3 text-center w-[120px]">HÌNH THỨC GIAO</th>
+                      <th className="py-2.5 px-3 text-center w-30">CHỨNG TỪ</th>
+                      <th className="py-2.5 px-3 text-center w-30">HÌNH THỨC GIAO</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -1344,7 +1344,7 @@ export function WarehouseWaybillDetailModal({
                   setActionModal((prev) => ({ ...prev, reason: e.target.value }))
                 }
                 placeholder="Nhập lý do điều chỉnh tồn kho (bắt buộc)..."
-                className="text-xs min-h-[72px] resize-y"
+                className="text-xs min-h-18 resize-y"
                 disabled={actionModal.isSubmitting}
                 autoFocus
               />

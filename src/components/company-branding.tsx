@@ -36,7 +36,7 @@ export function CompanyBranding() {
     <SidebarMenu>
       <SidebarMenuItem>
         <div className='flex flex-col items-start w-full px-1 py-1 gap-1.5'>
-          <div className='relative w-full max-w-[200px] overflow-hidden rounded-lg border border-border/40 bg-slate-950 shadow-xs transition-all hover:border-primary/40'>
+          <div className='relative w-full max-w-50 overflow-hidden rounded-lg border border-border/40 bg-slate-950 shadow-xs transition-all hover:border-primary/40'>
             <Image
               src='/images/logo_phieu_xuat_nhap_kho.jpg'
               alt='Spider Express'

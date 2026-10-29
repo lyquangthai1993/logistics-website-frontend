@@ -58,7 +58,7 @@ export function OrderExternalDialog({ order, open, onOpenChange }: OrderExternal
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[500px]'>
+      <DialogContent className='sm:max-w-125'>
         <DialogHeader>
           <DialogTitle className='text-amber-700 dark:text-amber-400 flex items-center gap-2'>
             <IconTruck className='h-5 w-5' />

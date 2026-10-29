@@ -66,11 +66,11 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
     <>
       <KBarPortal>
         <KBarPositioner className='bg-black/10 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 z-99999 flex items-start! justify-center p-4! pt-[14vh]!'>
-          <KBarAnimator className='bg-popover text-popover-foreground ring-foreground/10 relative mx-auto w-full max-w-[600px] overflow-hidden rounded-xl shadow-lg ring-1'>
+          <KBarAnimator className='bg-popover text-popover-foreground ring-foreground/10 relative mx-auto w-full max-w-150 overflow-hidden rounded-xl shadow-lg ring-1'>
             <div className='bg-popover sticky top-0 z-10 border-b'>
               <KBarSearch className='placeholder:text-muted-foreground w-full border-none bg-transparent px-4 py-3.5 text-sm outline-hidden focus:ring-0 focus:outline-hidden' />
             </div>
-            <div className='h-[400px]'>
+            <div className='h-100'>
               <RenderResults />
             </div>
             <div className='text-muted-foreground flex items-center gap-3 border-t px-3 py-2 text-xs'>

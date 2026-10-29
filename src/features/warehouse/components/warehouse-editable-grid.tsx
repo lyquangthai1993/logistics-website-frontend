@@ -83,6 +83,10 @@ export interface WarehouseRowItem {
   destinationHub?: any;
   expectedInboundLicensePlate?: string | null;
   isExistingOrder?: boolean;
+  hasPendingInboundTrip?: boolean;
+  pendingInboundTripCodes?: string[];
+  pendingInboundQuantity?: number;
+  isReceivedInTrip?: boolean;
 }
 
 declare module '@tanstack/react-table' {
@@ -186,7 +190,7 @@ function SearchableHubSelect({
         type='button'
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          'w-full h-[32px] text-[10px] font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
+          'w-full h-8 text-[10px] font-semibold rounded-md px-2 border flex items-center justify-between text-left transition-all',
           'bg-[#F8FAFC] dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800',
           isXeBo
             ? 'border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 focus:ring-1 focus:ring-purple-500'
@@ -490,15 +494,23 @@ export function mapPastedColsToRow(cols: string[], defaultPickup = ''): Warehous
 // ── Stable Cell Components (Defined Outside to Prevent Unmounting & Focus Loss) ──
 
 function isRowInboundLocked(
-  rowStatus?: string,
+  row: WarehouseRowItem,
   isInboundTripMode?: boolean,
   isAdmin?: boolean,
   allowInboundEdit?: boolean
 ): boolean {
   if (isAdmin) return false;
   if (allowInboundEdit) return false;
-  if (!isInboundTripMode) return false;
-  return rowStatus === 'INBOUND' || rowStatus === 'IN_WAREHOUSE';
+  if (isInboundTripMode) {
+    // Trong chuyến xe nhập kho (INBOUND Trip):
+    // Dòng chỉ bị khóa (và coi là đã nhập kho) nếu CHÍNH DÒNG NÀY trên chuyến xe đã được tiếp nhận
+    return Boolean(row?.isReceivedInTrip);
+  }
+  return (
+    row?.status === 'INBOUND' ||
+    row?.status === 'IN_WAREHOUSE' ||
+    row?.status === 'COMPLETED_INBOUND'
+  );
 }
 
 function isExistingInboundWaybillLocked(
@@ -723,7 +735,10 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             notes: foundOrder.notes || '',
             destinationHubId: foundOrder.destinationHubId || null,
             destinationHub: foundOrder.destinationHubEntity || null,
-            deliveryMode: 'DIRECT_CUSTOMER'
+            deliveryMode: 'DIRECT_CUSTOMER',
+            hasPendingInboundTrip: Boolean(foundOrder.hasPendingInboundTrip),
+            pendingInboundTripCodes: foundOrder.pendingInboundTripCodes || [],
+            pendingInboundQuantity: foundOrder.pendingInboundQuantity || 0
           };
 
           meta?.updateRow(idx, updatedRow);
@@ -956,7 +971,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
   };
 
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1011,7 +1026,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 
 function PickupAddressCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1035,7 +1050,7 @@ function PickupAddressCell({ getValue, row, column, table }: CellContext<Warehou
       onChange={handleChange}
       disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1047,7 +1062,7 @@ function GoodsDescriptionCell({
   table
 }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1121,7 +1136,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
 
   const isRowInbound = isRowInboundLocked(
-    r.status,
+    r,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1160,7 +1175,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
 
 function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1204,7 +1219,7 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
 
 function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1299,7 +1314,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(r.status, meta?.isInboundTripMode, meta?.isAdmin);
+  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin);
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
@@ -1316,7 +1331,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
             : undefined
         }
         placeholder=''
-        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
       />
     );
   }
@@ -1358,7 +1373,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
             onChange={handleAddressTextChange}
             disabled={isRowInbound}
             placeholder='Địa chỉ giao khách...'
-            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[40px] disabled:opacity-70 disabled:cursor-not-allowed'
+            className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-10 disabled:opacity-70 disabled:cursor-not-allowed'
           />
           <button
             type='button'
@@ -1391,7 +1406,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
 
 function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1425,7 +1440,7 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
           : undefined
       }
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1437,7 +1452,7 @@ function AccompanyingDocsCell({
   table
 }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin
   );
@@ -1478,7 +1493,7 @@ function AccompanyingDocsCell({
 
 function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
   const isRowInbound = isRowInboundLocked(
-    row.original.status,
+    row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
     true
@@ -1503,7 +1518,7 @@ function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowIte
       onChange={handleChange}
       disabled={isRowInbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-[46px] disabled:opacity-70 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:opacity-70 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1514,7 +1529,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
-  const isOrderInbound = isRowInboundLocked(r.status, isInboundTripMode, meta?.isAdmin);
+  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin);
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   const resolvedHubForPrint =
@@ -1869,7 +1884,10 @@ export function WarehouseEditableGrid({
                 accompanyingDocs: found.accompanyingDocs || rowItem.accompanyingDocs || '',
                 notes: rowItem.notes || found.notes || '',
                 destinationHubId: found.destinationHubId || null,
-                destinationHub: found.destinationHubEntity || null
+                destinationHub: found.destinationHubEntity || null,
+                hasPendingInboundTrip: Boolean(found.hasPendingInboundTrip),
+                pendingInboundTripCodes: found.pendingInboundTripCodes || [],
+                pendingInboundQuantity: found.pendingInboundQuantity || 0
               });
               continue;
             }
@@ -2368,7 +2386,7 @@ export function WarehouseEditableGrid({
           <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
             {table.getRowModel().rows.map((row) => {
               const isRowInbound = isRowInboundLocked(
-                row.original.status,
+                row.original,
                 table.options.meta?.isInboundTripMode,
                 table.options.meta?.isAdmin
               );
@@ -2379,7 +2397,7 @@ export function WarehouseEditableGrid({
                   className={cn(
                     'align-top group',
                     isRowInbound
-                      ? 'opacity-50 bg-slate-50/80 dark:bg-slate-800/40 transition-opacity'
+                      ? 'bg-slate-50/60 dark:bg-slate-800/30 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors'
                       : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors'
                   )}
                 >

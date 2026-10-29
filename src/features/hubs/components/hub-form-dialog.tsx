@@ -109,7 +109,7 @@ export function HubFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className='sm:max-w-[520px]' id='hub-form-dialog'>
+      <DialogContent className='sm:max-w-130' id='hub-form-dialog'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Icons.warehouse className='text-primary h-5 w-5' />

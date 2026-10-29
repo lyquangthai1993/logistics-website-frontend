@@ -104,7 +104,7 @@ export function OrderAdminOverrideDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[520px] p-0 gap-0'>
+      <DialogContent className='sm:max-w-130 p-0 gap-0'>
         <DialogHeader className='py-1.5 px-2 border-b'>
           <DialogTitle className='text-sm font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-400'>
             <IconShieldLock className='h-4 w-4' />

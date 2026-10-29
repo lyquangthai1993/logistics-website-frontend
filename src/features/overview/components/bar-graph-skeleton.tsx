@@ -6,13 +6,13 @@ export function BarGraphSkeleton() {
     <Card>
       <CardHeader>
         <div className='flex items-center gap-2'>
-          <Skeleton className='h-6 w-[160px]' />
-          <Skeleton className='h-5 w-[60px] rounded-full' />
+          <Skeleton className='h-6 w-40' />
+          <Skeleton className='h-5 w-15 rounded-full' />
         </div>
-        <Skeleton className='h-4 w-[150px]' />
+        <Skeleton className='h-4 w-37.5' />
       </CardHeader>
       <CardContent>
-        <div className='flex aspect-auto h-[280px] w-full items-end justify-around gap-2 pt-8'>
+        <div className='flex aspect-auto h-70 w-full items-end justify-around gap-2 pt-8'>
           {Array.from({ length: 12 }).map((_, i) => (
             <Skeleton
               key={i}

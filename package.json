@@ -12,7 +12,7 @@
     "start": "next start -p 4000",
     "cleanup": "node scripts/cleanup.js",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint",
+    "lint": "oxlint && node ../scripts/lint-tailwind-rules.mjs src/app/dashboard/warehouse",
     "lint:fix": "oxlint --fix && bun format",
     "lint:strict": "oxlint --deny-warnings",
     "format": "oxfmt --write . '!**/*.md' '!**/*.mdc' '!**/*.mdx' '!**/*.yml' '!**/*.yaml'",
@@ -26,7 +26,9 @@
     "e2e:report": "playwright show-report playwright-report",
     "e2e:debug": "playwright test --headed --debug",
     "e2e:multi-account": "node scripts/check-servers.mjs && playwright test e2e/06b-realtime-multi-account-notification.spec.ts",
-    "e2e:websocket": "node scripts/check-servers.mjs && playwright test e2e/06c-websocket-realtime-notification.spec.ts"
+    "e2e:websocket": "node scripts/check-servers.mjs && playwright test e2e/06c-websocket-realtime-notification.spec.ts",
+    "lint:tw": "node ../scripts/lint-tailwind-rules.mjs src",
+    "test:tw": "node ../scripts/lint-tailwind-rules.mjs src"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.47",

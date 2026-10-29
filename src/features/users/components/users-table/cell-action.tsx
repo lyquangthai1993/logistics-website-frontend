@@ -48,7 +48,7 @@ export function CellAction({ data }: CellActionProps) {
   return (
     <>
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent id='delete-user-dialog' className='sm:max-w-[420px]'>
+        <DialogContent id='delete-user-dialog' className='sm:max-w-105'>
           <DialogHeader>
             <DialogTitle className='text-destructive font-bold'>
               Xác Nhận Xóa Người Dùng

@@ -121,7 +121,7 @@ export default function ProfileViewPage() {
   // Fallback for unauthenticated state
   if (!user) {
     return (
-      <div className='flex w-full flex-col p-4 items-center justify-center min-h-[400px]'>
+      <div className='flex w-full flex-col p-4 items-center justify-center min-h-100'>
         <Card className='mx-auto max-w-md w-full text-center shadow-sm'>
           <CardHeader className='pb-3'>
             <div className='mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 dark:bg-amber-500/20'>

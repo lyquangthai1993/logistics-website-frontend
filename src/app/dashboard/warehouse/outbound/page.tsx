@@ -217,12 +217,20 @@ export default function WarehouseOutboundPage() {
     }
   ]);
 
+  const hasPendingInboundInNote = useMemo(() => {
+    return mode1Rows.some((r) => {
+      return Boolean(r.hasPendingInboundTrip || (r.pendingInboundTripCodes && r.pendingInboundTripCodes.length > 0));
+    });
+  }, [mode1Rows]);
+
   const hasDraftOrdersInNote = useMemo(() => {
     return mode1Rows.some((r) => {
       const st = (r.hubStatus ?? r.status ?? '').toUpperCase();
       return ['DRAFT', 'PENDING', 'WAITING'].includes(st);
     });
   }, [mode1Rows]);
+
+  const isOutboundConfirmationBlocked = hasDraftOrdersInNote || hasPendingInboundInNote;
 
   // Transfer Mode 2 Stepper State
   const [transferHubId, setTransferHubId] = useState<string>('2');
@@ -550,7 +558,10 @@ export default function WarehouseOutboundPage() {
               totalWeight: proportionalMetric(found.totalWeight, reqQty, found.totalQuantity),
               totalVolume: proportionalMetric(found.totalVolume, reqQty, found.totalQuantity),
               deliveryAddress:
-                rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || ''
+                rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || '',
+              hasPendingInboundTrip: Boolean(found.hasPendingInboundTrip),
+              pendingInboundTripCodes: found.pendingInboundTripCodes || [],
+              pendingInboundQuantity: found.pendingInboundQuantity || 0
             });
             continue;
           }
@@ -680,6 +691,12 @@ export default function WarehouseOutboundPage() {
     if (hasDraftOrdersInNote) {
       toast.error(
         "Chuyến xe đang chứa đơn hàng nháp. Chuyến xe có đơn nháp chỉ được phép ở trạng thái 'Chờ xử lý'. Vui lòng chọn 'Lưu nháp' chuyến xe hoặc duyệt đơn hàng trước khi xuất kho."
+      );
+      return;
+    }
+    if (hasPendingInboundInNote) {
+      toast.error(
+        "Chuyến xe đang chứa đơn hàng còn chuyến nhập kho nháp (chưa hoàn tất nhập kho). Chuyến xe chỉ được phép ở trạng thái 'Chờ xử lý'. Vui lòng chọn 'Lưu nháp' chuyến xe hoặc hoàn tất chuyến nhập kho trước khi xác nhận xuất kho."
       );
       return;
     }
@@ -1220,11 +1237,11 @@ export default function WarehouseOutboundPage() {
             {/* Toolbar with Search, Date Range Filter, Status Tabs & Refresh Button */}
             <Card className='bg-white dark:bg-slate-900 shadow-sm border py-0'>
               <CardContent className='p-1 space-y-1.5'>
-                <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-2'>
+                <div className='flex flex-col xl:flex-row xl:items-center xl:justify-between gap-1.5'>
                   {/* Search Box & Date Range Filter */}
-                  <div className='flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0'>
+                  <div className='flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1.5 flex-1 min-w-0'>
                     {/* Search Box */}
-                    <div className='relative flex-1 min-w-0'>
+                    <div className='relative flex-1 min-w-50 sm:min-w-55'>
                       <button
                         type='button'
                         onClick={handleSearchSubmit}
@@ -1238,7 +1255,7 @@ export default function WarehouseOutboundPage() {
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
                         placeholder='Tìm mã đơn, xe, tài xế, tên hàng...'
-                        className='pl-9 pr-8 h-8.5 text-xs w-full'
+                        className='pl-9 pr-8 h-8 text-xs w-full'
                       />
                       {search && (
                         <button
@@ -1253,7 +1270,7 @@ export default function WarehouseOutboundPage() {
                     </div>
 
                     {/* Date Range: Từ ngày -> Đến ngày */}
-                    <div className='flex flex-col sm:flex-row sm:items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto'>
+                    <div className='flex flex-col sm:flex-row sm:items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto shrink-0'>
                       <div className='flex items-center gap-1 w-full sm:w-auto'>
                         <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium shrink-0'>
                           <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
@@ -1265,7 +1282,7 @@ export default function WarehouseOutboundPage() {
                           value={fromDate}
                           max={toDate}
                           onChange={(e) => setFromDate(e.target.value)}
-                          className='flex-1 sm:flex-initial min-w-[100px] px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                          className='flex-1 sm:flex-initial min-w-25 px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                         />
                         <span className='text-slate-400 font-medium px-0.5 shrink-0'>đến:</span>
                         <input
@@ -1274,7 +1291,7 @@ export default function WarehouseOutboundPage() {
                           value={toDate}
                           min={fromDate}
                           onChange={(e) => setToDate(e.target.value)}
-                          className='flex-1 sm:flex-initial min-w-[100px] px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
+                          className='flex-1 sm:flex-initial min-w-25 px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
                         />
                       </div>
                       <div className='flex items-center gap-1 shrink-0 justify-end sm:justify-start w-full sm:w-auto'>
@@ -1303,8 +1320,8 @@ export default function WarehouseOutboundPage() {
                   </div>
 
                   {/* Processing Status Tabs & Refresh Button */}
-                  <div className='flex items-center justify-between gap-1.5 w-full md:w-auto'>
-                    <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto scrollbar-none flex-1 md:flex-initial'>
+                  <div className='flex items-center justify-between gap-1.5 w-full xl:w-auto shrink-0'>
+                    <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold overflow-x-auto scrollbar-none flex-1 xl:flex-initial'>
                       {[
                         { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
                         { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
@@ -1330,7 +1347,7 @@ export default function WarehouseOutboundPage() {
                       size='sm'
                       onClick={handleRefreshMetrics}
                       disabled={isRefreshing}
-                      className='h-8 w-8 sm:w-auto p-0 sm:px-2.5 text-xs font-bold border-slate-300 shrink-0 ml-auto md:ml-0'
+                      className='h-8 w-8 sm:w-auto p-0 sm:px-2.5 text-xs font-bold border-slate-300 shrink-0 ml-auto xl:ml-0'
                       title='Cập nhật lại thông số'
                     >
                       <IconRefresh
@@ -1350,11 +1367,11 @@ export default function WarehouseOutboundPage() {
                         <th className='py-1.5 px-2 w-[115px] whitespace-nowrap'>
                           CHUYẾN XE / TRIP
                         </th>
-                        <th className='py-1.5 px-2 w-[160px]'>XE & TÀI XẾ</th>
-                        <th className='py-1.5 px-2 min-w-[240px]'>MÃ VẬN ĐƠN</th>
-                        <th className='py-1.5 px-2 text-right w-[130px]'>SỐ KIỆN / TẢI TRỌNG</th>
-                        <th className='py-1.5 px-2 w-[100px] text-center'>TRẠNG THÁI</th>
-                        <th className='py-1.5 px-2 text-center w-[180px]'>THAO TÁC</th>
+                        <th className='py-1.5 px-2 w-40'>XE & TÀI XẾ</th>
+                        <th className='py-1.5 px-2 min-w-60'>MÃ VẬN ĐƠN</th>
+                        <th className='py-1.5 px-2 text-right w-32.5'>SỐ KIỆN / TẢI TRỌNG</th>
+                        <th className='py-1.5 px-2 w-25 text-center'>TRẠNG THÁI</th>
+                        <th className='py-1.5 px-2 text-center w-45'>THAO TÁC</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
@@ -1416,7 +1433,7 @@ export default function WarehouseOutboundPage() {
                                   </button>
                                 </div>
                               </td>
-                              <td className='py-1 px-2 w-[160px] align-top'>
+                              <td className='py-1 px-2 w-40 align-top'>
                                 <div className='text-[11px] space-y-0.5'>
                                   <div className='font-mono font-semibold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1'>
                                     <IconTruck className='h-3 w-3 text-blue-600 shrink-0' />
@@ -1424,7 +1441,7 @@ export default function WarehouseOutboundPage() {
                                   </div>
                                   {grp.driverName && (
                                     <div
-                                      className='text-[10px] text-gray-500 truncate max-w-[140px]'
+                                      className='text-[10px] text-gray-500 truncate max-w-35'
                                       title={grp.driverName}
                                     >
                                       {grp.driverName}
@@ -1432,7 +1449,7 @@ export default function WarehouseOutboundPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className='py-1 px-2 min-w-[240px] align-top'>
+                              <td className='py-1 px-2 min-w-60 align-top'>
                                 {orderCodes.length > 0 ? (
                                   <div
                                     className='text-[10px] text-gray-500 dark:text-slate-400 leading-snug break-words'
@@ -1522,12 +1539,12 @@ export default function WarehouseOutboundPage() {
                 {/* Mobile Outbound Trip Cards (Chế độ xem gọn cho thiết bị di động - xem thông tin chính, không chứa nút thao tác) */}
                 <div className='block md:hidden space-y-2'>
                   {isLoading ? (
-                    <div className='p-6 text-center text-gray-500 bg-white dark:bg-slate-900 border rounded-lg'>
+                    <div className='p-3 text-center text-gray-500 bg-white dark:bg-slate-900 border rounded-lg'>
                       <IconLoader2 className='h-6 w-6 animate-spin mx-auto mb-2 text-blue-600' />
                       <p className='text-xs'>Đang tải danh sách đơn xuất kho...</p>
                     </div>
                   ) : vehicleGroups.length === 0 ? (
-                    <div className='p-6 text-center text-gray-400 bg-white dark:bg-slate-900 border rounded-lg'>
+                    <div className='p-3 text-center text-gray-400 bg-white dark:bg-slate-900 border rounded-lg'>
                       <IconTruck className='h-8 w-8 mx-auto mb-2 opacity-30 text-slate-400' />
                       <p className='text-xs'>Không có chuyến xe xuất kho phù hợp bộ lọc</p>
                     </div>
@@ -1591,7 +1608,7 @@ export default function WarehouseOutboundPage() {
                               <span>{grp.licensePlate}</span>
                             </div>
                             {grp.driverName && (
-                              <div className='text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[160px]'>
+                              <div className='text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-40'>
                                 {grp.driverName}
                               </div>
                             )}
@@ -1718,14 +1735,19 @@ export default function WarehouseOutboundPage() {
                 </div>
               </div>
 
-              {hasDraftOrdersInNote && (
+              {isOutboundConfirmationBlocked && (
                 <div className='flex items-center gap-1.5 p-1.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-[11px] mb-2'>
                   <IconAlertCircle className='h-4 w-4 shrink-0 text-amber-600' />
                   <span>
-                    <strong>Lưu ý nghiệp vụ:</strong> Phiếu xuất này chứa đơn hàng đang ở trạng thái{' '}
-                    <strong>Đơn nháp</strong>. Chuyến xe sẽ được lưu ở trạng thái{' '}
+                    <strong>Lưu ý nghiệp vụ:</strong> Phiếu xuất này chứa{' '}
+                    {hasPendingInboundInNote ? (
+                      <>đơn hàng <strong>còn chuyến nhập nháp chưa hoàn tất</strong> (cần hoàn tất nhập kho trước)</>
+                    ) : (
+                      <>đơn hàng đang ở trạng thái <strong>Đơn nháp</strong></>
+                    )}
+                    . Chuyến xe sẽ được lưu ở trạng thái{' '}
                     <strong>Chờ xử lý</strong> và không thể chuyển sang <strong>Đã xử lý</strong>{' '}
-                    cho đến khi các đơn hàng được duyệt chính thức.
+                    cho đến khi các chuyến nhập / đơn hàng được hoàn tất chính thức.
                   </span>
                 </div>
               )}
@@ -1751,18 +1773,18 @@ export default function WarehouseOutboundPage() {
                   Hủy bỏ
                 </Button>
                 <div className='flex items-center gap-2'>
-                  {hasDraftOrdersInNote && (
+                  {isOutboundConfirmationBlocked && (
                     <span className='text-[11px] text-amber-600 dark:text-amber-400 font-medium'>
-                      ⚠️ Có đơn nháp — Chỉ được Lưu nháp
+                      ⚠️ {hasPendingInboundInNote ? 'Còn chuyến nhập nháp — Chỉ được Lưu nháp' : 'Có đơn nháp — Chỉ được Lưu nháp'}
                     </span>
                   )}
                   <Button
-                    variant={hasDraftOrdersInNote ? 'default' : 'outline'}
+                    variant={isOutboundConfirmationBlocked ? 'default' : 'outline'}
                     size='sm'
                     onClick={handleSaveDraftMode1}
                     disabled={isSavingDraft || isSubmitting}
                     className={`text-xs font-bold ${
-                      hasDraftOrdersInNote
+                      isOutboundConfirmationBlocked
                         ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
                         : 'border-slate-300'
                     }`}
@@ -1842,9 +1864,9 @@ export default function WarehouseOutboundPage() {
                   </Button>
                   <Button
                     onClick={() => handleSubmitOutbound('CUSTOMER')}
-                    disabled={isSubmitting || isSavingDraft || hasDraftOrdersInNote}
+                    disabled={isSubmitting || isSavingDraft || isOutboundConfirmationBlocked}
                     className={`px-2 font-bold h-9 text-xs shadow-xs ${
-                      hasDraftOrdersInNote
+                      isOutboundConfirmationBlocked
                         ? 'bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500'
                         : 'bg-[#0F3D62] text-white hover:bg-[#0c314f]'
                     }`}
