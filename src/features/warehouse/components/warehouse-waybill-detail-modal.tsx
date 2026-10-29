@@ -1070,7 +1070,7 @@ export function WarehouseWaybillDetailModal({
                             {log.action}
                           </Badge>
                           <span className="font-semibold text-slate-700 dark:text-slate-200">
-                            {log.actorUsername || (log.actorEmail ? log.actorEmail.split('@')[0] : 'Hệ thống')}
+                            {log.actorName || log.actorUsername || (log.actorEmail ? log.actorEmail.split('@')[0] : 'Hệ thống')}
                           </span>
                           {log.actorRole && (
                             <span className="text-[10px] text-slate-400 font-mono">({log.actorRole})</span>
