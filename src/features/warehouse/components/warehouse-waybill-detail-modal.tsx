@@ -1206,7 +1206,7 @@ export function WarehouseWaybillDetailModal({
                   <span>Danh mục hàng hóa vận đơn</span>
                 </h4>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Tổng số lượng: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{serverData?.order?.totalQuantity ?? effectiveInboundQty ?? waybill.totalQuantity ?? 1}</span> · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> CBM
+                  Tổng số lượng: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}</span> · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> CBM
                 </span>
               </div>
 
@@ -1240,7 +1240,7 @@ export function WarehouseWaybillDetailModal({
                         {waybill.goodsDescription || 'Hàng hóa tổng quan'}
                       </td>
                       <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
-                        {serverData?.order?.totalQuantity ?? effectiveInboundQty ?? waybill.totalQuantity ?? 1}
+                        {waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}
                       </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
                         {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')} kg
