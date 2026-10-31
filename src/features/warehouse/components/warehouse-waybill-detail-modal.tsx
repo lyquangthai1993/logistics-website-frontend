@@ -26,7 +26,7 @@ import {
 import { toast } from 'sonner';
 import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { tokenManager } from '@/lib/token-manager';
-import { IconShieldLock, IconTrash, IconRotate, IconAlertTriangle, IconLoader2, IconPencil } from '@tabler/icons-react';
+import { IconShieldLock, IconTrash, IconRotate, IconAlertTriangle, IconLoader2, IconPencil, IconClock } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 
 export interface OrderInventoryTransaction {
@@ -418,26 +418,57 @@ export function WarehouseWaybillDetailModal({
       });
     }
 
-    // Graceful fallback for legacy records without transaction rows
+    if (rawList.length > 0) {
+      let running = 0;
+      return rawList.map((tx) => {
+        const isIn = tx.type === 'INBOUND';
+        const q = Number(tx.quantity) || 0;
+        if (isIn) {
+          running += q;
+        } else {
+          running = Math.max(0, running - q);
+        }
+        return {
+          ...tx,
+          cumulativeStock: running,
+        };
+      });
+    }
+
+    // DO NOT generate fake inbound for DRAFT, PENDING, or unreceived orders
+    const isUnreceived =
+      waybill?.status === 'DRAFT' ||
+      waybill?.status === 'PENDING' ||
+      waybill?.status === 'PENDING_INBOUND' ||
+      waybill?.status === 'WAITING' ||
+      (waybill?.inboundQuantity ?? 0) === 0;
+
+    if (isUnreceived) {
+      return [];
+    }
+
+    // Graceful fallback ONLY for legacy records without transaction rows that were already received
     const fallback: OrderInventoryTransaction[] = [];
-    const inboundQty = waybill?.inboundQuantity ?? waybill?.totalQuantity ?? 1;
-    const remainingQty = waybill?.remainingQuantity ?? waybill?.totalQuantity ?? 1;
+    const inboundQty = waybill?.inboundQuantity ?? 0;
+    const remainingQty = waybill?.remainingQuantity ?? 0;
     const outboundQty = waybill?.outboundQuantity ?? 0;
 
-    fallback.push({
-      id: 1,
-      orderId: waybill?.id || 0,
-      type: 'INBOUND',
-      quantity: inboundQty,
-      remainingQuantity: inboundQty,
-      weight: waybill?.totalWeight || 0,
-      volume: waybill?.totalVolume || 0,
-      licensePlate: waybill?.vehicleLicensePlate || null,
-      driverName: waybill?.driverName || null,
-      destination: waybill?.destinationHub || waybill?.province || 'Kho nhận',
-      notes: 'Tiếp nhận nhập kho ban đầu',
-      createdAt: waybill?.createdAt || new Date(),
-    });
+    if (inboundQty > 0) {
+      fallback.push({
+        id: 1,
+        orderId: waybill?.id || 0,
+        type: 'INBOUND',
+        quantity: inboundQty,
+        remainingQuantity: inboundQty,
+        weight: waybill?.totalWeight || 0,
+        volume: waybill?.totalVolume || 0,
+        licensePlate: waybill?.vehicleLicensePlate || null,
+        driverName: waybill?.driverName || null,
+        destination: waybill?.destinationHub || waybill?.province || 'Kho nhận',
+        notes: 'Tiếp nhận nhập kho ban đầu',
+        createdAt: waybill?.createdAt || new Date(),
+      });
+    }
 
     if (outboundQty > 0) {
       fallback.push({
@@ -457,8 +488,7 @@ export function WarehouseWaybillDetailModal({
     }
 
     let running = 0;
-    const listToProcess = rawList.length > 0 ? rawList : fallback;
-    return listToProcess.map((tx) => {
+    return fallback.map((tx) => {
       const isIn = tx.type === 'INBOUND';
       const q = Number(tx.quantity) || 0;
       if (isIn) {
@@ -473,27 +503,37 @@ export function WarehouseWaybillDetailModal({
     });
   }, [waybill]);
 
-  const effectiveInboundQty =
-    serverData?.order?.inboundQuantity ??
-    waybill?.inboundQuantity ??
-    waybill?.totalQuantity ??
-    0;
-  const effectiveOutboundQty =
-    serverData?.order?.outboundQuantity ?? waybill?.outboundQuantity ?? 0;
-  const effectiveRemainingQty =
-    serverData?.order?.remainingQuantity ??
-    waybill?.remainingQuantity ??
-    waybill?.totalQuantity ??
-    0;
   const effectiveStatus =
     serverData?.order?.status ?? waybill?.status ?? 'STORED';
 
+  const isDraftOrPending =
+    effectiveStatus === 'DRAFT' ||
+    effectiveStatus === 'PENDING' ||
+    effectiveStatus === 'PENDING_INBOUND' ||
+    effectiveStatus === 'WAITING';
+
+  const effectiveInboundQty = isDraftOrPending
+    ? 0
+    : (serverData?.order?.inboundQuantity ??
+       waybill?.inboundQuantity ??
+       waybill?.totalQuantity ??
+       0);
+  const effectiveOutboundQty = isDraftOrPending
+    ? 0
+    : (serverData?.order?.outboundQuantity ?? waybill?.outboundQuantity ?? 0);
+  const effectiveRemainingQty = isDraftOrPending
+    ? 0
+    : (serverData?.order?.remainingQuantity ??
+       waybill?.remainingQuantity ??
+       waybill?.totalQuantity ??
+       0);
+
   const displayTransactions: any[] = useMemo(() => {
-    if (serverData?.transactions && serverData.transactions.length > 0) {
+    if (serverData && Array.isArray(serverData.transactions)) {
       return serverData.transactions;
     }
     return transactions;
-  }, [serverData?.transactions, transactions]);
+  }, [serverData, transactions]);
 
   if (!waybill) return null;
 
@@ -555,7 +595,7 @@ export function WarehouseWaybillDetailModal({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getWaybillStatusBadge(waybill.status)}
+              {getWaybillStatusBadge(effectiveStatus)}
               <Button
                 variant="ghost"
                 size="sm"
@@ -919,6 +959,38 @@ export function WarehouseWaybillDetailModal({
 
                   {/* Trạng thái tồn kho / vận chuyển hiện tại */}
                   {(() => {
+                    const isDraftOrPendingStatus =
+                      effectiveStatus === 'DRAFT' ||
+                      effectiveStatus === 'PENDING' ||
+                      effectiveStatus === 'PENDING_INBOUND' ||
+                      effectiveStatus === 'WAITING' ||
+                      (effectiveInboundQty === 0 &&
+                        effectiveOutboundQty === 0 &&
+                        effectiveRemainingQty === 0 &&
+                        displayTransactions.length === 0);
+
+                    if (isDraftOrPendingStatus) {
+                      return (
+                        <div className="relative flex items-start gap-3">
+                          <div className="flex flex-col items-center shrink-0 w-6">
+                            <div className="z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-slate-400 text-white shadow-xs ring-4 ring-white dark:ring-slate-900">
+                              <IconClock className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-100/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs">
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              {effectiveStatus === 'DRAFT'
+                                ? 'Đơn hàng đang ở trạng thái Đơn nháp · Chưa xác nhận nhập kho'
+                                : 'Đơn hàng đang chờ tiếp nhận nhập kho'}
+                            </span>
+                            <span className="font-mono font-semibold text-slate-500">
+                              Dự kiến: {waybill?.totalQuantity || serverData?.order?.totalQuantity || 0} kiện
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const currentWarehouseName =
                       waybill.currentHubEntity?.name ||
                       waybill.originHubEntity?.name ||
@@ -1134,7 +1206,7 @@ export function WarehouseWaybillDetailModal({
                   <span>Danh mục hàng hóa vận đơn</span>
                 </h4>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Tổng số lượng: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{serverData?.order?.totalQuantity ?? effectiveInboundQty ?? waybill.totalQuantity ?? 1}</span> · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> CBM
+                  Tổng số lượng: <span className="font-bold text-[#0F3D62] dark:text-blue-400 font-mono">{waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}</span> · <span className="font-bold font-mono">{(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}</span> kg · <span className="font-bold font-mono">{waybill.totalVolume ?? 0}</span> CBM
                 </span>
               </div>
 
@@ -1168,7 +1240,7 @@ export function WarehouseWaybillDetailModal({
                         {waybill.goodsDescription || 'Hàng hóa tổng quan'}
                       </td>
                       <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
-                        {serverData?.order?.totalQuantity ?? effectiveInboundQty ?? waybill.totalQuantity ?? 1}
+                        {waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}
                       </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
                         {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')} kg
@@ -1229,10 +1301,7 @@ export function WarehouseWaybillDetailModal({
           </div>
 
           {/* ── Dialog Footer (Clean Close & Print Actions) ── */}
-          <div className="p-3.5 px-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-slate-500 font-medium">
-              Trạng thái vận đơn: {getWaybillStatusBadge(effectiveStatus)}
-            </span>
+          <div className="p-3 px-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
 
             <div className="flex items-center gap-2">
               <Button
