@@ -53,7 +53,14 @@ import {
   WarehouseTripDetailModal,
   InboundVehicleGroup
 } from '@/features/warehouse/components/warehouse-trip-detail-modal';
-import { TripDateTooltip } from '@/features/warehouse/components';
+import {
+  TripDateTooltip,
+  WarehouseDateRangeDropdown,
+  computeSevenDaysAgoDate,
+  computeTodayDate,
+  getInitialWarehouseFromDate,
+  getInitialWarehouseToDate
+} from '@/features/warehouse/components';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
@@ -96,26 +103,9 @@ export default function WarehouseInboundPage() {
   };
   const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
 
-  // Date Range Filter: Default from 1st of current month to today (aligned with Outbound & URL params)
-  const getDefaultFromDate = () => {
-    if (typeof window !== 'undefined') {
-      const sp = new URLSearchParams(window.location.search);
-      const qFrom = sp.get('fromDate');
-      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) return qFrom;
-    }
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-  };
-
-  const getDefaultToDate = () => {
-    if (typeof window !== 'undefined') {
-      const sp = new URLSearchParams(window.location.search);
-      const qTo = sp.get('toDate');
-      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) return qTo;
-    }
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
+  // Date Range Filter: Default 7 days (including today: today - 6 days -> today), supports URL params
+  const getDefaultFromDate = getInitialWarehouseFromDate;
+  const getDefaultToDate = getInitialWarehouseToDate;
 
   const [fromDate, setFromDate] = useState(getDefaultFromDate);
   const [toDate, setToDate] = useState(getDefaultToDate);
@@ -129,9 +119,8 @@ export default function WarehouseInboundPage() {
   };
 
   const handleResetDateRange = () => {
-    const d = new Date();
-    const defFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-    const defTo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const defFrom = computeSevenDaysAgoDate();
+    const defTo = computeTodayDate();
     setFromDate(defFrom);
     setToDate(defTo);
     setAppliedFromDate(defFrom);
@@ -1037,54 +1026,17 @@ export default function WarehouseInboundPage() {
                       )}
                     </div>
 
-                    {/* Date Range: Từ ngày -> Đến ngày */}
-                    <div className='flex flex-col sm:flex-row sm:items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto shrink-0'>
-                      <div className='flex items-center gap-1 w-full sm:w-auto'>
-                        <div className='flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium shrink-0'>
-                          <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
-                          <span>Từ:</span>
-                        </div>
-                        <input
-                          type='date'
-                          aria-label='Từ ngày'
-                          value={fromDate}
-                          max={toDate || undefined}
-                          onChange={(e) => setFromDate(e.target.value)}
-                          className='flex-1 sm:flex-initial min-w-25 px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
-                        />
-                        <span className='text-slate-400 font-medium px-0.5 shrink-0'>đến:</span>
-                        <input
-                          type='date'
-                          aria-label='Đến ngày'
-                          value={toDate}
-                          min={fromDate || undefined}
-                          onChange={(e) => setToDate(e.target.value)}
-                          className='flex-1 sm:flex-initial min-w-25 px-1 py-0.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0F3D62] cursor-pointer h-7'
-                        />
-                      </div>
-                      <div className='flex items-center gap-1 shrink-0 justify-end sm:justify-start w-full sm:w-auto'>
-                        <Button
-                          type='button'
-                          size='sm'
-                          onClick={handleApplyDateRange}
-                          className='h-7 flex-1 sm:flex-initial px-2.5 text-xs font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
-                          title='Áp dụng bộ lọc theo khoảng thời gian'
-                        >
-                          Áp dụng
-                        </Button>
-                        {(appliedFromDate !== getDefaultFromDate() ||
-                          appliedToDate !== getDefaultToDate()) && (
-                          <button
-                            type='button'
-                            onClick={handleResetDateRange}
-                            className='text-[11px] text-blue-600 dark:text-blue-400 hover:underline px-1 font-medium cursor-pointer shrink-0'
-                            title='Đặt lại về tháng này'
-                          >
-                            Đặt lại
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    {/* Date Range Dropdown Filter (7 days default, opens on demand) */}
+                    <WarehouseDateRangeDropdown
+                      fromDate={fromDate}
+                      toDate={toDate}
+                      appliedFromDate={appliedFromDate}
+                      appliedToDate={appliedToDate}
+                      onFromDateChange={setFromDate}
+                      onToDateChange={setToDate}
+                      onApply={handleApplyDateRange}
+                      onReset={handleResetDateRange}
+                    />
                   </div>
 
                   {/* Status Tabs & Refresh Button */}

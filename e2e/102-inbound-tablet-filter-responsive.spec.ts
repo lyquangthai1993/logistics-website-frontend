@@ -34,19 +34,19 @@ test.describe('Task #109: Inbound & Outbound Tablet Filter Responsive Layout (Ze
     expect(searchBox).not.toBeNull();
     expect(searchBox!.width).toBeGreaterThanOrEqual(180);
 
-    // 5. Verify Date Range "Áp dụng" button and Status Tab "Tất cả" do NOT overlap
-    const btnApply = page.locator('button', { hasText: 'Áp dụng' });
+    // 5. Verify Date Range Dropdown button and Status Tab "Tất cả" do NOT overlap
+    const btnDateDropdown = page.getByTestId('date-filter-dropdown-trigger');
     const tabAll = page.locator('button', { hasText: /Tất cả \(\d+\)/ });
-    await expect(btnApply).toBeVisible();
+    await expect(btnDateDropdown).toBeVisible();
     await expect(tabAll).toBeVisible();
 
-    const boxApply = await btnApply.boundingBox();
+    const boxApply = await btnDateDropdown.boundingBox();
     const boxTabAll = await tabAll.boundingBox();
     expect(boxApply).not.toBeNull();
     expect(boxTabAll).not.toBeNull();
 
     // Mathematical bounding-box non-collision check:
-    // Either separated horizontally (right of Apply <= left of TabAll) OR separated vertically (bottom of Apply <= top of TabAll)
+    // Either separated horizontally (right of DateDropdown <= left of TabAll) OR separated vertically (bottom of DateDropdown <= top of TabAll)
     const separatedHorizontally = boxApply!.x + boxApply!.width <= boxTabAll!.x + 1;
     const separatedVertically = boxApply!.y + boxApply!.height <= boxTabAll!.y + 1;
     expect(separatedHorizontally || separatedVertically).toBe(true);
@@ -62,7 +62,10 @@ test.describe('Task #109: Inbound & Outbound Tablet Filter Responsive Layout (Ze
     await page.screenshot({ path: screenshotPath, fullPage: false });
 
     // 7. Interactive filter verification (EC-03, EC-05, EC-07):
-    // Click "Áp dụng" and switch status tabs without collision interception
+    // Open date dropdown, click "Áp dụng" and switch status tabs without collision interception
+    await btnDateDropdown.click();
+    const btnApply = page.locator('button', { hasText: 'Áp dụng' });
+    await expect(btnApply).toBeVisible();
     await btnApply.click();
     const tabPending = page.locator('button', { hasText: /Chờ xử lý \(\d+\)/ });
     await expect(tabPending).toBeVisible();
@@ -80,7 +83,7 @@ test.describe('Task #109: Inbound & Outbound Tablet Filter Responsive Layout (Ze
     // 8. Check 900px split-screen viewport (EC-03)
     await page.setViewportSize({ width: 900, height: 800 });
     const searchBox900 = await searchInput.boundingBox();
-    const boxApply900 = await btnApply.boundingBox();
+    const boxApply900 = await btnDateDropdown.boundingBox();
     const boxTabAll900 = await tabAll.boundingBox();
     expect(searchBox900!.width).toBeGreaterThanOrEqual(180);
     const nonOverlapping900 =
@@ -102,12 +105,12 @@ test.describe('Task #109: Inbound & Outbound Tablet Filter Responsive Layout (Ze
     expect(outSearchBox).not.toBeNull();
     expect(outSearchBox!.width).toBeGreaterThanOrEqual(180);
 
-    const outBtnApply = page.locator('button', { hasText: 'Áp dụng' });
+    const outBtnDateDropdown = page.getByTestId('date-filter-dropdown-trigger');
     const outTabAll = page.locator('button', { hasText: /Tất cả \(\d+\)/ });
-    await expect(outBtnApply).toBeVisible();
+    await expect(outBtnDateDropdown).toBeVisible();
     await expect(outTabAll).toBeVisible();
 
-    const outBoxApply = await outBtnApply.boundingBox();
+    const outBoxApply = await outBtnDateDropdown.boundingBox();
     const outBoxTabAll = await outTabAll.boundingBox();
     const outNonOverlapping =
       outBoxApply!.x + outBoxApply!.width <= outBoxTabAll!.x + 1 ||
