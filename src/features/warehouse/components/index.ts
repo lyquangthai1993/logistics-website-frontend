@@ -16,3 +16,11 @@ export { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 export { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
 export { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';
 export { TripDateTooltip } from './trip-date-tooltip';
+export {
+  WarehouseDateRangeDropdown,
+  computeSevenDaysAgoDate,
+  computeTodayDate,
+  computeFirstOfMonthDate,
+  getInitialWarehouseFromDate,
+  getInitialWarehouseToDate
+} from './warehouse-date-range-dropdown';
