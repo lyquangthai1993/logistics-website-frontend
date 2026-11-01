@@ -36,6 +36,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 import { Icons } from '../icons';
 import { CompanyBranding } from '../company-branding';
+import { ImpersonationControl } from './impersonation-control';
 
 export default function AppSidebar() {
   const pathname = usePathname();
@@ -123,6 +124,7 @@ export default function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <ImpersonationControl />
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger

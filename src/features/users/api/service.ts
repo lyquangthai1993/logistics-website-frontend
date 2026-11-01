@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { ApiResponse } from '@/lib/api-error';
+import { useAuthStore } from '@/stores/use-auth-store';
 import type {
   User,
   UserFilters,
@@ -7,6 +8,22 @@ import type {
   CreateUserPayload,
   UpdateUserPayload
 } from './types';
+
+export interface LoginAsResponse {
+  token: string;
+  refreshToken: string;
+  tokenExpires: number;
+  user: User;
+}
+
+function getSuperAdminAuthHeaders(): Record<string, string> | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const impersonatorToken = useAuthStore.getState()?.impersonator?.accessToken;
+  if (impersonatorToken) {
+    return { Authorization: `Bearer ${impersonatorToken}` };
+  }
+  return undefined;
+}
 
 export async function getUsers(filters: UserFilters = {}): Promise<UsersResponse> {
   const params: Record<string, string | number | boolean | undefined> = {
@@ -25,7 +42,11 @@ export async function getUsers(filters: UserFilters = {}): Promise<UsersResponse
     params.sort = filters.sort;
   }
 
-  const res = await apiClient.get<ApiResponse<User[]>>('/api/v1/users', { params });
+  const headers = getSuperAdminAuthHeaders();
+  const res = await apiClient.get<ApiResponse<User[]>>('/api/v1/users', {
+    params,
+    ...(headers ? { headers } : {})
+  });
   const usersList = res.data.data ?? [];
   const hasNextPage = res.data.meta?.hasNextPage ?? false;
 
@@ -54,4 +75,20 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
 
 export async function deleteUser(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/users/${id}`);
+}
+
+export async function loginAsUser(userId: number | string): Promise<LoginAsResponse> {
+  const headers = getSuperAdminAuthHeaders();
+  const res = await apiClient.post<any>(
+    `/api/v1/auth/login-as/${userId}`,
+    {},
+    headers ? { headers } : undefined
+  );
+  const payload = res.data?.data ?? res.data ?? {};
+  return {
+    token: payload.token || payload.access_token,
+    refreshToken: payload.refreshToken || payload.refresh_token,
+    tokenExpires: payload.tokenExpires,
+    user: payload.user
+  };
 }

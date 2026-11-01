@@ -54,7 +54,7 @@ export const columns: ColumnDef<User>[] = [
     accessorFn: (row) => row.role?.name || row.role?.displayName || '',
     enableSorting: false,
     header: ({ column }: { column: Column<User, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Vai trò' />
+      <DataTableColumnHeader column={column} title='Vai trò & Kho phụ trách' />
     ),
     cell: ({ row }) => {
       const role = row.original.role;
@@ -88,10 +88,22 @@ export const columns: ColumnDef<User>[] = [
           'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
       }
 
+      const hubName = row.original.hub?.name;
+
       return (
-        <Badge variant='outline' className={`capitalize ${badgeClass}`}>
-          {roleName}
-        </Badge>
+        <div className='flex flex-wrap items-center gap-1.5'>
+          <Badge variant='outline' className={`capitalize ${badgeClass}`}>
+            {roleName}
+          </Badge>
+          {hubName && (
+            <Badge
+              variant='outline'
+              className='text-[10px] font-medium bg-slate-100/80 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+            >
+              {hubName}
+            </Badge>
+          )}
+        </div>
       );
     },
     enableColumnFilter: true,
