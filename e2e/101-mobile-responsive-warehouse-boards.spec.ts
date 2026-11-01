@@ -48,8 +48,8 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     const searchInput = page.getByPlaceholder(/Tìm mã chuyến/i);
     await expect(searchInput).toBeVisible();
 
-    const applyDateBtn = page.getByRole('button', { name: 'Áp dụng', exact: true });
-    await expect(applyDateBtn).toBeVisible();
+    const dateFilterDropdownBtn = page.getByTestId('date-filter-dropdown-trigger');
+    await expect(dateFilterDropdownBtn).toBeVisible();
 
     // Verify refresh button exists as an icon button on mobile
     const refreshBtn = page.getByTitle(/Làm mới dữ liệu/i);
@@ -143,8 +143,8 @@ test.describe.serial('Mobile Responsive Warehouse Inbound & Outbound Boards', ()
     const searchInput = page.getByPlaceholder(/Tìm mã đơn/i);
     await expect(searchInput).toBeVisible();
 
-    const applyDateBtn = page.getByRole('button', { name: 'Áp dụng', exact: true });
-    await expect(applyDateBtn).toBeVisible();
+    const dateFilterDropdownBtn = page.getByTestId('date-filter-dropdown-trigger');
+    await expect(dateFilterDropdownBtn).toBeVisible();
 
     // Verify refresh button exists as an icon button on mobile
     const refreshBtn = page.getByTitle(/Cập nhật lại thông số/i);
