@@ -3,14 +3,19 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { loginAs, USER_ADMIN, waitForTableLoaded } from './helpers/auth';
 
-test.describe('Task #111: Super Admin "Login As" (Impersonation) & 1-Click Admin Session Restore', () => {
-  test('Super Admin can impersonate a user via Users Table or Header Switcher, see active banner, block non-admin API escalation, and exit impersonation in 1 click', async ({
+test.describe('Task #111: Super Admin "Login As" (Impersonation) in Left Navbar & Users Table', () => {
+  test('Super Admin can impersonate a user via Left Navbar Switcher or Users Table, see active status in Navbar, block non-admin API escalation, and exit impersonation in 1 click', async ({
     page
   }) => {
     await page.setViewportSize({ width: 1440, height: 860 });
 
     // 1. Login as Super Admin
     await loginAs(page, USER_ADMIN);
+
+    // Ensure left sidebar navbar is expanded so full labels are visible
+    await page.evaluate(() => {
+      document.cookie = 'sidebar_state=true; path=/; max-age=86400';
+    });
 
     // 2. Navigate to Users Management (/dashboard/users)
     await page.goto('/dashboard/users');
@@ -27,13 +32,13 @@ test.describe('Task #111: Super Admin "Login As" (Impersonation) & 1-Click Admin
     const btnCount = await rowLoginAsButtons.count();
     expect(btnCount).toBeGreaterThan(0);
 
-    // Verify Header "Đóng vai (Login as)" quick switcher button is visible
-    const headerTrigger = page.getByTestId('header-login-as-trigger');
-    await expect(headerTrigger).toBeVisible();
-    await expect(headerTrigger).toContainText('Đóng vai');
+    // Verify Left Navbar "Đóng vai (Login as)" quick switcher button is visible
+    const navbarTrigger = page.getByTestId('header-login-as-trigger');
+    await expect(navbarTrigger).toBeVisible();
+    await expect(navbarTrigger).toContainText('Đóng vai');
 
-    // 3. Open Header "Đóng vai (Login as)" Popover and search for warehouse_hcm
-    await headerTrigger.click();
+    // 3. Open Left Navbar "Đóng vai (Login as)" Popover and search for warehouse_hcm
+    await navbarTrigger.click();
     const searchInput = page.getByTestId('header-login-as-search');
     await expect(searchInput).toBeVisible();
     await searchInput.fill('warehouse_hcm');
@@ -67,16 +72,16 @@ test.describe('Task #111: Super Admin "Login As" (Impersonation) & 1-Click Admin
     const impersonatedToken = await page.evaluate(() => localStorage.getItem('access_token'));
     expect(Boolean(impersonatedToken)).toBe(true);
 
-    // 5. Verify Impersonation Active Banner & "Thoát đóng vai" button in Header
+    // 5. Verify Impersonation Active Banner & "Thoát đóng vai" button in Left Navbar
     const activeBanner = page.getByTestId('impersonation-active-banner');
     await expect(activeBanner).toBeVisible({ timeout: 15000 });
-    await expect(activeBanner).toContainText('Đang đóng vai');
 
     const exitBtn = page.getByTestId('btn-exit-impersonation');
     await expect(exitBtn).toBeVisible();
+    await expect(exitBtn).toContainText('Đang đóng vai');
     await expect(exitBtn).toContainText('Thoát đóng vai');
 
-    // Open Header Switcher while impersonating and verify user list loads via Super Admin impersonator token
+    // Open Left Navbar Switcher while impersonating and verify user list loads via Super Admin impersonator token
     const switcherTriggerWhileImpersonating = page.getByTestId('header-login-as-trigger');
     await expect(switcherTriggerWhileImpersonating).toBeVisible();
     await switcherTriggerWhileImpersonating.click();
@@ -113,7 +118,7 @@ test.describe('Task #111: Super Admin "Login As" (Impersonation) & 1-Click Admin
     });
     expect(forbiddenRes.status()).toBe(403);
 
-    // 7. Click "Thoát đóng vai" to restore Super Admin session in 1 click without password
+    // 7. Click "Thoát đóng vai" in Left Navbar to restore Super Admin session in 1 click without password
     await exitBtn.click();
     await page.waitForURL(/\/dashboard\/users/, { timeout: 25000 });
     await waitForTableLoaded(page);
