@@ -36,6 +36,11 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
     return config;
   }
 
+  // Respect explicit Authorization header (e.g. Super Admin impersonator token override)
+  if (config.headers?.Authorization) {
+    return config;
+  }
+
   let token: string | undefined = undefined;
 
   if (typeof window === 'undefined') {

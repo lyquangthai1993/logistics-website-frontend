@@ -6,17 +6,19 @@ import SearchInput from '../search-input';
 import { ThemeSelector } from '../themes/theme-selector';
 import { ThemeModeToggle } from '../themes/theme-mode-toggle';
 import { NotificationCenter } from '@/features/notifications/components/notification-center';
+import { ImpersonationControl } from './impersonation-control';
 
 export default function Header() {
   return (
     <header className='bg-background/60 sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 backdrop-blur-md md:h-14'>
-      <div className='flex items-center gap-2 px-4'>
+      <div className='flex items-center gap-2 px-3'>
         <SidebarTrigger className='-ml-1' />
         <Separator orientation='vertical' className='mr-2 h-4 data-vertical:self-center' />
         <Breadcrumbs />
       </div>
 
-      <div className='flex items-center gap-2 px-4'>
+      <div className='flex items-center gap-2 px-3'>
+        <ImpersonationControl />
         <div className='hidden md:flex'>
           <SearchInput />
         </div>

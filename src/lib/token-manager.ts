@@ -1,4 +1,4 @@
-import { useAuthStore, type User } from '@/stores/use-auth-store';
+import { useAuthStore, type User, type UserRole } from '@/stores/use-auth-store';
 import axios from 'axios';
 
 export const API_BASE_URL = (
@@ -16,6 +16,51 @@ if (process.env.NODE_ENV === 'production' && !API_BASE_URL) {
 }
 
 const AUTH_CHANNEL_NAME = 'tms_auth_sync_channel';
+
+const ROLE_MAP: Record<number | string, UserRole> = {
+  1: 'SUPER_ADMIN',
+  2: 'DISPATCHER',
+  3: 'FLEET_MANAGER',
+  4: 'WAREHOUSE_MANAGER',
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  DISPATCHER: 'DISPATCHER',
+  FLEET_MANAGER: 'FLEET_MANAGER',
+  WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER',
+  'Super Admin': 'SUPER_ADMIN',
+  Dispatcher: 'DISPATCHER',
+  'Fleet Manager': 'FLEET_MANAGER',
+  'Warehouse Manager': 'WAREHOUSE_MANAGER'
+};
+
+export function normalizeAuthUser(rawUser: any): User {
+  const roleCode: UserRole =
+    typeof rawUser?.role === 'object' && rawUser?.role?.id
+      ? ROLE_MAP[rawUser.role.id] || ROLE_MAP[rawUser.role.name] || 'SUPER_ADMIN'
+      : ROLE_MAP[rawUser?.role] || 'SUPER_ADMIN';
+
+  return {
+    ...rawUser,
+    id: rawUser?.id,
+    name:
+      rawUser?.name ||
+      `${rawUser?.firstName || ''} ${rawUser?.lastName || ''}`.trim() ||
+      rawUser?.username ||
+      rawUser?.email ||
+      'Người dùng',
+    email: rawUser?.email || '',
+    role: roleCode,
+    hubId: rawUser?.hub?.id ?? rawUser?.hubId ?? null,
+    hub: rawUser?.hub ?? null
+  };
+}
+
+export function getDefaultPathForRole(role?: string | null): string {
+  const upper = String(role || '').toUpperCase();
+  if (upper.includes('WAREHOUSE')) return '/dashboard/warehouse/orders';
+  if (upper.includes('FLEET')) return '/dashboard/trips';
+  if (upper.includes('DISPATCHER')) return '/dashboard/orders';
+  return '/dashboard/orders';
+}
 
 type AuthSyncMessage =
   | { type: 'AUTH_LOGIN'; accessToken: string; refreshToken?: string | null; user: User }
@@ -375,6 +420,47 @@ class TokenManager {
         refreshToken
       });
     }
+  }
+
+  public notifyImpersonationStart(
+    rawTargetUser: any,
+    accessToken: string,
+    refreshToken?: string | null
+  ): User {
+    const targetUser = normalizeAuthUser(rawTargetUser);
+    useAuthStore.getState().startImpersonation(targetUser, accessToken, refreshToken);
+    this.syncCookies(accessToken, refreshToken);
+    this.scheduleSilentRefresh(accessToken);
+
+    if (this.channel) {
+      this.channel.postMessage({
+        type: 'AUTH_LOGIN',
+        user: targetUser,
+        accessToken,
+        refreshToken
+      });
+    }
+
+    return targetUser;
+  }
+
+  public notifyImpersonationStop(): User | null {
+    const restored = useAuthStore.getState().stopImpersonation();
+    if (!restored) return null;
+
+    this.syncCookies(restored.accessToken, restored.refreshToken);
+    this.scheduleSilentRefresh(restored.accessToken);
+
+    if (this.channel) {
+      this.channel.postMessage({
+        type: 'AUTH_LOGIN',
+        user: restored.user,
+        accessToken: restored.accessToken,
+        refreshToken: restored.refreshToken
+      });
+    }
+
+    return restored.user;
   }
 
   public notifyLogout() {
