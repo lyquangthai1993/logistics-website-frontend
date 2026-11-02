@@ -24,3 +24,4 @@ export {
   getInitialWarehouseFromDate,
   getInitialWarehouseToDate
 } from './warehouse-date-range-dropdown';
+export { useWarehouseBoardFilterSync } from '../hooks/use-warehouse-filter-sync';

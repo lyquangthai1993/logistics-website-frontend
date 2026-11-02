@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,8 @@ import {
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
-  getInitialWarehouseToDate
+  getInitialWarehouseToDate,
+  useWarehouseBoardFilterSync
 } from '@/features/warehouse/components';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { toast } from 'sonner';
@@ -72,7 +73,7 @@ import {
 } from '@/features/warehouse/components/trip-stop-status-badge';
 import { formatWeight, formatVolume } from '@/lib/format';
 
-export default function WarehouseInboundPage() {
+function WarehouseInboundContent() {
   const user = useAuthStore((state) => state.user);
 
   // Active View State: 'BOARD' (sq2P6) | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'
@@ -80,54 +81,27 @@ export default function WarehouseInboundPage() {
     'BOARD'
   );
 
-  // Inbound Board State (sq2P6)
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
-
-  const handleSearchSubmit = () => {
-    setPage(1);
-    setAppliedSearch(search.trim());
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSearchSubmit();
-    }
-  };
-
-  const handleClearSearch = () => {
-    setSearch('');
-    setAppliedSearch('');
-    setPage(1);
-  };
-  const [boardStatus, setBoardStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
-
-  // Date Range Filter: Default 7 days (including today: today - 6 days -> today), supports URL params
-  const getDefaultFromDate = getInitialWarehouseFromDate;
-  const getDefaultToDate = getInitialWarehouseToDate;
-
-  const [fromDate, setFromDate] = useState(getDefaultFromDate);
-  const [toDate, setToDate] = useState(getDefaultToDate);
-  const [appliedFromDate, setAppliedFromDate] = useState(getDefaultFromDate);
-  const [appliedToDate, setAppliedToDate] = useState(getDefaultToDate);
-
-  const handleApplyDateRange = () => {
-    setPage(1);
-    setAppliedFromDate(fromDate);
-    setAppliedToDate(toDate);
-  };
-
-  const handleResetDateRange = () => {
-    const defFrom = computeSevenDaysAgoDate();
-    const defTo = computeTodayDate();
-    setFromDate(defFrom);
-    setToDate(defTo);
-    setAppliedFromDate(defFrom);
-    setAppliedToDate(defTo);
-    setPage(1);
-  };
-  const [page, setPage] = useState(1);
+  // Inbound Board State synchronized with URL query params (?search=&fromDate=&toDate=&status=&page=)
+  const {
+    search,
+    setSearch,
+    appliedSearch,
+    handleSearchSubmit,
+    handleSearchKeyDown,
+    handleClearSearch,
+    fromDate,
+    toDate,
+    appliedFromDate,
+    appliedToDate,
+    setFromDate,
+    setToDate,
+    handleApplyDateRange,
+    handleResetDateRange,
+    boardStatus,
+    setBoardStatus,
+    page,
+    setPage
+  } = useWarehouseBoardFilterSync();
   const [pageSize, setPageSize] = useState(15);
   const [tripGroups, setTripGroups] = useState<any[]>([]);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
@@ -333,27 +307,7 @@ export default function WarehouseInboundPage() {
     }
   }, []);
 
-  // Đồng bộ ngày từ URL searchParams nếu có (e.g. ?fromDate=2026-10-01&toDate=2026-10-25)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const sp = new URLSearchParams(window.location.search);
-      const qFrom = sp.get('fromDate');
-      const qTo = sp.get('toDate');
-      if (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) {
-        setFromDate(qFrom);
-        setAppliedFromDate(qFrom);
-      }
-      if (qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) {
-        setToDate(qTo);
-        setAppliedToDate(qTo);
-      }
-    }
-  }, []);
-
-  // Reset page to 1 when search, status, or applied dates change
-  useEffect(() => {
-    setPage(1);
-  }, [appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
+  // URL query parameters & dates are synchronized automatically via useWarehouseBoardFilterSync
 
   // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
   const fetchInboundTrips = useCallback(() => {
@@ -1731,5 +1685,19 @@ export default function WarehouseInboundPage() {
         />
       </div>
     </PageContainer>
+  );
+}
+
+export default function WarehouseInboundPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='p-6 flex items-center justify-center min-h-[300px]'>
+          <IconLoader2 className='animate-spin h-8 w-8 text-[#0F3D62]' />
+        </div>
+      }
+    >
+      <WarehouseInboundContent />
+    </Suspense>
   );
 }
