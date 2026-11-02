@@ -75,6 +75,8 @@ export interface WarehouseRowItem {
   deliveryAddress: string;
   originalDeliveryAddress?: string;
   destinationHubId?: number | null;
+  destinationHubName?: string | null;
+  isForCurrentHub?: boolean;
   province?: string;
   accompanyingDocs?: string;
   notes: string;
@@ -1320,19 +1322,34 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
 
   if (!isOutbound) {
     return (
-      <textarea
-        rows={2}
-        value={addressText}
-        onChange={handleAddressTextChange}
-        disabled={isRowInbound || isLockedExistingWaybill}
-        title={
-          isLockedExistingWaybill
-            ? 'Khóa cứng địa điểm giao theo thông tin lần đầu nhập của mã vận đơn'
-            : undefined
-        }
-        placeholder=''
-        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
-      />
+      <div className='space-y-1'>
+        {meta?.isInboundTripMode && (
+          <div className='flex items-center gap-1'>
+            {r.isForCurrentHub !== false ? (
+              <span className='inline-flex items-center text-[9px] px-1 py-0 h-4 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 font-semibold'>
+                Dỡ kho này (Luân chuyển)
+              </span>
+            ) : (
+              <span className='inline-flex items-center text-[9px] px-1 py-0 h-4 rounded bg-slate-100 text-slate-600 border border-slate-300 dark:bg-slate-800 dark:text-slate-400 font-medium'>
+                Lưu xe (Không dỡ)
+              </span>
+            )}
+          </div>
+        )}
+        <textarea
+          rows={2}
+          value={addressText}
+          onChange={handleAddressTextChange}
+          disabled={isRowInbound || isLockedExistingWaybill}
+          title={
+            isLockedExistingWaybill
+              ? 'Khóa cứng địa điểm giao theo thông tin lần đầu nhập của mã vận đơn'
+              : undefined
+          }
+          placeholder=''
+          className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+        />
+      </div>
     );
   }
 

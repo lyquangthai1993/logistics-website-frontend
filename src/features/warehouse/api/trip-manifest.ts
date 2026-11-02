@@ -30,6 +30,7 @@ export interface TripManifestLine {
   originHubId?: number | null;
   destinationHub?: string | null;
   destinationHubId?: number | null;
+  destinationHubName?: string | null;
   destinationHubEntity?: {
     id: number;
     name: string;

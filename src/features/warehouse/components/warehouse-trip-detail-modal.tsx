@@ -70,6 +70,8 @@ export interface InboundVehicleGroup {
   isTransfer: boolean;
   orders: any[];
   totalQuantity: number;
+  unloadQuantity?: number;
+  stayQuantity?: number;
   totalWeight: number;
   totalVolume: number;
   goodsDescription: string;
@@ -609,6 +611,9 @@ export function WarehouseTripDetailModal({
             notes: l.notes || '',
             destinationHubId: l.destinationHubId,
             destinationHub: outHubEntity,
+            destinationHubName: l.destinationHubName || outHubEntity?.name || l.destinationHub || '',
+            isForCurrentHub: Boolean(l.isForCurrentHub),
+            originalDeliveryAddress: l.originalDeliveryAddress || l.deliveryAddress || '',
             status: l.status,
             hubStatus: l.hubStatus,
             isReceivedInTrip: Boolean(l.isReceivedHere || (Number(l.receivedQuantity) > 0))
@@ -637,7 +642,8 @@ export function WarehouseTripDetailModal({
 
   // Inbound cargo breakdown for Step 1: separating cargo unloading here vs staying on truck
   const inboundBreakdown = useMemo(() => {
-    if (!manifest || !manifest.lines) {
+    const sourceLines = (manifest?.lines && manifest.lines.length > 0) ? manifest.lines : rows;
+    if (!sourceLines || sourceLines.length === 0) {
       return {
         unloadLines: [],
         unloadOrdersCount: 0,
@@ -648,17 +654,17 @@ export function WarehouseTripDetailModal({
         stayDetailsText: ''
       };
     }
-    const unloadLines = manifest.lines.filter(
-      (l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
+    const unloadLines = sourceLines.filter(
+      (l: any) => l.isForCurrentHub !== false && l.deliveryMode !== 'DIRECT_CUSTOMER'
     );
     const unloadOrdersCount = unloadLines.length;
-    const unloadQty = unloadLines.reduce((sum, l) => sum + expectedForLine(l), 0);
+    const unloadQty = unloadLines.reduce((sum: number, l: any) => sum + Number(l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 0), 0);
 
-    const stayLines = manifest.lines.filter(
-      (l) => !l.isForCurrentHub || l.deliveryMode === 'DIRECT_CUSTOMER'
+    const stayLines = sourceLines.filter(
+      (l: any) => l.isForCurrentHub === false || l.deliveryMode === 'DIRECT_CUSTOMER'
     );
     const stayOrdersCount = stayLines.length;
-    const stayQty = stayLines.reduce((sum, l) => sum + expectedForLine(l), 0);
+    const stayQty = stayLines.reduce((sum: number, l: any) => sum + Number(l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 0), 0);
 
     const stayDirectCustomerLines = stayLines.filter((l) => l.deliveryMode === 'DIRECT_CUSTOMER');
     const stayOtherHubLines = stayLines.filter((l) => l.deliveryMode !== 'DIRECT_CUSTOMER');
@@ -671,7 +677,7 @@ export function WarehouseTripDetailModal({
       const hubNames = Array.from(
         new Set(
           stayOtherHubLines
-            .map((l) => l.destinationHubEntity?.name || l.destinationHub || 'kho khác')
+            .map((l) => (l as any).destinationHubEntity?.name || (l as any).destinationHubName || (typeof (l as any).destinationHub === 'string' ? (l as any).destinationHub : (l as any).destinationHub?.name) || 'kho khác')
             .filter(Boolean)
         )
       );
@@ -692,7 +698,7 @@ export function WarehouseTripDetailModal({
       stayQty,
       stayDetailsText
     };
-  }, [manifest]);
+  }, [manifest, rows]);
 
   // Outbound cargo breakdown for Step 2
   const outboundBreakdown = useMemo(() => {
@@ -826,6 +832,9 @@ export function WarehouseTripDetailModal({
             orderCode: o.orderCode || '',
             pickupAddress: pickupAddr,
             goodsDescription: o.goodsDescription || '',
+            destinationHubName: outHubEntity?.name || o.destinationHub || '',
+            isForCurrentHub: currentHubId != null && outHubId != null ? Number(outHubId) === Number(currentHubId) : o.isForCurrentHub !== undefined ? Boolean(o.isForCurrentHub) : false,
+            originalDeliveryAddress: deliveryAddr || o.originalDeliveryAddress || o.deliveryAddress || '',
             totalQuantity: rowQty,
             remainingQuantity: o.remainingQuantity,
             inboundQuantity: o.inboundQuantity,
@@ -1825,6 +1834,28 @@ export function WarehouseTripDetailModal({
                   </div>
                 </div>
 
+                {mode === 'INBOUND' && (inboundBreakdown.unloadOrdersCount > 0 || inboundBreakdown.stayOrdersCount > 0) && (
+                  <div className='flex flex-wrap items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800/60 rounded-md border border-slate-200 dark:border-slate-700 text-[10px]'>
+                    <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
+                      <span>Dỡ tại kho này:</span>
+                      <span>
+                        {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty} kiện)
+                      </span>
+                    </div>
+                    {inboundBreakdown.stayOrdersCount > 0 && (
+                      <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
+                        <span className='font-bold text-amber-700 dark:text-amber-400'>
+                          Tiếp tục trên xe:
+                        </span>
+                        <span>
+                          {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
+                          {inboundBreakdown.stayDetailsText ? `: ${inboundBreakdown.stayDetailsText}` : ''})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {manifestPending ? (
                   <div className='py-3 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5'>
                     <IconLoader2 className='h-4 w-4 animate-spin' /> Đang tải bảng kê chuyến xe...
@@ -1946,7 +1977,26 @@ export function WarehouseTripDetailModal({
                                 {formatVolume(r.volumeAllocated ?? r.totalVolume)}
                               </td>
                               <td className='py-1 px-1.5 text-slate-700 dark:text-slate-300'>
-                                {r.deliveryAddress || '—'}
+                                {mode === 'INBOUND' ? (
+                                  <div className='space-y-0.5'>
+                                    <div className='flex items-center gap-1'>
+                                      {r.isForCurrentHub !== false && r.deliveryMode !== 'DIRECT_CUSTOMER' ? (
+                                        <Badge className='text-[9px] px-1 py-0 h-4 bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 font-semibold'>
+                                          Dỡ kho {currentStopHubName ?? 'này'} (Luân chuyển)
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant='outline' className='text-[9px] px-1 py-0 h-4 bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 font-medium'>
+                                          Lưu xe (Không dỡ)
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className='text-[10px] text-slate-600 dark:text-slate-400 leading-tight'>
+                                      {r.originalDeliveryAddress || r.deliveryAddress || '—'}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  r.deliveryAddress || '—'
+                                )}
                               </td>
                               <td className='py-1 px-1.5 text-slate-600 dark:text-slate-400'>
                                 {r.province || '—'}

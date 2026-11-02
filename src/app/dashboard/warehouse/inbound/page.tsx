@@ -442,6 +442,8 @@ export default function WarehouseInboundPage() {
           isTransfer: !!g.isTransfer,
           orders: g.orders ?? [],
           totalQuantity: Number(g.totalQuantity) || 0,
+          unloadQuantity: g.unloadQuantity != null ? Number(g.unloadQuantity) : undefined,
+          stayQuantity: g.stayQuantity != null ? Number(g.stayQuantity) : undefined,
           totalWeight: Number(g.totalWeight) || 0,
           totalVolume: Number(g.totalVolume) || 0,
           goodsDescription:
@@ -1184,6 +1186,11 @@ export default function WarehouseInboundPage() {
                               </td>
                               <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px] align-top'>
                                 <div>{grp.totalQuantity} kiện</div>
+                                {grp.unloadQuantity !== undefined && grp.stayQuantity !== undefined && grp.stayQuantity > 0 && (
+                                  <div className='text-[10px] text-emerald-700 dark:text-emerald-400 font-medium'>
+                                    Dỡ: {grp.unloadQuantity} • Lưu xe: {grp.stayQuantity}
+                                  </div>
+                                )}
                                 <div className='text-gray-400 text-[10px]'>
                                   {formatWeight(grp.totalWeight)} kg &bull;{' '}
                                   {formatVolume(grp.totalVolume)} m³
@@ -1345,6 +1352,11 @@ export default function WarehouseInboundPage() {
                             <div className='flex items-center gap-2 font-medium'>
                               <span className='font-bold text-slate-800 dark:text-slate-100'>
                                 {grp.totalQuantity} kiện
+                                {grp.unloadQuantity !== undefined && grp.stayQuantity !== undefined && grp.stayQuantity > 0 && (
+                                  <span className='text-[10px] text-emerald-700 dark:text-emerald-400 font-normal ml-1'>
+                                    (Dỡ: {grp.unloadQuantity} • Lưu: {grp.stayQuantity})
+                                  </span>
+                                )}
                               </span>
                               <span className='text-slate-300 dark:text-slate-600'>|</span>
                               <span>{formatWeight(grp.totalWeight)} kg</span>
