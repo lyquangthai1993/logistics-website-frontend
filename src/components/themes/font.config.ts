@@ -50,10 +50,9 @@ const fontPlaypenSans = Playpen_Sans({
 
 // Merriweather: Editorial Serif (Astro Vista theme)
 const fontMerriweather = Merriweather({
-  subsets: ['latin', 'vietnamese'],
+  subsets: ['latin'],
   weight: ['300', '400', '700'],
-  variable: '--font-merriweather',
-  preload: false
+  variable: '--font-merriweather'
 });
 
 // Playfair Display: Elegant Display Serif (Zen theme)
