@@ -32,13 +32,13 @@ test.describe
     const content = fs.readFileSync(pagePath, 'utf-8');
 
     // 1. Verify STT header and cell are hidden on mobile
-    expect(content).toContain('hidden md:table-cell py-1 px-1 w-[36px]');
+    expect(content).toContain('hidden md:table-cell py-1 px-1 w-9');
 
     // 2. Verify Ngày Nhập header and cell are md:sticky md:left-[36px] on desktop (not sticky on mobile)
     expect(content).toContain('md:sticky md:left-[36px]');
 
     // 3. Verify Mã Vận Đơn is md:sticky md:left-[118px] on desktop (not sticky on mobile)
-    expect(content).toContain('md:sticky md:left-[118px]');
+    expect(content).toContain('md:sticky md:left-[132px]');
 
     // 4. Verify no font-mono on SỐ LƯỢNG, NGÀY NHẬP, NGÀY XUẤT in th headers
     expect(content).not.toContain('w-[95px] text-right font-mono border-b');

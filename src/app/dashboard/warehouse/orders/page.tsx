@@ -856,12 +856,12 @@ export default function WarehouseOrdersPage() {
                       STT
                     </th>
                     <th
-                      className='py-1 px-0.5 w-20.5 min-w-20.5 max-w-20.5 text-center whitespace-nowrap md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'
+                      className='py-1 px-1.5 w-24 min-w-24 max-w-24 text-center whitespace-nowrap md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'
                       title='Ngày tiếp nhận lô hàng lần đầu vào kho'
                     >
                       NGÀY NHẬP ĐẦU
                     </th>
-                    <th className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[118px] z-20 bg-slate-50 dark:bg-slate-800 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-slate-200 dark:border-slate-700'>
+                    <th className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[132px] z-20 bg-slate-50 dark:bg-slate-800 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-slate-200 dark:border-slate-700'>
                       MÃ VẬN ĐƠN
                     </th>
                     <th className='py-1 px-1.5 min-w-40 border-b border-slate-200 dark:border-slate-700'>
@@ -923,10 +923,10 @@ export default function WarehouseOrdersPage() {
                           <td className='hidden md:table-cell py-1 px-1 w-9 min-w-9 max-w-9 text-center font-mono text-gray-400 text-[10px] md:sticky md:left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
                             {((page - 1) * pageSize + idx + 1).toString().padStart(2, '0')}
                           </td>
-                          <td className='py-1 px-1 w-20.5 min-w-20.5 max-w-20.5 text-center font-mono text-slate-600 dark:text-slate-400 text-[10px] md:sticky md:left-[36px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
+                          <td className='py-1 px-1.5 w-24 min-w-24 max-w-24 text-center font-mono text-slate-600 dark:text-slate-400 text-[10px] md:sticky md:left-[36px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
                             {formatDate(row.inboundDate || row.createdAt)}
                           </td>
-                          <td className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[118px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-gray-100 dark:border-gray-800'>
+                          <td className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[132px] z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-gray-100 dark:border-gray-800'>
                             <div className='flex items-center gap-1'>
                               <span className='font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]'>
                                 {row.orderCode}
