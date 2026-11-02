@@ -75,6 +75,8 @@ export interface WarehouseRowItem {
   deliveryAddress: string;
   originalDeliveryAddress?: string;
   destinationHubId?: number | null;
+  destinationHubName?: string | null;
+  isForCurrentHub?: boolean;
   province?: string;
   accompanyingDocs?: string;
   notes: string;
@@ -497,9 +499,11 @@ function isRowInboundLocked(
   row: WarehouseRowItem,
   isInboundTripMode?: boolean,
   isAdmin?: boolean,
-  allowInboundEdit?: boolean
+  allowInboundEdit?: boolean,
+  isOutboundMode?: boolean
 ): boolean {
   if (isAdmin) return false;
+  if (isOutboundMode) return false;
   if (allowInboundEdit) return false;
   if (isInboundTripMode) {
     // Trong chuyến xe nhập kho (INBOUND Trip):
@@ -699,6 +703,7 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           const updatedRow: WarehouseRowItem = {
             ...currentRow,
             id: foundOrder.id,
+            isExistingOrder: true,
             status: foundOrder.status,
             hubStatus: foundOrder.hubStatus,
             orderCode: foundOrder.orderCode,
@@ -973,10 +978,13 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
 
   if (isOutbound) {
+    const isSelectedOutbound = Boolean(row.original.id || row.original.isExistingOrder);
     return (
       <div className='relative'>
         <Input
@@ -984,12 +992,16 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
           onChange={handleOutboundChange}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          disabled={isRowInbound}
+          disabled={isSelectedOutbound}
           className={cn(
-            'h-7 px-1 text-[10px] md:text-[10px] font-mono font-bold uppercase tracking-tight text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500',
+            'h-7 px-1 text-[10px] md:text-[10px] font-mono font-bold uppercase tracking-tight text-blue-700 dark:text-blue-300 min-w-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:text-slate-600 dark:disabled:text-slate-400 disabled:cursor-not-allowed',
             isSearching && 'pr-5'
           )}
-          title='Nhập mã đơn hàng (nhấn Enter hoặc Tab để tra cứu)'
+          title={
+            isSelectedOutbound
+              ? 'Mã vận đơn đã được chọn và khóa thông tin. Để xóa hoặc đổi mã khác, vui lòng nhấn nút thùng rác ở cột Thao tác.'
+              : 'Nhập mã đơn hàng (nhấn Enter hoặc Tab để tra cứu)'
+          }
         />
         {isSearching && (
           <IconLoader2 className='absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 animate-spin pointer-events-none' />
@@ -1025,10 +1037,14 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
 }
 
 function PickupAddressCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isOutbound = table.options.meta?.isOutboundMode;
+  const isSelectedOutbound = isOutbound && Boolean(row.original.id || row.original.isExistingOrder);
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -1048,7 +1064,7 @@ function PickupAddressCell({ getValue, row, column, table }: CellContext<Warehou
       rows={2}
       value={value}
       onChange={handleChange}
-      disabled={isRowInbound}
+      disabled={isRowInbound || isSelectedOutbound}
       placeholder=''
       className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:opacity-70 disabled:cursor-not-allowed'
     />
@@ -1061,10 +1077,14 @@ function GoodsDescriptionCell({
   column,
   table
 }: CellContext<WarehouseRowItem, any>) {
+  const isOutbound = table.options.meta?.isOutboundMode;
+  const isSelectedOutbound = isOutbound && Boolean(row.original.id || row.original.isExistingOrder);
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(
     row.original,
@@ -1089,7 +1109,7 @@ function GoodsDescriptionCell({
       <Input
         value={value}
         onChange={handleChange}
-        disabled={isRowInbound || isLockedExistingWaybill}
+        disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
         title={
           isLockedExistingWaybill
             ? 'Khóa cứng tên hàng theo thông tin lần đầu nhập của mã vận đơn'
@@ -1139,7 +1159,8 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     r,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
 
   return (
@@ -1178,7 +1199,8 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
@@ -1222,7 +1244,8 @@ function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
@@ -1314,25 +1337,40 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin);
+  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
   if (!isOutbound) {
     return (
-      <textarea
-        rows={2}
-        value={addressText}
-        onChange={handleAddressTextChange}
-        disabled={isRowInbound || isLockedExistingWaybill}
-        title={
-          isLockedExistingWaybill
-            ? 'Khóa cứng địa điểm giao theo thông tin lần đầu nhập của mã vận đơn'
-            : undefined
-        }
-        placeholder=''
-        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
-      />
+      <div className='space-y-1'>
+        {meta?.isInboundTripMode && (
+          <div className='flex items-center gap-1'>
+            {r.isForCurrentHub !== false ? (
+              <span className='inline-flex items-center text-[9px] px-1 py-0 h-4 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 font-semibold'>
+                Dỡ kho này (Luân chuyển)
+              </span>
+            ) : (
+              <span className='inline-flex items-center text-[9px] px-1 py-0 h-4 rounded bg-slate-100 text-slate-600 border border-slate-300 dark:bg-slate-800 dark:text-slate-400 font-medium'>
+                Lưu xe (Không dỡ)
+              </span>
+            )}
+          </div>
+        )}
+        <textarea
+          rows={2}
+          value={addressText}
+          onChange={handleAddressTextChange}
+          disabled={isRowInbound || isLockedExistingWaybill}
+          title={
+            isLockedExistingWaybill
+              ? 'Khóa cứng địa điểm giao theo thông tin lần đầu nhập của mã vận đơn'
+              : undefined
+          }
+          placeholder=''
+          className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+        />
+      </div>
     );
   }
 
@@ -1405,10 +1443,14 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
 }
 
 function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isOutbound = table.options.meta?.isOutboundMode;
+  const isSelectedOutbound = isOutbound && Boolean(row.original.id || row.original.isExistingOrder);
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(
     row.original,
@@ -1433,7 +1475,7 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
       rows={2}
       value={value}
       onChange={handleChange}
-      disabled={isRowInbound || isLockedExistingWaybill}
+      disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
       title={
         isLockedExistingWaybill
           ? 'Khóa cứng tỉnh/TP theo thông tin lần đầu nhập của mã vận đơn'
@@ -1451,10 +1493,14 @@ function AccompanyingDocsCell({
   column,
   table
 }: CellContext<WarehouseRowItem, any>) {
+  const isOutbound = table.options.meta?.isOutboundMode;
+  const isSelectedOutbound = isOutbound && Boolean(row.original.id || row.original.isExistingOrder);
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(
     row.original,
@@ -1479,7 +1525,7 @@ function AccompanyingDocsCell({
       type='text'
       value={value}
       onChange={handleChange}
-      disabled={isRowInbound || isLockedExistingWaybill}
+      disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
       title={
         isLockedExistingWaybill
           ? 'Khóa cứng chứng từ theo thông tin lần đầu nhập của mã vận đơn'
@@ -1492,11 +1538,14 @@ function AccompanyingDocsCell({
 }
 
 function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowItem, any>) {
+  const isOutbound = table.options.meta?.isOutboundMode;
+  const isSelectedOutbound = isOutbound && Boolean(row.original.id || row.original.isExistingOrder);
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -1516,9 +1565,9 @@ function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowIte
       rows={2}
       value={value}
       onChange={handleChange}
-      disabled={isRowInbound}
+      disabled={isRowInbound || isSelectedOutbound}
       placeholder=''
-      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:opacity-70 disabled:cursor-not-allowed'
+      className='w-full text-[10px] rounded-md border border-blue-400 dark:border-blue-600 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1529,7 +1578,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
-  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin);
+  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   const resolvedHubForPrint =
@@ -1632,7 +1681,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
         type='button'
         size='sm'
         variant='ghost'
-        disabled={isOrderInbound || rowsCount <= 1}
+        disabled={isOrderInbound || (rowsCount <= 1 && !r.orderCode && !r.goodsDescription)}
         onClick={() => meta?.deleteRow?.(idx)}
         className='h-6 w-6 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30'
         title={isOrderInbound ? 'Đơn hàng đã nhập kho, không thể xóa' : 'Xóa dòng'}
@@ -1753,29 +1802,33 @@ export function WarehouseEditableGrid({
     [rows, onChange]
   );
 
+  const createBlankRow = (pickup = ''): WarehouseRowItem => ({
+    orderCode: '',
+    pickupAddress: pickup,
+    goodsDescription: '',
+    totalQuantity: 1,
+    totalWeight: 0,
+    totalVolume: 0,
+    deliveryMode: 'DIRECT_CUSTOMER',
+    deliveryAddress: '',
+    province: '',
+    accompanyingDocs: '',
+    notes: ''
+  });
+
   // Add new empty row
   const handleAddRow = () => {
     const defaultPickup = (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') || '';
-    const newRow: WarehouseRowItem = {
-      orderCode: '',
-      pickupAddress: defaultPickup,
-      goodsDescription: '',
-      totalQuantity: 1,
-      totalWeight: 0,
-      totalVolume: 0,
-      deliveryMode: 'DIRECT_CUSTOMER',
-      deliveryAddress: '',
-      province: '',
-      accompanyingDocs: '',
-      notes: ''
-    };
-    onChange([...rows, newRow]);
+    onChange([...rows, createBlankRow(defaultPickup)]);
   };
 
   // Delete row
   const handleDeleteRow = useCallback(
     (index: number) => {
-      if (rows.length <= 1) return;
+      if (rows.length <= 1) {
+        onChange([createBlankRow()]);
+        return;
+      }
       const updated = rows.filter((_, i) => i !== index);
       onChange(updated);
     },
@@ -2027,6 +2080,7 @@ export function WarehouseEditableGrid({
     updated[lookupRowIndex] = {
       ...updated[lookupRowIndex],
       id: order.id,
+      isExistingOrder: true,
       status: order.status,
       hubStatus: order.hubStatus,
       orderCode: order.orderCode,
@@ -2388,7 +2442,9 @@ export function WarehouseEditableGrid({
               const isRowInbound = isRowInboundLocked(
                 row.original,
                 table.options.meta?.isInboundTripMode,
-                table.options.meta?.isAdmin
+                table.options.meta?.isAdmin,
+                false,
+                table.options.meta?.isOutboundMode
               );
 
               return (
