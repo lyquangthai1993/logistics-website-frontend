@@ -855,8 +855,11 @@ export default function WarehouseOrdersPage() {
                     <th className='hidden md:table-cell py-1 px-1 w-9 min-w-9 max-w-9 text-center md:sticky md:left-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
                       STT
                     </th>
-                    <th className='py-1 px-1 w-20.5 min-w-20.5 max-w-20.5 text-center md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'>
-                      NGÀY NHẬP
+                    <th
+                      className='py-1 px-0.5 w-20.5 min-w-20.5 max-w-20.5 text-center whitespace-nowrap md:sticky md:left-[36px] z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700'
+                      title='Ngày tiếp nhận lô hàng lần đầu vào kho'
+                    >
+                      NGÀY NHẬP ĐẦU
                     </th>
                     <th className='py-1 px-1.5 min-w-27.5 whitespace-nowrap md:sticky md:left-[118px] z-20 bg-slate-50 dark:bg-slate-800 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-slate-200 dark:border-slate-700'>
                       MÃ VẬN ĐƠN
