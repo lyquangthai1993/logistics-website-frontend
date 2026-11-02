@@ -165,24 +165,28 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
     updateUrl({ search: '', page: 1 });
   }, [updateUrl]);
 
-  // Date range actions
+  // Date range actions: applies both date range AND any pending text currently typed in search bar
   const handleApplyDateRange = useCallback(() => {
+    const trimmed = search.trim();
     setPageState(1);
+    setAppliedSearch(trimmed);
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
-    updateUrl({ fromDate, toDate, page: 1 });
-  }, [fromDate, toDate, updateUrl]);
+    updateUrl({ fromDate, toDate, search: trimmed, page: 1 });
+  }, [fromDate, toDate, search, updateUrl]);
 
   const handleResetDateRange = useCallback(() => {
     const defFrom = computeSevenDaysAgoDate();
     const defTo = computeTodayDate();
+    const trimmed = search.trim();
     setFromDate(defFrom);
     setToDate(defTo);
     setAppliedFromDate(defFrom);
     setAppliedToDate(defTo);
+    setAppliedSearch(trimmed);
     setPageState(1);
-    updateUrl({ fromDate: defFrom, toDate: defTo, page: 1 });
-  }, [updateUrl]);
+    updateUrl({ fromDate: defFrom, toDate: defTo, search: trimmed, page: 1 });
+  }, [search, updateUrl]);
 
   // Status Tab change
   const setBoardStatus = useCallback(

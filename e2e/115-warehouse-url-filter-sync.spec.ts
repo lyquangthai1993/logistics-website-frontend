@@ -52,7 +52,27 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
     expect(page.url()).not.toContain('search=');
     await expect(searchInput).toHaveValue('');
 
-    // 5. Test direct URL hydration
+    // 5. TEST USER REQUIREMENT: Type search text 'sd573' (without pressing Enter), then click "Áp dụng" in date filter
+    await searchInput.fill('sd573');
+    const dateFilterTrigger = page.locator('[data-testid="date-filter-dropdown-trigger"]');
+    await dateFilterTrigger.click();
+    await page.waitForTimeout(500);
+
+    const fromDateInput = page.locator('input[type="date"]').first();
+    const toDateInput = page.locator('input[type="date"]').nth(1);
+    await fromDateInput.fill('2026-10-01');
+    await toDateInput.fill('2026-11-02');
+
+    const applyDateBtn = page.locator('button').filter({ hasText: 'Áp dụng' });
+    await applyDateBtn.click();
+    await page.waitForTimeout(1000);
+
+    // Verify BOTH the date range AND the search text 'sd573' were applied together to the URL!
+    expect(page.url()).toContain('search=sd573');
+    expect(page.url()).toContain('fromDate=2026-10-01');
+    expect(page.url()).toContain('toDate=2026-11-02');
+
+    // 6. Test direct URL hydration
     await page.goto(`${baseUrl}/dashboard/warehouse/inbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
@@ -107,7 +127,27 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
     expect(page.url()).not.toContain('search=');
     await expect(searchInput).toHaveValue('');
 
-    // 5. Test direct URL hydration
+    // 5. TEST USER REQUIREMENT: Type search text 'sd573' (without pressing Enter), then click "Áp dụng" in date filter
+    await searchInput.fill('sd573');
+    const dateFilterTrigger = page.locator('[data-testid="date-filter-dropdown-trigger"]');
+    await dateFilterTrigger.click();
+    await page.waitForTimeout(500);
+
+    const fromDateInput = page.locator('input[type="date"]').first();
+    const toDateInput = page.locator('input[type="date"]').nth(1);
+    await fromDateInput.fill('2026-10-01');
+    await toDateInput.fill('2026-11-02');
+
+    const applyDateBtn = page.locator('button').filter({ hasText: 'Áp dụng' });
+    await applyDateBtn.click();
+    await page.waitForTimeout(1000);
+
+    // Verify BOTH the date range AND the search text 'sd573' were applied together to the URL!
+    expect(page.url()).toContain('search=sd573');
+    expect(page.url()).toContain('fromDate=2026-10-01');
+    expect(page.url()).toContain('toDate=2026-11-02');
+
+    // 6. Test direct URL hydration
     await page.goto(`${baseUrl}/dashboard/warehouse/outbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
