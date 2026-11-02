@@ -8,7 +8,7 @@ const EVIDENCE_DIR = path.resolve(
   '../../feedbacks/feedback_02_11_task_113_inbound_two_tier_destination_and_province'
 );
 
-test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled', () => {
+test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled & Waybill Identity Locked', () => {
   test.beforeAll(() => {
     process.env.PLAYWRIGHT_BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000';
     process.env.API_URL = process.env.API_URL || 'http://localhost:4001/api/v1';
@@ -17,7 +17,7 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled', () 
     }
   });
 
-  test('should allow editing delivery address, changing destination, and deleting row in Outbound draft', async ({
+  test('should lock waybill identity (orderCode, pickup, goods, docs, notes) but keep delivery address and trash button enabled', async ({
     page
   }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000';
@@ -36,7 +36,8 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled', () 
     await page.waitForTimeout(1000);
 
     // 3. Find the order code input in the first row
-    const orderCodeInput = page.locator('input[placeholder*="Mã vận đơn"]').or(page.locator('table tbody tr:first-child td:nth-child(2) input')).first();
+    const firstRow = page.locator('table tbody tr').first();
+    const orderCodeInput = firstRow.locator('input[placeholder*="Mã vận đơn"]').or(firstRow.locator('td:nth-child(2) input')).first();
     await expect(orderCodeInput).toBeVisible({ timeout: 15_000 });
 
     // 4. Type NDA2611-0128 and press Enter to search
@@ -46,23 +47,39 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled', () 
 
     // 5. Verify the order row is populated
     await expect(orderCodeInput).toHaveValue('NDA2611-0128');
-    const firstRow = page.locator('table tbody tr').first();
 
-    // 6. Verify Trash button is NOT disabled
-    const trashBtn = firstRow.locator('button[title*="Xóa dòng"]').or(firstRow.locator('button:has(svg.lucide-trash)')).first();
-    await expect(trashBtn).toBeEnabled();
+    // 6. Verify LOCKED columns (Identity of selected waybill):
+    // - Mã vận đơn (col 2): LOCKED (disabled)
+    await expect(orderCodeInput).toBeDisabled();
+    // - Địa chỉ nhận (col 3): LOCKED (disabled)
+    const pickupTextarea = firstRow.locator('td:nth-child(3) textarea').first();
+    await expect(pickupTextarea).toBeDisabled();
+    // - Tên hàng (col 4): LOCKED (disabled)
+    const goodsInput = firstRow.locator('td:nth-child(4) input').first();
+    await expect(goodsInput).toBeDisabled();
+    // - Chứng từ (col 9): LOCKED (disabled)
+    const docsInput = firstRow.locator('td:nth-child(9) input').first();
+    await expect(docsInput).toBeDisabled();
+    // - Ghi chú (col 10): LOCKED (disabled)
+    const notesTextarea = firstRow.locator('td:nth-child(10) textarea').first();
+    await expect(notesTextarea).toBeDisabled();
 
-    // 7. Verify Delivery Address textarea is NOT disabled
-    const addressTextarea = firstRow.locator('textarea').first();
-    await expect(addressTextarea).toBeEnabled();
-
-    // 8. Verify "Thay đổi địa chỉ (Điều chuyển)" button is NOT disabled
+    // 7. Verify UNLOCKED columns (Operation actions):
+    // - Số kiện (col 5): ENABLED (cho phép xuất 1 phần)
+    const qtyInput = firstRow.locator('td:nth-child(5) input').first();
+    await expect(qtyInput).toBeEnabled();
+    // - Địa chỉ giao (col 8): ENABLED (cho phép sửa hoặc đổi Hub điều chuyển)
+    const deliveryTextarea = firstRow.locator('td:nth-child(8) textarea').first();
+    await expect(deliveryTextarea).toBeEnabled();
     const changeDestBtn = firstRow.locator('button:has-text("Thay đổi địa chỉ (Điều chuyển)")').first();
     if (await changeDestBtn.isVisible()) {
       await expect(changeDestBtn).toBeEnabled();
     }
+    // - Nút Xóa dòng / Thùng rác (col 11): ENABLED
+    const trashBtn = firstRow.locator('button[title*="Xóa dòng"]').or(firstRow.locator('button:has(svg.lucide-trash)')).first();
+    await expect(trashBtn).toBeEnabled();
 
-    // 9. Add a second row
+    // 8. Add a second row
     const addRowBtn = page.locator('button:has-text("Thêm 1 dòng đơn mới")').first();
     await addRowBtn.click();
     await page.waitForTimeout(1000);
@@ -78,16 +95,19 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled', () 
     await secondOrderInput.press('Enter');
     await page.waitForTimeout(2000);
 
+    // Verify second row order code is locked
+    await expect(secondOrderInput).toBeDisabled();
+
     // Verify second row trash button is enabled
     const secondTrashBtn = secondRow.locator('button[title*="Xóa dòng"]').or(secondRow.locator('button:has(svg.lucide-trash)')).first();
     await expect(secondTrashBtn).toBeEnabled();
 
-    // Capture screenshot showing BOTH rows with Trash button and address enabled
+    // Capture screenshot showing BOTH rows with properly locked identity and enabled trash/delivery address
     const screenshotPath = path.join(EVIDENCE_DIR, 'screenshot_02_outbound_enabled_verified.png');
     await page.screenshot({ path: screenshotPath, fullPage: true });
     expect(fs.existsSync(screenshotPath)).toBe(true);
 
-    // 10. Click Trash on the second row
+    // 9. Click Trash on the second row
     await secondTrashBtn.click();
     await page.waitForTimeout(1000);
 
