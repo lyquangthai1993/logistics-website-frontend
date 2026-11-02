@@ -499,9 +499,11 @@ function isRowInboundLocked(
   row: WarehouseRowItem,
   isInboundTripMode?: boolean,
   isAdmin?: boolean,
-  allowInboundEdit?: boolean
+  allowInboundEdit?: boolean,
+  isOutboundMode?: boolean
 ): boolean {
   if (isAdmin) return false;
+  if (isOutboundMode) return false;
   if (allowInboundEdit) return false;
   if (isInboundTripMode) {
     // Trong chuyến xe nhập kho (INBOUND Trip):
@@ -975,7 +977,9 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
 
   if (isOutbound) {
@@ -1030,7 +1034,9 @@ function PickupAddressCell({ getValue, row, column, table }: CellContext<Warehou
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -1066,7 +1072,9 @@ function GoodsDescriptionCell({
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(
     row.original,
@@ -1141,7 +1149,8 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     r,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
 
   return (
@@ -1180,7 +1189,8 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
@@ -1224,7 +1234,8 @@ function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? 0;
   const [value, setValue] = useState<string | number>(initialValue);
@@ -1316,7 +1327,7 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin);
+  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
@@ -1425,7 +1436,9 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(
     row.original,
@@ -1471,7 +1484,9 @@ function AccompanyingDocsCell({
   const isRowInbound = isRowInboundLocked(
     row.original,
     table.options.meta?.isInboundTripMode,
-    table.options.meta?.isAdmin
+    table.options.meta?.isAdmin,
+    false,
+    table.options.meta?.isOutboundMode
   );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(
     row.original,
@@ -1513,7 +1528,8 @@ function NotesCell({ getValue, row, column, table }: CellContext<WarehouseRowIte
     row.original,
     table.options.meta?.isInboundTripMode,
     table.options.meta?.isAdmin,
-    true
+    true,
+    table.options.meta?.isOutboundMode
   );
   const initialValue = getValue() ?? '';
   const [value, setValue] = useState(initialValue);
@@ -1546,7 +1562,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
-  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin);
+  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   const resolvedHubForPrint =
@@ -1649,7 +1665,7 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
         type='button'
         size='sm'
         variant='ghost'
-        disabled={isOrderInbound || rowsCount <= 1}
+        disabled={isOrderInbound || (rowsCount <= 1 && !r.orderCode && !r.goodsDescription)}
         onClick={() => meta?.deleteRow?.(idx)}
         className='h-6 w-6 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30'
         title={isOrderInbound ? 'Đơn hàng đã nhập kho, không thể xóa' : 'Xóa dòng'}
@@ -1770,29 +1786,33 @@ export function WarehouseEditableGrid({
     [rows, onChange]
   );
 
+  const createBlankRow = (pickup = ''): WarehouseRowItem => ({
+    orderCode: '',
+    pickupAddress: pickup,
+    goodsDescription: '',
+    totalQuantity: 1,
+    totalWeight: 0,
+    totalVolume: 0,
+    deliveryMode: 'DIRECT_CUSTOMER',
+    deliveryAddress: '',
+    province: '',
+    accompanyingDocs: '',
+    notes: ''
+  });
+
   // Add new empty row
   const handleAddRow = () => {
     const defaultPickup = (rows.length > 0 ? rows[rows.length - 1]?.pickupAddress : '') || '';
-    const newRow: WarehouseRowItem = {
-      orderCode: '',
-      pickupAddress: defaultPickup,
-      goodsDescription: '',
-      totalQuantity: 1,
-      totalWeight: 0,
-      totalVolume: 0,
-      deliveryMode: 'DIRECT_CUSTOMER',
-      deliveryAddress: '',
-      province: '',
-      accompanyingDocs: '',
-      notes: ''
-    };
-    onChange([...rows, newRow]);
+    onChange([...rows, createBlankRow(defaultPickup)]);
   };
 
   // Delete row
   const handleDeleteRow = useCallback(
     (index: number) => {
-      if (rows.length <= 1) return;
+      if (rows.length <= 1) {
+        onChange([createBlankRow()]);
+        return;
+      }
       const updated = rows.filter((_, i) => i !== index);
       onChange(updated);
     },
@@ -2405,7 +2425,9 @@ export function WarehouseEditableGrid({
               const isRowInbound = isRowInboundLocked(
                 row.original,
                 table.options.meta?.isInboundTripMode,
-                table.options.meta?.isAdmin
+                table.options.meta?.isAdmin,
+                false,
+                table.options.meta?.isOutboundMode
               );
 
               return (

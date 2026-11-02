@@ -548,7 +548,7 @@ export function WarehouseTripDetailModal({
         originalDestination:
           o.originalDestination || o.destinationHubEntity?.name || o.deliveryAddress,
         deliveryAddress: mode === 'OUTBOUND' ? outDest : o.deliveryAddress,
-        province: outHub?.city || o.province || o.destinationHubEntity?.city,
+        province: o.province || outHub?.city || o.destinationHubEntity?.city,
         destinationHubEntity: outHub,
         createdAt: o.createdAt,
         warehouseName: user?.hub?.name || tripGroup?.licensePlate
@@ -854,7 +854,7 @@ export function WarehouseTripDetailModal({
             ),
             deliveryMode: resolvedDeliveryMode,
             deliveryAddress: deliveryAddr,
-            province: outHubEntity?.city || o.province || '',
+            province: o.province || outHubEntity?.city || '',
             accompanyingDocs: o.accompanyingDocs || '',
             notes: o.notes || '',
             destinationHubId: outHubId,
