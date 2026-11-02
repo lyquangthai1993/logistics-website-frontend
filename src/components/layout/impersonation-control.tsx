@@ -186,7 +186,7 @@ export function ImpersonationControl() {
               <SidebarMenuButton
                 type='button'
                 tooltip={
-                  isImpersonating ? 'Đổi tài khoản đóng vai (Login as)' : 'Đóng vai (Login as)'
+                  isImpersonating ? 'Đổi tài khoản đóng vai' : 'Đóng vai người dùng'
                 }
                 data-testid='header-login-as-trigger'
                 className='text-indigo-700 hover:bg-indigo-500/10 hover:text-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-500/20 cursor-pointer'
@@ -195,7 +195,7 @@ export function ImpersonationControl() {
           >
             <Icons.login className='size-4 shrink-0 text-indigo-600 dark:text-indigo-400' />
             <span className='font-medium truncate'>
-              {isImpersonating ? 'Đổi tài khoản đóng vai' : 'Đóng vai (Login as)'}
+              {isImpersonating ? 'Đổi tài khoản đóng vai' : 'Đóng vai người dùng'}
             </span>
             <Icons.chevronRight className='ml-auto size-4 opacity-70' />
           </PopoverTrigger>
@@ -208,7 +208,7 @@ export function ImpersonationControl() {
             <div className='flex items-center justify-between border-b pb-1.5'>
               <div className='flex flex-col min-w-0'>
                 <span className='text-xs font-semibold text-foreground'>
-                  Đóng vai người dùng (Login as)
+                  Đóng vai người dùng
                 </span>
                 <span className='text-[10px] text-muted-foreground truncate'>
                   {isImpersonating

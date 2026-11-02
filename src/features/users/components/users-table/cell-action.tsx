@@ -174,7 +174,7 @@ export function CellAction({ data }: CellActionProps) {
                   className='cursor-pointer text-indigo-600 dark:text-indigo-400 focus:text-indigo-700'
                   data-testid={`menu-login-as-user-${data.id}`}
                 >
-                  <Icons.login className='mr-2 h-4 w-4' /> Đóng vai (Login as)
+                  <Icons.login className='mr-2 h-4 w-4' /> Đóng vai
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
