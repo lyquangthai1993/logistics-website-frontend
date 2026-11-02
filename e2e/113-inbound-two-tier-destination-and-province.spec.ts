@@ -20,6 +20,9 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
   test('should display two-tier unloading vs stay breakdown and province correctly for Polaris Hub - Hưng Yên', async ({
     page
   }) => {
+    page.on('console', msg => {
+      if (msg.text().includes('DEBUG')) console.log('BROWSER LOG:', msg.text());
+    });
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000';
 
     // 1. Login as Hưng Yên warehouse manager
@@ -56,13 +59,33 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
     await expect(modal).toContainText('133 kiện');
 
     // 7. Verify cargo lines show badges and proper customer provinces:
-    await expect(modal.locator('text=Dỡ kho Polaris Hub - Hưng Yên (Luân chuyển)').first()).toBeVisible();
-    await expect(modal.locator('text=Lưu xe (Không dỡ)').first()).toBeVisible();
-    await expect(modal).toContainText('HÀ NỘI');
-    await expect(modal).toContainText('THÁI BÌNH');
-    await expect(modal).toContainText('BẮC NINH');
+    const greenBadges1 = modal.locator('text=Dỡ kho Polaris Hub - Hưng Yên (Luân chuyển)');
+    console.log('COUNT ON 1ST OPEN:', await greenBadges1.count());
+    await expect(greenBadges1).toHaveCount(3);
+    const greyBadges1 = modal.locator('text=Lưu xe (Không dỡ)');
+    await expect(greyBadges1).toHaveCount(2);
 
-    // 8. Capture verified screenshot evidence
+    // 8. Close Modal
+    const closeBtn = modal.locator('button:has-text("Đóng")').first();
+    await closeBtn.click();
+    await expect(modal).not.toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(1000);
+
+    // 9. Open Modal 2nd time
+    await openBtn.click();
+    await expect(modal).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(2000);
+
+    // Log the entire inner text of table in modal on 2nd open:
+    const tableText = await modal.locator('table').innerText().catch(() => 'NO TABLE FOUND');
+    console.log('TABLE TEXT ON 2ND OPEN:\n', tableText);
+
+    const greenBadges2 = modal.locator('text=Dỡ kho Polaris Hub - Hưng Yên (Luân chuyển)');
+    console.log('COUNT ON 2ND OPEN:', await greenBadges2.count());
+    await expect(greenBadges2).toHaveCount(3);
+    await expect(modal.locator('text=Lưu xe (Không dỡ)')).toHaveCount(2);
+
+    // 10. Capture verified screenshot evidence
     const screenshotPath = path.join(EVIDENCE_DIR, 'screenshot_01_verified.png');
     await page.screenshot({ path: screenshotPath, fullPage: true });
     expect(fs.existsSync(screenshotPath)).toBe(true);

@@ -127,7 +127,7 @@ export function WarehouseTripDetailModal({
     isLoading: isManifestLoading,
     isError: isManifestError,
     error: manifestError
-  } = useTripManifestQuery(manifestTripCode, isOpen, tripGroup?.hubId);
+  } = useTripManifestQuery(manifestTripCode, isOpen, tripGroup?.hubId ?? user?.hubId ?? (user?.hub as any)?.id);
 
   // 1. Kiểm tra vai trò Quản trị viên
   const isAdmin = Boolean(
@@ -177,7 +177,7 @@ export function WarehouseTripDetailModal({
 
   const isTransferTrip = Boolean(manifest?.isTransfer ?? tripGroup?.isTransfer);
 
-  const currentHubId = manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
+  const currentHubId = tripGroup?.hubId ?? manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
 
   const isTripOriginHere = useMemo(() => {
     // 1. Mọi chuyến xe trên màn hình Xuất kho đều xuất phát từ Hub hiện tại
@@ -588,6 +588,25 @@ export function WarehouseTripDetailModal({
             (l.destinationHub
               ? { id: l.destinationHubId, name: l.destinationHub, code: '' }
               : null);
+          const outHubId = l.destinationHubId ?? outHubEntity?.id ?? null;
+          const resolvedStopHubId = currentHubId ?? tripGroup?.hubId ?? user?.hubId ?? (user?.hub as any)?.id;
+          const isXeBo =
+            outHubEntity?.level === 2 ||
+            outHubEntity?.code?.startsWith('XB-') ||
+            outHubEntity?.code?.startsWith('HUB-BO-') ||
+            outHubEntity?.name?.toLowerCase().includes('xe bo') ||
+            l.deliveryMode === 'XE_BO';
+          const resolvedDeliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' =
+            l.deliveryMode === 'XE_BO' || isXeBo
+              ? 'XE_BO'
+              : l.deliveryMode === 'HUB_L1' || outHubId
+                ? 'HUB_L1'
+                : (l.deliveryMode || 'DIRECT_CUSTOMER');
+
+          const isForThisHub = (resolvedStopHubId != null && outHubId != null)
+            ? Number(outHubId) === Number(resolvedStopHubId)
+            : Boolean(l.isForCurrentHub);
+          
           return {
             id: l.id,
             orderCode: l.orderCode || '',
@@ -604,15 +623,15 @@ export function WarehouseTripDetailModal({
             volumeAllocated: l.volumeAllocated,
             totalWeight: Number(l.weightAllocated ?? l.totalWeight ?? 0),
             totalVolume: Number(l.volumeAllocated ?? l.totalVolume ?? 0),
-            deliveryMode: l.deliveryMode || 'DIRECT_CUSTOMER',
+            deliveryMode: resolvedDeliveryMode,
             deliveryAddress: l.deliveryAddress || '',
-            province: l.province || '',
+            province: l.province || outHubEntity?.city || '',
             accompanyingDocs: l.accompanyingDocs || '',
             notes: l.notes || '',
-            destinationHubId: l.destinationHubId,
+            destinationHubId: outHubId,
             destinationHub: outHubEntity,
             destinationHubName: l.destinationHubName || outHubEntity?.name || l.destinationHub || '',
-            isForCurrentHub: Boolean(l.isForCurrentHub),
+            isForCurrentHub: isForThisHub,
             originalDeliveryAddress: l.originalDeliveryAddress || l.deliveryAddress || '',
             status: l.status,
             hubStatus: l.hubStatus,
@@ -753,16 +772,21 @@ export function WarehouseTripDetailModal({
       setDriverName(tripGroup.driverName || '');
       setReceiveDate(tripGroup.receiveDate || new Date().toISOString().split('T')[0]);
 
+      // If manifest lines are already available, manifest is the single source of truth for the trip
+      if (manifest?.lines && manifest.lines.length > 0 && isManifestTripCode(tripGroup?.tripCode)) {
+        return;
+      }
+
       if (tripGroup.orders && tripGroup.orders.length > 0) {
         const mappedRows: WarehouseRowItem[] = tripGroup.orders.map((o: any) => {
           const outHubEntity =
             mode === 'OUTBOUND'
               ? o.outboundDestinationHubEntity || o.destinationHubEntity
-              : o.destinationHubEntity;
+              : o.destinationHubEntity || (Array.isArray(o.trips) ? o.trips.find((t: any) => t.tripCode === tripGroup.tripCode && t.destinationHub)?.destinationHub : null);
           const outHubId =
             mode === 'OUTBOUND'
               ? (o.plannedDestinationHubId ?? outHubEntity?.id ?? o.destinationHubId ?? null)
-              : o.destinationHubId || null;
+              : (o.destinationHubId ?? outHubEntity?.id ?? (Array.isArray(o.trips) ? o.trips.find((t: any) => t.tripCode === tripGroup.tripCode && t.destinationHubId)?.destinationHubId : null) ?? null);
           let deliveryAddr =
             (mode === 'OUTBOUND'
               ? o.outboundDestination || o.deliveryAddress
