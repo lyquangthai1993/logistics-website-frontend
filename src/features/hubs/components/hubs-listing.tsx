@@ -22,11 +22,16 @@ export default async function HubsListing() {
     .filter(Boolean);
   const hasActive = statusTokens.includes('active') || statusTokens.includes('true');
   const hasInactive = statusTokens.includes('inactive') || statusTokens.includes('false');
-  if (hasActive && !hasInactive) {
-    isActive = true;
-  } else if (hasInactive && !hasActive) {
-    isActive = false;
+  const hasDeleted = statusTokens.includes('deleted');
+
+  if (!hasDeleted) {
+    if (hasActive && !hasInactive) {
+      isActive = true;
+    } else if (hasInactive && !hasActive) {
+      isActive = false;
+    }
   }
+  const normalizedStatus = statusTokens.length > 0 ? statusTokens.join(',') : undefined;
 
   const levelTokens = (rawLevel || '')
     .split(',')
@@ -39,6 +44,7 @@ export default async function HubsListing() {
     limit: perPage,
     ...(search && { search }),
     ...(isActive !== undefined && { isActive }),
+    ...(normalizedStatus && { status: normalizedStatus }),
     ...(level !== undefined && { level }),
     ...(sort && { sort })
   };

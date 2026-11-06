@@ -155,8 +155,16 @@ export const columns: ColumnDef<Hub>[] = [
     id: 'status',
     accessorKey: 'isActive',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Trạng Thái' />,
-    cell: ({ cell }) => {
-      const isActive = cell.getValue<boolean>();
+    cell: ({ row }) => {
+      const isDeleted = Boolean(row.original.deletedAt);
+      const isActive = row.original.isActive;
+      if (isDeleted) {
+        return (
+          <Badge className='bg-rose-500/15 text-rose-600 hover:bg-rose-500/25 border-rose-500/20'>
+            Đã Xóa Mềm
+          </Badge>
+        );
+      }
       return isActive ? (
         <Badge className='bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-emerald-500/20'>
           Hoạt Động

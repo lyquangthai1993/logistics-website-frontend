@@ -40,6 +40,8 @@ export interface QueryHubParams {
   limit?: number;
   search?: string;
   isActive?: boolean;
+  status?: string;
+  isDeleted?: boolean;
   level?: number;
   sort?: string;
 }

@@ -1,6 +1,7 @@
 export const HUB_STATUS_OPTIONS = [
   { label: 'Đang hoạt động', value: 'active' },
-  { label: 'Tạm ngưng', value: 'inactive' }
+  { label: 'Tạm ngưng', value: 'inactive' },
+  { label: 'Đã xóa mềm', value: 'deleted' }
 ];
 
 export const HUB_LEVEL_OPTIONS = [

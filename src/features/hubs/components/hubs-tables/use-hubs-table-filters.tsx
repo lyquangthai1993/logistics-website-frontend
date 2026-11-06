@@ -32,11 +32,17 @@ export function useHubsTableFilters(columnIds: string[] = []) {
   let isActive: boolean | undefined = undefined;
   const hasActive = statusTokens.includes('active') || statusTokens.includes('true');
   const hasInactive = statusTokens.includes('inactive') || statusTokens.includes('false');
-  if (hasActive && !hasInactive) {
-    isActive = true;
-  } else if (hasInactive && !hasActive) {
-    isActive = false;
+  const hasDeleted = statusTokens.includes('deleted');
+
+  if (!hasDeleted) {
+    if (hasActive && !hasInactive) {
+      isActive = true;
+    } else if (hasInactive && !hasActive) {
+      isActive = false;
+    }
   }
+
+  const normalizedStatus = statusTokens.length > 0 ? statusTokens.join(',') : undefined;
 
   const rawLevel = Array.isArray(params.level) ? params.level.join(',') : params.level;
   const levelTokens = (rawLevel || '')
@@ -51,10 +57,11 @@ export function useHubsTableFilters(columnIds: string[] = []) {
       limit: params.perPage,
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(isActive !== undefined ? { isActive } : {}),
+      ...(normalizedStatus ? { status: normalizedStatus } : {}),
       ...(level !== undefined ? { level } : {}),
       ...(params.sort && params.sort.length > 0 ? { sort: JSON.stringify(params.sort) } : {})
     }),
-    [params.page, params.perPage, search, isActive, level, params.sort]
+    [params.page, params.perPage, search, isActive, normalizedStatus, level, params.sort]
   );
 
   const resetFilters = useCallback(() => {
