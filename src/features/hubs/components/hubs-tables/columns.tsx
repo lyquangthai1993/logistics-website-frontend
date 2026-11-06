@@ -65,6 +65,7 @@ export const columns: ColumnDef<Hub>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title='Phân Cấp' />,
     cell: ({ row }) => {
       const level = row.original.level ?? 1;
+      console.log(`level: ${level}`);
       return level === 2 ? (
         <Badge
           variant='outline'
@@ -95,7 +96,7 @@ export const columns: ColumnDef<Hub>[] = [
   {
     id: 'address',
     accessorKey: 'address',
-    header: 'Địa Chỉ Chi Tiết',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Địa Chỉ Chi Tiết' />,
     meta: {
       columnTitle: 'Địa Chỉ Chi Tiết'
     },
@@ -106,12 +107,13 @@ export const columns: ColumnDef<Hub>[] = [
           {address || 'Chưa cập nhật'}
         </div>
       );
-    }
+    },
+    enableSorting: true
   },
   {
     id: 'manager',
     accessorKey: 'managerName',
-    header: 'Người Quản Lý & SĐT',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Người Quản Lý & SĐT' />,
     meta: {
       columnTitle: 'Người Quản Lý & SĐT'
     },
@@ -128,7 +130,8 @@ export const columns: ColumnDef<Hub>[] = [
           </div>
         )}
       </div>
-    )
+    ),
+    enableSorting: true
   },
   {
     id: 'vehicles',
@@ -145,7 +148,8 @@ export const columns: ColumnDef<Hub>[] = [
         <Icons.truck className='mr-1 h-3 w-3' />
         {row.original.vehicles?.length || 0} xe
       </Badge>
-    )
+    ),
+    enableSorting: false
   },
   {
     id: 'status',
@@ -169,7 +173,8 @@ export const columns: ColumnDef<Hub>[] = [
       variant: 'select',
       options: HUB_STATUS_OPTIONS
     },
-    enableColumnFilter: true
+    enableColumnFilter: true,
+    enableSorting: true
   },
   {
     id: 'actions',
