@@ -7,12 +7,15 @@ import { hubsQueryOptions } from '../api/queries';
 import type { Hub } from '../api/types';
 
 export function HubsMetrics() {
-  // Query all hubs with limit 100 to calculate global summary metrics
+  // Query all non-deleted hubs (limit 100) and soft-deleted hubs count for global summary metrics
   const { data } = useQuery(hubsQueryOptions({ limit: 100 }));
+  const { data: deletedData } = useQuery(hubsQueryOptions({ limit: 1, status: 'deleted' }));
+
   const hubs: Hub[] = data?.data || [];
   const total = data?.meta?.total ?? hubs.length;
   const activeCount = hubs.filter((h) => h.isActive).length;
   const inactiveCount = Math.max(0, total - activeCount);
+  const deletedCount = deletedData?.meta?.total ?? 0;
   const level1Count = hubs.filter((h) => (h.level ?? 1) === 1).length;
   const level2Count = hubs.filter((h) => h.level === 2).length;
   const totalVehicles = hubs.reduce((sum, h) => sum + (h.vehicles?.length || 0), 0);
@@ -54,7 +57,9 @@ export function HubsMetrics() {
         </CardHeader>
         <CardContent>
           <div className='text-2xl font-bold text-amber-600'>{inactiveCount}</div>
-          <p className='text-muted-foreground mt-1 text-xs'>Tạm ngừng hoặc bảo trì</p>
+          <p className='text-muted-foreground mt-1 text-xs'>
+            Tạm ngừng bảo trì{deletedCount > 0 ? ` • ${deletedCount} đã xóa` : ''}
+          </p>
         </CardContent>
       </Card>
 

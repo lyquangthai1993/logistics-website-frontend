@@ -52,6 +52,8 @@ export default async function HubsListing() {
   const queryClient = getQueryClient();
   void queryClient.prefetchQuery(hubsQueryOptions(filters));
   void queryClient.prefetchQuery(hubsQueryOptions({ limit: 100 }));
+  void queryClient.prefetchQuery(hubsQueryOptions({ limit: 1, status: 'deleted' }));
+  void queryClient.prefetchQuery(hubsQueryOptions({ limit: 1, status: 'deleted' }));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

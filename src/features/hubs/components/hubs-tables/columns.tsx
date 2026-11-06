@@ -161,7 +161,7 @@ export const columns: ColumnDef<Hub>[] = [
       if (isDeleted) {
         return (
           <Badge className='bg-rose-500/15 text-rose-600 hover:bg-rose-500/25 border-rose-500/20'>
-            Đã Xóa Mềm
+            Đã Xóa
           </Badge>
         );
       }
