@@ -238,9 +238,9 @@ export function WarehouseTripTallyTable({
                           <div className='flex items-center flex-wrap gap-1'>
                             <Badge
                               variant='outline'
-                              className='text-[9px] h-3.5 px-1 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-300 font-semibold'
+                              className='text-[9px] h-3.5 px-1 bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/25 font-semibold'
                             >
-                              Tuyến Xe Bo
+                              Cấp 2 • Trạm Xe Bo
                             </Badge>
                             {!l.isForCurrentHub && (
                               <Badge
@@ -264,9 +264,9 @@ export function WarehouseTripTallyTable({
                           <div className='flex items-center flex-wrap gap-1'>
                             <Badge
                               variant='outline'
-                              className='text-[9px] h-3.5 px-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-300 font-semibold'
+                              className='text-[9px] h-3.5 px-1 bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/25 font-semibold'
                             >
-                              Hub Cấp 1
+                              Cấp 1 • Hub Chính
                             </Badge>
                             {!l.isForCurrentHub && (
                               <Badge

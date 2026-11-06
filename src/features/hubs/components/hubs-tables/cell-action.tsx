@@ -118,9 +118,17 @@ export function CellAction({ data }: CellActionProps) {
           onClick={() => toggleMutation.mutate(data.id)}
           disabled={toggleMutation.isPending}
           className='text-muted-foreground hover:text-foreground h-8 px-2 cursor-pointer'
-          title={data.isActive ? 'Tạm ngưng hoạt động' : 'Kích hoạt hoạt động'}
+          title={
+            data.deletedAt
+              ? 'Khôi phục hoạt động chi nhánh đã xóa mềm'
+              : data.isActive
+                ? 'Tạm ngưng hoạt động'
+                : 'Kích hoạt hoạt động'
+          }
         >
-          {data.isActive ? (
+          {data.deletedAt ? (
+            <Icons.refresh className='h-4 w-4 text-blue-600' />
+          ) : data.isActive ? (
             <Icons.circleCheck className='h-4 w-4 text-emerald-600' />
           ) : (
             <Icons.circleX className='h-4 w-4 text-amber-600' />
@@ -136,16 +144,18 @@ export function CellAction({ data }: CellActionProps) {
         >
           <Icons.edit className='h-4 w-4' />
         </Button>
-        <Button
-          size='sm'
-          variant='ghost'
-          aria-label='Xóa kho'
-          data-testid={`btn-delete-hub-${data.id}`}
-          onClick={() => setDeleteOpen(true)}
-          className='text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2 cursor-pointer'
-        >
-          <Icons.trash className='h-4 w-4' />
-        </Button>
+        {!data.deletedAt && (
+          <Button
+            size='sm'
+            variant='ghost'
+            aria-label='Xóa kho'
+            data-testid={`btn-delete-hub-${data.id}`}
+            onClick={() => setDeleteOpen(true)}
+            className='text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2 cursor-pointer'
+          >
+            <Icons.trash className='h-4 w-4' />
+          </Button>
+        )}
       </div>
     </>
   );

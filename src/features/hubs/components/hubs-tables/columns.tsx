@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/ui/table/data-table-column-header';
 import { Icons } from '@/components/icons';
 import { CellAction } from './cell-action';
-import { HUB_STATUS_OPTIONS } from './options';
+import { HUB_STATUS_OPTIONS, HUB_LEVEL_OPTIONS } from './options';
 import type { Hub } from '../../api/types';
 
 export const columns: ColumnDef<Hub>[] = [
@@ -16,11 +16,27 @@ export const columns: ColumnDef<Hub>[] = [
     meta: {
       columnTitle: 'Mã Hub'
     },
-    cell: ({ cell }) => (
-      <span className='bg-primary/10 text-primary border-primary/20 rounded-md border px-2.5 py-1 font-mono text-xs font-semibold'>
-        {cell.getValue<string>()}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const isXeBo = row.original.level === 2;
+      return (
+        <div className='flex flex-col items-start gap-0.5'>
+          <span
+            className={
+              isXeBo
+                ? 'rounded-md border border-purple-200 bg-purple-100 px-2 py-0.5 font-mono text-xs font-bold text-purple-800 dark:border-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                : 'rounded-md border border-blue-200 bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-800 dark:border-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+            }
+          >
+            {row.original.code}
+          </span>
+          {row.original.orderCodePrefix && (
+            <span className='text-muted-foreground font-mono text-[10px]'>
+              Prefix: {row.original.orderCodePrefix}
+            </span>
+          )}
+        </div>
+      );
+    },
     enableSorting: true
   },
   {
@@ -29,18 +45,25 @@ export const columns: ColumnDef<Hub>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title='Tên Chi Nhánh & Tỉnh/Thành' />
     ),
-    cell: ({ row }) => (
-      <div>
-        <div className='text-foreground flex items-center gap-1.5 font-semibold'>
-          <Icons.warehouse className='text-primary/70 h-4 w-4 shrink-0' />
-          {row.original.name}
+    cell: ({ row }) => {
+      const isXeBo = row.original.level === 2;
+      return (
+        <div>
+          <div className='text-foreground flex items-center gap-1.5 font-semibold'>
+            {isXeBo ? (
+              <Icons.truck className='h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400' />
+            ) : (
+              <Icons.warehouse className='h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400' />
+            )}
+            {row.original.name}
+          </div>
+          <div className='text-muted-foreground mt-0.5 flex items-center gap-1 text-xs'>
+            <Icons.mapPin className='h-3 w-3 shrink-0' />
+            {row.original.city}
+          </div>
         </div>
-        <div className='text-muted-foreground mt-0.5 flex items-center gap-1 text-xs'>
-          <Icons.mapPin className='h-3 w-3 shrink-0' />
-          {row.original.city}
-        </div>
-      </div>
-    ),
+      );
+    },
     meta: {
       id: 'hub-search-input',
       columnTitle: 'Tên Chi Nhánh & Tỉnh/Thành',
@@ -53,25 +76,76 @@ export const columns: ColumnDef<Hub>[] = [
     enableSorting: true
   },
   {
+    id: 'level',
+    accessorKey: 'level',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Phân Cấp' />,
+    cell: ({ row }) => {
+      const level = row.original.level ?? 1;
+      return level === 2 ? (
+        <Badge
+          variant='outline'
+          className='bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/25 font-medium'
+        >
+          <Icons.truck className='mr-1 h-3 w-3' />
+          Cấp 2 • Trạm Xe Bo
+        </Badge>
+      ) : (
+        <Badge
+          variant='outline'
+          className='bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/25 font-medium'
+        >
+          <Icons.warehouse className='mr-1 h-3 w-3' />
+          Cấp 1 • Hub Chính
+        </Badge>
+      );
+    },
+    meta: {
+      columnTitle: 'Phân Cấp',
+      label: 'Phân cấp',
+      variant: 'select',
+      options: HUB_LEVEL_OPTIONS
+    },
+    enableColumnFilter: true,
+    enableSorting: true
+  },
+  {
     id: 'address',
     accessorKey: 'address',
-    header: 'Địa Chỉ Chi Tiết',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Địa Chỉ Chi Tiết' />,
     meta: {
       columnTitle: 'Địa Chỉ Chi Tiết'
     },
-    cell: ({ cell }) => {
-      const address = cell.getValue<string | null | undefined>();
+    cell: ({ cell, row }) => {
+      const address = cell.getValue<string | null | undefined>()?.trim();
+      const city = row.original.city?.trim();
+      if (!address) {
+        return <div className='text-muted-foreground max-w-xs truncate'>Chưa cập nhật</div>;
+      }
+      const query =
+        city && !address.toLowerCase().includes(city.toLowerCase())
+          ? `${address}, ${city}`
+          : address;
+      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
       return (
-        <div className='text-muted-foreground max-w-xs truncate' title={address || undefined}>
-          {address || 'Chưa cập nhật'}
-        </div>
+        <a
+          href={mapUrl}
+          target='_blank'
+          rel='noopener noreferrer'
+          onClick={(e) => e.stopPropagation()}
+          title={`Xem trên Google Maps: ${query}`}
+          className='group text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 inline-flex max-w-xs items-center gap-1 transition-colors hover:underline'
+        >
+          <span className='truncate'>{address}</span>
+          <Icons.externalLink className='h-3 w-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100' />
+        </a>
       );
-    }
+    },
+    enableSorting: true
   },
   {
     id: 'manager',
     accessorKey: 'managerName',
-    header: 'Người Quản Lý & SĐT',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Người Quản Lý & SĐT' />,
     meta: {
       columnTitle: 'Người Quản Lý & SĐT'
     },
@@ -88,7 +162,8 @@ export const columns: ColumnDef<Hub>[] = [
           </div>
         )}
       </div>
-    )
+    ),
+    enableSorting: true
   },
   {
     id: 'vehicles',
@@ -105,14 +180,23 @@ export const columns: ColumnDef<Hub>[] = [
         <Icons.truck className='mr-1 h-3 w-3' />
         {row.original.vehicles?.length || 0} xe
       </Badge>
-    )
+    ),
+    enableSorting: false
   },
   {
     id: 'status',
     accessorKey: 'isActive',
     header: ({ column }) => <DataTableColumnHeader column={column} title='Trạng Thái' />,
-    cell: ({ cell }) => {
-      const isActive = cell.getValue<boolean>();
+    cell: ({ row }) => {
+      const isDeleted = Boolean(row.original.deletedAt);
+      const isActive = row.original.isActive;
+      if (isDeleted) {
+        return (
+          <Badge className='bg-rose-500/15 text-rose-600 hover:bg-rose-500/25 border-rose-500/20'>
+            Đã Xóa
+          </Badge>
+        );
+      }
       return isActive ? (
         <Badge className='bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-emerald-500/20'>
           Hoạt Động
@@ -129,7 +213,8 @@ export const columns: ColumnDef<Hub>[] = [
       variant: 'select',
       options: HUB_STATUS_OPTIONS
     },
-    enableColumnFilter: true
+    enableColumnFilter: true,
+    enableSorting: true
   },
   {
     id: 'actions',
