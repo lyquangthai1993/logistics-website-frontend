@@ -16,18 +16,27 @@ export const columns: ColumnDef<Hub>[] = [
     meta: {
       columnTitle: 'Mã Hub'
     },
-    cell: ({ row }) => (
-      <div className='flex flex-col items-start gap-0.5'>
-        <span className='bg-primary/10 text-primary border-primary/20 rounded-md border px-2 py-0.5 font-mono text-xs font-semibold'>
-          {row.original.code}
-        </span>
-        {row.original.orderCodePrefix && (
-          <span className='text-muted-foreground font-mono text-[10px]'>
-            Prefix: {row.original.orderCodePrefix}
+    cell: ({ row }) => {
+      const isXeBo = row.original.level === 2;
+      return (
+        <div className='flex flex-col items-start gap-0.5'>
+          <span
+            className={
+              isXeBo
+                ? 'rounded-md border border-purple-200 bg-purple-100 px-2 py-0.5 font-mono text-xs font-bold text-purple-800 dark:border-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                : 'rounded-md border border-blue-200 bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-800 dark:border-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+            }
+          >
+            {row.original.code}
           </span>
-        )}
-      </div>
-    ),
+          {row.original.orderCodePrefix && (
+            <span className='text-muted-foreground font-mono text-[10px]'>
+              Prefix: {row.original.orderCodePrefix}
+            </span>
+          )}
+        </div>
+      );
+    },
     enableSorting: true
   },
   {
@@ -36,18 +45,25 @@ export const columns: ColumnDef<Hub>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title='Tên Chi Nhánh & Tỉnh/Thành' />
     ),
-    cell: ({ row }) => (
-      <div>
-        <div className='text-foreground flex items-center gap-1.5 font-semibold'>
-          <Icons.warehouse className='text-primary/70 h-4 w-4 shrink-0' />
-          {row.original.name}
+    cell: ({ row }) => {
+      const isXeBo = row.original.level === 2;
+      return (
+        <div>
+          <div className='text-foreground flex items-center gap-1.5 font-semibold'>
+            {isXeBo ? (
+              <Icons.truck className='h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400' />
+            ) : (
+              <Icons.warehouse className='h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400' />
+            )}
+            {row.original.name}
+          </div>
+          <div className='text-muted-foreground mt-0.5 flex items-center gap-1 text-xs'>
+            <Icons.mapPin className='h-3 w-3 shrink-0' />
+            {row.original.city}
+          </div>
         </div>
-        <div className='text-muted-foreground mt-0.5 flex items-center gap-1 text-xs'>
-          <Icons.mapPin className='h-3 w-3 shrink-0' />
-          {row.original.city}
-        </div>
-      </div>
-    ),
+      );
+    },
     meta: {
       id: 'hub-search-input',
       columnTitle: 'Tên Chi Nhánh & Tỉnh/Thành',
@@ -65,11 +81,10 @@ export const columns: ColumnDef<Hub>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title='Phân Cấp' />,
     cell: ({ row }) => {
       const level = row.original.level ?? 1;
-      console.log(`level: ${level}`);
       return level === 2 ? (
         <Badge
           variant='outline'
-          className='bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 font-medium'
+          className='bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/25 font-medium'
         >
           <Icons.truck className='mr-1 h-3 w-3' />
           Cấp 2 • Trạm Xe Bo

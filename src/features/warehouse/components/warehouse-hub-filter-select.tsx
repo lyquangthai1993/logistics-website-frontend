@@ -33,22 +33,39 @@ export interface WarehouseHubFilterSelectProps {
   className?: string;
 }
 
-function getHubTypeBadge(h: WarehouseHubOption): { label: string; badgeClass: string } {
-  const isSatellite =
+function isSatelliteHub(h?: WarehouseHubOption): boolean {
+  if (!h) return false;
+  return Boolean(
     (h.level && h.level > 1) ||
     h.code?.startsWith('XB-') ||
     h.code?.startsWith('HUB-BO-') ||
-    h.name?.toLowerCase().includes('xe bo');
+    h.name?.toLowerCase().includes('xe bo')
+  );
+}
+
+function getHubTypeBadge(h: WarehouseHubOption): {
+  label: string;
+  badgeClass: string;
+  codeClass: string;
+  isSatellite: boolean;
+} {
+  const isSatellite = isSatelliteHub(h);
 
   if (isSatellite) {
     return {
-      label: 'Trạm Xe Bo',
-      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20'
+      label: 'Cấp 2 • Trạm Xe Bo',
+      badgeClass: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/25',
+      codeClass:
+        'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/60 dark:text-purple-300 dark:border-purple-800',
+      isSatellite: true
     };
   }
   return {
-    label: 'Hub chính',
-    badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20'
+    label: 'Cấp 1 • Hub Chính',
+    badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/25',
+    codeClass:
+      'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:border-blue-800',
+    isSatellite: false
   };
 }
 
@@ -114,6 +131,7 @@ export function WarehouseHubFilterSelect({
   const selectedHub = isFiltered
     ? allHubs.find((h) => String(h.id) === normalizedValue)
     : undefined;
+  const isSelectedSatellite = isSatelliteHub(selectedHub);
 
   const handleSelectHub = (nextValue: string) => {
     onChange(nextValue);
@@ -132,14 +150,20 @@ export function WarehouseHubFilterSelect({
               title='Super Admin: Lọc dữ liệu theo Kho / Trạm cụ thể'
               className={`h-8 text-xs px-2.5 gap-1.5 min-w-[185px] max-w-[260px] rounded-md border inline-flex items-center justify-between transition-colors cursor-pointer ${
                 isFiltered
-                  ? 'border-blue-500/60 bg-blue-50/70 text-[#0F3D62] dark:border-blue-500/50 dark:bg-blue-950/40 dark:text-blue-300 font-bold shadow-2xs'
+                  ? isSelectedSatellite
+                    ? 'border-purple-500/60 bg-purple-50/70 text-purple-900 dark:border-purple-500/50 dark:bg-purple-950/40 dark:text-purple-200 font-bold shadow-2xs'
+                    : 'border-blue-500/60 bg-blue-50/70 text-[#0F3D62] dark:border-blue-500/50 dark:bg-blue-950/40 dark:text-blue-300 font-bold shadow-2xs'
                   : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             />
           }
         >
           <div className='flex items-center gap-1.5 min-w-0 truncate'>
-            <IconBuildingWarehouse className='h-3.5 w-3.5 shrink-0 text-[#0F3D62] dark:text-blue-400' />
+            {isFiltered && isSelectedSatellite ? (
+              <IconTruck className='h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400' />
+            ) : (
+              <IconBuildingWarehouse className='h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400' />
+            )}
             <span className='truncate'>
               {selectedHub
                 ? `${selectedHub.name}${selectedHub.city ? ` (${selectedHub.city})` : ''}`
@@ -162,7 +186,7 @@ export function WarehouseHubFilterSelect({
               <span className='text-[10px] text-muted-foreground truncate'>
                 {selectedHub
                   ? `Đang xem: ${selectedHub.name}${selectedHub.city ? ` • ${selectedHub.city}` : ''}`
-                  : 'Chuyển nhanh góc nhìn theo Hub / Trạm Xe Bo'}
+                  : 'Chuyển nhanh góc nhìn theo Hub Cấp 1 / Trạm Xe Bo'}
               </span>
             </div>
             {isFiltered && (
@@ -171,7 +195,7 @@ export function WarehouseHubFilterSelect({
                 variant='default'
                 size='sm'
                 onClick={() => handleSelectHub('ALL')}
-                className='h-6 px-2 text-[10px] font-semibold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shrink-0'
+                className='h-6 px-2 text-[10px] font-semibold bg-[#0F3D62] hover:bg-[#0c314f] text-white cursor-pointer shrink-0'
               >
                 Tất cả kho
               </Button>
@@ -210,7 +234,7 @@ export function WarehouseHubFilterSelect({
                 onClick={() => handleSelectHub('ALL')}
                 data-testid='warehouse-hub-filter-item-all'
                 className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/70 transition-colors cursor-pointer ${
-                  !isFiltered ? 'bg-blue-50/60 dark:bg-blue-950/30' : ''
+                  !isFiltered ? 'bg-slate-100/80 dark:bg-slate-800/60' : ''
                 }`}
               >
                 <div className='flex flex-col min-w-0 flex-1'>
@@ -218,14 +242,14 @@ export function WarehouseHubFilterSelect({
                     <span className='text-xs font-semibold text-foreground truncate'>
                       Tất cả kho
                     </span>
-                    <span className='text-[10px] font-mono text-muted-foreground truncate'>
+                    <span className='rounded border border-slate-200 bg-slate-100 px-1 py-0 text-[10px] font-mono font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'>
                       ALL
                     </span>
                   </div>
                   <div className='flex flex-wrap items-center gap-1 mt-0.5'>
                     <Badge
                       variant='outline'
-                      className='text-[10px] px-1 py-0 h-4 bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/20'
+                      className='text-[10px] px-1 py-0 h-4 bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/25'
                     >
                       Toàn hệ thống
                     </Badge>
@@ -236,7 +260,7 @@ export function WarehouseHubFilterSelect({
                 </div>
                 <div className='shrink-0'>
                   {!isFiltered ? (
-                    <IconCheck className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400' />
+                    <IconCheck className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
                   ) : (
                     <IconBuildingWarehouse className='h-3.5 w-3.5 text-slate-400' />
                   )}
@@ -257,7 +281,7 @@ export function WarehouseHubFilterSelect({
               filteredHubs.map((h) => {
                 const isSelected = String(h.id) === normalizedValue;
                 const badgeInfo = getHubTypeBadge(h);
-                const isSatellite = badgeInfo.label === 'Trạm Xe Bo';
+                const isSatellite = badgeInfo.isSatellite;
 
                 return (
                   <button
@@ -266,7 +290,11 @@ export function WarehouseHubFilterSelect({
                     onClick={() => handleSelectHub(String(h.id))}
                     data-testid={`warehouse-hub-filter-item-${h.id}`}
                     className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/70 transition-colors cursor-pointer ${
-                      isSelected ? 'bg-blue-50/70 dark:bg-blue-950/40' : ''
+                      isSelected
+                        ? isSatellite
+                          ? 'bg-purple-50/70 dark:bg-purple-950/40'
+                          : 'bg-blue-50/70 dark:bg-blue-950/40'
+                        : ''
                     }`}
                   >
                     <div className='flex flex-col min-w-0 flex-1'>
@@ -275,7 +303,9 @@ export function WarehouseHubFilterSelect({
                           {h.name}
                         </span>
                         {h.code && (
-                          <span className='text-[10px] font-mono text-muted-foreground truncate'>
+                          <span
+                            className={`rounded border px-1 py-0 text-[10px] font-mono font-bold truncate ${badgeInfo.codeClass}`}
+                          >
                             {h.code}
                           </span>
                         )}
@@ -296,11 +326,17 @@ export function WarehouseHubFilterSelect({
                     </div>
                     <div className='shrink-0'>
                       {isSelected ? (
-                        <IconCheck className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400' />
+                        <IconCheck
+                          className={`h-3.5 w-3.5 ${
+                            isSatellite
+                              ? 'text-purple-600 dark:text-purple-400'
+                              : 'text-blue-600 dark:text-blue-400'
+                          }`}
+                        />
                       ) : isSatellite ? (
-                        <IconTruck className='h-3.5 w-3.5 text-amber-600/70 dark:text-amber-400/70' />
+                        <IconTruck className='h-3.5 w-3.5 text-purple-600/80 dark:text-purple-400/80' />
                       ) : (
-                        <IconBuildingWarehouse className='h-3.5 w-3.5 text-blue-600/70 dark:text-blue-400/70' />
+                        <IconBuildingWarehouse className='h-3.5 w-3.5 text-blue-600/80 dark:text-blue-400/80' />
                       )}
                     </div>
                   </button>
@@ -316,7 +352,11 @@ export function WarehouseHubFilterSelect({
           type='button'
           data-testid='warehouse-hub-filter-clear'
           onClick={() => handleSelectHub('ALL')}
-          className='h-8 w-7 inline-flex items-center justify-center rounded-md border border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 transition-colors cursor-pointer'
+          className={`h-8 w-7 inline-flex items-center justify-center rounded-md border transition-colors cursor-pointer ${
+            isSelectedSatellite
+              ? 'border-purple-200 bg-purple-50/60 text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
+              : 'border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+          }`}
           title='Bỏ lọc kho (Xem tất cả kho)'
         >
           <IconX className='h-3.5 w-3.5' />

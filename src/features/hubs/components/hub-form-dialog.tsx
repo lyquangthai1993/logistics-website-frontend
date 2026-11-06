@@ -160,13 +160,15 @@ export function HubFormDialog({
                 onClick={() => setFormLevel(2)}
                 className={`flex items-start gap-2 rounded-md border p-2 text-left transition-all cursor-pointer ${
                   formLevel === 2
-                    ? 'border-amber-600 bg-amber-50/70 dark:border-amber-500 dark:bg-amber-950/40 ring-1 ring-amber-600/30'
+                    ? 'border-purple-600 bg-purple-50/70 dark:border-purple-500 dark:bg-purple-950/40 ring-1 ring-purple-600/30'
                     : 'border-border hover:bg-muted/50'
                 }`}
               >
                 <Icons.truck
                   className={`mt-0.5 h-4 w-4 shrink-0 ${
-                    formLevel === 2 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
+                    formLevel === 2
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : 'text-muted-foreground'
                   }`}
                 />
                 <div className='min-w-0 flex-1'>

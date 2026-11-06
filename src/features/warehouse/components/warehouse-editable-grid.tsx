@@ -293,7 +293,14 @@ function SearchableHubSelect({
                         <span className='truncate'>{item.name}</span>
                       </div>
                       <div className='flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400'>
-                        <span className='font-mono font-semibold text-slate-600 dark:text-slate-300'>
+                        <span
+                          className={cn(
+                            'rounded border px-1 py-0 font-mono font-bold',
+                            isXeBo
+                              ? 'border-purple-200 bg-purple-100 text-purple-800 dark:border-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                              : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                          )}
+                        >
                           {item.code}
                         </span>
                         <span>&bull;</span>
@@ -1725,25 +1732,7 @@ export function WarehouseEditableGrid({
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
   const [lookupRowIndex, setLookupRowIndex] = useState<number | null>(null);
   const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
-  const [hubs, setHubs] = useState<HubOption[]>([
-    { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
-    { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
-    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
-    { id: 100, code: 'HUB-BO-HCM-01', name: 'Xe bo Tuyến HCM', city: 'TP. Hồ Chí Minh', level: 2 },
-    { id: 101, code: 'HUB-BO-DAD-01', name: 'Xe bo Tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
-    { id: 102, code: 'HUB-BO-HYN-01', name: 'Xe bo Tuyến Hưng Yên', city: 'Hưng Yên', level: 2 },
-    { id: 103, code: 'HUB-BO-HAN-01', name: 'Xe bo Tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
-    {
-      id: 104,
-      code: 'HUB-BO-HPH-01',
-      name: 'Xe bo Tuyến Hải Phòng',
-      city: 'TP. Hải Phòng',
-      level: 2
-    },
-    { id: 105, code: 'HUB-BO-CTH-01', name: 'Xe bo Tuyến Cần Thơ', city: 'TP. Cần Thơ', level: 2 },
-    { id: 106, code: 'HUB-BO-HUE-01', name: 'Xe bo Tuyến Huế', city: 'TP. Huế', level: 2 },
-    { id: 107, code: 'HUB-BO-BNI-01', name: 'Xe bo Tuyến Bắc Ninh', city: 'Bắc Ninh', level: 2 }
-  ]);
+  const [hubs, setHubs] = useState<HubOption[]>([]);
 
   // Fetch active hubs list for Level 1 & Level 2 dropdowns
   React.useEffect(() => {
