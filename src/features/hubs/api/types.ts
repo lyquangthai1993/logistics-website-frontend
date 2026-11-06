@@ -9,11 +9,13 @@ export interface HubVehicle {
 export interface Hub {
   id: number;
   code: string;
+  orderCodePrefix?: string | null;
   name: string;
   city: string;
   address?: string | null;
   contactPhone?: string | null;
   managerName?: string | null;
+  level?: number;
   isActive: boolean;
   vehicles?: HubVehicle[];
   createdAt?: string;
@@ -38,6 +40,9 @@ export interface QueryHubParams {
   limit?: number;
   search?: string;
   isActive?: boolean;
+  status?: string;
+  isDeleted?: boolean;
+  level?: number;
   sort?: string;
 }
 
@@ -45,11 +50,13 @@ export type HubFilters = QueryHubParams;
 
 export interface CreateHubPayload {
   code: string;
+  orderCodePrefix?: string;
   name: string;
   city: string;
   address?: string;
   contactPhone?: string;
   managerName?: string;
+  level?: number;
   isActive?: boolean;
 }
 

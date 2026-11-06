@@ -30,6 +30,7 @@ import {
 import { rollbackTrip } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
+import { apiClient } from '@/lib/api-client';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -58,6 +59,7 @@ import {
   TripDateTooltip,
   WarehouseDateRangeDropdown,
   WarehouseTripHistoryModal,
+  WarehouseHubFilterSelect,
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
@@ -101,6 +103,8 @@ function WarehouseInboundContent() {
     handleResetDateRange,
     boardStatus,
     setBoardStatus,
+    hubId,
+    setHubId,
     page,
     setPage
   } = useWarehouseBoardFilterSync();
@@ -112,8 +116,10 @@ function WarehouseInboundContent() {
     pendingCount: 0,
     completedCount: 0
   });
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const inboundRequestIdRef = useRef(0);
+  const inboundAbortRef = useRef<AbortController | null>(null);
 
   // Modals
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -268,20 +274,16 @@ function WarehouseInboundContent() {
 
   // Fetch KPI
   const fetchKpi = useCallback(() => {
-    const token = tokenManager.getAccessToken();
-    fetch('/api/v1/warehouse/kpi', {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((resData) => {
+    const params: Record<string, string> = hubId && hubId !== 'ALL' ? { hubId } : {};
+    apiClient
+      .get('/api/v1/warehouse/kpi', { params })
+      .then((res) => {
+        const resData = res.data;
         const payload = resData?.data || resData;
         if (payload) setKpiStats((prev) => ({ ...prev, ...payload }));
       })
       .catch(() => {});
-  }, []);
+  }, [hubId]);
 
   useEffect(() => {
     fetchKpi();
@@ -314,31 +316,32 @@ function WarehouseInboundContent() {
 
   // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
   const fetchInboundTrips = useCallback(() => {
+    if (inboundAbortRef.current) {
+      inboundAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    inboundAbortRef.current = controller;
+    const reqId = ++inboundRequestIdRef.current;
+
     setIsLoadingOrders(true);
-    const token = tokenManager.getAccessToken();
-    const query = new URLSearchParams({
+    const params: Record<string, string> = {
       page: page.toString(),
       limit: pageSize.toString(),
       ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(appliedFromDate ? { fromDate: appliedFromDate } : {}),
-      ...(appliedToDate ? { toDate: appliedToDate } : {})
-    });
+      ...(appliedToDate ? { toDate: appliedToDate } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
+    };
 
-    fetch(`/api/v1/warehouse/inbound-trips?${query.toString()}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: res.statusText }));
-          throw { response: { data: errData, status: res.status } };
-        }
-        return res.json();
+    apiClient
+      .get('/api/v1/warehouse/inbound-trips', {
+        params,
+        signal: controller.signal
       })
-      .then((resData) => {
+      .then((res) => {
+        if (reqId !== inboundRequestIdRef.current) return;
+        const resData = res.data;
         const payload = resData?.meta ? resData : (resData?.data ?? resData);
         setTripGroups(payload?.data || []);
         setMeta({
@@ -353,12 +356,33 @@ function WarehouseInboundContent() {
           });
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (
+          controller.signal.aborted ||
+          err?.code === 'ERR_CANCELED' ||
+          err?.name === 'CanceledError' ||
+          reqId !== inboundRequestIdRef.current
+        ) {
+          return;
+        }
         setTripGroups([]);
         setMeta({ total: 0, totalPages: 1 });
+        showApiErrorToast(err, 'Không thể tải danh sách chuyến xe nhập kho');
       })
-      .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
+      .finally(() => {
+        if (reqId === inboundRequestIdRef.current) {
+          setIsLoadingOrders(false);
+        }
+      });
+  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate, hubId]);
+
+  useEffect(() => {
+    return () => {
+      if (inboundAbortRef.current) {
+        inboundAbortRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -390,7 +414,7 @@ function WarehouseInboundContent() {
         const rawDate =
           g.receiveDate || g.pickupDate || g.processedAt || g.createdAt || g.orders?.[0]?.createdAt;
         return {
-          groupKey: g.tripCode || g.groupKey,
+          groupKey: g.groupKey || (g.hubId ? `${g.tripCode}_${g.hubId}` : g.tripCode),
           licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'CHƯA GÁN XE',
           driverName: g.driverName?.trim() || '',
           tripCode: g.tripCode || '—',
@@ -412,6 +436,9 @@ function WarehouseInboundContent() {
                 : `${descs[0]} (+${descs.length - 1} loại hàng)`),
           notes: g.notes || '',
           hubId: g.hubId ? Number(g.hubId) : undefined,
+          originHub: g.originHub || '',
+          destinationHub: g.destinationHub || '',
+          routeStopsSummary: g.routeStopsSummary || g.destinationHub || '',
           creator: g.creator || null,
           operator: g.operator || null,
           creatorName: g.creatorName || g.creator?.name || null,
@@ -428,11 +455,11 @@ function WarehouseInboundContent() {
 
   useEffect(() => {
     if (!selectedTripGroup) return;
-    const updated = vehicleGroups.find(
-      (g) =>
-        (g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode) ||
-        g.groupKey === selectedTripGroup.groupKey
-    );
+    const updated =
+      vehicleGroups.find((g) => g.groupKey === selectedTripGroup.groupKey) ||
+      vehicleGroups.find(
+        (g) => g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode
+      );
     if (updated) {
       setSelectedTripGroup(updated);
     }
@@ -996,6 +1023,9 @@ function WarehouseInboundContent() {
                       onApply={handleApplyDateRange}
                       onReset={handleResetDateRange}
                     />
+
+                    {/* Super Admin Hub Filter */}
+                    <WarehouseHubFilterSelect value={hubId} onChange={setHubId} />
                   </div>
 
                   {/* Status Tabs & Refresh Button */}
@@ -1094,37 +1124,54 @@ function WarehouseInboundContent() {
                                 />
                               </td>
                               <td className='py-1 px-2 w-[135px] whitespace-nowrap align-top'>
-                                <div className='flex items-center gap-1'>
-                                  <button
-                                    type='button'
-                                    onClick={() => handleOpenTripDetail(grp)}
-                                    className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
-                                    title='Nhấp để xem chi tiết chuyến xe'
-                                  >
-                                    <span>{grp.tripCode}</span>
-                                    {grp.orders.length > 1 && (
-                                      <Badge
-                                        variant='outline'
-                                        className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
-                                      >
-                                        {grp.orders.length} đơn
-                                      </Badge>
-                                    )}
-                                  </button>
-                                  {grp.tripCode && grp.tripCode !== '—' && (
+                                <div className='space-y-0.5'>
+                                  <div className='flex items-center gap-1'>
                                     <button
                                       type='button'
-                                      data-testid={`btn-trip-history-${grp.tripCode}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setHistoryTripCode(grp.tripCode);
-                                      }}
-                                      className='inline-flex items-center justify-center h-5 w-5 rounded border border-slate-200 bg-slate-50/80 text-slate-500 hover:text-[#0F3D62] hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-blue-300 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0'
-                                      title={`Xem lịch sử tạo & chỉnh sửa chuyến xe ${grp.tripCode}`}
+                                      onClick={() => handleOpenTripDetail(grp)}
+                                      className='font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px] hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer flex items-center transition-colors text-left'
+                                      title='Nhấp để xem chi tiết chuyến xe'
                                     >
-                                      <IconHistory className='h-3 w-3' />
+                                      <span>{grp.tripCode}</span>
+                                      {grp.orders.length > 1 && (
+                                        <Badge
+                                          variant='outline'
+                                          className='ml-1 text-[9px] px-1 py-0 h-3.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 border-indigo-200 font-bold cursor-pointer'
+                                        >
+                                          {grp.orders.length} đơn
+                                        </Badge>
+                                      )}
                                     </button>
-                                  )}
+                                    {grp.tripCode && grp.tripCode !== '—' && (
+                                      <button
+                                        type='button'
+                                        data-testid={`btn-trip-history-${grp.tripCode}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setHistoryTripCode(grp.tripCode);
+                                        }}
+                                        className='inline-flex items-center justify-center h-5 w-5 rounded border border-slate-200 bg-slate-50/80 text-slate-500 hover:text-[#0F3D62] hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-blue-300 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0'
+                                        title={`Xem lịch sử tạo & chỉnh sửa chuyến xe ${grp.tripCode}`}
+                                      >
+                                        <IconHistory className='h-3 w-3' />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {(isAdmin || (!user?.hubId && !(user?.hub as any)?.id)) &&
+                                    (grp.routeStopsSummary || grp.destinationHub) && (
+                                      <div
+                                        className='text-[9px] text-slate-500 dark:text-slate-400 truncate max-w-[130px] font-medium'
+                                        title={
+                                          hubId && hubId !== 'ALL'
+                                            ? grp.destinationHub || grp.routeStopsSummary
+                                            : grp.routeStopsSummary || grp.destinationHub
+                                        }
+                                      >
+                                        {hubId && hubId !== 'ALL'
+                                          ? grp.destinationHub || grp.routeStopsSummary
+                                          : grp.routeStopsSummary || grp.destinationHub}
+                                      </div>
+                                    )}
                                 </div>
                               </td>
                               <td className='py-1 px-2 w-40 align-top'>

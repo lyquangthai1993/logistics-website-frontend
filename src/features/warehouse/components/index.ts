@@ -25,4 +25,9 @@ export {
   getInitialWarehouseFromDate,
   getInitialWarehouseToDate
 } from './warehouse-date-range-dropdown';
+export {
+  WarehouseHubFilterSelect,
+  type WarehouseHubOption,
+  type WarehouseHubFilterSelectProps
+} from './warehouse-hub-filter-select';
 export { useWarehouseBoardFilterSync } from '../hooks/use-warehouse-filter-sync';

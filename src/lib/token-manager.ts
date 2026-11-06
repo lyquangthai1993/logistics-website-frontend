@@ -84,18 +84,11 @@ class TokenManager {
     if (this.isInitialized || typeof window === 'undefined') return;
     this.isInitialized = true;
 
-    // Sync cookies from localStorage if present
-    const store = useAuthStore.getState();
-    if (store.accessToken) {
-      this.syncCookies(store.accessToken, store.refreshToken);
-      this.scheduleSilentRefresh(store.accessToken);
-    } else {
-      // Or read from cookie and sync to store
-      const cookieToken = this.getAccessToken();
-      const cookieRefresh = this.getRefreshToken();
-      if (cookieToken) {
-        this.scheduleSilentRefresh(cookieToken);
-      }
+    const bestToken = this.getAccessToken();
+    const bestRefresh = this.getRefreshToken();
+    if (bestToken) {
+      this.syncCookies(bestToken, bestRefresh);
+      this.scheduleSilentRefresh(bestToken);
     }
   }
 
@@ -176,27 +169,59 @@ class TokenManager {
   }
 
   public getAccessToken(): string | undefined {
-    let token: string | undefined = undefined;
+    let storeToken: string | undefined = undefined;
     if (typeof window !== 'undefined' && typeof useAuthStore?.getState === 'function') {
-      token = useAuthStore.getState()?.accessToken || undefined;
+      storeToken = useAuthStore.getState()?.accessToken || undefined;
     }
-    if (!token && typeof document !== 'undefined') {
+
+    let cookieToken: string | undefined = undefined;
+    if (typeof document !== 'undefined') {
       const match = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
-      if (match) token = decodeURIComponent(match[1]);
+      if (match) cookieToken = decodeURIComponent(match[1]);
     }
-    if (!token && typeof localStorage !== 'undefined') {
-      token = localStorage.getItem('access_token') || undefined;
-      if (!token) {
+
+    let lsToken: string | undefined = undefined;
+    if (typeof localStorage !== 'undefined') {
+      lsToken = localStorage.getItem('access_token') || undefined;
+      if (!lsToken) {
         try {
           const authStorage = localStorage.getItem('auth-storage');
           if (authStorage) {
             const parsed = JSON.parse(authStorage);
-            token = parsed?.state?.accessToken || undefined;
+            lsToken = parsed?.state?.accessToken || undefined;
           }
         } catch {}
       }
     }
-    return token;
+
+    const candidates = [cookieToken, storeToken, lsToken].filter(
+      (t): t is string => typeof t === 'string' && t.length > 0
+    );
+    if (candidates.length === 0) return undefined;
+
+    // Prefer the token with the latest expiration (handles SSR proxy cookie refresh out-of-sync with localStorage)
+    let bestToken = candidates[0];
+    let bestExp = this.parseJwtExp(bestToken) ?? 0;
+    for (let i = 1; i < candidates.length; i++) {
+      const exp = this.parseJwtExp(candidates[i]) ?? 0;
+      if (exp > bestExp) {
+        bestToken = candidates[i];
+        bestExp = exp;
+      }
+    }
+
+    if (
+      bestToken &&
+      bestToken !== storeToken &&
+      typeof window !== 'undefined' &&
+      typeof useAuthStore?.getState === 'function'
+    ) {
+      try {
+        useAuthStore.getState().setAccessToken(bestToken);
+      } catch {}
+    }
+
+    return bestToken;
   }
 
   public getRefreshToken(): string | undefined {
