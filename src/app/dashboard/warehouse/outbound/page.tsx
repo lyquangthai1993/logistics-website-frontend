@@ -29,6 +29,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { rollbackTrip, tripManifestKeys } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
+import { apiClient } from '@/lib/api-client';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -268,33 +269,36 @@ function WarehouseOutboundContent() {
 
   // URL query parameters & dates are synchronized automatically via useWarehouseBoardFilterSync
 
+  const outboundRequestIdRef = useRef(0);
+  const outboundAbortRef = useRef<AbortController | null>(null);
+
   // Fetch Board Trips (one row per SD trip of this hub: drafts + dispatched) + tab counters (same query)
   const fetchOrders = useCallback(() => {
+    if (outboundAbortRef.current) {
+      outboundAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    outboundAbortRef.current = controller;
+    const reqId = ++outboundRequestIdRef.current;
+
     setIsLoading(true);
-    const token = tokenManager.getAccessToken();
-    const query = new URLSearchParams({
+    const params: Record<string, string> = {
       page: page.toString(),
       limit: pageSize.toString(),
       ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(appliedFromDate ? { fromDate: appliedFromDate } : {}),
       ...(appliedToDate ? { toDate: appliedToDate } : {})
-    });
+    };
 
-    fetch(`/api/v1/warehouse/outbound-trips?${query.toString()}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: res.statusText }));
-          throw { response: { data: errData, status: res.status } };
-        }
-        return res.json();
+    apiClient
+      .get('/api/v1/warehouse/outbound-trips', {
+        params,
+        signal: controller.signal
       })
-      .then((resData) => {
+      .then((res) => {
+        if (reqId !== outboundRequestIdRef.current) return;
+        const resData = res.data;
         // Accept both raw `{ data, meta }` and wrapped `{ data: { data, meta } }` payloads
         const payload = resData?.meta ? resData : (resData?.data ?? resData);
         setTripGroups(Array.isArray(payload?.data) ? payload.data : []);
@@ -312,11 +316,31 @@ function WarehouseOutboundContent() {
         });
       })
       .catch((err) => {
+        if (
+          controller.signal.aborted ||
+          err?.code === 'ERR_CANCELED' ||
+          err?.name === 'CanceledError' ||
+          reqId !== outboundRequestIdRef.current
+        ) {
+          return;
+        }
         setTripGroups([]);
         showApiErrorToast(err, 'Không thể tải danh sách chuyến xe xuất kho');
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (reqId === outboundRequestIdRef.current) {
+          setIsLoading(false);
+        }
+      });
   }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
+
+  useEffect(() => {
+    return () => {
+      if (outboundAbortRef.current) {
+        outboundAbortRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (activeView === 'BOARD') {

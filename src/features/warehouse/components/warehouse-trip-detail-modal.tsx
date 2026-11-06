@@ -77,6 +77,9 @@ export interface InboundVehicleGroup {
   goodsDescription: string;
   notes?: string;
   hubId?: number;
+  originHub?: string;
+  destinationHub?: string;
+  routeStopsSummary?: string;
   creator?: {
     id?: number | null;
     name?: string | null;
@@ -119,6 +122,14 @@ export function WarehouseTripDetailModal({
 
   // 2-Step Workflow state: 1 = Inbound/Unloading, 2 = Outbound/Loading
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [selectedAdminHubId, setSelectedAdminHubId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    setSelectedAdminHubId(tripGroup?.hubId);
+  }, [tripGroup?.tripCode, tripGroup?.hubId, isOpen]);
+
+  const effectiveQueryHubId =
+    selectedAdminHubId ?? tripGroup?.hubId ?? user?.hubId ?? (user?.hub as any)?.id;
 
   // Full trip manifest as seen by the current hub (per-hub stop status, lines for this hub)
   const manifestTripCode = isManifestTripCode(tripGroup?.tripCode) ? tripGroup?.tripCode : null;
@@ -127,7 +138,7 @@ export function WarehouseTripDetailModal({
     isLoading: isManifestLoading,
     isError: isManifestError,
     error: manifestError
-  } = useTripManifestQuery(manifestTripCode, isOpen, tripGroup?.hubId ?? user?.hubId ?? (user?.hub as any)?.id);
+  } = useTripManifestQuery(manifestTripCode, isOpen, effectiveQueryHubId);
 
   // 1. Kiểm tra vai trò Quản trị viên
   const isAdmin = Boolean(
@@ -177,7 +188,12 @@ export function WarehouseTripDetailModal({
 
   const isTransferTrip = Boolean(manifest?.isTransfer ?? tripGroup?.isTransfer);
 
-  const currentHubId = tripGroup?.hubId ?? manifest?.currentHubId ?? user?.hubId ?? (user?.hub as any)?.id;
+  const currentHubId =
+    selectedAdminHubId ??
+    manifest?.currentHubId ??
+    tripGroup?.hubId ??
+    user?.hubId ??
+    (user?.hub as any)?.id;
 
   const isTripOriginHere = useMemo(() => {
     // 1. Mọi chuyến xe trên màn hình Xuất kho đều xuất phát từ Hub hiện tại
@@ -194,14 +210,10 @@ export function WarehouseTripDetailModal({
       if (originStop && currentHubId && originStop.hubId === currentHubId) {
         return true;
       }
+      return false;
     }
 
-    // 4. Kiểm tra hubId được gán trên tripGroup
-    if (tripGroup?.hubId && currentHubId && tripGroup.hubId === currentHubId) {
-      return true;
-    }
-
-    // 5. Kiểm tra originHubId trên các đơn hàng thuộc trip
+    // 4. Kiểm tra originHubId trên các đơn hàng thuộc trip khi chưa có danh sách stops
     if (tripGroup?.orders && tripGroup.orders.length > 0) {
       const firstOriginId = tripGroup.orders[0]?.originHubId;
       if (firstOriginId && currentHubId && firstOriginId === currentHubId) {
@@ -589,7 +601,8 @@ export function WarehouseTripDetailModal({
               ? { id: l.destinationHubId, name: l.destinationHub, code: '' }
               : null);
           const outHubId = l.destinationHubId ?? outHubEntity?.id ?? null;
-          const resolvedStopHubId = currentHubId ?? tripGroup?.hubId ?? user?.hubId ?? (user?.hub as any)?.id;
+          const resolvedStopHubId =
+            currentHubId ?? tripGroup?.hubId ?? user?.hubId ?? (user?.hub as any)?.id;
           const isXeBo =
             outHubEntity?.level === 2 ||
             outHubEntity?.code?.startsWith('XB-') ||
@@ -601,12 +614,13 @@ export function WarehouseTripDetailModal({
               ? 'XE_BO'
               : l.deliveryMode === 'HUB_L1' || outHubId
                 ? 'HUB_L1'
-                : (l.deliveryMode || 'DIRECT_CUSTOMER');
+                : l.deliveryMode || 'DIRECT_CUSTOMER';
 
-          const isForThisHub = (resolvedStopHubId != null && outHubId != null)
-            ? Number(outHubId) === Number(resolvedStopHubId)
-            : Boolean(l.isForCurrentHub);
-          
+          const isForThisHub =
+            resolvedStopHubId != null && outHubId != null
+              ? Number(outHubId) === Number(resolvedStopHubId)
+              : Boolean(l.isForCurrentHub);
+
           return {
             id: l.id,
             orderCode: l.orderCode || '',
@@ -630,12 +644,13 @@ export function WarehouseTripDetailModal({
             notes: l.notes || '',
             destinationHubId: outHubId,
             destinationHub: outHubEntity,
-            destinationHubName: l.destinationHubName || outHubEntity?.name || l.destinationHub || '',
+            destinationHubName:
+              l.destinationHubName || outHubEntity?.name || l.destinationHub || '',
             isForCurrentHub: isForThisHub,
             originalDeliveryAddress: l.originalDeliveryAddress || l.deliveryAddress || '',
             status: l.status,
             hubStatus: l.hubStatus,
-            isReceivedInTrip: Boolean(l.isReceivedHere || (Number(l.receivedQuantity) > 0))
+            isReceivedInTrip: Boolean(l.isReceivedHere || Number(l.receivedQuantity) > 0)
           };
         });
         setRows(mappedFromManifest);
@@ -661,7 +676,7 @@ export function WarehouseTripDetailModal({
 
   // Inbound cargo breakdown for Step 1: separating cargo unloading here vs staying on truck
   const inboundBreakdown = useMemo(() => {
-    const sourceLines = (manifest?.lines && manifest.lines.length > 0) ? manifest.lines : rows;
+    const sourceLines = manifest?.lines && manifest.lines.length > 0 ? manifest.lines : rows;
     if (!sourceLines || sourceLines.length === 0) {
       return {
         unloadLines: [],
@@ -677,13 +692,21 @@ export function WarehouseTripDetailModal({
       (l: any) => l.isForCurrentHub !== false && l.deliveryMode !== 'DIRECT_CUSTOMER'
     );
     const unloadOrdersCount = unloadLines.length;
-    const unloadQty = unloadLines.reduce((sum: number, l: any) => sum + Number(l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 0), 0);
+    const unloadQty = unloadLines.reduce(
+      (sum: number, l: any) =>
+        sum + Number(l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 0),
+      0
+    );
 
     const stayLines = sourceLines.filter(
       (l: any) => l.isForCurrentHub === false || l.deliveryMode === 'DIRECT_CUSTOMER'
     );
     const stayOrdersCount = stayLines.length;
-    const stayQty = stayLines.reduce((sum: number, l: any) => sum + Number(l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 0), 0);
+    const stayQty = stayLines.reduce(
+      (sum: number, l: any) =>
+        sum + Number(l.quantityAllocated ?? l.expectedQuantity ?? l.totalQuantity ?? 0),
+      0
+    );
 
     const stayDirectCustomerLines = stayLines.filter((l) => l.deliveryMode === 'DIRECT_CUSTOMER');
     const stayOtherHubLines = stayLines.filter((l) => l.deliveryMode !== 'DIRECT_CUSTOMER');
@@ -696,7 +719,15 @@ export function WarehouseTripDetailModal({
       const hubNames = Array.from(
         new Set(
           stayOtherHubLines
-            .map((l) => (l as any).destinationHubEntity?.name || (l as any).destinationHubName || (typeof (l as any).destinationHub === 'string' ? (l as any).destinationHub : (l as any).destinationHub?.name) || 'kho khác')
+            .map(
+              (l) =>
+                (l as any).destinationHubEntity?.name ||
+                (l as any).destinationHubName ||
+                (typeof (l as any).destinationHub === 'string'
+                  ? (l as any).destinationHub
+                  : (l as any).destinationHub?.name) ||
+                'kho khác'
+            )
             .filter(Boolean)
         )
       );
@@ -756,7 +787,7 @@ export function WarehouseTripDetailModal({
       return;
     }
     if (tripGroup && isOpen) {
-      const currentKey = `${mode}:${tripGroup.tripCode || tripGroup.groupKey || ''}`;
+      const currentKey = `${mode}:${tripGroup.tripCode || tripGroup.groupKey || ''}:${effectiveQueryHubId ?? ''}`;
       if (hydratedTripKeyRef.current === currentKey) {
         return;
       }
@@ -782,11 +813,22 @@ export function WarehouseTripDetailModal({
           const outHubEntity =
             mode === 'OUTBOUND'
               ? o.outboundDestinationHubEntity || o.destinationHubEntity
-              : o.destinationHubEntity || (Array.isArray(o.trips) ? o.trips.find((t: any) => t.tripCode === tripGroup.tripCode && t.destinationHub)?.destinationHub : null);
+              : o.destinationHubEntity ||
+                (Array.isArray(o.trips)
+                  ? o.trips.find((t: any) => t.tripCode === tripGroup.tripCode && t.destinationHub)
+                      ?.destinationHub
+                  : null);
           const outHubId =
             mode === 'OUTBOUND'
               ? (o.plannedDestinationHubId ?? outHubEntity?.id ?? o.destinationHubId ?? null)
-              : (o.destinationHubId ?? outHubEntity?.id ?? (Array.isArray(o.trips) ? o.trips.find((t: any) => t.tripCode === tripGroup.tripCode && t.destinationHubId)?.destinationHubId : null) ?? null);
+              : (o.destinationHubId ??
+                outHubEntity?.id ??
+                (Array.isArray(o.trips)
+                  ? o.trips.find(
+                      (t: any) => t.tripCode === tripGroup.tripCode && t.destinationHubId
+                    )?.destinationHubId
+                  : null) ??
+                null);
           let deliveryAddr =
             (mode === 'OUTBOUND'
               ? o.outboundDestination || o.deliveryAddress
@@ -857,8 +899,14 @@ export function WarehouseTripDetailModal({
             pickupAddress: pickupAddr,
             goodsDescription: o.goodsDescription || '',
             destinationHubName: outHubEntity?.name || o.destinationHub || '',
-            isForCurrentHub: currentHubId != null && outHubId != null ? Number(outHubId) === Number(currentHubId) : o.isForCurrentHub !== undefined ? Boolean(o.isForCurrentHub) : false,
-            originalDeliveryAddress: deliveryAddr || o.originalDeliveryAddress || o.deliveryAddress || '',
+            isForCurrentHub:
+              currentHubId != null && outHubId != null
+                ? Number(outHubId) === Number(currentHubId)
+                : o.isForCurrentHub !== undefined
+                  ? Boolean(o.isForCurrentHub)
+                  : false,
+            originalDeliveryAddress:
+              deliveryAddr || o.originalDeliveryAddress || o.deliveryAddress || '',
             totalQuantity: rowQty,
             remainingQuantity: o.remainingQuantity,
             inboundQuantity: o.inboundQuantity,
@@ -887,7 +935,7 @@ export function WarehouseTripDetailModal({
               (o.destinationHub ? { id: outHubId, name: o.destinationHub, code: '' } : null),
             status: o.status,
             hubStatus: o.hubStatus,
-            isReceivedInTrip: Boolean(o.isReceivedHere || (Number(o.receivedQuantity) > 0)),
+            isReceivedInTrip: Boolean(o.isReceivedHere || Number(o.receivedQuantity) > 0),
             expectedInboundLicensePlate: expPlate
           };
         });
@@ -1167,7 +1215,11 @@ export function WarehouseTripDetailModal({
       }
 
       // Cập nhật trạng thái dòng đơn sang INBOUND trong state bảng
-      setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, status: 'INBOUND', isReceivedInTrip: true } : r)));
+      setRows((prev) =>
+        prev.map((r, i) =>
+          i === rowIndex ? { ...r, status: 'INBOUND', isReceivedInTrip: true } : r
+        )
+      );
 
       toast.success(
         `Đã nhập kho đơn hàng ${row.orderCode.trim().toUpperCase()} thành công! Sẵn sàng xuất kho.`
@@ -1700,24 +1752,39 @@ export function WarehouseTripDetailModal({
           )}
 
           {/* Route stops: per-hub processing status */}
-          {!readOnly && manifest && manifest.stops.length > 0 && (
+          {manifest && manifest.stops.length > 0 && (
             <div className='flex flex-wrap items-center gap-1 text-[10px]'>
               <span className='font-semibold text-slate-600 dark:text-slate-300'>Lộ trình xe:</span>
-              {manifest.stops.map((s, idx) => (
-                <React.Fragment key={s.hubId}>
-                  {idx > 0 && <IconChevronRight className='h-3 w-3 text-slate-400' />}
-                  <span
-                    className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 ${
-                      s.hubId === manifest.currentHubId
-                        ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/40 font-bold text-blue-950 dark:text-blue-200'
-                        : 'border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700'
-                    }`}
-                  >
-                    {s.hubName}
-                    <TripStopStatusBadge status={s.status} className='h-3.5 px-1 text-[9px]' />
-                  </span>
-                </React.Fragment>
-              ))}
+              {manifest.stops.map((s, idx) => {
+                const isSelectedStop = s.hubId === (selectedAdminHubId ?? manifest.currentHubId);
+                return (
+                  <React.Fragment key={s.hubId}>
+                    {idx > 0 && <IconChevronRight className='h-3 w-3 text-slate-400' />}
+                    <button
+                      type='button'
+                      disabled={!isAdmin}
+                      onClick={() => {
+                        if (isAdmin) {
+                          setSelectedAdminHubId(s.hubId);
+                        }
+                      }}
+                      title={
+                        isAdmin
+                          ? `Nhấp để chuyển sang xem / kiểm đếm tại trạm ${s.hubName}`
+                          : s.hubName
+                      }
+                      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 transition-colors ${
+                        isSelectedStop
+                          ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/40 font-bold text-blue-950 dark:text-blue-200'
+                          : 'border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700'
+                      } ${isAdmin ? 'cursor-pointer hover:border-blue-300' : 'cursor-default'}`}
+                    >
+                      <span>{s.hubName}</span>
+                      <TripStopStatusBadge status={s.status} className='h-3.5 px-1 text-[9px]' />
+                    </button>
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
 
@@ -1858,27 +1925,33 @@ export function WarehouseTripDetailModal({
                   </div>
                 </div>
 
-                {mode === 'INBOUND' && (inboundBreakdown.unloadOrdersCount > 0 || inboundBreakdown.stayOrdersCount > 0) && (
-                  <div className='flex flex-wrap items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800/60 rounded-md border border-slate-200 dark:border-slate-700 text-[10px]'>
-                    <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
-                      <span>Dỡ tại kho này:</span>
-                      <span>
-                        {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty} kiện)
-                      </span>
-                    </div>
-                    {inboundBreakdown.stayOrdersCount > 0 && (
-                      <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
-                        <span className='font-bold text-amber-700 dark:text-amber-400'>
-                          Tiếp tục trên xe:
-                        </span>
+                {mode === 'INBOUND' &&
+                  (inboundBreakdown.unloadOrdersCount > 0 ||
+                    inboundBreakdown.stayOrdersCount > 0) && (
+                    <div className='flex flex-wrap items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800/60 rounded-md border border-slate-200 dark:border-slate-700 text-[10px]'>
+                      <div className='flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800'>
+                        <span>Dỡ tại kho này:</span>
                         <span>
-                          {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
-                          {inboundBreakdown.stayDetailsText ? `: ${inboundBreakdown.stayDetailsText}` : ''})
+                          {inboundBreakdown.unloadOrdersCount} đơn ({inboundBreakdown.unloadQty}{' '}
+                          kiện)
                         </span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {inboundBreakdown.stayOrdersCount > 0 && (
+                        <div className='flex items-center gap-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700'>
+                          <span className='font-bold text-amber-700 dark:text-amber-400'>
+                            Tiếp tục trên xe:
+                          </span>
+                          <span>
+                            {inboundBreakdown.stayOrdersCount} đơn ({inboundBreakdown.stayQty} kiện
+                            {inboundBreakdown.stayDetailsText
+                              ? `: ${inboundBreakdown.stayDetailsText}`
+                              : ''}
+                            )
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 {manifestPending ? (
                   <div className='py-3 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5'>
@@ -2004,12 +2077,16 @@ export function WarehouseTripDetailModal({
                                 {mode === 'INBOUND' ? (
                                   <div className='space-y-0.5'>
                                     <div className='flex items-center gap-1'>
-                                      {r.isForCurrentHub !== false && r.deliveryMode !== 'DIRECT_CUSTOMER' ? (
+                                      {r.isForCurrentHub !== false &&
+                                      r.deliveryMode !== 'DIRECT_CUSTOMER' ? (
                                         <Badge className='text-[9px] px-1 py-0 h-4 bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 font-semibold'>
                                           Dỡ kho {currentStopHubName ?? 'này'} (Luân chuyển)
                                         </Badge>
                                       ) : (
-                                        <Badge variant='outline' className='text-[9px] px-1 py-0 h-4 bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 font-medium'>
+                                        <Badge
+                                          variant='outline'
+                                          className='text-[9px] px-1 py-0 h-4 bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 font-medium'
+                                        >
                                           Lưu xe (Không dỡ)
                                         </Badge>
                                       )}

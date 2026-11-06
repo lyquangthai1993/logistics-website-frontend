@@ -153,7 +153,15 @@ export async function proxy(request: NextRequest) {
       newRefreshToken = refreshResult.refreshToken;
     } else if (refreshResult?.isAuthError) {
       // Refresh token is definitively invalid/revoked (401/403) -> clear cookies and redirect to sign-in
-      const response = NextResponse.redirect(new URL('/auth/sign-in', request.url));
+      const signInUrl = new URL('/auth/sign-in', request.url);
+      if (
+        pathname.startsWith('/dashboard') &&
+        pathname !== '/dashboard/overview' &&
+        pathname !== '/dashboard/warehouse/orders'
+      ) {
+        signInUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search || ''}`);
+      }
+      const response = NextResponse.redirect(signInUrl);
       response.cookies.delete('access_token');
       response.cookies.delete('refreshToken');
       response.cookies.delete('refresh_token');
@@ -162,9 +170,10 @@ export async function proxy(request: NextRequest) {
   }
 
   const userRole = payload
-    ? (typeof payload.role === 'object' && payload.role?.id
-        ? roleMap[payload.role.id]
-        : roleMap[payload.role] || (typeof payload.role === 'object' ? payload.role?.name : payload.role))
+    ? typeof payload.role === 'object' && payload.role?.id
+      ? roleMap[payload.role.id]
+      : roleMap[payload.role] ||
+        (typeof payload.role === 'object' ? payload.role?.name : payload.role)
     : undefined;
 
   const isAuthenticated =
@@ -173,7 +182,17 @@ export async function proxy(request: NextRequest) {
   // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
     if (isAuthenticated) {
-      const defaultTarget = getRoleDefaultPath(userRole);
+      const redirectParam =
+        request.nextUrl.searchParams.get('redirect') ||
+        request.nextUrl.searchParams.get('callbackUrl') ||
+        request.nextUrl.searchParams.get('from');
+      const defaultTarget =
+        redirectParam &&
+        redirectParam.startsWith('/dashboard') &&
+        redirectParam !== '/dashboard/overview' &&
+        redirectParam !== '/dashboard'
+          ? redirectParam
+          : getRoleDefaultPath(userRole);
       const response = NextResponse.redirect(new URL(defaultTarget, request.url));
       if (isRefreshed && token) {
         response.cookies.set('access_token', token, {
@@ -242,7 +261,7 @@ export async function proxy(request: NextRequest) {
       pathname !== '/dashboard/overview' &&
       pathname !== '/dashboard/warehouse/orders'
     ) {
-      signInUrl.searchParams.set('redirect', pathname);
+      signInUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search || ''}`);
     }
     // If we still have a refreshToken (transient network/cold-start error), do NOT wipe refreshToken
     const response = NextResponse.redirect(signInUrl);
