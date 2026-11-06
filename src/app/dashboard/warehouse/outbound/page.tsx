@@ -46,6 +46,7 @@ import {
   WarehouseWaybillDetailModal,
   TripDateTooltip,
   WarehouseDateRangeDropdown,
+  WarehouseHubFilterSelect,
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
@@ -93,6 +94,8 @@ function WarehouseOutboundContent() {
     handleResetDateRange,
     boardStatus,
     setBoardStatus,
+    hubId,
+    setHubId,
     page,
     setPage
   } = useWarehouseBoardFilterSync();
@@ -288,7 +291,8 @@ function WarehouseOutboundContent() {
       ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(appliedFromDate ? { fromDate: appliedFromDate } : {}),
-      ...(appliedToDate ? { toDate: appliedToDate } : {})
+      ...(appliedToDate ? { toDate: appliedToDate } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     };
 
     apiClient
@@ -332,7 +336,7 @@ function WarehouseOutboundContent() {
           setIsLoading(false);
         }
       });
-  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
+  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate, hubId]);
 
   useEffect(() => {
     return () => {
@@ -1250,6 +1254,9 @@ function WarehouseOutboundContent() {
                       onApply={handleApplyDateRange}
                       onReset={handleResetDateRange}
                     />
+
+                    {/* Super Admin Hub Filter */}
+                    <WarehouseHubFilterSelect value={hubId} onChange={setHubId} />
                   </div>
 
                   {/* Processing Status Tabs & Refresh Button */}

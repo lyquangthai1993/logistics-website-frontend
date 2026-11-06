@@ -57,6 +57,7 @@ import {
 import {
   TripDateTooltip,
   WarehouseDateRangeDropdown,
+  WarehouseHubFilterSelect,
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
@@ -100,6 +101,8 @@ function WarehouseInboundContent() {
     handleResetDateRange,
     boardStatus,
     setBoardStatus,
+    hubId,
+    setHubId,
     page,
     setPage
   } = useWarehouseBoardFilterSync();
@@ -268,15 +271,16 @@ function WarehouseInboundContent() {
 
   // Fetch KPI
   const fetchKpi = useCallback(() => {
+    const params: Record<string, string> = (hubId && hubId !== 'ALL' ? { hubId } : {});
     apiClient
-      .get('/api/v1/warehouse/kpi')
+      .get('/api/v1/warehouse/kpi', { params })
       .then((res) => {
         const resData = res.data;
         const payload = resData?.data || resData;
         if (payload) setKpiStats((prev) => ({ ...prev, ...payload }));
       })
       .catch(() => {});
-  }, []);
+  }, [hubId]);
 
   useEffect(() => {
     fetchKpi();
@@ -323,7 +327,8 @@ function WarehouseInboundContent() {
       ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(appliedFromDate ? { fromDate: appliedFromDate } : {}),
-      ...(appliedToDate ? { toDate: appliedToDate } : {})
+      ...(appliedToDate ? { toDate: appliedToDate } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     };
 
     apiClient
@@ -366,7 +371,7 @@ function WarehouseInboundContent() {
           setIsLoadingOrders(false);
         }
       });
-  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
+  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate, hubId]);
 
   useEffect(() => {
     return () => {
@@ -1015,6 +1020,9 @@ function WarehouseInboundContent() {
                       onApply={handleApplyDateRange}
                       onReset={handleResetDateRange}
                     />
+
+                    {/* Super Admin Hub Filter */}
+                    <WarehouseHubFilterSelect value={hubId} onChange={setHubId} />
                   </div>
 
                   {/* Status Tabs & Refresh Button */}
@@ -1134,9 +1142,15 @@ function WarehouseInboundContent() {
                                     (grp.routeStopsSummary || grp.destinationHub) && (
                                       <div
                                         className='text-[9px] text-slate-500 dark:text-slate-400 truncate max-w-[130px] font-medium'
-                                        title={grp.routeStopsSummary || grp.destinationHub}
+                                        title={
+                                          hubId && hubId !== 'ALL'
+                                            ? grp.destinationHub || grp.routeStopsSummary
+                                            : grp.routeStopsSummary || grp.destinationHub
+                                        }
                                       >
-                                        {grp.routeStopsSummary || grp.destinationHub}
+                                        {hubId && hubId !== 'ALL'
+                                          ? grp.destinationHub || grp.routeStopsSummary
+                                          : grp.routeStopsSummary || grp.destinationHub}
                                       </div>
                                     )}
                                 </div>

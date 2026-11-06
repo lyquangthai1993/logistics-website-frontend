@@ -30,6 +30,7 @@ import {
   WarehouseWaybillDetailModal,
   WaybillDetailData
 } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
+import { WarehouseHubFilterSelect } from '@/features/warehouse/components/warehouse-hub-filter-select';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
@@ -69,6 +70,30 @@ export default function WarehouseOrdersPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [hubId, setHubId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const h = new URLSearchParams(window.location.search).get('hubId');
+      if (h && /^\d+$/.test(h) && Number(h) > 0) return h;
+    }
+    return 'ALL';
+  });
+
+  const handleHubIdChange = useCallback((newHubId: string) => {
+    const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
+    setHubId(normalized);
+    setPage(1);
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      if (normalized !== 'ALL') {
+        sp.set('hubId', normalized);
+      } else {
+        sp.delete('hubId');
+      }
+      const qs = sp.toString();
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, []);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [data, setData] = useState<any[]>([]);
@@ -168,7 +193,8 @@ export default function WarehouseOrdersPage() {
         isExport: 'true',
         limit: '5000',
         ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
-        ...(effectiveSearch ? { search: effectiveSearch } : {})
+        ...(effectiveSearch ? { search: effectiveSearch } : {}),
+        ...(hubId && hubId !== 'ALL' ? { hubId } : {})
       });
 
       const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -474,7 +500,8 @@ export default function WarehouseOrdersPage() {
       // One row per order code; lines sharing a code are returned in `items`
       groupBy: 'orderCode',
       ...(effectiveSearch ? { search: effectiveSearch } : {}),
-      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
+      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     });
 
     fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -509,7 +536,7 @@ export default function WarehouseOrdersPage() {
           setIsLoading(false);
         }
       });
-  }, [page, pageSize, effectiveSearch, statusFilter]);
+  }, [page, pageSize, effectiveSearch, statusFilter, hubId]);
 
   useEffect(() => {
     fetchOrders();
@@ -819,6 +846,8 @@ export default function WarehouseOrdersPage() {
                   </button>
                 )}
               </div>
+
+              <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />
 
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
