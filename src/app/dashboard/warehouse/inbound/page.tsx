@@ -1093,8 +1093,8 @@ function WarehouseInboundContent() {
                                   operatorName={grp.operatorName}
                                 />
                               </td>
-                              <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
-                                <div>
+                              <td className='py-1 px-2 w-[135px] whitespace-nowrap align-top'>
+                                <div className='flex items-center gap-1'>
                                   <button
                                     type='button'
                                     onClick={() => handleOpenTripDetail(grp)}
@@ -1111,6 +1111,20 @@ function WarehouseInboundContent() {
                                       </Badge>
                                     )}
                                   </button>
+                                  {grp.tripCode && grp.tripCode !== '—' && (
+                                    <button
+                                      type='button'
+                                      data-testid={`btn-trip-history-${grp.tripCode}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setHistoryTripCode(grp.tripCode);
+                                      }}
+                                      className='inline-flex items-center justify-center h-5 w-5 rounded border border-slate-200 bg-slate-50/80 text-slate-500 hover:text-[#0F3D62] hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-blue-300 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0'
+                                      title={`Xem lịch sử tạo & chỉnh sửa chuyến xe ${grp.tripCode}`}
+                                    >
+                                      <IconHistory className='h-3 w-3' />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className='py-1 px-2 w-40 align-top'>
@@ -1210,18 +1224,6 @@ function WarehouseInboundContent() {
                                         <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
                                       </Button>
                                     </>
-                                  )}
-                                  {grp.tripCode && grp.tripCode !== '—' && (
-                                    <Button
-                                      variant='outline'
-                                      size='sm'
-                                      data-testid={`btn-trip-history-${grp.tripCode}`}
-                                      onClick={() => setHistoryTripCode(grp.tripCode)}
-                                      className='h-7 w-7 p-0 text-slate-600 border-slate-300 hover:bg-slate-100 hover:text-[#0F3D62] dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800'
-                                      title={`Xem lịch sử tạo & chỉnh sửa chuyến xe ${grp.tripCode}`}
-                                    >
-                                      <IconHistory className='h-3.5 w-3.5' />
-                                    </Button>
                                   )}
                                 </div>
                               </td>

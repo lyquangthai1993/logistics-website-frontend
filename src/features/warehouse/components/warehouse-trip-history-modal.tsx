@@ -349,9 +349,14 @@ export function WarehouseTripHistoryModal({
                 >
                   <div className='flex items-center gap-1.5 text-rose-800 dark:text-rose-300 font-bold text-xs'>
                     <IconAlertTriangle className='h-4 w-4 text-rose-600 shrink-0' />
-                    <span>
-                      Nguyên nhân chuyến {data.tripCode} chưa thể bấm &ldquo;Xác nhận xuất
-                      kho&rdquo; ({data.blockers.length} đơn đang chờ xác nhận nhập kho):
+                    <span className='inline-flex items-center flex-wrap gap-1'>
+                      <span>Nguyên nhân chuyến</span>
+                      <span className='font-mono px-1.5 py-0 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 border border-rose-300 dark:border-rose-700'>
+                        {data.tripCode}
+                      </span>
+                      <span>
+                        {`chưa thể bấm “Xác nhận xuất kho” (${data.blockers.length} đơn đang chờ xác nhận nhập kho):`}
+                      </span>
                     </span>
                   </div>
                   <div className='space-y-1 pl-5'>
@@ -360,21 +365,24 @@ export function WarehouseTripHistoryModal({
                         key={b.orderId}
                         className='text-[11px] bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900 rounded px-2 py-1 flex flex-wrap items-center justify-between gap-1.5'
                       >
-                        <div>
+                        <div className='inline-flex items-center flex-wrap gap-1'>
                           <span className='font-mono font-bold text-rose-700 dark:text-rose-400'>
                             {b.orderCode}
-                          </span>{' '}
-                          <span className='text-slate-600 dark:text-slate-400'>
-                            ({b.goodsDescription} — {b.quantityAllocated} kiện)
                           </span>
-                          <span className='mx-1.5 text-slate-400'>•</span>
-                          <span className='text-slate-800 dark:text-slate-200 font-medium'>
-                            Đang là <strong>Đơn nháp</strong> thuộc chuyến nhập{' '}
-                            <strong className='font-mono text-indigo-700 dark:text-indigo-300'>
+                          <span className='text-slate-600 dark:text-slate-400'>
+                            {`(${b.goodsDescription} — ${b.quantityAllocated} kiện)`}
+                          </span>
+                          <span className='mx-0.5 text-slate-400'>•</span>
+                          <span className='text-slate-800 dark:text-slate-200 font-medium inline-flex items-center flex-wrap gap-1'>
+                            <span>Đang là</span>
+                            <strong>Đơn nháp</strong>
+                            <span>thuộc chuyến nhập</span>
+                            <strong className='font-mono text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0 rounded border border-indigo-200 dark:border-indigo-800'>
                               {b.pendingInboundTripCode || 'Chưa gán'}
                             </strong>
-                            {b.pendingInboundPlate ? ` (Xe ${b.pendingInboundPlate})` : ''} — mới
-                            lưu nháp, chưa bấm Xác nhận nhập kho.
+                            <span>
+                              {`${b.pendingInboundPlate ? `(Xe ${b.pendingInboundPlate}) ` : ''}— mới lưu nháp, chưa bấm Xác nhận nhập kho.`}
+                            </span>
                           </span>
                         </div>
                         <Badge className='bg-rose-600 text-white text-[10px] border-0'>
