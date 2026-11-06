@@ -186,7 +186,7 @@ export function WarehouseHubFilterSelect({
               <span className='text-[10px] text-muted-foreground truncate'>
                 {selectedHub
                   ? `Đang xem: ${selectedHub.name}${selectedHub.city ? ` • ${selectedHub.city}` : ''}`
-                  : 'Chuyển nhanh góc nhìn theo Hub Cấp 1 / Trạm Xe Bo'}
+                  : 'Chuyển nhanh góc nhìn theo Cấp 1 • Hub Chính / Cấp 2 • Trạm Xe Bo'}
               </span>
             </div>
             {isFiltered && (

@@ -246,18 +246,18 @@ function SearchableHubSelect({
           {/* Header count info */}
           <div className='flex items-center justify-between px-1 text-[10px] text-slate-500 dark:text-slate-400 border-b pb-1.5 dark:border-slate-800'>
             <span className='font-semibold uppercase tracking-wider'>
-              {isXeBo ? 'Danh sách Tuyến Xe bo' : 'Danh sách Hub cấp 1'}
+              {isXeBo ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính'}
             </span>
             <Badge
               variant='outline'
               className={cn(
                 'text-[10px] px-1.5 py-0 h-4 font-mono font-bold',
                 isXeBo
-                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                  ? 'bg-purple-500/15 text-purple-700 border-purple-500/25 dark:text-purple-300'
+                  : 'bg-blue-500/15 text-blue-700 border-blue-500/25 dark:text-blue-300'
               )}
             >
-              {filtered.length} {isXeBo ? 'xe bo' : 'hubs'}
+              {filtered.length} {isXeBo ? 'trạm' : 'hub'}
             </Badge>
           </div>
 
@@ -2502,8 +2502,8 @@ export function WarehouseEditableGrid({
           <IconSearch className='h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0' />
           <span>
             Thêm hoặc chọn một dòng để chỉnh sửa. Hỗ trợ 3 chế độ giao hàng:{' '}
-            <strong>Địa chỉ thường</strong> (khách nhận), <strong>Hub cấp 1</strong> (liên Hub), và{' '}
-            <strong>Tuyến Xe bo</strong> (tuyến nội thành/vệ tinh).
+            <strong>Địa chỉ thường</strong> (khách nhận), <strong>Cấp 1 • Hub Chính</strong> (liên
+            Hub), và <strong>Cấp 2 • Trạm Xe Bo</strong> (trạm vệ tinh / chặng cuối).
           </span>
         </div>
       )}

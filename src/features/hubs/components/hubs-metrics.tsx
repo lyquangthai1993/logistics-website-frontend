@@ -33,10 +33,10 @@ export function HubsMetrics() {
           <div className='text-2xl font-bold'>{total}</div>
           <div className='mt-1 flex flex-wrap items-center gap-1.5 text-xs'>
             <span className='inline-flex items-center gap-1 rounded border border-blue-500/25 bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300'>
-              {level1Count} Hub Cấp 1
+              {level1Count} Cấp 1 • Hub Chính
             </span>
             <span className='inline-flex items-center gap-1 rounded border border-purple-500/25 bg-purple-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300'>
-              {level2Count} Trạm Xe Bo
+              {level2Count} Cấp 2 • Trạm Xe Bo
             </span>
           </div>
         </CardContent>

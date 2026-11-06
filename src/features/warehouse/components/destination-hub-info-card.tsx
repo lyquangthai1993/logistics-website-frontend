@@ -21,7 +21,7 @@ export function DestinationHubInfoCard({
   onResetToOriginal,
   onChangeDestination,
   disabled = false,
-  className,
+  className
 }: DestinationHubInfoCardProps) {
   const isActualXeBo =
     isXeBo ||
@@ -41,15 +41,15 @@ export function DestinationHubInfoCard({
       )}
     >
       {/* Hàng 1: Huy hiệu phân cấp + Mã kho font-mono + Nút hoàn tác */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1">
+      <div className='flex items-center justify-between gap-1'>
+        <div className='flex items-center gap-1'>
           <Badge
             className={cn(
               'text-[9px] font-bold px-1.5 py-0 h-4 rounded',
               isActualXeBo ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
             )}
           >
-            {isActualXeBo ? 'Tuyến Xe Bo' : 'Hub Cấp 1'}
+            {isActualXeBo ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính'}
           </Badge>
           <span
             className={cn(
@@ -64,10 +64,10 @@ export function DestinationHubInfoCard({
         </div>
         {onResetToOriginal && !disabled && (
           <button
-            type="button"
+            type='button'
             onClick={onResetToOriginal}
-            className="text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer shrink-0"
-            title="Khôi phục lại địa chỉ giao ban đầu"
+            className='text-[9px] text-slate-500 hover:text-red-600 underline cursor-pointer shrink-0'
+            title='Khôi phục lại địa chỉ giao ban đầu'
           >
             Quay lại địa chỉ thường
           </button>
@@ -76,43 +76,38 @@ export function DestinationHubInfoCard({
 
       {/* Hàng 2: Tên kho / Tuyến xe bo in đậm */}
       <div
-        className="font-bold text-[11px] text-slate-900 dark:text-slate-100 truncate"
+        className='font-bold text-[11px] text-slate-900 dark:text-slate-100 truncate'
         title={hub.name}
       >
         {hub.name}
       </div>
 
       {/* Hàng 3: Vị trí địa lý (Tỉnh/TP + Địa chỉ chi tiết) */}
-      <div className="flex items-center gap-1 text-[10px] text-slate-600 dark:text-slate-400">
+      <div className='flex items-center gap-1 text-[10px] text-slate-600 dark:text-slate-400'>
         {isActualXeBo ? (
-          <IconTruck className="h-3 w-3 text-purple-600 shrink-0" />
+          <IconTruck className='h-3 w-3 text-purple-600 shrink-0' />
         ) : (
-          <IconMapPin className="h-3 w-3 text-blue-600 shrink-0" />
+          <IconMapPin className='h-3 w-3 text-blue-600 shrink-0' />
         )}
-        <span className="font-semibold text-slate-800 dark:text-slate-200">
+        <span className='font-semibold text-slate-800 dark:text-slate-200'>
           {hub.city || 'Liên hệ điều phối'}
         </span>
         {hub.address && (
-          <span
-            className="truncate text-slate-500 dark:text-slate-400"
-            title={hub.address}
-          >
+          <span className='truncate text-slate-500 dark:text-slate-400' title={hub.address}>
             · {hub.address}
           </span>
         )}
       </div>
 
       {/* Hàng 4: Vai trò vận hành */}
-      <div className="text-[9px] text-slate-500 dark:text-slate-400 italic">
-        {isActualXeBo
-          ? 'Tuyến xe bo gom/trả hàng nội thành'
-          : 'Trung tâm trung chuyển liên tỉnh'}
+      <div className='text-[9px] text-slate-500 dark:text-slate-400 italic'>
+        {isActualXeBo ? 'Tuyến xe bo gom/trả hàng nội thành' : 'Trung tâm trung chuyển liên tỉnh'}
       </div>
 
       {/* Hàng 5: Nút bấm đổi kho đích khác */}
       {onChangeDestination && !disabled && (
         <button
-          type="button"
+          type='button'
           onClick={onChangeDestination}
           className={cn(
             'w-full text-center text-[9px] font-semibold py-0.5 border border-dashed rounded transition-colors cursor-pointer',
@@ -158,9 +153,9 @@ export function resolveHubOption(
         name: rawHub.name,
         city: rawHub.city || '',
         address: rawHub.address || null,
-        level: rawHub.level || (isXeBo ? 2 : 1),
+        level: rawHub.level || (isXeBo ? 2 : 1)
       },
-      isXeBo,
+      isXeBo
     };
   }
 
@@ -179,19 +174,16 @@ export function resolveHubOption(
   }
 
   // 3. Lookup by string matching
-  const searchCandidates = [
-    typeof rawHub === 'string' ? rawHub : '',
-    deliveryAddress || '',
-  ].filter(Boolean);
+  const searchCandidates = [typeof rawHub === 'string' ? rawHub : '', deliveryAddress || ''].filter(
+    Boolean
+  );
 
   for (const text of searchCandidates) {
     const cleanText = text.toLowerCase().trim();
     if (!cleanText) continue;
 
     // First try finding matching code in text
-    const matchedByCode = allHubs.find(
-      (h) => h.code && cleanText.includes(h.code.toLowerCase())
-    );
+    const matchedByCode = allHubs.find((h) => h.code && cleanText.includes(h.code.toLowerCase()));
     if (matchedByCode) {
       const isXeBo =
         matchedByCode.level === 2 ||
@@ -225,9 +217,8 @@ export function resolveHubOption(
     (typeof rawHub === 'string' && rawHub.toLowerCase().includes('xe bo'));
 
   const parsedName =
-    (deliveryAddress || (typeof rawHub === 'string' ? rawHub : ''))
-      .split('·')[0]
-      ?.trim() || (isXeBo ? 'Tuyến Xe Bo' : 'Hub Cấp 1');
+    (deliveryAddress || (typeof rawHub === 'string' ? rawHub : '')).split('·')[0]?.trim() ||
+    (isXeBo ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính');
 
   const fallbackHub: HubOption = {
     id: Number(hubId) || 0,
@@ -235,7 +226,7 @@ export function resolveHubOption(
     name: parsedName,
     city: 'Liên hệ điều phối',
     address: deliveryAddress || (typeof rawHub === 'string' ? rawHub : null),
-    level: isXeBo ? 2 : 1,
+    level: isXeBo ? 2 : 1
   };
 
   return { hub: fallbackHub, isXeBo: !!isXeBo };

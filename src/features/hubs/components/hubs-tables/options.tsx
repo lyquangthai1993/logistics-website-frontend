@@ -5,6 +5,6 @@ export const HUB_STATUS_OPTIONS = [
 ];
 
 export const HUB_LEVEL_OPTIONS = [
-  { label: 'Cấp 1 - Hub chính', value: '1' },
-  { label: 'Cấp 2 - Trạm Xe Bo', value: '2' }
+  { label: 'Cấp 1 • Hub Chính', value: '1' },
+  { label: 'Cấp 2 • Trạm Xe Bo', value: '2' }
 ];

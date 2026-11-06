@@ -1380,7 +1380,7 @@ export function WarehouseWaybillDetailModal({
                             variant='outline'
                             className='border-purple-500/25 bg-purple-500/15 text-[10px] font-semibold text-purple-700 dark:text-purple-300'
                           >
-                            Tuyến Xe Bo
+                            Cấp 2 • Trạm Xe Bo
                           </Badge>
                         ) : waybill.deliveryMode === 'HUB_L1' ||
                           waybill.destinationHubEntity?.level === 1 ||
@@ -1389,7 +1389,7 @@ export function WarehouseWaybillDetailModal({
                             variant='outline'
                             className='border-blue-500/25 bg-blue-500/15 text-[10px] font-semibold text-blue-700 dark:text-blue-300'
                           >
-                            Hub Cấp 1
+                            Cấp 1 • Hub Chính
                           </Badge>
                         ) : (
                           <Badge
