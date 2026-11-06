@@ -24,7 +24,8 @@ import {
   IconTrash,
   IconFileSpreadsheet,
   IconRotate,
-  IconChevronRight
+  IconChevronRight,
+  IconHistory
 } from '@tabler/icons-react';
 import { rollbackTrip } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
@@ -56,6 +57,7 @@ import {
 import {
   TripDateTooltip,
   WarehouseDateRangeDropdown,
+  WarehouseTripHistoryModal,
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
@@ -127,6 +129,7 @@ function WarehouseInboundContent() {
   const [isTripViewModalOpen, setIsTripViewModalOpen] = useState(false);
   const [isTripEditModalOpen, setIsTripEditModalOpen] = useState(false);
   const [selectedTripGroup, setSelectedTripGroup] = useState<InboundVehicleGroup | null>(null);
+  const [historyTripCode, setHistoryTripCode] = useState<string | null>(null);
 
   const handleOpenTripDetail = (grp: InboundVehicleGroup) => {
     setSelectedTripGroup(grp);
@@ -1140,11 +1143,13 @@ function WarehouseInboundContent() {
                               </td>
                               <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px] align-top'>
                                 <div>{grp.totalQuantity} kiện</div>
-                                {grp.unloadQuantity !== undefined && grp.stayQuantity !== undefined && grp.stayQuantity > 0 && (
-                                  <div className='text-[10px] text-emerald-700 dark:text-emerald-400 font-medium'>
-                                    Dỡ: {grp.unloadQuantity} • Lưu xe: {grp.stayQuantity}
-                                  </div>
-                                )}
+                                {grp.unloadQuantity !== undefined &&
+                                  grp.stayQuantity !== undefined &&
+                                  grp.stayQuantity > 0 && (
+                                    <div className='text-[10px] text-emerald-700 dark:text-emerald-400 font-medium'>
+                                      Dỡ: {grp.unloadQuantity} • Lưu xe: {grp.stayQuantity}
+                                    </div>
+                                  )}
                                 <div className='text-gray-400 text-[10px]'>
                                   {formatWeight(grp.totalWeight)} kg &bull;{' '}
                                   {formatVolume(grp.totalVolume)} m³
@@ -1205,6 +1210,18 @@ function WarehouseInboundContent() {
                                         <IconPrinter className='h-3.5 w-3.5 mr-1' /> In phiếu nhập
                                       </Button>
                                     </>
+                                  )}
+                                  {grp.tripCode && grp.tripCode !== '—' && (
+                                    <Button
+                                      variant='outline'
+                                      size='sm'
+                                      data-testid={`btn-trip-history-${grp.tripCode}`}
+                                      onClick={() => setHistoryTripCode(grp.tripCode)}
+                                      className='h-7 w-7 p-0 text-slate-600 border-slate-300 hover:bg-slate-100 hover:text-[#0F3D62] dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800'
+                                      title={`Xem lịch sử tạo & chỉnh sửa chuyến xe ${grp.tripCode}`}
+                                    >
+                                      <IconHistory className='h-3.5 w-3.5' />
+                                    </Button>
                                   )}
                                 </div>
                               </td>
@@ -1306,11 +1323,13 @@ function WarehouseInboundContent() {
                             <div className='flex items-center gap-2 font-medium'>
                               <span className='font-bold text-slate-800 dark:text-slate-100'>
                                 {grp.totalQuantity} kiện
-                                {grp.unloadQuantity !== undefined && grp.stayQuantity !== undefined && grp.stayQuantity > 0 && (
-                                  <span className='text-[10px] text-emerald-700 dark:text-emerald-400 font-normal ml-1'>
-                                    (Dỡ: {grp.unloadQuantity} • Lưu: {grp.stayQuantity})
-                                  </span>
-                                )}
+                                {grp.unloadQuantity !== undefined &&
+                                  grp.stayQuantity !== undefined &&
+                                  grp.stayQuantity > 0 && (
+                                    <span className='text-[10px] text-emerald-700 dark:text-emerald-400 font-normal ml-1'>
+                                      (Dỡ: {grp.unloadQuantity} • Lưu: {grp.stayQuantity})
+                                    </span>
+                                  )}
                               </span>
                               <span className='text-slate-300 dark:text-slate-600'>|</span>
                               <span>{formatWeight(grp.totalWeight)} kg</span>
@@ -1682,6 +1701,13 @@ function WarehouseInboundContent() {
             fetchKpi();
           }}
           onOpenReceipt={handleOpenReceiptForVehicle}
+        />
+
+        {/* ── Modal Lịch Sử Tạo & Chỉnh Sửa Chuyến Xe ── */}
+        <WarehouseTripHistoryModal
+          isOpen={Boolean(historyTripCode)}
+          onClose={() => setHistoryTripCode(null)}
+          tripCode={historyTripCode}
         />
       </div>
     </PageContainer>

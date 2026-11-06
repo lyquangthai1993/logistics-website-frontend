@@ -23,7 +23,8 @@ import {
   IconTrash,
   IconAlertCircle,
   IconRotate,
-  IconChevronRight
+  IconChevronRight,
+  IconHistory
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { rollbackTrip, tripManifestKeys } from '@/features/warehouse/api/trip-manifest';
@@ -45,6 +46,7 @@ import {
   WarehouseWaybillDetailModal,
   TripDateTooltip,
   WarehouseDateRangeDropdown,
+  WarehouseTripHistoryModal,
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
@@ -117,6 +119,7 @@ function WarehouseOutboundContent() {
   // Vehicle Trip Detail Modal State (Read-only audit view: "khi click vào TRIP cũng sẽ tương tự như chỉ là dạng view thôi")
   const [isTripDetailModalOpen, setIsTripDetailModalOpen] = useState(false);
   const [selectedTripGroup, setSelectedTripGroup] = useState<InboundVehicleGroup | null>(null);
+  const [historyTripCode, setHistoryTripCode] = useState<string | null>(null);
 
   const isAdmin =
     user?.role === 'SUPER_ADMIN' ||
@@ -197,6 +200,26 @@ function WarehouseOutboundContent() {
   }, [mode1Rows]);
 
   const isOutboundConfirmationBlocked = hasDraftOrdersInNote || hasPendingInboundInNote;
+
+  const blockingDraftOrderLabels = useMemo(() => {
+    return mode1Rows
+      .filter((r) => {
+        const st = (r.hubStatus ?? r.status ?? '').toUpperCase();
+        const isDraftSt = ['DRAFT', 'PENDING', 'WAITING'].includes(st);
+        const hasPendingIn = Boolean(
+          r.hasPendingInboundTrip ||
+          (r.pendingInboundTripCodes && r.pendingInboundTripCodes.length > 0)
+        );
+        return isDraftSt || hasPendingIn;
+      })
+      .map((r) => {
+        const inTrips =
+          r.pendingInboundTripCodes && r.pendingInboundTripCodes.length > 0
+            ? ` (${r.pendingInboundTripCodes.join(', ')})`
+            : '';
+        return `${r.orderCode || 'Đơn nháp'}${inTrips}`;
+      });
+  }, [mode1Rows]);
 
   // Transfer Mode 2 Stepper State
   const [transferHubId, setTransferHubId] = useState<string>('2');
@@ -1435,6 +1458,18 @@ function WarehouseOutboundContent() {
                                       </Button>
                                     </>
                                   )}
+                                  {grp.tripCode && grp.tripCode !== '—' && (
+                                    <Button
+                                      variant='outline'
+                                      size='sm'
+                                      data-testid={`btn-trip-history-${grp.tripCode}`}
+                                      onClick={() => setHistoryTripCode(grp.tripCode)}
+                                      className='h-7 w-7 p-0 text-slate-600 border-slate-300 hover:bg-slate-100 hover:text-[#0F3D62] dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800'
+                                      title={`Xem lịch sử tạo & chỉnh sửa chuyến xe ${grp.tripCode}`}
+                                    >
+                                      <IconHistory className='h-3.5 w-3.5' />
+                                    </Button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1690,9 +1725,11 @@ function WarehouseOutboundContent() {
                   {isOutboundConfirmationBlocked && (
                     <span className='text-[11px] text-amber-600 dark:text-amber-400 font-medium'>
                       ⚠️{' '}
-                      {hasPendingInboundInNote
-                        ? 'Còn chuyến nhập nháp — Chỉ được Lưu nháp'
-                        : 'Có đơn nháp — Chỉ được Lưu nháp'}
+                      {blockingDraftOrderLabels.length > 0
+                        ? `Đơn nháp chưa xác nhận nhập: ${blockingDraftOrderLabels.join(', ')} — Chỉ được Lưu nháp`
+                        : hasPendingInboundInNote
+                          ? 'Còn chuyến nhập nháp — Chỉ được Lưu nháp'
+                          : 'Có đơn nháp — Chỉ được Lưu nháp'}
                     </span>
                   )}
                   <Button
@@ -1856,6 +1893,13 @@ function WarehouseOutboundContent() {
             fetchOrders();
           }}
           onOpenReceipt={handleOpenReceiptForVehicle}
+        />
+
+        {/* ── Modal Lịch Sử Tạo & Chỉnh Sửa Chuyến Xe ── */}
+        <WarehouseTripHistoryModal
+          isOpen={Boolean(historyTripCode)}
+          onClose={() => setHistoryTripCode(null)}
+          tripCode={historyTripCode}
         />
       </div>
     </PageContainer>
