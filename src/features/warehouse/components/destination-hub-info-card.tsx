@@ -93,9 +93,20 @@ export function DestinationHubInfoCard({
           {hub.city || 'Liên hệ điều phối'}
         </span>
         {hub.address && (
-          <span className='truncate text-slate-500 dark:text-slate-400' title={hub.address}>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              hub.city && !hub.address.toLowerCase().includes(hub.city.toLowerCase())
+                ? `${hub.address}, ${hub.city}`
+                : hub.address
+            )}`}
+            target='_blank'
+            rel='noopener noreferrer'
+            onClick={(e) => e.stopPropagation()}
+            className='truncate text-slate-500 hover:text-blue-600 hover:underline dark:text-slate-400 dark:hover:text-blue-400'
+            title={`Xem trên Google Maps: ${hub.address}`}
+          >
             · {hub.address}
-          </span>
+          </a>
         )}
       </div>
 

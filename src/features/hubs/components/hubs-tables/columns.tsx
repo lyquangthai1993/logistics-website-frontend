@@ -115,12 +115,29 @@ export const columns: ColumnDef<Hub>[] = [
     meta: {
       columnTitle: 'Địa Chỉ Chi Tiết'
     },
-    cell: ({ cell }) => {
-      const address = cell.getValue<string | null | undefined>();
+    cell: ({ cell, row }) => {
+      const address = cell.getValue<string | null | undefined>()?.trim();
+      const city = row.original.city?.trim();
+      if (!address) {
+        return <div className='text-muted-foreground max-w-xs truncate'>Chưa cập nhật</div>;
+      }
+      const query =
+        city && !address.toLowerCase().includes(city.toLowerCase())
+          ? `${address}, ${city}`
+          : address;
+      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
       return (
-        <div className='text-muted-foreground max-w-xs truncate' title={address || undefined}>
-          {address || 'Chưa cập nhật'}
-        </div>
+        <a
+          href={mapUrl}
+          target='_blank'
+          rel='noopener noreferrer'
+          onClick={(e) => e.stopPropagation()}
+          title={`Xem trên Google Maps: ${query}`}
+          className='group text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 inline-flex max-w-xs items-center gap-1 transition-colors hover:underline'
+        >
+          <span className='truncate'>{address}</span>
+          <Icons.externalLink className='h-3 w-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100' />
+        </a>
       );
     },
     enableSorting: true
