@@ -807,8 +807,11 @@ export default function WarehouseOrdersPage() {
               onClick={fetchOrders}
               disabled={isLoading || isExporting}
               className='h-8 text-xs font-bold border-slate-300'
+              title='Làm mới dữ liệu'
             >
-              <IconRefresh className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <IconRefresh
+                className={`mr-1.5 h-4 w-4 text-blue-600 ${isLoading ? 'animate-spin' : ''}`}
+              />
               Làm mới
             </Button>
           </div>

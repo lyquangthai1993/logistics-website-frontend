@@ -1288,12 +1288,12 @@ function WarehouseOutboundContent() {
                       onClick={handleRefreshMetrics}
                       disabled={isRefreshing}
                       className='h-8 w-8 sm:w-auto p-0 sm:px-2.5 text-xs font-bold border-slate-300 shrink-0 ml-auto xl:ml-0'
-                      title='Cập nhật lại thông số'
+                      title='Làm mới dữ liệu'
                     >
                       <IconRefresh
                         className={`h-4 w-4 text-blue-600 sm:mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`}
                       />
-                      <span className='hidden sm:inline'>Cập nhật</span>
+                      <span className='hidden sm:inline'>Làm mới</span>
                     </Button>
                   </div>
                 </div>

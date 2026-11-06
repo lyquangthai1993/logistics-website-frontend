@@ -1337,7 +1337,13 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
+  const isRowInbound = isRowInboundLocked(
+    r,
+    meta?.isInboundTripMode,
+    meta?.isAdmin,
+    false,
+    meta?.isOutboundMode
+  );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
@@ -1578,7 +1584,13 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
-  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
+  const isOrderInbound = isRowInboundLocked(
+    r,
+    isInboundTripMode,
+    meta?.isAdmin,
+    false,
+    meta?.isOutboundMode
+  );
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   const resolvedHubForPrint =
@@ -2348,11 +2360,12 @@ export function WarehouseEditableGrid({
               onClick={onRefreshMetrics}
               disabled={isLoadingMetrics}
               className='h-8 text-xs font-semibold border-slate-300 dark:border-slate-700'
+              title='Làm mới dữ liệu'
             >
               <IconRefresh
                 className={`mr-1.5 h-3.5 w-3.5 text-blue-600 ${isLoadingMetrics ? 'animate-spin' : ''}`}
               />
-              Cập nhật lại thông số
+              Làm mới
             </Button>
           )}
         </div>
