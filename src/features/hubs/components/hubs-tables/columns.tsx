@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/ui/table/data-table-column-header';
 import { Icons } from '@/components/icons';
 import { CellAction } from './cell-action';
-import { HUB_STATUS_OPTIONS } from './options';
+import { HUB_STATUS_OPTIONS, HUB_LEVEL_OPTIONS } from './options';
 import type { Hub } from '../../api/types';
 
 export const columns: ColumnDef<Hub>[] = [
@@ -16,10 +16,17 @@ export const columns: ColumnDef<Hub>[] = [
     meta: {
       columnTitle: 'Mã Hub'
     },
-    cell: ({ cell }) => (
-      <span className='bg-primary/10 text-primary border-primary/20 rounded-md border px-2.5 py-1 font-mono text-xs font-semibold'>
-        {cell.getValue<string>()}
-      </span>
+    cell: ({ row }) => (
+      <div className='flex flex-col items-start gap-0.5'>
+        <span className='bg-primary/10 text-primary border-primary/20 rounded-md border px-2 py-0.5 font-mono text-xs font-semibold'>
+          {row.original.code}
+        </span>
+        {row.original.orderCodePrefix && (
+          <span className='text-muted-foreground font-mono text-[10px]'>
+            Prefix: {row.original.orderCodePrefix}
+          </span>
+        )}
+      </div>
     ),
     enableSorting: true
   },
@@ -48,6 +55,39 @@ export const columns: ColumnDef<Hub>[] = [
       placeholder: 'Tìm mã kho, tên kho, thành phố, quản lý...',
       variant: 'text',
       icon: Icons.search
+    },
+    enableColumnFilter: true,
+    enableSorting: true
+  },
+  {
+    id: 'level',
+    accessorKey: 'level',
+    header: ({ column }) => <DataTableColumnHeader column={column} title='Phân Cấp' />,
+    cell: ({ row }) => {
+      const level = row.original.level ?? 1;
+      return level === 2 ? (
+        <Badge
+          variant='outline'
+          className='bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 font-medium'
+        >
+          <Icons.truck className='mr-1 h-3 w-3' />
+          Cấp 2 • Trạm Xe Bo
+        </Badge>
+      ) : (
+        <Badge
+          variant='outline'
+          className='bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/25 font-medium'
+        >
+          <Icons.warehouse className='mr-1 h-3 w-3' />
+          Cấp 1 • Hub Chính
+        </Badge>
+      );
+    },
+    meta: {
+      columnTitle: 'Phân Cấp',
+      label: 'Phân cấp',
+      variant: 'select',
+      options: HUB_LEVEL_OPTIONS
     },
     enableColumnFilter: true,
     enableSorting: true

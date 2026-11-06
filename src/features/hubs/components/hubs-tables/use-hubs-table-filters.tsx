@@ -13,21 +13,37 @@ export function useHubsTableFilters(columnIds: string[] = []) {
     search: parseAsString,
     status: parseAsString,
     isActive: parseAsString,
+    level: parseAsString,
     sort: getSortingStateParser(columnIds).withDefault([])
   });
 
-  const search = params.name || params.search || '';
+  const rawName = Array.isArray(params.name) ? params.name[0] : params.name;
+  const rawSearch = Array.isArray(params.search) ? params.search[0] : params.search;
+  const search = rawName || rawSearch || '';
+
+  const rawStatus = Array.isArray(params.status) ? params.status.join(',') : params.status;
+  const rawIsActive = Array.isArray(params.isActive) ? params.isActive.join(',') : params.isActive;
+  const statusTokens = (rawStatus || rawIsActive || '')
+    .toLowerCase()
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   let isActive: boolean | undefined = undefined;
-  if (params.status === 'active' || params.isActive === 'true' || params.status === 'ACTIVE') {
+  const hasActive = statusTokens.includes('active') || statusTokens.includes('true');
+  const hasInactive = statusTokens.includes('inactive') || statusTokens.includes('false');
+  if (hasActive && !hasInactive) {
     isActive = true;
-  } else if (
-    params.status === 'inactive' ||
-    params.isActive === 'false' ||
-    params.status === 'INACTIVE'
-  ) {
+  } else if (hasInactive && !hasActive) {
     isActive = false;
   }
+
+  const rawLevel = Array.isArray(params.level) ? params.level.join(',') : params.level;
+  const levelTokens = (rawLevel || '')
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => n === 1 || n === 2);
+  const level: number | undefined = levelTokens.length === 1 ? levelTokens[0] : undefined;
 
   const filters: HubFilters = useMemo(
     () => ({
@@ -35,9 +51,10 @@ export function useHubsTableFilters(columnIds: string[] = []) {
       limit: params.perPage,
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(isActive !== undefined ? { isActive } : {}),
+      ...(level !== undefined ? { level } : {}),
       ...(params.sort && params.sort.length > 0 ? { sort: JSON.stringify(params.sort) } : {})
     }),
-    [params.page, params.perPage, search, isActive, params.sort]
+    [params.page, params.perPage, search, isActive, level, params.sort]
   );
 
   const resetFilters = useCallback(() => {
@@ -46,12 +63,15 @@ export function useHubsTableFilters(columnIds: string[] = []) {
       search: null,
       status: null,
       isActive: null,
+      level: null,
       page: 1
     });
   }, [setParams]);
 
   const isAnyFilterActive = useMemo(() => {
-    return Boolean(params.name || params.search || params.status || params.isActive);
+    return Boolean(
+      params.name || params.search || params.status || params.isActive || params.level
+    );
   }, [params]);
 
   return {
@@ -59,6 +79,7 @@ export function useHubsTableFilters(columnIds: string[] = []) {
     setParams,
     search,
     isActive,
+    level,
     filters,
     resetFilters,
     isAnyFilterActive

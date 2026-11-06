@@ -16,6 +16,7 @@ export const searchParams = {
   role: parseAsString,
   status: parseAsString,
   isActive: parseAsString,
+  level: parseAsString,
   type: parseAsString,
   licensePlate: parseAsString,
   fullName: parseAsString,

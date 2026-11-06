@@ -13,6 +13,8 @@ export function HubsMetrics() {
   const total = data?.meta?.total ?? hubs.length;
   const activeCount = hubs.filter((h) => h.isActive).length;
   const inactiveCount = Math.max(0, total - activeCount);
+  const level1Count = hubs.filter((h) => (h.level ?? 1) === 1).length;
+  const level2Count = hubs.filter((h) => h.level === 2).length;
   const totalVehicles = hubs.reduce((sum, h) => sum + (h.vehicles?.length || 0), 0);
 
   return (
@@ -26,7 +28,9 @@ export function HubsMetrics() {
         </CardHeader>
         <CardContent>
           <div className='text-2xl font-bold'>{total}</div>
-          <p className='text-muted-foreground mt-1 text-xs'>Điểm trung chuyển hàng hóa</p>
+          <p className='text-muted-foreground mt-1 text-xs'>
+            {level1Count} Hub Cấp 1 • {level2Count} Trạm Xe Bo
+          </p>
         </CardContent>
       </Card>
 
