@@ -70,6 +70,6 @@ export function getRoleDefaultPath(role?: string | number | { id: number; name?:
   const upper = roleStr.toUpperCase();
   if (upper.includes('WAREHOUSE')) return '/dashboard/warehouse/orders';
   if (upper.includes('FLEET')) return '/dashboard/trips';
-  if (upper.includes('DISPATCHER')) return '/dashboard/orders';
-  return '/dashboard/orders';
+  if (upper.includes('DISPATCHER')) return '/dashboard/warehouse/orders';
+  return '/dashboard/warehouse/orders';
 }

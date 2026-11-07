@@ -47,7 +47,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     expect(reportData.dailySeries.length).toBe(7);
 
     const dayNov02 = reportData.dailySeries.find(
-      (d: any) => d.reportDate === '2026-11-02'
+      (d: { reportDate?: string }) => d.reportDate === '2026-11-02'
     );
     expect(dayNov02).toBeDefined();
     expect(dayNov02.windowLabel).toBe('18:00 01/11/2026 → 18:00 02/11/2026');
@@ -129,6 +129,11 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await clearSession(page);
     await loginAs(page, superAdmin);
 
+    // Kiểm tra trang /dashboard/orders đã tạm thời ẩn khỏi Sidebar và tự động chuyển về /dashboard/warehouse/orders
+    await page.goto('/dashboard/orders');
+    await expect(page).toHaveURL(/\/dashboard\/warehouse\/orders/);
+    await expect(page.locator('aside a[href="/dashboard/orders"], nav a[href="/dashboard/orders"]')).toHaveCount(0);
+
     await page.goto('/dashboard/admin/reports');
     await expect(
       page.getByTestId('super-admin-operational-report')
@@ -198,6 +203,11 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
     await clearSession(page);
     await loginAs(page, superAdmin);
+
+    // Kiểm tra trang /dashboard/orders đã tạm thời ẩn khỏi Sidebar và tự động chuyển về /dashboard/warehouse/orders
+    await page.goto('/dashboard/orders');
+    await expect(page).toHaveURL(/\/dashboard\/warehouse\/orders/);
+    await expect(page.locator('aside a[href="/dashboard/orders"], nav a[href="/dashboard/orders"]')).toHaveCount(0);
 
     await page.goto('/dashboard/admin/cronjobs');
     await expect(
@@ -293,12 +303,17 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
 
     // Tìm ngày có chuyến xe trong 14 ngày gần nhất (hoặc dùng ngày mặc định)
     const activeDayItem =
-      dailyData.recentDaysStrip.find((d: any) => d.totalTrips > 0) ||
+      dailyData.recentDaysStrip.find((d: { totalTrips?: number; reportDate?: string }) => (d.totalTrips ?? 0) > 0) ||
       dailyData.recentDaysStrip[dailyData.recentDaysStrip.length - 1];
     const targetDate = activeDayItem.reportDate;
 
     await clearSession(page);
     await loginAs(page, superAdmin);
+
+    // Kiểm tra trang /dashboard/orders đã tạm thời ẩn khỏi Sidebar và tự động chuyển về /dashboard/warehouse/orders
+    await page.goto('/dashboard/orders');
+    await expect(page).toHaveURL(/\/dashboard\/warehouse\/orders/);
+    await expect(page.locator('aside a[href="/dashboard/orders"], nav a[href="/dashboard/orders"]')).toHaveCount(0);
 
     // 2. Mở trang Báo cáo vận hành, kiểm tra Widget Theo dõi mã TRIP và bấm mở sang trang Theo dõi TRIP theo ngày
     await page.goto('/dashboard/admin/reports');
