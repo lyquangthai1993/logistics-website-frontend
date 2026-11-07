@@ -206,14 +206,13 @@ test.describe.serial(
         .getByRole('button', { name: /^Xuất kho$/i })
         .first();
       await expect(createNoteBtn).toBeVisible({ timeout: 15000 });
-      await createNoteBtn.click();
-
-      // Enter testOrderCode into row 0 orderCode input and trigger search
       const orderInput = page.locator('table tbody tr').first().locator('input').first();
-      if (!(await orderInput.isVisible({ timeout: 3000 }).catch(() => false))) {
-        await createNoteBtn.click();
-      }
-      await expect(orderInput).toBeVisible({ timeout: 10000 });
+      await expect(async () => {
+        if ((await orderInput.count()) === 0) {
+          await createNoteBtn.click();
+        }
+        await expect(orderInput).toBeVisible({ timeout: 2500 });
+      }).toPass({ timeout: 15000 });
       await orderInput.fill(testOrderCode);
       await orderInput.press('Enter');
 
@@ -285,11 +284,12 @@ test.describe.serial(
         timeout: 15000
       });
       await expect(createNoteBtn).toBeVisible({ timeout: 15000 });
-      await createNoteBtn.click();
-      if (!(await orderInput.isVisible({ timeout: 3000 }).catch(() => false))) {
-        await createNoteBtn.click();
-      }
-      await expect(orderInput).toBeVisible({ timeout: 10000 });
+      await expect(async () => {
+        if ((await orderInput.count()) === 0) {
+          await createNoteBtn.click();
+        }
+        await expect(orderInput).toBeVisible({ timeout: 2500 });
+      }).toPass({ timeout: 15000 });
       await orderInput.fill(testOrderCode);
       await orderInput.press('Enter');
 
