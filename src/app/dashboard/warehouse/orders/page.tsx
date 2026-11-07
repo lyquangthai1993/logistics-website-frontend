@@ -263,7 +263,12 @@ export default function WarehouseOrdersPage() {
             '—';
 
           const inboundDateStr =
-            item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
+            item.inboundDate ||
+            order.inboundDate ||
+            item.updatedAt ||
+            order.updatedAt ||
+            item.createdAt ||
+            order.createdAt;
           const destHubStr =
             item.originalDestination ||
             order.originalDestination ||
@@ -452,6 +457,232 @@ export default function WarehouseOrdersPage() {
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, tabConfig.sheetName);
+
+      // ── Sheet 2 & Sheet 3: Thống kê theo ngày (Tương ứng Slide 2 & Slide 3 Báo cáo KPI) ──
+      type DailyBucket = {
+        dateLabel: string;
+        sortKey: string;
+        dayOfMonth: string;
+        monthLabel: string;
+        orderCodes: Set<string>;
+        totalPackages: number;
+        totalWeightKg: number;
+        totalVolumeCbm: number;
+      };
+      const dailyMap = new Map<string, DailyBucket>();
+
+      const parseDdMmYyyy = (rawDateCell: string) => {
+        const clean = String(rawDateCell || '').trim();
+        const m = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) {
+          const dd = m[1].padStart(2, '0');
+          const mm = m[2].padStart(2, '0');
+          const yyyy = m[3];
+          return {
+            dateLabel: `${dd}/${mm}/${yyyy}`,
+            sortKey: `${yyyy}-${mm}-${dd}`,
+            dayOfMonth: `Ngày ${dd}/${mm}`,
+            monthLabel: `Tháng ${mm}/${yyyy}`
+          };
+        }
+        return {
+          dateLabel: clean || 'Chưa xác định',
+          sortKey: '9999-99-99',
+          dayOfMonth: clean || '—',
+          monthLabel: 'Khác'
+        };
+      };
+
+      for (const r of rows) {
+        const orderCodeCell = String(r[1] || '');
+        const inboundDateCell = String(r[2] || '');
+        const outboundDateCell = String(r[12] || '');
+        const effectiveDateCell =
+          statusFilter === 'COMPLETED_INBOUND' && outboundDateCell
+            ? outboundDateCell
+            : inboundDateCell || outboundDateCell;
+        const parsedDate = parseDdMmYyyy(effectiveDateCell);
+        const key = parsedDate.sortKey + '|' + parsedDate.dateLabel;
+        let bucket = dailyMap.get(key);
+        if (!bucket) {
+          bucket = {
+            dateLabel: parsedDate.dateLabel,
+            sortKey: parsedDate.sortKey,
+            dayOfMonth: parsedDate.dayOfMonth,
+            monthLabel: parsedDate.monthLabel,
+            orderCodes: new Set<string>(),
+            totalPackages: 0,
+            totalWeightKg: 0,
+            totalVolumeCbm: 0
+          };
+          dailyMap.set(key, bucket);
+        }
+        if (orderCodeCell) {
+          bucket.orderCodes.add(orderCodeCell);
+        }
+        bucket.totalPackages += Number(r[6]) || 0;
+        bucket.totalWeightKg += Number(r[7]) || 0;
+        bucket.totalVolumeCbm += Number(r[8]) || 0;
+      }
+
+      const sortedDaily = Array.from(dailyMap.values()).sort((a, b) =>
+        a.sortKey.localeCompare(b.sortKey)
+      );
+
+      const totalDailyOrders = sortedDaily.reduce((s, d) => s + d.orderCodes.size, 0);
+      const totalDailyPackages = sortedDaily.reduce((s, d) => s + d.totalPackages, 0);
+      const totalDailyCbm =
+        Math.round(sortedDaily.reduce((s, d) => s + d.totalVolumeCbm, 0) * 100) / 100;
+      const totalDailyKg =
+        Math.round(sortedDaily.reduce((s, d) => s + d.totalWeightKg, 0) * 100) / 100;
+      const totalDailyTons = Math.round((totalDailyKg / 1000) * 1000) / 1000;
+      const daysCount = sortedDaily.length || 1;
+      const avgDailyCbm = Math.round((totalDailyCbm / daysCount) * 100) / 100;
+      const avgDailyKg = Math.round((totalDailyKg / daysCount) * 100) / 100;
+
+      // Sheet 2: Slide 2 - Thống kê Sản lượng CBM theo ngày
+      const slide2Rows: any[][] = sortedDaily.map((d, idx) => [
+        idx + 1,
+        d.dateLabel,
+        d.dayOfMonth,
+        d.orderCodes.size,
+        d.totalPackages,
+        Math.round(d.totalVolumeCbm * 100) / 100,
+        Math.round(d.totalWeightKg * 100) / 100
+      ]);
+
+      const wsSlide2Data: any[][] = [
+        [
+          'STT',
+          'NGÀY CẬP NHẬT',
+          'NGÀY TRONG THÁNG',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SẢN LƯỢNG CBM (M³)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide2Rows,
+        [
+          '',
+          'TỔNG SẢN LƯỢNG (CBM)',
+          `${sortedDaily.length} ngày`,
+          totalDailyOrders,
+          totalDailyPackages,
+          totalDailyCbm,
+          totalDailyKg
+        ],
+        ['', 'TRUNG BÌNH CBM/NGÀY', '', '', '', avgDailyCbm, avgDailyKg]
+      ];
+      const wsSlide2 = XLSX.utils.aoa_to_sheet(wsSlide2Data);
+      wsSlide2['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSlide2, 'Slide 2 - CBM Theo Ngày');
+
+      // Sheet 3: Slide 3 - Thống kê Số Khối (CBM) & Số Tấn theo ngày / tháng
+      const monthlyMap = new Map<
+        string,
+        {
+          monthLabel: string;
+          days: number;
+          ordersCount: number;
+          totalPackages: number;
+          totalCbm: number;
+          totalKg: number;
+        }
+      >();
+      for (const d of sortedDaily) {
+        const mBucket = monthlyMap.get(d.monthLabel) || {
+          monthLabel: d.monthLabel,
+          days: 0,
+          ordersCount: 0,
+          totalPackages: 0,
+          totalCbm: 0,
+          totalKg: 0
+        };
+        mBucket.days += 1;
+        mBucket.ordersCount += d.orderCodes.size;
+        mBucket.totalPackages += d.totalPackages;
+        mBucket.totalCbm += d.totalVolumeCbm;
+        mBucket.totalKg += d.totalWeightKg;
+        monthlyMap.set(d.monthLabel, mBucket);
+      }
+
+      const slide3DailyRows: any[][] = sortedDaily.map((d, idx) => [
+        idx + 1,
+        d.dateLabel,
+        d.monthLabel,
+        d.orderCodes.size,
+        d.totalPackages,
+        Math.round(d.totalVolumeCbm * 100) / 100,
+        Math.round((d.totalWeightKg / 1000) * 1000) / 1000,
+        Math.round(d.totalWeightKg * 100) / 100
+      ]);
+
+      const slide3MonthlyRows: any[][] = Array.from(monthlyMap.values()).map((m, idx) => [
+        idx + 1,
+        m.monthLabel,
+        m.days,
+        m.ordersCount,
+        m.totalPackages,
+        Math.round(m.totalCbm * 100) / 100,
+        Math.round((m.totalKg / 1000) * 1000) / 1000,
+        Math.round(m.totalKg * 100) / 100
+      ]);
+
+      const wsSlide3Data: any[][] = [
+        [
+          'STT',
+          'NGÀY CẬP NHẬT',
+          'THÁNG',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SỐ KHỐI (CBM)',
+          'SỐ TẤN (TẤN)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide3DailyRows,
+        [
+          '',
+          'TỔNG CỘNG THEO NGÀY',
+          `${sortedDaily.length} ngày`,
+          totalDailyOrders,
+          totalDailyPackages,
+          totalDailyCbm,
+          totalDailyTons,
+          totalDailyKg
+        ],
+        [],
+        [
+          'STT',
+          'THÁNG',
+          'SỐ NGÀY PHÁT SINH',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SỐ KHỐI (CBM)',
+          'SỐ TẤN (TẤN)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide3MonthlyRows
+      ];
+      const wsSlide3 = XLSX.utils.aoa_to_sheet(wsSlide3Data);
+      wsSlide3['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSlide3, 'Slide 3 - Khối & Tấn Theo Ngày');
 
       const hubFileSlug = normalizeNoDiacritics(hubTitle);
       const fileName = `Bao_cao_don_hang_${tabConfig.fileSlug}_${hubFileSlug}_${dateStr}.xlsx`;

@@ -55,7 +55,7 @@ test.describe('Warehouse Trip History & Audit Timeline (Task 113)', () => {
       await expect(modal).toBeHidden();
     }
 
-    // 2. Verify Outbound Trip History button at Vị trí 1 (SD1087) and Blocker banner
+    // 2. Verify Outbound Trip History button at Vị trí 1 (SD1087) without any Blocker/Reason banner
     await page.goto('/dashboard/warehouse/outbound', { waitUntil: 'domcontentloaded' });
     const sd1087HistoryBtn = page.getByTestId('btn-trip-history-SD1087');
     await expect(sd1087HistoryBtn).toBeVisible({ timeout: 15000 });
@@ -66,10 +66,8 @@ test.describe('Warehouse Trip History & Audit Timeline (Task 113)', () => {
     await expect(modal).toContainText('PHẠM PHÚ THÀNH');
 
     const blockerAlert = page.getByTestId('trip-history-blockers-alert');
-    await expect(blockerAlert).toBeVisible();
-    await expect(blockerAlert).toContainText('NDA2611-0155');
-    await expect(blockerAlert).toContainText('SD1068');
-    await expect(blockerAlert).toContainText('43H29730');
+    await expect(blockerAlert).toHaveCount(0);
+    await expect(modal).not.toContainText('Nguyên nhân chuyến');
 
     await page.screenshot({
       path: 'test-results/screenshot_trip_history_SD1087_verified.png',

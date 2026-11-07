@@ -46,6 +46,10 @@ export interface InboundReceiptData {
   driverName?: string;
   licensePlate?: string;
   createdAt?: string | Date;
+  updatedAt?: string | Date;
+  inboundDate?: string | Date;
+  receiveDate?: string | Date;
+  processedAt?: string | Date;
   notes?: string;
   accompanyingDocs?: string;
   items?: InboundReceiptItem[];
@@ -137,7 +141,9 @@ export function WarehouseInboundReceiptModal({
       ? d.toLocaleDateString('vi-VN')
       : new Date().toLocaleDateString('vi-VN');
   };
-  const formattedDate = formatReceiptDate(data.createdAt);
+  const formattedDate = formatReceiptDate(
+    data.updatedAt || data.processedAt || data.inboundDate || data.receiveDate || data.createdAt
+  );
   const rawItems =
     data.items && data.items.length > 0
       ? data.items

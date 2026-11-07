@@ -94,6 +94,11 @@ export interface InboundVehicleGroup {
   } | null;
   creatorName?: string | null;
   operatorName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  confirmedAt?: string | null;
+  deletedAt?: string | null;
+  invoiceCode?: string | null;
 }
 
 interface WarehouseTripDetailModalProps {
@@ -1327,6 +1332,7 @@ export function WarehouseTripDetailModal({
         const updatedTripGroup: InboundVehicleGroup = {
           ...tripGroup,
           status: 'COMPLETED',
+          receiveDate: new Date().toISOString().split('T')[0],
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || tripGroup.driverName,
           tripCode: tripGroup.tripCode,
@@ -1457,6 +1463,7 @@ export function WarehouseTripDetailModal({
 
         const updatedTripGroup: InboundVehicleGroup = {
           ...tripGroup,
+          receiveDate: new Date().toISOString().split('T')[0],
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || tripGroup.driverName,
           tripCode: manifest.tripCode,

@@ -10,7 +10,6 @@ import {
   IconBuildingWarehouse,
   IconUser,
   IconClock,
-  IconAlertTriangle,
   IconArrowRight,
   IconRefresh,
   IconX,
@@ -341,60 +340,7 @@ export function WarehouseTripHistoryModal({
                 </div>
               </div>
 
-              {/* 2. Blocker Alert Banner (e.g., SD1087 blocked by NDA2611-0155 on SD1068) */}
-              {data.blockers && data.blockers.length > 0 && (
-                <div
-                  data-testid='trip-history-blockers-alert'
-                  className='bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-800 rounded-lg p-2 space-y-1.5'
-                >
-                  <div className='flex items-center gap-1.5 text-rose-800 dark:text-rose-300 font-bold text-xs'>
-                    <IconAlertTriangle className='h-4 w-4 text-rose-600 shrink-0' />
-                    <span className='inline-flex items-center flex-wrap gap-1'>
-                      <span>Nguyên nhân chuyến</span>
-                      <span className='font-mono px-1.5 py-0 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 border border-rose-300 dark:border-rose-700'>
-                        {data.tripCode}
-                      </span>
-                      <span>
-                        {`chưa thể bấm “Xác nhận xuất kho” (${data.blockers.length} đơn đang chờ xác nhận nhập kho):`}
-                      </span>
-                    </span>
-                  </div>
-                  <div className='space-y-1 pl-5'>
-                    {data.blockers.map((b) => (
-                      <div
-                        key={b.orderId}
-                        className='text-[11px] bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900 rounded px-2 py-1 flex flex-wrap items-center justify-between gap-1.5'
-                      >
-                        <div className='inline-flex items-center flex-wrap gap-1'>
-                          <span className='font-mono font-bold text-rose-700 dark:text-rose-400'>
-                            {b.orderCode}
-                          </span>
-                          <span className='text-slate-600 dark:text-slate-400'>
-                            {`(${b.goodsDescription} — ${b.quantityAllocated} kiện)`}
-                          </span>
-                          <span className='mx-0.5 text-slate-400'>•</span>
-                          <span className='text-slate-800 dark:text-slate-200 font-medium inline-flex items-center flex-wrap gap-1'>
-                            <span>Đang là</span>
-                            <strong>Đơn nháp</strong>
-                            <span>thuộc chuyến nhập</span>
-                            <strong className='font-mono text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0 rounded border border-indigo-200 dark:border-indigo-800'>
-                              {b.pendingInboundTripCode || 'Chưa gán'}
-                            </strong>
-                            <span>
-                              {`${b.pendingInboundPlate ? `(Xe ${b.pendingInboundPlate}) ` : ''}— mới lưu nháp, chưa bấm Xác nhận nhập kho.`}
-                            </span>
-                          </span>
-                        </div>
-                        <Badge className='bg-rose-600 text-white text-[10px] border-0'>
-                          Chưa xác nhận nhập
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Timeline of Creation & Edits */}
+              {/* 2. Timeline of Creation & Edits */}
               <div className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 space-y-2'>
                 <div className='flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5'>
                   <div className='flex items-center gap-1.5 text-xs font-black text-slate-800 dark:text-slate-100 uppercase'>
@@ -524,11 +470,7 @@ export function WarehouseTripHistoryModal({
                         {data.orders.map((o, idx) => (
                           <tr
                             key={o.orderId}
-                            className={
-                              o.isBlocker
-                                ? 'bg-rose-50/70 dark:bg-rose-950/20'
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                            }
+                            className='hover:bg-slate-50 dark:hover:bg-slate-800/40'
                           >
                             <td className='py-1 px-1.5 text-center font-mono text-slate-400'>
                               {idx + 1}

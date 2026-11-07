@@ -16,8 +16,19 @@ interface TripStopStatusBadgeProps {
   className?: string;
 }
 
-/** Trip status as seen by the current warehouse: only "Chờ xử lý" or "Đã xử lý". */
+/** Trip status as seen by the current warehouse: "Chờ xử lý", "Đã xử lý", or "Đã xóa". */
 export function TripStopStatusBadge({ status, className = '' }: TripStopStatusBadgeProps) {
+  const isDeleted = status?.toUpperCase() === 'DELETED';
+  if (isDeleted) {
+    return (
+      <Badge
+        variant='outline'
+        className={`text-[10px] h-5 px-1.5 font-bold bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 ${className}`}
+      >
+        Đã xóa
+      </Badge>
+    );
+  }
   const normalized = toTripStopStatus(status);
   const tone =
     normalized === 'PENDING'

@@ -130,7 +130,7 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
     );
     await expect(auditSection).toBeVisible({ timeout: 10_000 });
     await expect(
-      detailDialog.locator('text=TRANSACTION_UPDATED').first(),
+      detailDialog.locator('[data-action="TRANSACTION_UPDATED"], text=Điều chỉnh số lượng').first(),
     ).toBeVisible({ timeout: 10_000 });
 
     await page.screenshot({

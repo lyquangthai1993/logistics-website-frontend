@@ -154,8 +154,8 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
 
     // Assert Audit Logs
     await expect(detailDialog.locator('text=Nhật ký thao tác & Thay đổi dữ liệu')).toBeVisible({ timeout: 10_000 });
-    await expect(detailDialog.locator('text=INBOUND_CONFIRMED').first()).toBeVisible({ timeout: 10_000 });
-    await expect(detailDialog.locator('text=OUTBOUND_CONFIRMED').first()).toBeVisible({ timeout: 10_000 });
+    await expect(detailDialog.locator('[data-action="INBOUND_CONFIRMED"], text=Xác nhận nhập kho').first()).toBeVisible({ timeout: 10_000 });
+    await expect(detailDialog.locator('[data-action="OUTBOUND_CONFIRMED"], text=Xác nhận xuất kho').first()).toBeVisible({ timeout: 10_000 });
     await expect(detailDialog.getByText('Tiếp nhận nhập kho 12 kiện').first()).toBeVisible({ timeout: 10_000 });
     await expect(detailDialog.getByText('Xác nhận xuất kho 5 kiện').first()).toBeVisible({ timeout: 10_000 });
 

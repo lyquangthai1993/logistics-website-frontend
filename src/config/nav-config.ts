@@ -89,6 +89,33 @@ export const navGroups: NavGroup[] = [
     label: 'Quản trị hệ thống',
     items: [
       {
+        title: 'Báo cáo vận hành',
+        url: '/dashboard/admin/reports',
+        icon: 'trendingUp',
+        shortcut: ['r', 'p'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
+        title: 'Theo dõi TRIP theo ngày',
+        url: '/dashboard/admin/reports/trips',
+        icon: 'trips',
+        shortcut: ['r', 't'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
+        title: 'Quản trị Cronjob',
+        url: '/dashboard/admin/cronjobs',
+        icon: 'settings',
+        shortcut: ['c', 'j'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
         title: 'Chi Nhánh Kho (Hubs)',
         url: '/dashboard/admin/hubs',
         icon: 'mapPin',
