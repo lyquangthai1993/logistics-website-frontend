@@ -1333,7 +1333,6 @@ export function OperationalDrilldownTableSlot() {
     setActiveTab,
     dailySeries,
     confirmedTrips,
-    hubBreakdown,
     selectedHubId,
     summary
   } = useAdminOperationalReport();
@@ -1379,18 +1378,6 @@ export function OperationalDrilldownTableSlot() {
               }`}
             >
               Widget Theo dõi mã TRIP ({confirmedTrips.length} chuyến)
-            </button>
-            <button
-              type='button'
-              onClick={() => setActiveTab('hubs')}
-              data-testid='tab-hub-breakdown'
-              className={`h-7 px-2.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
-                activeTab === 'hubs'
-                  ? 'bg-[#0F3D62] text-white'
-                  : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              Theo Chi nhánh Kho ({hubBreakdown.length} kho)
             </button>
           </div>
 
@@ -1679,93 +1666,6 @@ export function OperationalDrilldownTableSlot() {
           </div>
         )}
 
-        {/* TAB 3: Bảng tổng hợp theo từng Chi nhánh Kho (Hub) */}
-        {activeTab === 'hubs' && (
-          <div className='max-h-80 overflow-auto rounded border'>
-            <table className='w-full border-collapse text-left'>
-              <thead className='sticky top-0 bg-slate-100 dark:bg-slate-900 border-b z-10'>
-                <tr className='text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300'>
-                  <th className='py-1 px-1.5'>Chi nhánh Kho (Hub)</th>
-                  <th className='py-1 px-1.5'>Phân cấp Hub</th>
-                  <th className='py-1 px-1.5 text-right'>Xe nhập xác nhận</th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Sản lượng Nhập (CBM / Tấn)
-                  </th>
-                  <th className='py-1 px-1.5 text-right'>Xe xuất xác nhận</th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Sản lượng Xuất (CBM / Tấn)
-                  </th>
-                  <th className='py-1 px-1.5 text-right'>Tổng CBM chọn</th>
-                  <th className='py-1 px-1.5 text-right'>Tổng Tấn chọn</th>
-                </tr>
-              </thead>
-              <tbody className='divide-y divide-border/60'>
-                {hubBreakdown.map((h) => {
-                  const isSatellite = Boolean(
-                    h.level > 1 ||
-                      h.code?.startsWith('XB-') ||
-                      h.code?.startsWith('HUB-BO-')
-                  );
-                  return (
-                    <tr
-                      key={h.hubId}
-                      className='text-[10px] hover:bg-muted/60'
-                    >
-                      <td className='py-1 px-1.5'>
-                        <div className='flex items-center gap-1.5'>
-                          {isSatellite ? (
-                            <IconTruck className='h-3.5 w-3.5 text-purple-600 dark:text-purple-400 shrink-0' />
-                          ) : (
-                            <IconBuildingWarehouse className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0' />
-                          )}
-                          <span className='font-semibold text-foreground'>
-                            {h.name}
-                          </span>
-                          {h.code && (
-                            <span
-                              className={`rounded border px-1 py-0 text-[10px] font-mono font-bold ${
-                                isSatellite
-                                  ? 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/60 dark:text-purple-300'
-                                  : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/60 dark:text-blue-300'
-                              }`}
-                            >
-                              {h.code}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className='py-1 px-1.5'>
-                        {renderHubLevelBadge(h.level, h.code, h.name)}
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono'>
-                        {h.inbound.tripCount} chuyến • {h.inbound.packageCount}{' '}
-                        kiện
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono'>
-                        <strong>{formatNumberVn(h.inbound.cbm, 1)} CBM</strong>{' '}
-                        • {formatNumberVn(h.inbound.weightTons, 2)} Tấn
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono'>
-                        {h.outbound.tripCount} chuyến •{' '}
-                        {h.outbound.packageCount} kiện
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono'>
-                        <strong>{formatNumberVn(h.outbound.cbm, 1)} CBM</strong>{' '}
-                        • {formatNumberVn(h.outbound.weightTons, 2)} Tấn
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono font-bold text-[#0F3D62] dark:text-blue-300'>
-                        {formatNumberVn(h.cbm, 1)} CBM
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono font-bold'>
-                        {formatNumberVn(h.weightTons, 2)} Tấn
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

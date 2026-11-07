@@ -180,7 +180,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await page.getByTestId('direction-all-btn').click();
 
     await page.getByTestId('tab-confirmed-trips').click();
-    await page.getByTestId('tab-hub-breakdown').click();
+    await expect(page.getByTestId('tab-hub-breakdown')).toHaveCount(0);
     await page.getByTestId('tab-daily-breakdown').click();
 
     await expect(
