@@ -9,7 +9,7 @@ export default function AdminCronjobsPage() {
   return (
     <PageContainer
       pageTitle='Quản Trị Cronjob'
-      pageDescription='Cấu hình lịch chạy ngầm hàng ngày, thực thi chạy lại một ngày cụ thể và theo dõi nhật ký vận hành Cronjob'
+      pageDescription='Danh mục tác vụ Cronjob hệ thống — Chọn một tác vụ để vào trang Chi tiết thực hiện chạy lại theo khoảng ngày, cấu hình lịch chạy và xem nhật ký'
     >
       <SuperAdminCronjobManager />
     </PageContainer>

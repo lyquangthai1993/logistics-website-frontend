@@ -139,6 +139,14 @@ export interface OperationalReportResponse {
 }
 
 function getDefaultMonthRange(): { fromDate: string; toDate: string } {
+  if (typeof window !== 'undefined') {
+    const sp = new URLSearchParams(window.location.search);
+    const qFrom = sp.get('fromDate') || '';
+    const qTo = sp.get('toDate') || '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(qFrom) && /^\d{4}-\d{2}-\d{2}$/.test(qTo)) {
+      return { fromDate: qFrom, toDate: qTo };
+    }
+  }
   const vnNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
   const iso = vnNow.toISOString();
   const year = Number(iso.slice(0, 4));
@@ -754,7 +762,7 @@ export function AdminReportHeaderAndKpis() {
                 </Button>
               </Link>
 
-              <Link href='/dashboard/admin/cronjobs'>
+              <Link href={`/dashboard/admin/cronjobs/DAILY_HUB_OPERATIONAL_REPORT?fromDate=${fromDate}&toDate=${toDate}`}>
                 <Button
                   type='button'
                   variant='outline'

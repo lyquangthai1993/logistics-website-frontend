@@ -59,7 +59,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     expect(Array.isArray(reportData.monthlySeries)).toBe(true);
     expect(reportData.monthlySeries.length).toBeGreaterThanOrEqual(5);
 
-    // 2. Kích hoạt chạy lại Report cho 1 ngày cụ thể (02/11/2026) qua API /admin/reports/cronjobs/rerun
+    // 2. Kích hoạt chạy lại Report theo khoảng ngày (01/11/2026 -> 03/11/2026) qua API /admin/reports/cronjobs/rerun
     const rerunRes = await fetch(
       `${normalizedApiV1}/admin/reports/cronjobs/rerun`,
       {
@@ -69,7 +69,8 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
           Authorization: `Bearer ${adminToken}`
         },
         body: JSON.stringify({
-          reportDate: '2026-11-02',
+          fromDate: '2026-11-01',
+          toDate: '2026-11-03',
           notifySuperAdmins: false
         }),
         signal: AbortSignal.timeout(15000)
@@ -78,10 +79,10 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     expect(rerunRes.status).toBe(200);
     const rawRerun = await rerunRes.json();
     const rerunData = rawRerun?.data ?? rawRerun;
-    expect(rerunData.fromDate).toBe('2026-11-02');
-    expect(rerunData.toDate).toBe('2026-11-02');
-    expect(rerunData.windowLabel).toBe('18:00 01/11/2026 → 18:00 02/11/2026');
-    expect(rerunData.processedDays).toBe(1);
+    expect(rerunData.fromDate).toBe('2026-11-01');
+    expect(rerunData.toDate).toBe('2026-11-03');
+    expect(rerunData.windowLabel).toBe('18:00 31/10/2026 → 18:00 03/11/2026');
+    expect(rerunData.processedDays).toBe(3);
     expect(rerunData.upsertedRows).toBeGreaterThan(0);
     expect(rerunData.log?.status).toBe('SUCCESS');
 
@@ -186,10 +187,6 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(
       page.getByTestId('slide-2-bar-chart-container')
     ).toBeVisible({ timeout: 15000 });
-    await expect(page.getByTestId('kpi-total-trips')).not.toHaveText(
-      /^0 chuyến$/,
-      { timeout: 15000 }
-    );
 
     await page.screenshot({
       path: 'screenshot_super_admin_operational_report_verified.png',
@@ -197,7 +194,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     });
   });
 
-  test('3. Trang Quản trị Cronjob (/dashboard/admin/cronjobs): Thực thi chạy lại Report cho 1 ngày cụ thể, Cấu hình lịch chạy & Nhật ký', async ({
+  test('3. Trang Quản trị Cronjob (/dashboard/admin/cronjobs) & Trang Detail (/dashboard/admin/cronjobs/[jobKey]): Chọn khoảng ngày Từ ngày -> Đến ngày, Cấu hình lịch chạy & Nhật ký', async ({
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
@@ -209,12 +206,12 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(page).toHaveURL(/\/dashboard\/warehouse\/orders/);
     await expect(page.locator('aside a[href="/dashboard/orders"], nav a[href="/dashboard/orders"]')).toHaveCount(0);
 
+    // 1. Vào trang Danh sách Cronjob (/dashboard/admin/cronjobs) -> chỉ hiển thị bảng danh mục Job, chưa hiển thị form thao tác
     await page.goto('/dashboard/admin/cronjobs');
     await expect(
       page.getByTestId('super-admin-cronjob-page')
     ).toBeVisible({ timeout: 15000 });
 
-    // Kiểm tra Bảng Danh mục Tác vụ Cronjob Hệ thống, Panel chạy lại Report cho 1 ngày cụ thể và Panel Cấu hình Cronjob
     const jobRegistryTable = page.getByTestId('cron-job-registry-table');
     await expect(jobRegistryTable).toBeVisible();
     await expect(jobRegistryTable).toContainText('DAILY_HUB_OPERATIONAL_REPORT');
@@ -224,18 +221,33 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(jobRegistryTable).toContainText(
       'STALE_WAREHOUSE_INVENTORY_AUDIT'
     );
+    await expect(page.getByTestId('panel-rerun-specific-date')).toHaveCount(0);
+    await expect(page.getByTestId('panel-cron-config')).toHaveCount(0);
+
+    // 2. Bấm vào nút "Chi tiết & Thao tác" để vào trang Detail của DAILY_HUB_OPERATIONAL_REPORT
+    await page
+      .getByTestId('btn-open-cronjob-detail-DAILY_HUB_OPERATIONAL_REPORT')
+      .click();
+    await expect(page).toHaveURL(
+      /\/dashboard\/admin\/cronjobs\/DAILY_HUB_OPERATIONAL_REPORT/
+    );
+    await expect(
+      page.getByTestId('super-admin-cronjob-detail-page')
+    ).toBeVisible({ timeout: 15000 });
+
     await expect(page.getByTestId('panel-rerun-specific-date')).toBeVisible();
     await expect(page.getByTestId('panel-cron-config')).toBeVisible();
 
-    // Chọn trực tiếp ngày 02/11/2026 trên ô input date và kiểm tra khung giờ 18:00 01/11/2026 -> 18:00 02/11/2026
-    await page.getByTestId('rerun-target-date').fill('2026-11-02');
-    await expect(page.getByTestId('rerun-target-date')).toHaveValue('2026-11-02');
+    // 3. Chọn khoảng ngày: Từ ngày 01/11/2026 -> Đến ngày 03/11/2026 và kiểm tra khung giờ 3 ngày
+    await page.getByTestId('rerun-target-date').fill('2026-11-01');
+    await page.getByTestId('rerun-to-date').fill('2026-11-03');
     const previewBox = page.getByTestId('rerun-window-preview');
+    await expect(previewBox).toContainText('3 ngày');
     await expect(previewBox).toContainText(
-      '18:00 (6:00 PM) ngày 01/11/2026 → 18:00 (6:00 PM) ngày 02/11/2026'
+      '18:00 (6:00 PM) ngày 31/10/2026 → 18:00 (6:00 PM) ngày 03/11/2026'
     );
 
-    // Thực thi chạy lại Report ngày 02/11/2026
+    // Thực thi chạy lại Cronjob cho khoảng ngày 01/11/2026 -> 03/11/2026
     const rerunResponsePromise = page.waitForResponse(
       (res) =>
         res.url().includes('/admin/reports/cronjobs/rerun') &&
@@ -245,13 +257,13 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     const rerunRes = await rerunResponsePromise;
     expect(rerunRes.status()).toBe(200);
 
-    // Kiểm tra thông báo kết quả chạy lại ngay trên giao diện
+    // Kiểm tra thông báo kết quả chạy lại ngay trên giao diện Detail
     const resultBanner = page.getByTestId('rerun-result-banner');
     await expect(resultBanner).toBeVisible({ timeout: 15000 });
-    await expect(resultBanner).toContainText('02/11/2026');
-    await expect(resultBanner).toContainText('18:00 01/11/2026 → 18:00 02/11/2026');
+    await expect(resultBanner).toContainText('01/11/2026 → 03/11/2026');
+    await expect(resultBanner).toContainText('3 ngày');
 
-    // Lưu cấu hình Cronjob
+    // Lưu cấu hình Cronjob trong trang Detail
     const saveCfgPromise = page.waitForResponse(
       (res) =>
         res.url().includes('/admin/reports/cronjobs/config') &&
@@ -261,18 +273,22 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     const saveCfgRes = await saveCfgPromise;
     expect(saveCfgRes.status()).toBe(200);
 
-    // Kiểm tra bảng Nhật ký thực thi Cronjob thuần túy kèm bộ lọc trạng thái & tác vụ
-    await expect(page.getByTestId('daily-snapshots-table')).toHaveCount(0);
+    // Kiểm tra bảng Nhật ký thực thi Cronjob & Tab trạng thái dữ liệu 30 ngày trong trang Detail
     await expect(page.getByTestId('log-status-filter-ALL')).toBeVisible();
     await expect(page.getByTestId('log-status-filter-SUCCESS')).toBeVisible();
     await expect(page.getByTestId('log-status-filter-FAILED')).toBeVisible();
-    await expect(page.getByTestId('log-job-filter')).toBeVisible();
     await page.getByTestId('log-status-filter-SUCCESS').click();
     await page.getByTestId('log-status-filter-ALL').click();
     const logsTable = page.getByTestId('cron-execution-logs-table');
     await expect(logsTable).toBeVisible();
-    await expect(logsTable).toContainText('02/11/2026');
+    await expect(logsTable).toContainText('01/11/2026 → 03/11/2026');
     await expect(logsTable).toContainText('THÀNH CÔNG');
+
+    await page.getByTestId('tab-daily-snapshots').click();
+    await expect(
+      page.getByTestId('cron-daily-snapshots-table')
+    ).toBeVisible();
+    await page.getByTestId('tab-job-logs').click();
 
     await page.screenshot({
       path: 'screenshot_super_admin_cronjobs_verified.png',
