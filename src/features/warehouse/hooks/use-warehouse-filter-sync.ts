@@ -8,7 +8,7 @@ import {
 } from '../components/warehouse-date-range-dropdown';
 
 export interface UseWarehouseBoardFilterSyncOptions {
-  defaultStatus?: 'ALL' | 'PENDING' | 'COMPLETED';
+  defaultStatus?: 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED';
 }
 
 export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyncOptions) {
@@ -57,8 +57,8 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
 
   const initialStatus = useMemo(() => {
     const s = getParam('status');
-    if (['ALL', 'PENDING', 'COMPLETED'].includes(s)) {
-      return s as 'ALL' | 'PENDING' | 'COMPLETED';
+    if (['ALL', 'PENDING', 'COMPLETED', 'DELETED'].includes(s)) {
+      return s as 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED';
     }
     return options?.defaultStatus ?? 'ALL';
   }, [getParam, options?.defaultStatus]);
@@ -78,7 +78,7 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
   const [toDate, setToDate] = useState(initialToDate);
   const [appliedFromDate, setAppliedFromDate] = useState(initialFromDate);
   const [appliedToDate, setAppliedToDate] = useState(initialToDate);
-  const [boardStatus, setBoardStatusState] = useState<'ALL' | 'PENDING' | 'COMPLETED'>(
+  const [boardStatus, setBoardStatusState] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED'>(
     initialStatus
   );
   const [hubId, setHubIdState] = useState<string>(initialHubId);
@@ -90,7 +90,7 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
       search?: string;
       fromDate?: string;
       toDate?: string;
-      status?: 'ALL' | 'PENDING' | 'COMPLETED';
+      status?: 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED';
       hubId?: string;
       page?: number;
     }) => {
@@ -214,7 +214,7 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
 
   // Status Tab change
   const setBoardStatus = useCallback(
-    (status: 'ALL' | 'PENDING' | 'COMPLETED') => {
+    (status: 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED') => {
       setBoardStatusState(status);
       setPageState(1);
       updateUrl({ status, page: 1 });
@@ -271,7 +271,7 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
     }
     if (
       urlStatus &&
-      ['ALL', 'PENDING', 'COMPLETED'].includes(urlStatus) &&
+      ['ALL', 'PENDING', 'COMPLETED', 'DELETED'].includes(urlStatus) &&
       urlStatus !== boardStatus
     ) {
       setBoardStatusState(urlStatus as any);

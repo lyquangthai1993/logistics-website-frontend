@@ -29,7 +29,8 @@ import {
   IconTruck,
   IconBuildingWarehouse,
   IconLoader2,
-  IconMapPin
+  IconMapPin,
+  IconCalculator
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,8 @@ import { PalletLabelA4Modal, PalletLabelData } from './pallet-label-a4-modal';
 import { WarehouseLookupModal, WarehouseLookupItem } from './warehouse-lookup-modal';
 import {
   availableOutboundStock,
+  availableOutboundWeight,
+  availableOutboundVolume,
   proportionalMetric
 } from '@/features/warehouse/lib/outbound-stock';
 import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
@@ -69,6 +72,9 @@ export interface WarehouseRowItem {
   quantityAllocated?: number;
   weightAllocated?: number;
   volumeAllocated?: number;
+  baseOrderQuantity?: number;
+  baseOrderWeight?: number;
+  baseOrderVolume?: number;
   totalWeight: number;
   totalVolume: number;
   deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
@@ -707,6 +713,9 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             return;
           }
 
+          const remWeight = availableOutboundWeight(foundOrder, availStock);
+          const remVolume = availableOutboundVolume(foundOrder, availStock);
+
           const updatedRow: WarehouseRowItem = {
             ...currentRow,
             id: foundOrder.id,
@@ -720,16 +729,11 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             quantityToExport: availStock,
             inboundQuantity: foundOrder.inboundQuantity,
             outboundQuantity: foundOrder.outboundQuantity,
-            totalWeight: proportionalMetric(
-              foundOrder.totalWeight,
-              availStock,
-              foundOrder.totalQuantity
-            ),
-            totalVolume: proportionalMetric(
-              foundOrder.totalVolume,
-              availStock,
-              foundOrder.totalQuantity
-            ),
+            baseOrderQuantity: availStock,
+            baseOrderWeight: remWeight,
+            baseOrderVolume: remVolume,
+            totalWeight: remWeight,
+            totalVolume: remVolume,
             pickupAddress:
               foundOrder.originHub || foundOrder.pickupAddress || currentRow.pickupAddress,
             deliveryAddress:
@@ -1139,12 +1143,46 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     setValue(initialValue);
   }, [initialValue]);
 
+  const availStock =
+    r.remainingQuantity !== undefined && r.remainingQuantity !== null
+      ? r.remainingQuantity
+      : undefined;
+
+  const baseQty =
+    Number(r.baseOrderQuantity ?? availStock ?? r.inboundQuantity ?? r.totalQuantity) || 1;
+  const baseWeight = Number(r.baseOrderWeight ?? r.totalWeight) || 0;
+  const baseVolume = Number(r.baseOrderVolume ?? r.totalVolume) || 0;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setValue(raw);
     const parsed = parseInt(raw, 10);
     if (!isNaN(parsed)) {
-      table.options.meta?.updateData(row.index, column.id, parsed);
+      if (isOutbound && availStock !== undefined && parsed === availStock) {
+        const calcWeight =
+          r.baseOrderWeight !== undefined && r.baseOrderWeight !== null
+            ? Number(r.baseOrderWeight)
+            : proportionalMetric(baseWeight, parsed, baseQty);
+        const calcVolume =
+          r.baseOrderVolume !== undefined && r.baseOrderVolume !== null
+            ? Number(r.baseOrderVolume)
+            : proportionalMetric(baseVolume, parsed, baseQty);
+        table.options.meta?.updateRow(row.index, {
+          ...r,
+          totalQuantity: parsed,
+          quantityToExport: parsed,
+          totalWeight: calcWeight,
+          totalVolume: calcVolume
+        });
+      } else if (isOutbound) {
+        table.options.meta?.updateRow(row.index, {
+          ...r,
+          totalQuantity: parsed,
+          quantityToExport: parsed
+        });
+      } else {
+        table.options.meta?.updateData(row.index, column.id, parsed);
+      }
     }
   };
 
@@ -1155,12 +1193,10 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     }
   };
 
-  const availStock =
-    r.remainingQuantity !== undefined && r.remainingQuantity !== null
-      ? r.remainingQuantity
-      : undefined;
-
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
+  const isPartialExport = Boolean(
+    isOutbound && availStock !== undefined && Number(value) > 0 && Number(value) < availStock
+  );
 
   const isRowInbound = isRowInboundLocked(
     r,
@@ -1170,28 +1206,70 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     table.options.meta?.isOutboundMode
   );
 
+  const handleApplyProportional = () => {
+    if (isRowInbound) return;
+    const currentQty = Math.max(1, Number(value) || 1);
+    const calcWeight = proportionalMetric(baseWeight, currentQty, baseQty);
+    const calcVolume = proportionalMetric(baseVolume, currentQty, baseQty);
+    table.options.meta?.updateRow(row.index, {
+      ...r,
+      totalQuantity: currentQty,
+      quantityToExport: currentQty,
+      totalWeight: calcWeight,
+      totalVolume: calcVolume
+    });
+    toast.success(
+      `Đã áp dụng công thức tam suất (${currentQty}/${baseQty} kiện): ${calcVolume} m³ • ${calcWeight} kg`
+    );
+  };
+
   return (
     <div className='space-y-0.5'>
-      <Input
-        type='number'
-        min={1}
-        max={isOutbound && availStock !== undefined ? availStock : undefined}
-        value={value}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        disabled={isRowInbound}
-        className={cn(
-          'h-7 px-1 text-[10px] text-right font-bold',
-          isExceeded
-            ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300'
-            : 'border-slate-300 dark:border-slate-700'
+      <div className='flex items-center gap-0.5'>
+        <Input
+          type='number'
+          min={1}
+          max={isOutbound && availStock !== undefined ? availStock : undefined}
+          value={value}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          disabled={isRowInbound}
+          data-testid={`input-quantity-${row.index}`}
+          className={cn(
+            'h-7 px-1 text-[10px] text-right font-bold flex-1 min-w-0',
+            isExceeded
+              ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-600 dark:text-red-300'
+              : 'border-slate-300 dark:border-slate-700'
+          )}
+        />
+        {isOutbound && (
+          <button
+            type='button'
+            data-testid={`btn-calc-proportional-${row.index}`}
+            data-active={isPartialExport ? 'true' : 'false'}
+            onClick={handleApplyProportional}
+            disabled={isRowInbound}
+            title={
+              isPartialExport
+                ? 'Số kiện xuất < tồn kho: Nhấn để áp dụng công thức tam suất tính m³ và kg'
+                : 'Tính tam suất m³ và kg theo số kiện xuất'
+            }
+            className={cn(
+              'h-7 w-6 shrink-0 inline-flex items-center justify-center rounded border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+              isPartialExport
+                ? 'bg-amber-500 text-white border-amber-600 shadow-xs hover:bg-amber-600 ring-2 ring-amber-400/60 dark:bg-amber-500 dark:text-slate-950 dark:border-amber-400'
+                : 'bg-slate-100 text-slate-400 border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+            )}
+          >
+            <IconCalculator className='h-3.5 w-3.5' />
+          </button>
         )}
-      />
+      </div>
       {isOutbound && availStock !== undefined && (
         <div
           className={cn(
             'text-[9px] text-right font-semibold leading-tight',
-            isExceeded ? 'text-red-600 font-bold' : 'text-slate-500'
+            isExceeded ? 'text-red-600 font-bold' : isPartialExport ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500'
           )}
         >
           {isExceeded ? `Vượt tồn!` : `Tồn: ${availStock}`}
@@ -1241,6 +1319,7 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
       onChange={handleChange}
       onBlur={handleBlur}
       disabled={isRowInbound}
+      data-testid={`input-weight-${row.index}`}
       className='h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700'
     />
   );
@@ -1286,6 +1365,7 @@ function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
       onChange={handleChange}
       onBlur={handleBlur}
       disabled={isRowInbound}
+      data-testid={`input-volume-${row.index}`}
       className='h-7 px-1 text-[10px] text-right font-bold border-slate-300 dark:border-slate-700'
     />
   );
@@ -1914,6 +1994,8 @@ export function WarehouseEditableGrid({
               const requestedQty = Number(rowItem.totalQuantity) || 0;
               const exportQty =
                 requestedQty > 0 && requestedQty <= availStock ? requestedQty : availStock;
+              const remWeight = availableOutboundWeight(found, availStock);
+              const remVolume = availableOutboundVolume(found, availStock);
               hydrated.push({
                 ...rowItem,
                 id: found.id,
@@ -1926,8 +2008,21 @@ export function WarehouseEditableGrid({
                 quantityToExport: exportQty,
                 inboundQuantity: found.inboundQuantity,
                 outboundQuantity: found.outboundQuantity,
-                totalWeight: proportionalMetric(found.totalWeight, exportQty, found.totalQuantity),
-                totalVolume: proportionalMetric(found.totalVolume, exportQty, found.totalQuantity),
+                baseOrderQuantity: availStock,
+                baseOrderWeight: remWeight,
+                baseOrderVolume: remVolume,
+                totalWeight:
+                  Number(rowItem.totalWeight) > 0 && exportQty < availStock
+                    ? Number(rowItem.totalWeight)
+                    : exportQty >= availStock
+                      ? remWeight
+                      : proportionalMetric(remWeight, exportQty, availStock),
+                totalVolume:
+                  Number(rowItem.totalVolume) > 0 && exportQty < availStock
+                    ? Number(rowItem.totalVolume)
+                    : exportQty >= availStock
+                      ? remVolume
+                      : proportionalMetric(remVolume, exportQty, availStock),
                 pickupAddress:
                   found.originHub || found.pickupAddress || rowItem.pickupAddress || '',
                 deliveryAddress:
@@ -2078,6 +2173,9 @@ export function WarehouseEditableGrid({
         ? 'HUB_L1'
         : order.deliveryMode || 'DIRECT_CUSTOMER';
 
+    const remWeight = availableOutboundWeight(order, availStock);
+    const remVolume = availableOutboundVolume(order, availStock);
+
     updated[lookupRowIndex] = {
       ...updated[lookupRowIndex],
       id: order.id,
@@ -2091,8 +2189,11 @@ export function WarehouseEditableGrid({
       outboundQuantity: order.outboundQuantity,
       remainingQuantity: availStock,
       quantityToExport: availStock,
-      totalWeight: proportionalMetric(order.totalWeight, availStock, order.totalQuantity),
-      totalVolume: proportionalMetric(order.totalVolume, availStock, order.totalQuantity),
+      baseOrderQuantity: availStock,
+      baseOrderWeight: remWeight,
+      baseOrderVolume: remVolume,
+      totalWeight: remWeight,
+      totalVolume: remVolume,
       pickupAddress: order.originHub || updated[lookupRowIndex].pickupAddress,
       deliveryAddress: order.destinationHub || order.deliveryAddress || '',
       originalDeliveryAddress: order.destinationHub || order.deliveryAddress || '',
@@ -2182,7 +2283,7 @@ export function WarehouseEditableGrid({
             SỐ KIỆN <span className='text-red-600 font-black'>*</span>
           </span>
         ),
-        size: 62,
+        size: isOutboundMode ? 84 : 62,
         cell: QuantityCell
       },
       {

@@ -66,6 +66,8 @@ import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { formatWeight, formatVolume } from '@/lib/format';
 import {
   availableOutboundStock,
+  availableOutboundWeight,
+  availableOutboundVolume,
   proportionalMetric
 } from '@/features/warehouse/lib/outbound-stock';
 
@@ -163,7 +165,8 @@ function WarehouseOutboundContent() {
   const [tripCounts, setTripCounts] = useState({
     allCount: 0,
     pendingCount: 0,
-    completedCount: 0
+    completedCount: 0,
+    deletedCount: 0
   });
 
   // Customer Mode 1 Form Fields
@@ -339,7 +342,8 @@ function WarehouseOutboundContent() {
         setTripCounts({
           allCount: m?.allCount ?? 0,
           pendingCount: m?.pendingCount ?? 0,
-          completedCount: m?.completedCount ?? 0
+          completedCount: m?.completedCount ?? 0,
+          deletedCount: m?.deletedCount ?? 0
         });
       })
       .catch((err) => {
@@ -543,6 +547,8 @@ function WarehouseOutboundContent() {
           const found = list.find((it) => it.orderCode?.trim().toUpperCase() === code);
           if (found) {
             const availStock = availableOutboundStock(found);
+            const remWeight = availableOutboundWeight(found, availStock);
+            const remVolume = availableOutboundVolume(found, availStock);
             const reqQty = Number(rowItem.totalQuantity) || availStock;
             validRows.push({
               ...rowItem,
@@ -552,8 +558,21 @@ function WarehouseOutboundContent() {
               remainingQuantity: availStock,
               totalQuantity: reqQty,
               quantityToExport: reqQty,
-              totalWeight: proportionalMetric(found.totalWeight, reqQty, found.totalQuantity),
-              totalVolume: proportionalMetric(found.totalVolume, reqQty, found.totalQuantity),
+              baseOrderQuantity: availStock,
+              baseOrderWeight: remWeight,
+              baseOrderVolume: remVolume,
+              totalWeight:
+                Number(rowItem.totalWeight) > 0 && reqQty < availStock
+                  ? Number(rowItem.totalWeight)
+                  : reqQty >= availStock
+                    ? remWeight
+                    : proportionalMetric(remWeight, reqQty, availStock),
+              totalVolume:
+                Number(rowItem.totalVolume) > 0 && reqQty < availStock
+                  ? Number(rowItem.totalVolume)
+                  : reqQty >= availStock
+                    ? remVolume
+                    : proportionalMetric(remVolume, reqQty, availStock),
               deliveryAddress:
                 rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || '',
               hasPendingInboundTrip: Boolean(found.hasPendingInboundTrip),
@@ -930,6 +949,18 @@ function WarehouseOutboundContent() {
       // Khi mở lại chuyến xe nháp để tiếp tục xuất, số tồn khả dụng cho dòng hàng này
       // phải bao gồm cả số kiện mà chính chuyến nháp này đang dự kiến xuất (tránh báo "Vượt tồn!")
       const effectiveAvailable = liveStock >= draftQty ? liveStock : liveStock + draftQty;
+      const draftWeight = Number(o.exportedWeight) || 0;
+      const draftVolume = Number(o.exportedVolume) || 0;
+      const liveWeight = availableOutboundWeight(o, liveStock);
+      const liveVolume = availableOutboundVolume(o, liveStock);
+      const effectiveBaseWeight =
+        liveStock >= draftQty
+          ? liveWeight
+          : Math.round((liveWeight + draftWeight) * 1000) / 1000;
+      const effectiveBaseVolume =
+        liveStock >= draftQty
+          ? liveVolume
+          : Math.round((liveVolume + draftVolume) * 1000) / 1000;
 
       return {
         id: o.id,
@@ -939,8 +970,11 @@ function WarehouseOutboundContent() {
         totalQuantity: draftQty,
         quantityToExport: draftQty,
         remainingQuantity: effectiveAvailable,
-        totalWeight: Number(o.exportedWeight) || 0,
-        totalVolume: Number(o.exportedVolume) || 0,
+        baseOrderQuantity: effectiveAvailable,
+        baseOrderWeight: effectiveBaseWeight,
+        baseOrderVolume: effectiveBaseVolume,
+        totalWeight: draftWeight,
+        totalVolume: draftVolume,
         deliveryMode: resolvedDeliveryMode,
         deliveryAddress: resolvedOutboundAddress,
         originalDeliveryAddress:
@@ -1001,18 +1035,27 @@ function WarehouseOutboundContent() {
     }
   };
 
+  const toVietnamYmd = (raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+    const trimmed = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+    }
+    return trimmed.split('T')[0] || undefined;
+  };
+
   const formatTripDate = (raw?: string) => {
     if (!raw) return '—';
-    const clean = String(raw).split('T')[0];
-    const parts = clean.split('-');
-    if (parts.length === 3 && parts[0].length === 4) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    const ymd = toVietnamYmd(raw);
+    if (ymd) {
+      const parts = ymd.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
     }
-    const d = new Date(raw);
-    if (!isNaN(d.getTime())) {
-      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-    }
-    return clean || '—';
+    return String(raw) || '—';
   };
 
   // Trip rows come pre-grouped from the backend (one row per SD trip dispatched from this hub)
@@ -1022,18 +1065,29 @@ function WarehouseOutboundContent() {
         const descs = Array.from(
           new Set((g.orders ?? []).map((x: any) => x.goodsDescription).filter(Boolean))
         ) as string[];
-        const rawDate =
-          g.dispatchDate ||
-          g.dispatchedAt ||
-          g.receiveDate ||
-          g.createdAt ||
-          g.orders?.[0]?.createdAt;
+        const isCompleted = (g.status ?? 'COMPLETED') === 'COMPLETED';
+        const rawDate = isCompleted
+          ? g.dispatchDate ||
+            g.confirmedAt ||
+            g.dispatchedAt ||
+            g.receiveDate ||
+            g.updatedAt ||
+            g.createdAt ||
+            g.orders?.[0]?.updatedAt ||
+            g.orders?.[0]?.createdAt
+          : g.dispatchDate ||
+            g.deletedAt ||
+            g.updatedAt ||
+            g.dispatchedAt ||
+            g.receiveDate ||
+            g.createdAt ||
+            g.orders?.[0]?.createdAt;
         return {
           groupKey: g.tripCode,
           licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'XE XUẤT KHO',
           driverName: g.driverName?.trim() || '',
           tripCode: g.tripCode,
-          receiveDate: rawDate ? String(rawDate).split('T')[0] : undefined,
+          receiveDate: toVietnamYmd(rawDate),
           // Status of the trip at this hub: origin stop is "Đã xử lý" once dispatched
           status: g.status ?? 'COMPLETED',
           isTransfer: !!g.isTransfer,
@@ -1052,7 +1106,13 @@ function WarehouseOutboundContent() {
           creator: g.creator || null,
           operator: g.operator || null,
           creatorName: g.creatorName || g.creator?.name || null,
-          operatorName: g.operatorName || g.operator?.name || null
+          operatorName: g.operatorName || g.operator?.name || null,
+          createdAt: g.createdAt || g.orders?.[0]?.createdAt || null,
+          updatedAt: g.updatedAt || g.dispatchedAt || null,
+          confirmedAt:
+            g.confirmedAt || (isCompleted ? g.dispatchedAt || g.updatedAt || null : null),
+          deletedAt: g.deletedAt || null,
+          invoiceCode: g.invoiceCode || null
         };
       }),
     [tripGroups]
@@ -1288,10 +1348,14 @@ function WarehouseOutboundContent() {
                       {[
                         { key: 'ALL', label: `Tất cả (${tripCounts.allCount ?? 0})` },
                         { key: 'PENDING', label: `Chờ xử lý (${tripCounts.pendingCount ?? 0})` },
-                        { key: 'COMPLETED', label: `Đã xử lý (${tripCounts.completedCount ?? 0})` }
+                        { key: 'COMPLETED', label: `Đã xử lý (${tripCounts.completedCount ?? 0})` },
+                        ...(isAdmin
+                          ? [{ key: 'DELETED', label: `Đã xóa (${tripCounts.deletedCount ?? 0})` }]
+                          : [])
                       ].map((tab) => (
                         <button
                           key={tab.key}
+                          data-testid={`outbound-status-tab-${tab.key}`}
                           onClick={() => setBoardStatus(tab.key as typeof boardStatus)}
                           className={`px-2 sm:px-2.5 py-1 rounded-md transition-all whitespace-nowrap text-[11px] sm:text-xs ${
                             boardStatus === tab.key
@@ -1372,6 +1436,14 @@ function WarehouseOutboundContent() {
                               <td className='py-1 px-2 w-[85px] whitespace-nowrap align-top text-[10px] font-medium text-slate-600 dark:text-slate-400'>
                                 <TripDateTooltip
                                   dateText={formatTripDate(grp.receiveDate)}
+                                  mode='OUTBOUND'
+                                  tripCode={grp.tripCode}
+                                  status={grp.status}
+                                  invoiceCode={grp.invoiceCode}
+                                  createdAt={grp.createdAt}
+                                  updatedAt={grp.updatedAt}
+                                  confirmedAt={grp.confirmedAt}
+                                  deletedAt={grp.deletedAt}
                                   creatorName={grp.creatorName}
                                   operatorName={grp.operatorName}
                                 />
@@ -1447,12 +1519,28 @@ function WarehouseOutboundContent() {
                               </td>
                               <td className='py-1 px-2 text-center'>
                                 <TripStopStatusBadge
-                                  status={isDispatched ? 'COMPLETED' : 'PENDING'}
+                                  status={
+                                    grp.status === 'DELETED'
+                                      ? 'DELETED'
+                                      : isDispatched
+                                        ? 'COMPLETED'
+                                        : 'PENDING'
+                                  }
                                 />
                               </td>
                               <td className='py-1 px-2 text-center'>
                                 <div className='flex items-center justify-center gap-1.5 flex-wrap'>
-                                  {isDraft ? (
+                                  {grp.status === 'DELETED' ? (
+                                    <Button
+                                      variant='outline'
+                                      size='sm'
+                                      onClick={() => handleOpenTripDetail(grp)}
+                                      className='h-7 text-[11px] text-rose-700 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-800 px-2 font-semibold'
+                                      title='Xem chi tiết chuyến xe đã bị hủy/xóa'
+                                    >
+                                      Xem chuyến đã xóa
+                                    </Button>
+                                  ) : isDraft ? (
                                     <>
                                       <Button
                                         variant='outline'
@@ -1566,6 +1654,14 @@ function WarehouseOutboundContent() {
                               )}
                               <TripDateTooltip
                                 dateText={`• ${formatTripDate(grp.receiveDate)}`}
+                                mode='OUTBOUND'
+                                tripCode={grp.tripCode}
+                                status={grp.status}
+                                invoiceCode={grp.invoiceCode}
+                                createdAt={grp.createdAt}
+                                updatedAt={grp.updatedAt}
+                                confirmedAt={grp.confirmedAt}
+                                deletedAt={grp.deletedAt}
                                 creatorName={grp.creatorName}
                                 operatorName={grp.operatorName}
                                 className='text-[10px] text-slate-400 dark:text-slate-500 font-medium'
