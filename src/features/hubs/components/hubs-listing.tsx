@@ -11,26 +11,49 @@ export default async function HubsListing() {
   const perPage = searchParamsCache.get('perPage') || 10;
   const search = searchParamsCache.get('name') || searchParamsCache.get('search');
   const status = searchParamsCache.get('status') || searchParamsCache.get('isActive');
+  const rawLevel = searchParamsCache.get('level');
   const sort = searchParamsCache.get('sort');
 
   let isActive: boolean | undefined = undefined;
-  if (status === 'active' || status === 'true' || status === 'ACTIVE') {
-    isActive = true;
-  } else if (status === 'inactive' || status === 'false' || status === 'INACTIVE') {
-    isActive = false;
+  const statusTokens = (status || '')
+    .toLowerCase()
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const hasActive = statusTokens.includes('active') || statusTokens.includes('true');
+  const hasInactive = statusTokens.includes('inactive') || statusTokens.includes('false');
+  const hasDeleted = statusTokens.includes('deleted');
+
+  if (!hasDeleted) {
+    if (hasActive && !hasInactive) {
+      isActive = true;
+    } else if (hasInactive && !hasActive) {
+      isActive = false;
+    }
   }
+  const normalizedStatus = statusTokens.length > 0 ? statusTokens.join(',') : undefined;
+
+  const levelTokens = (rawLevel || '')
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => n === 1 || n === 2);
+  const level: number | undefined = levelTokens.length === 1 ? levelTokens[0] : undefined;
 
   const filters: HubFilters = {
     page,
     limit: perPage,
     ...(search && { search }),
     ...(isActive !== undefined && { isActive }),
+    ...(normalizedStatus && { status: normalizedStatus }),
+    ...(level !== undefined && { level }),
     ...(sort && { sort })
   };
 
   const queryClient = getQueryClient();
   void queryClient.prefetchQuery(hubsQueryOptions(filters));
   void queryClient.prefetchQuery(hubsQueryOptions({ limit: 100 }));
+  void queryClient.prefetchQuery(hubsQueryOptions({ limit: 1, status: 'deleted' }));
+  void queryClient.prefetchQuery(hubsQueryOptions({ limit: 1, status: 'deleted' }));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

@@ -1,10 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -16,7 +13,7 @@ import {
   IconAlertTriangle,
   IconFileText,
   IconTrash,
-  IconBuildingWarehouse,
+  IconBuildingWarehouse
 } from '@tabler/icons-react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
@@ -25,7 +22,7 @@ import { WarehouseRowItem, HubOption } from './warehouse-editable-grid';
 import {
   isDispatchExcelWorkbook,
   inspectDispatchWorkbook,
-  parseDispatchSheet,
+  parseDispatchSheet
 } from '../lib/dispatch-excel-converter';
 
 interface WarehouseExcelImportModalProps {
@@ -48,7 +45,7 @@ export function WarehouseExcelImportModal({
   onImport,
   currentHubName = '',
   level1Hubs = [],
-  level2XeBoHubs = [],
+  level2XeBoHubs = []
 }: WarehouseExcelImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<ParsedPreviewRow[]>([]);
@@ -80,7 +77,7 @@ export function WarehouseExcelImportModal({
         'Địa chỉ giao (*)',
         'Tỉnh / TP',
         'Chứng từ',
-        'Ghi chú',
+        'Ghi chú'
       ];
 
       // Provide clean empty rows ready for user/customer to fill in directly
@@ -89,14 +86,14 @@ export function WarehouseExcelImportModal({
         [2, '', '', '', 1, '', '', '', '', '', ''],
         [3, '', '', '', 1, '', '', '', '', '', ''],
         [4, '', '', '', 1, '', '', '', '', '', ''],
-        [5, '', '', '', 1, '', '', '', '', '', ''],
+        [5, '', '', '', 1, '', '', '', '', '', '']
       ];
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...emptyRows]);
 
       // Set column widths matching table visual layout
       ws['!cols'] = [
-        { wch: 6 },  // STT
+        { wch: 6 }, // STT
         { wch: 18 }, // Mã vận đơn (*)
         { wch: 32 }, // Địa chỉ nhận (*)
         { wch: 25 }, // Tên hàng (*)
@@ -106,7 +103,7 @@ export function WarehouseExcelImportModal({
         { wch: 42 }, // Địa chỉ giao (*)
         { wch: 18 }, // Tỉnh / TP
         { wch: 18 }, // Chứng từ
-        { wch: 30 }, // Ghi chú
+        { wch: 30 } // Ghi chú
       ];
 
       const wb = XLSX.utils.book_new();
@@ -146,7 +143,7 @@ export function WarehouseExcelImportModal({
           accompanyingDocs: r.accompanyingDocs,
           notes: r.notes,
           isValid: true,
-          errors: [],
+          errors: []
         }));
         setParsedRows(convertedRows);
         toast.success(
@@ -176,7 +173,7 @@ export function WarehouseExcelImportModal({
         const keys = Object.keys(row);
         const findVal = (patterns: string[]) => {
           const matchKey = keys.find((k) =>
-            patterns.some((p) => k.toLowerCase().includes(p.toLowerCase())),
+            patterns.some((p) => k.toLowerCase().includes(p.toLowerCase()))
           );
           return matchKey ? row[matchKey] : '';
         };
@@ -190,13 +187,13 @@ export function WarehouseExcelImportModal({
           'tracking number',
           'tracking',
           'waybill',
-          'code',
+          'code'
         ]);
-        const parsedCode = String(orderCodeRaw || '').trim().toUpperCase();
+        const parsedCode = String(orderCodeRaw || '')
+          .trim()
+          .toUpperCase();
         const orderCode =
-          parsedCode === '(TỰ SINH KHI LƯU)' || parsedCode.startsWith('(TỰ SINH')
-            ? ''
-            : parsedCode;
+          parsedCode === '(TỰ SINH KHI LƯU)' || parsedCode.startsWith('(TỰ SINH') ? '' : parsedCode;
 
         const pickupAddress =
           findVal(['địa chỉ nhận', 'nguồn gửi', 'nơi nhận', 'pickup', 'origin']) ||
@@ -213,7 +210,14 @@ export function WarehouseExcelImportModal({
         const province =
           findVal(['tỉnh/tp', 'tỉnh / tp', 'tỉnh', 'thành phố', 'province', 'city']) || '';
         const accompanyingDocs =
-          findVal(['chứng từ đi kèm', 'chứng từ', 'bct', 'accompanying docs', 'documents', 'kèm theo']) || '';
+          findVal([
+            'chứng từ đi kèm',
+            'chứng từ',
+            'bct',
+            'accompanying docs',
+            'documents',
+            'kèm theo'
+          ]) || '';
         const notes = findVal(['ghi chú', 'note', 'notes', 'remark']) || '';
 
         // Skip completely blank rows in Excel or placeholder rows that don't have orderCode, goodsDescription, and deliveryAddress
@@ -261,7 +265,7 @@ export function WarehouseExcelImportModal({
           accompanyingDocs: String(accompanyingDocs).trim(),
           notes: String(notes).trim(),
           isValid: errors.length === 0,
-          errors,
+          errors
         });
       }
 
@@ -295,30 +299,33 @@ export function WarehouseExcelImportModal({
   };
 
   // ── Dropzone Handlers ──
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    const selected = acceptedFiles[0];
-    setFile(selected);
-    setIsProcessing(true);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
+      const selected = acceptedFiles[0];
+      setFile(selected);
+      setIsProcessing(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const buffer = e.target?.result as ArrayBuffer;
-      if (buffer) {
-        parseExcelBuffer(buffer);
-      }
-    };
-    reader.readAsArrayBuffer(selected);
-  }, [currentHubName, level1Hubs, level2XeBoHubs]);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const buffer = e.target?.result as ArrayBuffer;
+        if (buffer) {
+          parseExcelBuffer(buffer);
+        }
+      };
+      reader.readAsArrayBuffer(selected);
+    },
+    [currentHubName, level1Hubs, level2XeBoHubs]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
-      'text/csv': ['.csv'],
+      'text/csv': ['.csv']
     },
-    maxFiles: 1,
+    maxFiles: 1
   });
 
   const validCount = parsedRows.filter((r) => r.isValid).length;
@@ -344,7 +351,7 @@ export function WarehouseExcelImportModal({
     toast.success(
       importMode === 'REPLACE'
         ? `Đã thay thế bảng kê bằng ${cleanRows.length} dòng hàng từ Excel!`
-        : `Đã thêm ${cleanRows.length} dòng hàng từ Excel vào bảng kê!`,
+        : `Đã thêm ${cleanRows.length} dòng hàng từ Excel vào bảng kê!`
     );
     handleClose();
   };
@@ -353,46 +360,46 @@ export function WarehouseExcelImportModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-[95vw] sm:max-w-4xl max-w-4xl p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl"
+        className='w-[95vw] sm:max-w-4xl max-w-4xl p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl'
       >
         {/* ── Navy Header (#0F3D62) ── */}
-        <div className="bg-[#0F3D62] text-white p-5 border-b border-blue-900/40 flex items-center justify-between gap-4">
-          <div className="flex-1 min-w-0 pr-2">
-            <div className="flex items-center gap-2 text-blue-200 text-xs font-semibold mb-1">
-              <IconFileSpreadsheet className="h-4 w-4 text-emerald-400" />
+        <div className='bg-[#0F3D62] text-white p-5 border-b border-blue-900/40 flex items-center justify-between gap-4'>
+          <div className='flex-1 min-w-0 pr-2'>
+            <div className='flex items-center gap-2 text-blue-200 text-xs font-semibold mb-1'>
+              <IconFileSpreadsheet className='h-4 w-4 text-emerald-400' />
               <span>Tiếp nhận hàng loạt qua bảng tính</span>
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            <h2 className='text-xl font-bold tracking-tight text-white flex items-center gap-2'>
               <span>Nhập Danh Sách Hàng Hóa Từ File Excel</span>
             </h2>
-            <p className="text-xs text-blue-100/80 mt-0.5">
+            <p className='text-xs text-blue-100/80 mt-0.5'>
               Tải file mẫu, điền danh sách kiện hàng và tải lên để tự động đưa vào bảng kê nhập kho.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className='flex items-center gap-2.5 shrink-0'>
             <Button
-              type="button"
-              variant="outline"
-              size="sm"
+              type='button'
+              variant='outline'
+              size='sm'
               onClick={handleDownloadTemplate}
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold shadow-xs h-9 cursor-pointer"
+              className='bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold shadow-xs h-9 cursor-pointer'
             >
-              <IconDownload className="mr-1.5 h-4 w-4 text-emerald-300" /> Tải file mẫu Excel
+              <IconDownload className='mr-1.5 h-4 w-4 text-emerald-300' /> Tải file mẫu Excel
             </Button>
             <button
-              type="button"
+              type='button'
               onClick={handleClose}
-              className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors cursor-pointer"
-              title="Đóng modal"
+              className='text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors cursor-pointer'
+              title='Đóng modal'
             >
-              <IconX className="w-5 h-5 text-white" />
+              <IconX className='w-5 h-5 text-white' />
             </button>
           </div>
         </div>
 
         {/* ── Modal Body ── */}
-        <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+        <div className='p-6 space-y-5 max-h-[72vh] overflow-y-auto'>
           {/* Upload Zone */}
           {!file ? (
             <div
@@ -404,48 +411,54 @@ export function WarehouseExcelImportModal({
               }`}
             >
               <input {...getInputProps()} />
-              <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 shadow-inner">
-                <IconUpload className="h-6 w-6" />
+              <div className='w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 shadow-inner'>
+                <IconUpload className='h-6 w-6' />
               </div>
-              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              <p className='text-sm font-bold text-slate-800 dark:text-slate-200'>
                 {isDragActive
                   ? 'Thả file Excel vào đây...'
                   : 'Kéo thả file Excel vào đây hoặc click để chọn file'}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB) &bull; Các cột: Tên hàng (*), Số kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Tỉnh/TP, Ghi chú
+              <p className='text-xs text-slate-500 dark:text-slate-400 mt-1.5'>
+                Hỗ trợ định dạng .xlsx, .xls, .csv (Tối đa 10MB) &bull; Các cột: Tên hàng (*), Số
+                kiện (*), Số kg, Số m³, Địa chỉ giao hàng (*), Tỉnh/TP, Ghi chú
               </p>
             </div>
           ) : (
-            <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 rounded-lg">
-                  <IconFileSpreadsheet className="h-6 w-6" />
+            <div className='bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs'>
+              <div className='flex items-center gap-3'>
+                <div className='p-2 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 rounded-lg'>
+                  <IconFileSpreadsheet className='h-6 w-6' />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900 dark:text-white">{file.name}</p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className='font-bold text-slate-900 dark:text-white'>{file.name}</p>
+                  <p className='text-[11px] text-slate-500'>
                     {(file.size / 1024).toFixed(1)} KB &bull; Đã đọc {parsedRows.length} dòng
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className='flex items-center gap-2'>
                 <div {...getRootProps()}>
                   <input {...getInputProps()} />
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='h-8 text-xs font-semibold'
+                  >
                     Đổi file khác
                   </Button>
                 </div>
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
+                  type='button'
+                  variant='ghost'
+                  size='sm'
                   onClick={resetState}
-                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                  title="Xóa file"
+                  className='h-8 w-8 p-0 text-red-500 hover:bg-red-50'
+                  title='Xóa file'
                 >
-                  <IconTrash className="h-4 w-4" />
+                  <IconTrash className='h-4 w-4' />
                 </Button>
               </div>
             </div>
@@ -453,54 +466,54 @@ export function WarehouseExcelImportModal({
 
           {/* Step 3: Parsed Preview Table */}
           {parsedRows.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+            <div className='space-y-3'>
+              <div className='flex flex-wrap items-center justify-between gap-2'>
+                <div className='flex items-center gap-2'>
+                  <span className='text-xs font-bold text-slate-900 dark:text-white'>
                     Xem trước kết quả ({parsedRows.length} dòng):
                   </span>
-                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 font-bold text-[10px]">
+                  <Badge className='bg-emerald-50 text-emerald-700 border-emerald-300 font-bold text-[10px]'>
                     {validCount} hợp lệ
                   </Badge>
                   {invalidCount > 0 && (
-                    <Badge className="bg-rose-50 text-rose-700 border-rose-300 font-bold text-[10px]">
+                    <Badge className='bg-rose-50 text-rose-700 border-rose-300 font-bold text-[10px]'>
                       {invalidCount} lỗi
                     </Badge>
                   )}
                 </div>
 
                 {/* Import Mode Selector */}
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-gray-500 font-medium">Chế độ đưa vào:</span>
+                <div className='flex items-center gap-1.5 text-xs'>
+                  <span className='text-gray-500 font-medium'>Chế độ đưa vào:</span>
                   <select
                     value={importMode}
                     onChange={(e) => setImportMode(e.target.value as any)}
-                    className="h-7 text-xs font-bold text-[#0F3D62] bg-slate-100 dark:bg-slate-800 border rounded-md px-2 focus:outline-none"
+                    className='h-7 text-xs font-bold text-[#0F3D62] bg-slate-100 dark:bg-slate-800 border rounded-md px-2 focus:outline-none'
                   >
-                    <option value="APPEND">Thêm tiếp vào bảng kê (+ {validCount} dòng)</option>
-                    <option value="REPLACE">Thay thế toàn bộ bảng kê</option>
+                    <option value='APPEND'>Thêm tiếp vào bảng kê (+ {validCount} dòng)</option>
+                    <option value='REPLACE'>Thay thế toàn bộ bảng kê</option>
                   </select>
                 </div>
               </div>
 
               {/* Table Container */}
-              <div className="border rounded-xl overflow-x-auto border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs max-h-64">
-                <table className="w-full min-w-[650px] text-xs text-left">
-                  <thead className="bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10">
+              <div className='border rounded-xl overflow-x-auto border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs max-h-64'>
+                <table className='w-full min-w-[650px] text-xs text-left'>
+                  <thead className='bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10'>
                     <tr>
-                      <th className="p-2.5 w-[45px] text-center">STT</th>
-                      <th className="p-2.5 w-35">MÃ VẬN ĐƠN</th>
-                      <th className="p-2.5 min-w-45">TÊN HÀNG</th>
-                      <th className="p-2.5 text-center w-[85px]">SỐ KIỆN</th>
-                      <th className="p-2.5 text-right w-[95px]">SỐ KG</th>
-                      <th className="p-2.5 text-right w-[85px]">SỐ M³</th>
-                      <th className="p-2.5 min-w-50">ĐỊA CHỈ GIAO</th>
-                      <th className="p-2.5 min-w-30">TỈNH/TP</th>
-                      <th className="p-2.5 min-w-27.5 text-center">CHỨNG TỪ</th>
-                      <th className="p-2.5 text-center w-22.5">TRẠNG THÁI</th>
+                      <th className='p-2.5 w-[45px] text-center'>STT</th>
+                      <th className='p-2.5 w-35'>MÃ VẬN ĐƠN</th>
+                      <th className='p-2.5 min-w-45'>TÊN HÀNG</th>
+                      <th className='p-2.5 text-center w-[85px]'>SỐ KIỆN</th>
+                      <th className='p-2.5 text-right w-[95px]'>SỐ KG</th>
+                      <th className='p-2.5 text-right w-[85px]'>SỐ M³</th>
+                      <th className='p-2.5 min-w-50'>ĐỊA CHỈ GIAO</th>
+                      <th className='p-2.5 min-w-30'>TỈNH/TP</th>
+                      <th className='p-2.5 min-w-27.5 text-center'>CHỨNG TỪ</th>
+                      <th className='p-2.5 text-center w-22.5'>TRẠNG THÁI</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  <tbody className='divide-y divide-slate-100 dark:divide-slate-800 font-medium'>
                     {parsedRows.map((r, idx) => (
                       <tr
                         key={idx}
@@ -510,56 +523,67 @@ export function WarehouseExcelImportModal({
                             : 'bg-rose-50/50 dark:bg-rose-950/30'
                         }
                       >
-                        <td className="p-2.5 text-center font-mono font-bold text-gray-500">
+                        <td className='p-2.5 text-center font-mono font-bold text-gray-500'>
                           {(idx + 1).toString().padStart(2, '0')}
                         </td>
-                        <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                        <td className='p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400'>
                           {r.orderCode ? (
                             <span>{r.orderCode}</span>
                           ) : (
-                            <span className="text-gray-400 font-normal italic">(Tự sinh)</span>
+                            <span className='text-gray-400 font-normal italic'>(Tự sinh)</span>
                           )}
                         </td>
-                        <td className="p-2.5 font-semibold text-slate-900 dark:text-white">
-                          <div>{r.goodsDescription || <span className="text-red-500 italic">Chưa nhập</span>}</div>
-                          {r.notes && <p className="text-[10px] text-gray-400 font-normal">{r.notes}</p>}
+                        <td className='p-2.5 font-semibold text-slate-900 dark:text-white'>
+                          <div>
+                            {r.goodsDescription || (
+                              <span className='text-red-500 italic'>Chưa nhập</span>
+                            )}
+                          </div>
+                          {r.notes && (
+                            <p className='text-[10px] text-gray-400 font-normal'>{r.notes}</p>
+                          )}
                         </td>
-                        <td className="p-2.5 text-center font-bold text-blue-600 dark:text-blue-400">
+                        <td className='p-2.5 text-center font-bold text-blue-600 dark:text-blue-400'>
                           {r.totalQuantity}
                         </td>
-                        <td className="p-2.5 text-right font-bold text-slate-800 dark:text-slate-200">
+                        <td className='p-2.5 text-right font-bold text-slate-800 dark:text-slate-200'>
                           {r.totalWeight.toLocaleString('vi-VN')}
                         </td>
-                        <td className="p-2.5 text-right font-bold text-slate-800 dark:text-slate-200">
+                        <td className='p-2.5 text-right font-bold text-slate-800 dark:text-slate-200'>
                           {r.totalVolume}
                         </td>
-                        <td className="p-2.5 text-slate-700 dark:text-slate-300">
-                          <span className="truncate block max-w-55" title={r.deliveryAddress}>
-                            {r.deliveryAddress || <span className="text-red-500 italic">Chưa nhập</span>}
+                        <td className='p-2.5 text-slate-700 dark:text-slate-300'>
+                          <span className='truncate block max-w-55' title={r.deliveryAddress}>
+                            {r.deliveryAddress || (
+                              <span className='text-red-500 italic'>Chưa nhập</span>
+                            )}
                           </span>
                         </td>
-                        <td className="p-2.5 text-slate-700 dark:text-slate-300">
-                          <span className="truncate block max-w-32.5" title={r.province}>
-                            {r.province || <span className="text-gray-400">—</span>}
+                        <td className='p-2.5 text-slate-700 dark:text-slate-300'>
+                          <span className='truncate block max-w-32.5' title={r.province}>
+                            {r.province || <span className='text-gray-400'>—</span>}
                           </span>
                         </td>
-                        <td className="p-2.5 text-center">
+                        <td className='p-2.5 text-center'>
                           {r.accompanyingDocs ? (
-                            <Badge variant="outline" className="text-[10px] font-semibold bg-blue-50 text-blue-700 border-blue-200">
+                            <Badge
+                              variant='outline'
+                              className='text-[10px] font-semibold bg-blue-50 text-blue-700 border-blue-200'
+                            >
                               {r.accompanyingDocs}
                             </Badge>
                           ) : (
-                            <span className="text-gray-400 text-[10px]">—</span>
+                            <span className='text-gray-400 text-[10px]'>—</span>
                           )}
                         </td>
-                        <td className="p-2.5 text-center">
+                        <td className='p-2.5 text-center'>
                           {r.isValid ? (
-                            <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-1.5 py-0.5">
+                            <Badge className='bg-emerald-500 text-white font-bold text-[10px] px-1.5 py-0.5'>
                               Hợp lệ
                             </Badge>
                           ) : (
                             <Badge
-                              className="bg-rose-500 text-white font-bold text-[10px] px-1.5 py-0.5 cursor-help"
+                              className='bg-rose-500 text-white font-bold text-[10px] px-1.5 py-0.5 cursor-help'
                               title={r.errors.join(', ')}
                             >
                               Lỗi
@@ -571,33 +595,34 @@ export function WarehouseExcelImportModal({
                   </tbody>
                 </table>
               </div>
-              <p className="text-[11px] text-blue-700 dark:text-blue-400 italic">
-                * Hình thức giao (Giao thẳng / Hub Cấp 1 / Tuyến Xe bo) và Hub nhận đích sẽ được chỉnh sửa và chọn lại trực tiếp trên bảng kê nhập kho.
+              <p className='text-[11px] text-blue-700 dark:text-blue-400 italic'>
+                * Hình thức giao (Giao thẳng / Cấp 1 • Hub Chính / Cấp 2 • Trạm Xe Bo) và Hub nhận
+                đích sẽ được chỉnh sửa và chọn lại trực tiếp trên bảng kê nhập kho.
               </p>
             </div>
           )}
         </div>
 
         {/* ── Footer Actions ── */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+        <div className='p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5'>
           <Button
-            type="button"
-            variant="outline"
-            size="sm"
+            type='button'
+            variant='outline'
+            size='sm'
             onClick={handleClose}
-            className="text-xs font-semibold h-9"
+            className='text-xs font-semibold h-9'
           >
             Đóng
           </Button>
 
-          <div className="flex items-center gap-2">
+          <div className='flex items-center gap-2'>
             <Button
-              type="button"
+              type='button'
               disabled={validCount === 0}
               onClick={handleConfirmImport}
-              className="bg-[#0F3D62] hover:bg-[#0c314f] text-white text-xs font-bold shadow-md h-9 px-5"
+              className='bg-[#0F3D62] hover:bg-[#0c314f] text-white text-xs font-bold shadow-md h-9 px-5'
             >
-              <IconCheck className="h-4 w-4 mr-1.5 text-emerald-400" />
+              <IconCheck className='h-4 w-4 mr-1.5 text-emerald-400' />
               Đưa {validCount} dòng vào bảng kê
             </Button>
           </div>

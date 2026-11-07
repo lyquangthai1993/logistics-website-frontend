@@ -65,6 +65,11 @@ const baseConfig: NextConfig = {
         source: '/dashboard/overview',
         destination: '/dashboard/warehouse/inbound',
         permanent: false
+      },
+      {
+        source: '/dashboard/orders',
+        destination: '/dashboard/warehouse/orders',
+        permanent: false
       }
     ];
   }

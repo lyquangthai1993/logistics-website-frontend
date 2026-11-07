@@ -48,6 +48,9 @@ export interface OutboundReceiptData {
   licensePlate?: string;
   mode?: 'CUSTOMER' | 'TRANSFER';
   dispatchDate?: string | Date;
+  updatedAt?: string | Date;
+  outboundDate?: string | Date;
+  dispatchedAt?: string | Date;
   notes?: string;
   accompanyingDocs?: string;
   tripCode?: string;
@@ -93,9 +96,23 @@ export function WarehouseOutboundReceiptModal({
   // "Xuất tại kho" is the dispatching warehouse: the origin hub recorded on receipt data first,
   // falling back to the viewer's hub if missing.
   const currentHubName = (data.originHub || user?.hub?.name || '—').toUpperCase();
-  const formattedDate = data.dispatchDate
-    ? new Date(data.dispatchDate).toLocaleDateString('vi-VN')
-    : new Date().toLocaleDateString('vi-VN');
+  const formatReceiptDate = (raw?: string | Date) => {
+    if (!raw) return new Date().toLocaleDateString('vi-VN');
+    if (typeof raw === 'string') {
+      const clean = raw.split('T')[0];
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    const d = new Date(raw);
+    return !isNaN(d.getTime())
+      ? d.toLocaleDateString('vi-VN')
+      : new Date().toLocaleDateString('vi-VN');
+  };
+  const formattedDate = formatReceiptDate(
+    data.updatedAt || data.dispatchedAt || data.outboundDate || data.dispatchDate
+  );
   const qty = data.outboundQuantity ?? data.totalQuantity ?? 1;
   const isTransfer = data.mode === 'TRANSFER';
   const unit = data.unit || 'Kiện';

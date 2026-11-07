@@ -30,6 +30,7 @@ import {
   WarehouseWaybillDetailModal,
   WaybillDetailData
 } from '@/features/warehouse/components/warehouse-waybill-detail-modal';
+import { WarehouseHubFilterSelect } from '@/features/warehouse/components/warehouse-hub-filter-select';
 import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
@@ -69,6 +70,30 @@ export default function WarehouseOrdersPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [hubId, setHubId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const h = new URLSearchParams(window.location.search).get('hubId');
+      if (h && /^\d+$/.test(h) && Number(h) > 0) return h;
+    }
+    return 'ALL';
+  });
+
+  const handleHubIdChange = useCallback((newHubId: string) => {
+    const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
+    setHubId(normalized);
+    setPage(1);
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      if (normalized !== 'ALL') {
+        sp.set('hubId', normalized);
+      } else {
+        sp.delete('hubId');
+      }
+      const qs = sp.toString();
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, []);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [data, setData] = useState<any[]>([]);
@@ -168,7 +193,8 @@ export default function WarehouseOrdersPage() {
         isExport: 'true',
         limit: '5000',
         ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
-        ...(effectiveSearch ? { search: effectiveSearch } : {})
+        ...(effectiveSearch ? { search: effectiveSearch } : {}),
+        ...(hubId && hubId !== 'ALL' ? { hubId } : {})
       });
 
       const res = await fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -237,7 +263,12 @@ export default function WarehouseOrdersPage() {
             '—';
 
           const inboundDateStr =
-            item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
+            item.inboundDate ||
+            order.inboundDate ||
+            item.updatedAt ||
+            order.updatedAt ||
+            item.createdAt ||
+            order.createdAt;
           const destHubStr =
             item.originalDestination ||
             order.originalDestination ||
@@ -427,6 +458,232 @@ export default function WarehouseOrdersPage() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, tabConfig.sheetName);
 
+      // ── Sheet 2 & Sheet 3: Thống kê theo ngày (Tương ứng Slide 2 & Slide 3 Báo cáo KPI) ──
+      type DailyBucket = {
+        dateLabel: string;
+        sortKey: string;
+        dayOfMonth: string;
+        monthLabel: string;
+        orderCodes: Set<string>;
+        totalPackages: number;
+        totalWeightKg: number;
+        totalVolumeCbm: number;
+      };
+      const dailyMap = new Map<string, DailyBucket>();
+
+      const parseDdMmYyyy = (rawDateCell: string) => {
+        const clean = String(rawDateCell || '').trim();
+        const m = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) {
+          const dd = m[1].padStart(2, '0');
+          const mm = m[2].padStart(2, '0');
+          const yyyy = m[3];
+          return {
+            dateLabel: `${dd}/${mm}/${yyyy}`,
+            sortKey: `${yyyy}-${mm}-${dd}`,
+            dayOfMonth: `Ngày ${dd}/${mm}`,
+            monthLabel: `Tháng ${mm}/${yyyy}`
+          };
+        }
+        return {
+          dateLabel: clean || 'Chưa xác định',
+          sortKey: '9999-99-99',
+          dayOfMonth: clean || '—',
+          monthLabel: 'Khác'
+        };
+      };
+
+      for (const r of rows) {
+        const orderCodeCell = String(r[1] || '');
+        const inboundDateCell = String(r[2] || '');
+        const outboundDateCell = String(r[12] || '');
+        const effectiveDateCell =
+          statusFilter === 'COMPLETED_INBOUND' && outboundDateCell
+            ? outboundDateCell
+            : inboundDateCell || outboundDateCell;
+        const parsedDate = parseDdMmYyyy(effectiveDateCell);
+        const key = parsedDate.sortKey + '|' + parsedDate.dateLabel;
+        let bucket = dailyMap.get(key);
+        if (!bucket) {
+          bucket = {
+            dateLabel: parsedDate.dateLabel,
+            sortKey: parsedDate.sortKey,
+            dayOfMonth: parsedDate.dayOfMonth,
+            monthLabel: parsedDate.monthLabel,
+            orderCodes: new Set<string>(),
+            totalPackages: 0,
+            totalWeightKg: 0,
+            totalVolumeCbm: 0
+          };
+          dailyMap.set(key, bucket);
+        }
+        if (orderCodeCell) {
+          bucket.orderCodes.add(orderCodeCell);
+        }
+        bucket.totalPackages += Number(r[6]) || 0;
+        bucket.totalWeightKg += Number(r[7]) || 0;
+        bucket.totalVolumeCbm += Number(r[8]) || 0;
+      }
+
+      const sortedDaily = Array.from(dailyMap.values()).sort((a, b) =>
+        a.sortKey.localeCompare(b.sortKey)
+      );
+
+      const totalDailyOrders = sortedDaily.reduce((s, d) => s + d.orderCodes.size, 0);
+      const totalDailyPackages = sortedDaily.reduce((s, d) => s + d.totalPackages, 0);
+      const totalDailyCbm =
+        Math.round(sortedDaily.reduce((s, d) => s + d.totalVolumeCbm, 0) * 100) / 100;
+      const totalDailyKg =
+        Math.round(sortedDaily.reduce((s, d) => s + d.totalWeightKg, 0) * 100) / 100;
+      const totalDailyTons = Math.round((totalDailyKg / 1000) * 1000) / 1000;
+      const daysCount = sortedDaily.length || 1;
+      const avgDailyCbm = Math.round((totalDailyCbm / daysCount) * 100) / 100;
+      const avgDailyKg = Math.round((totalDailyKg / daysCount) * 100) / 100;
+
+      // Sheet 2: Slide 2 - Thống kê Sản lượng CBM theo ngày
+      const slide2Rows: any[][] = sortedDaily.map((d, idx) => [
+        idx + 1,
+        d.dateLabel,
+        d.dayOfMonth,
+        d.orderCodes.size,
+        d.totalPackages,
+        Math.round(d.totalVolumeCbm * 100) / 100,
+        Math.round(d.totalWeightKg * 100) / 100
+      ]);
+
+      const wsSlide2Data: any[][] = [
+        [
+          'STT',
+          'NGÀY CẬP NHẬT',
+          'NGÀY TRONG THÁNG',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SẢN LƯỢNG CBM (M³)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide2Rows,
+        [
+          '',
+          'TỔNG SẢN LƯỢNG (CBM)',
+          `${sortedDaily.length} ngày`,
+          totalDailyOrders,
+          totalDailyPackages,
+          totalDailyCbm,
+          totalDailyKg
+        ],
+        ['', 'TRUNG BÌNH CBM/NGÀY', '', '', '', avgDailyCbm, avgDailyKg]
+      ];
+      const wsSlide2 = XLSX.utils.aoa_to_sheet(wsSlide2Data);
+      wsSlide2['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSlide2, 'Slide 2 - CBM Theo Ngày');
+
+      // Sheet 3: Slide 3 - Thống kê Số Khối (CBM) & Số Tấn theo ngày / tháng
+      const monthlyMap = new Map<
+        string,
+        {
+          monthLabel: string;
+          days: number;
+          ordersCount: number;
+          totalPackages: number;
+          totalCbm: number;
+          totalKg: number;
+        }
+      >();
+      for (const d of sortedDaily) {
+        const mBucket = monthlyMap.get(d.monthLabel) || {
+          monthLabel: d.monthLabel,
+          days: 0,
+          ordersCount: 0,
+          totalPackages: 0,
+          totalCbm: 0,
+          totalKg: 0
+        };
+        mBucket.days += 1;
+        mBucket.ordersCount += d.orderCodes.size;
+        mBucket.totalPackages += d.totalPackages;
+        mBucket.totalCbm += d.totalVolumeCbm;
+        mBucket.totalKg += d.totalWeightKg;
+        monthlyMap.set(d.monthLabel, mBucket);
+      }
+
+      const slide3DailyRows: any[][] = sortedDaily.map((d, idx) => [
+        idx + 1,
+        d.dateLabel,
+        d.monthLabel,
+        d.orderCodes.size,
+        d.totalPackages,
+        Math.round(d.totalVolumeCbm * 100) / 100,
+        Math.round((d.totalWeightKg / 1000) * 1000) / 1000,
+        Math.round(d.totalWeightKg * 100) / 100
+      ]);
+
+      const slide3MonthlyRows: any[][] = Array.from(monthlyMap.values()).map((m, idx) => [
+        idx + 1,
+        m.monthLabel,
+        m.days,
+        m.ordersCount,
+        m.totalPackages,
+        Math.round(m.totalCbm * 100) / 100,
+        Math.round((m.totalKg / 1000) * 1000) / 1000,
+        Math.round(m.totalKg * 100) / 100
+      ]);
+
+      const wsSlide3Data: any[][] = [
+        [
+          'STT',
+          'NGÀY CẬP NHẬT',
+          'THÁNG',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SỐ KHỐI (CBM)',
+          'SỐ TẤN (TẤN)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide3DailyRows,
+        [
+          '',
+          'TỔNG CỘNG THEO NGÀY',
+          `${sortedDaily.length} ngày`,
+          totalDailyOrders,
+          totalDailyPackages,
+          totalDailyCbm,
+          totalDailyTons,
+          totalDailyKg
+        ],
+        [],
+        [
+          'STT',
+          'THÁNG',
+          'SỐ NGÀY PHÁT SINH',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SỐ KHỐI (CBM)',
+          'SỐ TẤN (TẤN)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide3MonthlyRows
+      ];
+      const wsSlide3 = XLSX.utils.aoa_to_sheet(wsSlide3Data);
+      wsSlide3['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSlide3, 'Slide 3 - Khối & Tấn Theo Ngày');
+
       const hubFileSlug = normalizeNoDiacritics(hubTitle);
       const fileName = `Bao_cao_don_hang_${tabConfig.fileSlug}_${hubFileSlug}_${dateStr}.xlsx`;
 
@@ -474,7 +731,8 @@ export default function WarehouseOrdersPage() {
       // One row per order code; lines sharing a code are returned in `items`
       groupBy: 'orderCode',
       ...(effectiveSearch ? { search: effectiveSearch } : {}),
-      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {})
+      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     });
 
     fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
@@ -509,7 +767,7 @@ export default function WarehouseOrdersPage() {
           setIsLoading(false);
         }
       });
-  }, [page, pageSize, effectiveSearch, statusFilter]);
+  }, [page, pageSize, effectiveSearch, statusFilter, hubId]);
 
   useEffect(() => {
     fetchOrders();
@@ -780,8 +1038,11 @@ export default function WarehouseOrdersPage() {
               onClick={fetchOrders}
               disabled={isLoading || isExporting}
               className='h-8 text-xs font-bold border-slate-300'
+              title='Làm mới dữ liệu'
             >
-              <IconRefresh className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <IconRefresh
+                className={`mr-1.5 h-4 w-4 text-blue-600 ${isLoading ? 'animate-spin' : ''}`}
+              />
               Làm mới
             </Button>
           </div>
@@ -819,6 +1080,8 @@ export default function WarehouseOrdersPage() {
                   </button>
                 )}
               </div>
+
+              <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />
 
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (

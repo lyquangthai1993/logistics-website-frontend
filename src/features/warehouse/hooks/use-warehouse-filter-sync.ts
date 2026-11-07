@@ -8,7 +8,7 @@ import {
 } from '../components/warehouse-date-range-dropdown';
 
 export interface UseWarehouseBoardFilterSyncOptions {
-  defaultStatus?: 'ALL' | 'PENDING' | 'COMPLETED';
+  defaultStatus?: 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED';
 }
 
 export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyncOptions) {
@@ -57,11 +57,19 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
 
   const initialStatus = useMemo(() => {
     const s = getParam('status');
-    if (['ALL', 'PENDING', 'COMPLETED'].includes(s)) {
-      return s as 'ALL' | 'PENDING' | 'COMPLETED';
+    if (['ALL', 'PENDING', 'COMPLETED', 'DELETED'].includes(s)) {
+      return s as 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED';
     }
     return options?.defaultStatus ?? 'ALL';
   }, [getParam, options?.defaultStatus]);
+
+  const initialHubId = useMemo(() => {
+    const h = getParam('hubId');
+    if (h && /^\d+$/.test(h) && Number(h) > 0) {
+      return h;
+    }
+    return 'ALL';
+  }, [getParam]);
 
   // Reactive state
   const [search, setSearch] = useState(initialSearch);
@@ -70,7 +78,10 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
   const [toDate, setToDate] = useState(initialToDate);
   const [appliedFromDate, setAppliedFromDate] = useState(initialFromDate);
   const [appliedToDate, setAppliedToDate] = useState(initialToDate);
-  const [boardStatus, setBoardStatusState] = useState<'ALL' | 'PENDING' | 'COMPLETED'>(initialStatus);
+  const [boardStatus, setBoardStatusState] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED'>(
+    initialStatus
+  );
+  const [hubId, setHubIdState] = useState<string>(initialHubId);
   const [page, setPageState] = useState(initialPage);
 
   // Update URL search parameters
@@ -79,11 +90,16 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
       search?: string;
       fromDate?: string;
       toDate?: string;
-      status?: 'ALL' | 'PENDING' | 'COMPLETED';
+      status?: 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED';
+      hubId?: string;
       page?: number;
     }) => {
       const sp = new URLSearchParams(
-        searchParams ? searchParams.toString() : (typeof window !== 'undefined' ? window.location.search : '')
+        searchParams
+          ? searchParams.toString()
+          : typeof window !== 'undefined'
+            ? window.location.search
+            : ''
       );
 
       if (updates.search !== undefined) {
@@ -122,6 +138,14 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
           sp.set('status', updates.status);
         } else {
           sp.delete('status');
+        }
+      }
+
+      if (updates.hubId !== undefined) {
+        if (updates.hubId && updates.hubId !== 'ALL' && /^\d+$/.test(updates.hubId)) {
+          sp.set('hubId', updates.hubId);
+        } else {
+          sp.delete('hubId');
         }
       }
 
@@ -190,10 +214,21 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
 
   // Status Tab change
   const setBoardStatus = useCallback(
-    (status: 'ALL' | 'PENDING' | 'COMPLETED') => {
+    (status: 'ALL' | 'PENDING' | 'COMPLETED' | 'DELETED') => {
       setBoardStatusState(status);
       setPageState(1);
       updateUrl({ status, page: 1 });
+    },
+    [updateUrl]
+  );
+
+  // Hub Filter change (for Super Admin)
+  const setHubId = useCallback(
+    (newHubId: string) => {
+      const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
+      setHubIdState(normalized);
+      setPageState(1);
+      updateUrl({ hubId: normalized, page: 1 });
     },
     [updateUrl]
   );
@@ -215,6 +250,9 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
     const urlTo = getParam('toDate', 'endDate');
     const urlPage = Number(getParam('page')) || 1;
     const urlStatus = getParam('status');
+    const urlHubId = getParam('hubId');
+    const normalizedUrlHubId =
+      urlHubId && /^\d+$/.test(urlHubId) && Number(urlHubId) > 0 ? urlHubId : 'ALL';
 
     if (urlSearch !== appliedSearch) {
       setSearch(urlSearch);
@@ -231,12 +269,28 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
     if (urlPage !== page) {
       setPageState(urlPage);
     }
-    if (urlStatus && ['ALL', 'PENDING', 'COMPLETED'].includes(urlStatus) && urlStatus !== boardStatus) {
+    if (
+      urlStatus &&
+      ['ALL', 'PENDING', 'COMPLETED', 'DELETED'].includes(urlStatus) &&
+      urlStatus !== boardStatus
+    ) {
       setBoardStatusState(urlStatus as any);
     } else if (!urlStatus && boardStatus !== 'ALL') {
       setBoardStatusState('ALL');
     }
-  }, [searchParams, getParam, appliedSearch, appliedFromDate, appliedToDate, page, boardStatus]);
+    if (normalizedUrlHubId !== hubId) {
+      setHubIdState(normalizedUrlHubId);
+    }
+  }, [
+    searchParams,
+    getParam,
+    appliedSearch,
+    appliedFromDate,
+    appliedToDate,
+    page,
+    boardStatus,
+    hubId
+  ]);
 
   // Initial mount: ensure fromDate & toDate are explicitly populated in the URL
   const hasInitializedUrlRef = useRef(false);
@@ -280,6 +334,8 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
     handleResetDateRange,
     boardStatus,
     setBoardStatus,
+    hubId,
+    setHubId,
     page,
     setPage
   };

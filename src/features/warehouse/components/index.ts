@@ -12,6 +12,7 @@ export { WarehouseTallyModal } from './warehouse-tally-modal';
 export { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 export { CargoImageLightboxModal } from './cargo-image-lightbox-modal';
 export { WarehouseTripDetailModal, type InboundVehicleGroup } from './warehouse-trip-detail-modal';
+export { WarehouseTripHistoryModal } from './warehouse-trip-history-modal';
 export { WarehouseAppendOrderModal } from './warehouse-append-order-modal';
 export { WarehouseSelectStoredOrdersModal } from './warehouse-select-stored-orders-modal';
 export { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';
@@ -24,4 +25,9 @@ export {
   getInitialWarehouseFromDate,
   getInitialWarehouseToDate
 } from './warehouse-date-range-dropdown';
+export {
+  WarehouseHubFilterSelect,
+  type WarehouseHubOption,
+  type WarehouseHubFilterSelectProps
+} from './warehouse-hub-filter-select';
 export { useWarehouseBoardFilterSync } from '../hooks/use-warehouse-filter-sync';
