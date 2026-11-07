@@ -369,6 +369,15 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(inboundTripsKpi).toContainText('xe nhập kho');
     await expect(outboundTripsKpi).toContainText('xe xuất kho');
 
+    // Kiểm tra bảng tóm tắt 1 ánh nhìn (Số chuyến Nhập / Xuất, các mã TRIP, Tổng sản lượng) & 2 bảng song song Nhập / Xuất
+    await expect(page.getByTestId('daily-glance-summary-table')).toBeVisible();
+    await expect(page.getByTestId('glance-row-inbound')).toContainText('CHUYẾN NHẬP KHO');
+    await expect(page.getByTestId('glance-row-outbound')).toContainText('CHUYẾN XUẤT KHO');
+    await expect(page.getByTestId('glance-row-total')).toContainText('TỔNG CỘNG NGÀY');
+    await expect(page.getByTestId('inbound-trips-table-section')).toBeVisible();
+    await expect(page.getByTestId('outbound-trips-table-section')).toBeVisible();
+    await expect(page.getByTestId('daily-trips-by-date-summary-table')).toBeVisible();
+
     // 4. Kiểm tra chuyển đổi bộ lọc Chiều Xe Nhập Kho / Xe Xuất Kho / Tất cả
     await page.getByTestId('daily-dir-inbound').click();
     await page.getByTestId('daily-dir-outbound').click();
