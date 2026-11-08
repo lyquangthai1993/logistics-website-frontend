@@ -52,9 +52,7 @@ export function TripDateTooltip({
   confirmedAt,
   deletedAt,
   creatorName,
-  creatorEmail,
   operatorName,
-  operatorEmail,
   className
 }: TripDateTooltipProps) {
   const [open, setOpen] = useState(false);
@@ -92,26 +90,33 @@ export function TripDateTooltip({
         ? 'Chi tiết chuyến nhập chờ xử lý'
         : 'Chi tiết chuyến xuất nháp';
 
-  const confirmActionLabel = isInbound ? 'Xác nhận nhập kho:' : 'Xác nhận xuất kho:';
+  const confirmActionLabel = isInbound ? 'Xác nhận nhập:' : 'Xác nhận xuất:';
   const operatorRoleLabel = isDeleted
-    ? 'Người xóa / thao tác:'
+    ? 'Xóa chuyến:'
     : isCompleted
-      ? isInbound
-        ? 'Người xác nhận nhập:'
-        : 'Người xác nhận xuất:'
-      : 'Người thao tác gần nhất:';
+      ? confirmActionLabel
+      : 'Thao tác gần nhất:';
 
   const titleParts: string[] = [headerTitle];
   if (tripCode && tripCode !== '—') titleParts.push(`Chuyến: ${tripCode}`);
-  if (isCompleted && (formattedConfirmed || dateText)) {
-    titleParts.push(`${confirmActionLabel} ${formattedConfirmed || dateText}`);
-  } else if (isDeleted && formattedDeleted) {
-    titleParts.push(`Thời gian xóa: ${formattedDeleted}`);
-  } else if (formattedUpdated || formattedCreated) {
-    titleParts.push(`Cập nhật: ${formattedUpdated || formattedCreated}`);
+  if (effectiveCreator || formattedCreated) {
+    titleParts.push(
+      `Người khởi tạo: ${effectiveCreator || 'Chưa ghi nhận'}${formattedCreated ? ` (${formattedCreated})` : ''}`
+    );
   }
-  if (effectiveCreator) titleParts.push(`Người khởi tạo: ${effectiveCreator}`);
-  if (effectiveOperator) titleParts.push(`${operatorRoleLabel} ${effectiveOperator}`);
+  if (isCompleted) {
+    titleParts.push(
+      `${confirmActionLabel} ${effectiveOperator || 'Chưa ghi nhận'} (${formattedConfirmed || dateText})`
+    );
+  } else if (isDeleted) {
+    titleParts.push(
+      `Xóa chuyến: ${effectiveOperator || 'Chưa ghi nhận'} (${formattedDeleted || dateText})`
+    );
+  } else {
+    titleParts.push(
+      `${operatorRoleLabel} ${effectiveOperator || 'Chưa ghi nhận'} (${formattedUpdated || formattedCreated || dateText})`
+    );
+  }
   const titleText = titleParts.join(' • ');
 
   return (
@@ -138,7 +143,7 @@ export function TripDateTooltip({
         sideOffset={4}
         onClick={(e) => e.stopPropagation()}
         data-testid='trip-date-tooltip-content'
-        className='p-2 w-auto min-w-[235px] max-w-[calc(100vw-24px)] bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl text-[10px] leading-tight select-none z-50 rounded-md'
+        className='p-2 w-auto min-w-[250px] max-w-[calc(100vw-24px)] bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl text-[10px] leading-tight select-none z-50 rounded-md'
       >
         <div className='flex flex-col gap-1'>
           {/* Header */}
@@ -151,76 +156,81 @@ export function TripDateTooltip({
             )}
           </div>
 
-          {/* Timestamps */}
+          {/* Combined Actor + Timestamp Rows */}
           <div className='flex flex-col gap-1 pt-0.5'>
-            {formattedCreated && (
-              <div className='flex items-center justify-between gap-2'>
-                <span className='text-slate-400'>Khởi tạo chuyến:</span>
-                <span className='font-mono text-slate-200'>{formattedCreated}</span>
+            <div className='flex items-center justify-between gap-2 whitespace-nowrap'>
+              <span className='text-slate-400'>Người khởi tạo:</span>
+              <div className='flex items-center gap-1'>
+                <span className='font-semibold text-slate-100'>
+                  {effectiveCreator || 'Chưa ghi nhận'}
+                </span>
+                {formattedCreated && (
+                  <>
+                    <span className='text-slate-500'>•</span>
+                    <span className='font-mono text-slate-300'>{formattedCreated}</span>
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
             {showUpdatedDraftRow && (
-              <div className='flex items-center justify-between gap-2'>
+              <div className='flex items-center justify-between gap-2 whitespace-nowrap'>
                 <span className='text-slate-400'>Cập nhật nháp:</span>
-                <span className='font-mono text-slate-200'>{formattedUpdated}</span>
+                <div className='flex items-center gap-1'>
+                  <span className='font-semibold text-slate-200'>
+                    {effectiveOperator || 'Chưa ghi nhận'}
+                  </span>
+                  <span className='text-slate-500'>•</span>
+                  <span className='font-mono text-slate-300'>{formattedUpdated}</span>
+                </div>
               </div>
             )}
 
             {isCompleted ? (
-              <div className='flex items-center justify-between gap-2'>
+              <div className='flex items-center justify-between gap-2 whitespace-nowrap'>
                 <span className='text-slate-300 font-medium'>{confirmActionLabel}</span>
-                <span className='font-mono font-bold text-emerald-400'>
-                  {formattedConfirmed || dateText}
-                </span>
+                <div className='flex items-center gap-1'>
+                  <span className='font-semibold text-emerald-400'>
+                    {effectiveOperator || 'Chưa ghi nhận'}
+                  </span>
+                  <span className='text-slate-500'>•</span>
+                  <span className='font-mono font-bold text-emerald-400'>
+                    {formattedConfirmed || dateText}
+                  </span>
+                </div>
               </div>
             ) : isDeleted ? (
-              <div className='flex items-center justify-between gap-2'>
-                <span className='text-slate-300 font-medium'>Thời gian xóa:</span>
-                <span className='font-mono font-bold text-rose-400'>
-                  {formattedDeleted || dateText}
-                </span>
+              <div className='flex items-center justify-between gap-2 whitespace-nowrap'>
+                <span className='text-slate-300 font-medium'>{operatorRoleLabel}</span>
+                <div className='flex items-center gap-1'>
+                  <span className='font-semibold text-rose-400'>
+                    {effectiveOperator || 'Chưa ghi nhận'}
+                  </span>
+                  <span className='text-slate-500'>•</span>
+                  <span className='font-mono font-bold text-rose-400'>
+                    {formattedDeleted || dateText}
+                  </span>
+                </div>
               </div>
             ) : (
-              <div className='flex items-center justify-between gap-2'>
+              <div className='flex items-center justify-between gap-2 whitespace-nowrap'>
                 <span className='text-slate-400'>{confirmActionLabel}</span>
-                <span className='font-semibold text-amber-400'>
-                  Chưa xác nhận (Chờ xử lý)
-                </span>
+                <div className='flex items-center gap-1'>
+                  <span className='font-semibold text-amber-300'>
+                    {effectiveOperator || 'Chưa ghi nhận'}
+                  </span>
+                  <span className='text-slate-500'>•</span>
+                  <span className='font-semibold text-amber-400'>Chờ xử lý</span>
+                </div>
               </div>
             )}
 
             {invoiceCode && (
-              <div className='flex items-center justify-between gap-2'>
+              <div className='flex items-center justify-between gap-2 whitespace-nowrap'>
                 <span className='text-slate-400'>Mã phiếu:</span>
                 <span className='font-mono font-semibold text-sky-300'>{invoiceCode}</span>
               </div>
             )}
-          </div>
-
-          {/* Actors */}
-          <div className='flex flex-col gap-1 border-t border-slate-700/80 pt-1 mt-0.5'>
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-slate-400'>Người khởi tạo:</span>
-              <span className='font-semibold text-slate-100'>
-                {effectiveCreator || 'Chưa ghi nhận'}
-                {creatorEmail && effectiveCreator !== creatorEmail ? '' : ''}
-              </span>
-            </div>
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-slate-400'>{operatorRoleLabel}</span>
-              <span
-                className={`font-semibold ${
-                  isDeleted
-                    ? 'text-rose-400'
-                    : isCompleted
-                      ? 'text-emerald-400'
-                      : 'text-amber-300'
-                }`}
-              >
-                {effectiveOperator || 'Chưa ghi nhận'}
-              </span>
-            </div>
           </div>
         </div>
       </PopoverContent>
