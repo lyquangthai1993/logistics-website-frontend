@@ -50,7 +50,11 @@ const ERROR_CODE_TRANSLATIONS: Record<string, string> = {
   forbidden: 'Bạn không có quyền thực hiện thao tác này.',
   alreadyExists: 'Dữ liệu đã tồn tại trên hệ thống.',
   mustBePositive: 'Giá trị phải lớn hơn 0.',
-  isRequired: 'Trường này là bắt buộc.'
+  isRequired: 'Trường này là bắt buộc.',
+  'ThrottlerException: Too Many Requests':
+    'Hệ thống đang xử lý nhiều yêu cầu liên tiếp. Vui lòng đợi trong giây lát rồi thử lại.',
+  'Too Many Requests':
+    'Hệ thống đang xử lý nhiều yêu cầu liên tiếp. Vui lòng đợi trong giây lát rồi thử lại.'
 };
 
 /**
@@ -66,9 +70,17 @@ export function formatApiError(
 
   const err = error as any;
 
+  if (err.response?.status === 429) {
+    return ERROR_CODE_TRANSLATIONS['Too Many Requests'];
+  }
+
   // Handle Axios error response
   if (err.response?.data) {
     const errorData: ApiErrorResponse = err.response.data;
+
+    if (errorData.statusCode === 429) {
+      return ERROR_CODE_TRANSLATIONS['Too Many Requests'];
+    }
 
     // 1. Auth & known technical codes in errors object
     if (
@@ -76,7 +88,7 @@ export function formatApiError(
       typeof errorData.errors === 'object' &&
       !Array.isArray(errorData.errors)
     ) {
-      const errorMap = errorData.errors as Record<string, any>;
+      const errorMap = errorMapSafe(errorData.errors);
       const hasAuthCode =
         errorMap.email === 'incorrectEmailOrPassword' ||
         errorMap.password === 'incorrectEmailOrPassword' ||
@@ -100,9 +112,13 @@ export function formatApiError(
 
     if (!isGenericValidationMessage) {
       if (typeof errorData.message === 'string' && errorData.message.trim().length > 0) {
-        const translatedMsg = ERROR_CODE_TRANSLATIONS[errorData.message.trim()];
+        const rawText = errorData.message.trim();
+        if (rawText.includes('ThrottlerException') || rawText.includes('Too Many Requests')) {
+          return ERROR_CODE_TRANSLATIONS['Too Many Requests'];
+        }
+        const translatedMsg = ERROR_CODE_TRANSLATIONS[rawText];
         if (translatedMsg) return translatedMsg;
-        return errorData.message.trim();
+        return rawText;
       } else if (Array.isArray(errorData.message) && errorData.message.length > 0) {
         return errorData.message.map((m) => ERROR_CODE_TRANSLATIONS[m] || m).join(', ');
       }
@@ -141,6 +157,12 @@ export function formatApiError(
     if (err.message === 'Network Error') {
       return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.';
     }
+    if (
+      err.message.includes('ThrottlerException') ||
+      err.message.includes('Too Many Requests')
+    ) {
+      return ERROR_CODE_TRANSLATIONS['Too Many Requests'];
+    }
     return err.message;
   }
 
@@ -149,6 +171,10 @@ export function formatApiError(
   }
 
   return fallbackMessage;
+}
+
+function errorMapSafe(obj: unknown): Record<string, any> {
+  return obj && typeof obj === 'object' ? (obj as Record<string, any>) : {};
 }
 
 /**
