@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { loginAs, TEST_USERS } from './helpers/auth';
 
-test.describe('Tooltip Người thao tác (người tạo) trên cột Ngày', () => {
-  test('Outbound & Inbound: hover vào Ngày hiển thị tooltip người thao tác/tạo', async ({
+test.describe('Tooltip Người thao tác (người tạo) trên cột Ngày (Click-to-open)', () => {
+  test('Outbound & Inbound: click vào Ngày hiển thị popover người thao tác/tạo', async ({
     page
   }) => {
     test.setTimeout(60000);
@@ -14,34 +14,32 @@ test.describe('Tooltip Người thao tác (người tạo) trên cột Ngày', (
     await page.goto('/dashboard/warehouse/outbound', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('table')).toBeVisible({ timeout: 15000 });
 
-    const outboundDateTriggers = page.locator('[data-testid="trip-date-tooltip-trigger"]');
+    const outboundDateTriggers = page.locator('[data-testid="trip-date-tooltip-trigger"]:visible');
     await expect(outboundDateTriggers.first()).toBeVisible({ timeout: 10000 });
 
     const outboundFirstTitle = await outboundDateTriggers.first().getAttribute('title');
-    console.log('Outbound First Date Title:', outboundFirstTitle);
     expect(outboundFirstTitle).toBeTruthy();
     expect(outboundFirstTitle).toContain('Người');
 
-    // Hover để kiểm tra tooltip popover
-    await outboundDateTriggers.first().hover();
-    await page.waitForTimeout(500);
+    // Click để kiểm tra popover mở ra
+    await outboundDateTriggers.first().click();
+    await expect(page.getByTestId('trip-date-tooltip-content')).toBeVisible({ timeout: 5000 });
     await page.screenshot({ path: 'test-results/outbound-date-tooltip.png' });
 
     // 2. Kiểm tra Inbound
     await page.goto('/dashboard/warehouse/inbound', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('table')).toBeVisible({ timeout: 15000 });
 
-    const inboundDateTriggers = page.locator('[data-testid="trip-date-tooltip-trigger"]');
+    const inboundDateTriggers = page.locator('[data-testid="trip-date-tooltip-trigger"]:visible');
     await expect(inboundDateTriggers.first()).toBeVisible({ timeout: 10000 });
 
     const inboundFirstTitle = await inboundDateTriggers.first().getAttribute('title');
-    console.log('Inbound First Date Title:', inboundFirstTitle);
     expect(inboundFirstTitle).toBeTruthy();
     expect(inboundFirstTitle).toContain('Người');
 
-    // Hover để kiểm tra tooltip popover
-    await inboundDateTriggers.first().hover();
-    await page.waitForTimeout(500);
+    // Click để kiểm tra popover mở ra
+    await inboundDateTriggers.first().click();
+    await expect(page.getByTestId('trip-date-tooltip-content')).toBeVisible({ timeout: 5000 });
     await page.screenshot({ path: 'test-results/inbound-date-tooltip.png' });
   });
 
@@ -64,13 +62,11 @@ test.describe('Tooltip Người thao tác (người tạo) trên cột Ngày', (
 
     // Click vào date trigger
     await dateTrigger.click();
-    await page.waitForTimeout(600);
 
     // Kiểm tra Popover mở ra
-    const popoverContent = page.locator('[data-slot="popover-content"]');
+    const popoverContent = page.getByTestId('trip-date-tooltip-content');
     await expect(popoverContent).toBeVisible({ timeout: 5000 });
     const popoverText = await popoverContent.textContent();
-    console.log('Mobile Popover Text:', popoverText);
     expect(popoverText).toContain('Người');
 
     // Kiểm tra Modal Chi tiết chuyến xe KHÔNG bị mở nhầm

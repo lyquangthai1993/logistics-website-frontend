@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface TripDateTooltipProps {
@@ -58,21 +58,6 @@ export function TripDateTooltip({
   className
 }: TripDateTooltipProps) {
   const [open, setOpen] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleMouseEnter = () => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-    setOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    closeTimerRef.current = setTimeout(() => {
-      setOpen(false);
-    }, 150);
-  };
 
   const statusUpper = (status || 'COMPLETED').toUpperCase();
   const isCompleted = statusUpper === 'COMPLETED';
@@ -132,18 +117,16 @@ export function TripDateTooltip({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        openOnHover={false}
         render={
           <button
             type='button'
             data-testid='trip-date-tooltip-trigger'
             title={titleText}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             onClick={(e) => {
               e.stopPropagation();
-              setOpen((prev) => !prev);
             }}
-            className={`cursor-pointer text-left inline-flex items-center underline decoration-dotted decoration-slate-300 dark:decoration-slate-600 underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors focus:outline-none ${className || ''}`}
+            className={`cursor-pointer text-left inline-flex items-center underline decoration-dotted decoration-slate-300 dark:decoration-slate-600 underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400 active:text-indigo-700 transition-colors focus:outline-none touch-manipulation ${className || ''}`}
           />
         }
       >
@@ -153,11 +136,9 @@ export function TripDateTooltip({
         side='top'
         align='start'
         sideOffset={4}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
         onClick={(e) => e.stopPropagation()}
         data-testid='trip-date-tooltip-content'
-        className='p-2 w-auto min-w-[235px] max-w-xs bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl text-[10px] leading-tight select-none z-50 rounded-md'
+        className='p-2 w-auto min-w-[235px] max-w-[calc(100vw-24px)] bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl text-[10px] leading-tight select-none z-50 rounded-md'
       >
         <div className='flex flex-col gap-1'>
           {/* Header */}
