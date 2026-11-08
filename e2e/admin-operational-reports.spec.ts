@@ -281,7 +281,13 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await page.getByTestId('log-status-filter-ALL').click();
     const logsTable = page.getByTestId('cron-execution-logs-table');
     await expect(logsTable).toBeVisible();
-    await expect(logsTable).toContainText('01/11/2026 → 03/11/2026');
+    await expect(page.getByTestId('split-day-pill-2026-11-01')).toContainText('Xong');
+    await expect(page.getByTestId('split-day-pill-2026-11-02')).toContainText('Xong');
+    await expect(page.getByTestId('split-day-pill-2026-11-03')).toContainText('Xong');
+    await expect(logsTable).toContainText('01/11/2026');
+    await expect(logsTable).toContainText('02/11/2026');
+    await expect(logsTable).toContainText('03/11/2026');
+    await expect(logsTable).toContainText('Chạy tách từng ngày');
     await expect(logsTable).toContainText('THÀNH CÔNG');
 
     await page.getByTestId('tab-daily-snapshots').click();

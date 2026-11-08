@@ -601,11 +601,12 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   const [logSearch, setLogSearch] = useState<string>('');
 
   const loadCronDetailData = useCallback(
-    async (preserveInputs = false) => {
+    async (preserveInputs = false, customDaysLimit = 30) => {
       setLoading(true);
       try {
+        const limitParam = Math.min(366, Math.max(30, Number(customDaysLimit) || 30));
         const res = await apiClient.get(
-          '/api/v1/admin/reports/cronjobs?daysLimit=30'
+          `/api/v1/admin/reports/cronjobs?daysLimit=${limitParam}`
         );
         const raw = res.data;
         const payload: CronManagementResponse = raw?.data ?? raw;
@@ -770,6 +771,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
     }
 
     const orderedFrom = daysToExecute[0];
+    const isMultiDayRange = daysToExecute.length > 1;
 
     abortRunRef.current = false;
     setRunningKey(sourceKey);
@@ -793,6 +795,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
     let accOutTons = 0;
     let accOutTrips = 0;
     let lastSuccessDate = orderedFrom;
+    let activeDayStr: string | null = null;
 
     try {
       for (let i = 0; i < daysToExecute.length; i++) {
@@ -804,31 +807,66 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
         }
 
         const dayStr = daysToExecute[i];
+        activeDayStr = dayStr;
         setCurrentRunningDay(dayStr);
         setDayStatuses((prev) => ({
           ...prev,
           [dayStr]: 'RUNNING'
         }));
 
-        const isLastDay = i === daysToExecute.length - 1;
-        const res = await apiClient.post(
-          '/api/v1/admin/reports/cronjobs/rerun',
-          {
-            jobKey: normalizedJobKey,
-            reportDate: dayStr,
-            fromDate: dayStr,
-            toDate: dayStr,
-            notifySuperAdmins: isLastDay ? rerunNotify : false
+        if (typeof document !== 'undefined') {
+          const pillEl = document.querySelector(
+            `[data-testid="split-day-pill-${dayStr}"]`
+          );
+          if (
+            pillEl &&
+            typeof (pillEl as HTMLElement).scrollIntoView === 'function'
+          ) {
+            (pillEl as HTMLElement).scrollIntoView({
+              block: 'nearest',
+              inline: 'nearest'
+            });
           }
-        );
+        }
+
+        const isLastDay = i === daysToExecute.length - 1;
+        let res: any = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            res = await apiClient.post(
+              '/api/v1/admin/reports/cronjobs/rerun',
+              {
+                jobKey: normalizedJobKey,
+                reportDate: dayStr,
+                fromDate: dayStr,
+                toDate: dayStr,
+                triggeredBy: isMultiDayRange ? 'MANUAL_RANGE' : 'MANUAL_RERUN',
+                notifySuperAdmins: isLastDay ? rerunNotify : false
+              }
+            );
+            break;
+          } catch (dayErr: any) {
+            const status = dayErr?.response?.status;
+            if (
+              (status === 429 || !status) &&
+              attempt < 3 &&
+              !abortRunRef.current
+            ) {
+              await new Promise((r) => setTimeout(r, attempt * 1500));
+              continue;
+            }
+            throw dayErr;
+          }
+        }
 
         const raw = res.data;
         const result = raw?.data ?? raw;
         const summary = result.summary || {};
+        const createdLog: CronExecutionLogItem | undefined = result.log;
 
         accProcessedDays += 1;
         accUpsertedRows += Number(result.upsertedRows) || 0;
-        accDurationMs += Number(result.log?.durationMs) || 1;
+        accDurationMs += Number(createdLog?.durationMs) || 1;
         accInCbm += Number(summary.totalInboundCbm) || 0;
         accInTons += Number(summary.totalInboundTons) || 0;
         accInTrips += Number(summary.totalInboundTrips) || 0;
@@ -842,6 +880,47 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
           ...prev,
           [dayStr]: 'SUCCESS'
         }));
+
+        // Cập nhật ngay lập tức bảng Nhật ký thực thi & Trạng thái dữ liệu của ngày vừa chạy xong
+        if (createdLog) {
+          setData((prev) => {
+            if (!prev) return prev;
+            const nextLogs = [
+              createdLog,
+              ...(prev.logs || []).filter((l) => l.id !== createdLog.id)
+            ].slice(0, 200);
+            const nextSnapshots = (prev.dailySnapshots || []).map((s) =>
+              s.reportDate === dayStr
+                ? {
+                    ...s,
+                    hubCount: Math.max(
+                      1,
+                      Number(createdLog.upsertedHubRows) || s.hubCount || 20
+                    ),
+                    triggeredBy: createdLog.triggeredBy || s.triggeredBy,
+                    calculatedAt:
+                      createdLog.finishedAt || new Date().toISOString(),
+                    inboundCbm: Number(summary.totalInboundCbm) || 0,
+                    inboundTons: Number(summary.totalInboundTons) || 0,
+                    inboundTrips: Number(summary.totalInboundTrips) || 0,
+                    outboundCbm: Number(summary.totalOutboundCbm) || 0,
+                    outboundTons: Number(summary.totalOutboundTons) || 0,
+                    outboundTrips: Number(summary.totalOutboundTrips) || 0
+                  }
+                : s
+            );
+            return {
+              ...prev,
+              logs: nextLogs,
+              dailySnapshots: nextSnapshots
+            };
+          });
+        }
+
+        // Nhịp nghỉ ngắn 80ms sau khi hoàn tất ngày thứ i trước khi chuyển sang chạy ngày thứ i+1
+        if (!isLastDay && !abortRunRef.current) {
+          await new Promise((r) => setTimeout(r, 80));
+        }
       }
 
       if (accProcessedDays > 0) {
@@ -872,19 +951,19 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
             : `Đã tách và chạy tuần tự thành công ${accProcessedDays} ngày (${formatDateVn(orderedFrom)} → ${formatDateVn(lastSuccessDate)})`
         );
       }
-
-      await loadCronDetailData(true);
     } catch (err) {
-      if (currentRunningDay) {
+      if (activeDayStr) {
+        const failedDay = activeDayStr;
         setDayStatuses((prev) => ({
           ...prev,
-          [currentRunningDay]: 'FAILED'
+          [failedDay]: 'FAILED'
         }));
       }
       toast.error(formatApiError(err, 'Không thể thực thi chạy lại Cronjob'));
     } finally {
       setCurrentRunningDay(null);
       setRunningKey(null);
+      await loadCronDetailData(true, Math.max(30, daysToExecute.length));
     }
   };
 
@@ -1330,10 +1409,22 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                         </span>
                         <span>{formatDateVn(dayYmd)}</span>
                         {st === 'RUNNING' && (
-                          <IconLoader2 className='h-2.5 w-2.5 animate-spin' />
+                          <>
+                            <IconLoader2 className='h-2.5 w-2.5 animate-spin' />
+                            <span className='text-[9px]'>Đang chạy</span>
+                          </>
                         )}
                         {st === 'SUCCESS' && (
-                          <IconCheck className='h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400' />
+                          <>
+                            <IconCheck className='h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400' />
+                            <span className='text-[9px]'>Xong</span>
+                          </>
+                        )}
+                        {st === 'FAILED' && (
+                          <>
+                            <IconAlertTriangle className='h-2.5 w-2.5 text-rose-600 dark:text-rose-400' />
+                            <span className='text-[9px]'>Lỗi</span>
+                          </>
                         )}
                       </button>
                     );
