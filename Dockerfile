@@ -26,10 +26,12 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Dynamic build arguments for Dev and Production environments (No hardcoded fallback - fails if missing)
 ARG NEXT_PUBLIC_API_URL
 ARG API_URL
+ARG NEXT_PUBLIC_LABEL_APP
 ARG NEXT_PUBLIC_SENTRY_DISABLED=true
 
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV API_URL=${API_URL}
+ENV NEXT_PUBLIC_LABEL_APP=${NEXT_PUBLIC_LABEL_APP}
 ENV NEXT_PUBLIC_SENTRY_DISABLED=${NEXT_PUBLIC_SENTRY_DISABLED}
 
 RUN npm run build
@@ -53,4 +55,3 @@ USER node
 EXPOSE 3000
 
 CMD ["node", "server.js"]
-
