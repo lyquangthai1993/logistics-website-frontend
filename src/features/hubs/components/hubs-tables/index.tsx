@@ -3,7 +3,7 @@
 import { DataTable } from '@/components/ui/table/data-table';
 import { DataTableToolbar } from '@/components/ui/table/data-table-toolbar';
 import { useDataTable } from '@/hooks/use-data-table';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { hubsQueryOptions } from '../../api/queries';
 import { columns } from './columns';
 import { useHubsTableFilters } from './use-hubs-table-filters';
@@ -13,13 +13,16 @@ const columnIds = columns.map((c) => c.id).filter(Boolean) as string[];
 export function HubsTable() {
   const { filters, params } = useHubsTableFilters(columnIds);
 
-  const { data } = useSuspenseQuery(hubsQueryOptions(filters));
+  const { data } = useQuery({
+    ...hubsQueryOptions(filters),
+    placeholderData: (prev) => prev
+  });
   const perPage = params.perPage || 10;
-  const total = data.meta?.total ?? 0;
+  const total = data?.meta?.total ?? 0;
   const pageCount = Math.ceil(total / perPage);
 
   const { table } = useDataTable({
-    data: data.data ?? [],
+    data: data?.data ?? [],
     columns,
     pageCount,
     shallow: true,

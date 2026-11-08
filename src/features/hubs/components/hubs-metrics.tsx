@@ -7,12 +7,17 @@ import { hubsQueryOptions } from '../api/queries';
 import type { Hub } from '../api/types';
 
 export function HubsMetrics() {
-  // Query all hubs with limit 100 to calculate global summary metrics
+  // Query all non-deleted hubs (limit 100) and soft-deleted hubs count for global summary metrics
   const { data } = useQuery(hubsQueryOptions({ limit: 100 }));
+  const { data: deletedData } = useQuery(hubsQueryOptions({ limit: 1, status: 'deleted' }));
+
   const hubs: Hub[] = data?.data || [];
   const total = data?.meta?.total ?? hubs.length;
   const activeCount = hubs.filter((h) => h.isActive).length;
   const inactiveCount = Math.max(0, total - activeCount);
+  const deletedCount = deletedData?.meta?.total ?? 0;
+  const level1Count = hubs.filter((h) => (h.level ?? 1) === 1).length;
+  const level2Count = hubs.filter((h) => h.level === 2).length;
   const totalVehicles = hubs.reduce((sum, h) => sum + (h.vehicles?.length || 0), 0);
 
   return (
@@ -26,7 +31,14 @@ export function HubsMetrics() {
         </CardHeader>
         <CardContent>
           <div className='text-2xl font-bold'>{total}</div>
-          <p className='text-muted-foreground mt-1 text-xs'>Điểm trung chuyển hàng hóa</p>
+          <div className='mt-1 flex flex-wrap items-center gap-1.5 text-xs'>
+            <span className='inline-flex items-center gap-1 rounded border border-blue-500/25 bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300'>
+              {level1Count} Cấp 1 • Hub Chính
+            </span>
+            <span className='inline-flex items-center gap-1 rounded border border-purple-500/25 bg-purple-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300'>
+              {level2Count} Cấp 2 • Trạm Xe Bo
+            </span>
+          </div>
         </CardContent>
       </Card>
 
@@ -50,7 +62,9 @@ export function HubsMetrics() {
         </CardHeader>
         <CardContent>
           <div className='text-2xl font-bold text-amber-600'>{inactiveCount}</div>
-          <p className='text-muted-foreground mt-1 text-xs'>Tạm ngừng hoặc bảo trì</p>
+          <p className='text-muted-foreground mt-1 text-xs'>
+            Tạm ngừng bảo trì{deletedCount > 0 ? ` • ${deletedCount} đã xóa` : ''}
+          </p>
         </CardContent>
       </Card>
 

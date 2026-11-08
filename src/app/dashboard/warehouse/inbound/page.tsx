@@ -29,6 +29,7 @@ import {
 import { rollbackTrip } from '@/features/warehouse/api/trip-manifest';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
+import { apiClient } from '@/lib/api-client';
 import {
   WarehouseEditableGrid,
   WarehouseRowItem
@@ -56,6 +57,7 @@ import {
 import {
   TripDateTooltip,
   WarehouseDateRangeDropdown,
+  WarehouseHubFilterSelect,
   computeSevenDaysAgoDate,
   computeTodayDate,
   getInitialWarehouseFromDate,
@@ -99,6 +101,8 @@ function WarehouseInboundContent() {
     handleResetDateRange,
     boardStatus,
     setBoardStatus,
+    hubId,
+    setHubId,
     page,
     setPage
   } = useWarehouseBoardFilterSync();
@@ -110,8 +114,10 @@ function WarehouseInboundContent() {
     pendingCount: 0,
     completedCount: 0
   });
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const inboundRequestIdRef = useRef(0);
+  const inboundAbortRef = useRef<AbortController | null>(null);
 
   // Modals
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -265,20 +271,16 @@ function WarehouseInboundContent() {
 
   // Fetch KPI
   const fetchKpi = useCallback(() => {
-    const token = tokenManager.getAccessToken();
-    fetch('/api/v1/warehouse/kpi', {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((resData) => {
+    const params: Record<string, string> = (hubId && hubId !== 'ALL' ? { hubId } : {});
+    apiClient
+      .get('/api/v1/warehouse/kpi', { params })
+      .then((res) => {
+        const resData = res.data;
         const payload = resData?.data || resData;
         if (payload) setKpiStats((prev) => ({ ...prev, ...payload }));
       })
       .catch(() => {});
-  }, []);
+  }, [hubId]);
 
   useEffect(() => {
     fetchKpi();
@@ -311,31 +313,32 @@ function WarehouseInboundContent() {
 
   // Fetch Inbound Board Trips with Pagination & 1:1 Parity Counters
   const fetchInboundTrips = useCallback(() => {
+    if (inboundAbortRef.current) {
+      inboundAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    inboundAbortRef.current = controller;
+    const reqId = ++inboundRequestIdRef.current;
+
     setIsLoadingOrders(true);
-    const token = tokenManager.getAccessToken();
-    const query = new URLSearchParams({
+    const params: Record<string, string> = {
       page: page.toString(),
       limit: pageSize.toString(),
       ...(appliedSearch.trim() ? { search: appliedSearch.trim() } : {}),
       ...(boardStatus !== 'ALL' ? { status: boardStatus } : {}),
       ...(appliedFromDate ? { fromDate: appliedFromDate } : {}),
-      ...(appliedToDate ? { toDate: appliedToDate } : {})
-    });
+      ...(appliedToDate ? { toDate: appliedToDate } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
+    };
 
-    fetch(`/api/v1/warehouse/inbound-trips?${query.toString()}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: res.statusText }));
-          throw { response: { data: errData, status: res.status } };
-        }
-        return res.json();
+    apiClient
+      .get('/api/v1/warehouse/inbound-trips', {
+        params,
+        signal: controller.signal
       })
-      .then((resData) => {
+      .then((res) => {
+        if (reqId !== inboundRequestIdRef.current) return;
+        const resData = res.data;
         const payload = resData?.meta ? resData : (resData?.data ?? resData);
         setTripGroups(payload?.data || []);
         setMeta({
@@ -350,12 +353,33 @@ function WarehouseInboundContent() {
           });
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (
+          controller.signal.aborted ||
+          err?.code === 'ERR_CANCELED' ||
+          err?.name === 'CanceledError' ||
+          reqId !== inboundRequestIdRef.current
+        ) {
+          return;
+        }
         setTripGroups([]);
         setMeta({ total: 0, totalPages: 1 });
+        showApiErrorToast(err, 'Không thể tải danh sách chuyến xe nhập kho');
       })
-      .finally(() => setIsLoadingOrders(false));
-  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate]);
+      .finally(() => {
+        if (reqId === inboundRequestIdRef.current) {
+          setIsLoadingOrders(false);
+        }
+      });
+  }, [page, pageSize, appliedSearch, boardStatus, appliedFromDate, appliedToDate, hubId]);
+
+  useEffect(() => {
+    return () => {
+      if (inboundAbortRef.current) {
+        inboundAbortRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (activeView === 'BOARD') {
@@ -387,7 +411,7 @@ function WarehouseInboundContent() {
         const rawDate =
           g.receiveDate || g.pickupDate || g.processedAt || g.createdAt || g.orders?.[0]?.createdAt;
         return {
-          groupKey: g.tripCode || g.groupKey,
+          groupKey: g.groupKey || (g.hubId ? `${g.tripCode}_${g.hubId}` : g.tripCode),
           licensePlate: g.licensePlate?.trim()?.toUpperCase() || 'CHƯA GÁN XE',
           driverName: g.driverName?.trim() || '',
           tripCode: g.tripCode || '—',
@@ -409,6 +433,9 @@ function WarehouseInboundContent() {
                 : `${descs[0]} (+${descs.length - 1} loại hàng)`),
           notes: g.notes || '',
           hubId: g.hubId ? Number(g.hubId) : undefined,
+          originHub: g.originHub || '',
+          destinationHub: g.destinationHub || '',
+          routeStopsSummary: g.routeStopsSummary || g.destinationHub || '',
           creator: g.creator || null,
           operator: g.operator || null,
           creatorName: g.creatorName || g.creator?.name || null,
@@ -425,11 +452,11 @@ function WarehouseInboundContent() {
 
   useEffect(() => {
     if (!selectedTripGroup) return;
-    const updated = vehicleGroups.find(
-      (g) =>
-        (g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode) ||
-        g.groupKey === selectedTripGroup.groupKey
-    );
+    const updated =
+      vehicleGroups.find((g) => g.groupKey === selectedTripGroup.groupKey) ||
+      vehicleGroups.find(
+        (g) => g.tripCode && g.tripCode !== '—' && g.tripCode === selectedTripGroup.tripCode
+      );
     if (updated) {
       setSelectedTripGroup(updated);
     }
@@ -993,6 +1020,9 @@ function WarehouseInboundContent() {
                       onApply={handleApplyDateRange}
                       onReset={handleResetDateRange}
                     />
+
+                    {/* Super Admin Hub Filter */}
+                    <WarehouseHubFilterSelect value={hubId} onChange={setHubId} />
                   </div>
 
                   {/* Status Tabs & Refresh Button */}
@@ -1091,7 +1121,7 @@ function WarehouseInboundContent() {
                                 />
                               </td>
                               <td className='py-1 px-2 w-[115px] whitespace-nowrap align-top'>
-                                <div>
+                                <div className='space-y-0.5'>
                                   <button
                                     type='button'
                                     onClick={() => handleOpenTripDetail(grp)}
@@ -1108,6 +1138,21 @@ function WarehouseInboundContent() {
                                       </Badge>
                                     )}
                                   </button>
+                                  {(isAdmin || (!user?.hubId && !(user?.hub as any)?.id)) &&
+                                    (grp.routeStopsSummary || grp.destinationHub) && (
+                                      <div
+                                        className='text-[9px] text-slate-500 dark:text-slate-400 truncate max-w-[130px] font-medium'
+                                        title={
+                                          hubId && hubId !== 'ALL'
+                                            ? grp.destinationHub || grp.routeStopsSummary
+                                            : grp.routeStopsSummary || grp.destinationHub
+                                        }
+                                      >
+                                        {hubId && hubId !== 'ALL'
+                                          ? grp.destinationHub || grp.routeStopsSummary
+                                          : grp.routeStopsSummary || grp.destinationHub}
+                                      </div>
+                                    )}
                                 </div>
                               </td>
                               <td className='py-1 px-2 w-40 align-top'>
@@ -1140,11 +1185,13 @@ function WarehouseInboundContent() {
                               </td>
                               <td className='py-1 px-2 text-right font-semibold text-slate-700 dark:text-slate-300 text-[11px] align-top'>
                                 <div>{grp.totalQuantity} kiện</div>
-                                {grp.unloadQuantity !== undefined && grp.stayQuantity !== undefined && grp.stayQuantity > 0 && (
-                                  <div className='text-[10px] text-emerald-700 dark:text-emerald-400 font-medium'>
-                                    Dỡ: {grp.unloadQuantity} • Lưu xe: {grp.stayQuantity}
-                                  </div>
-                                )}
+                                {grp.unloadQuantity !== undefined &&
+                                  grp.stayQuantity !== undefined &&
+                                  grp.stayQuantity > 0 && (
+                                    <div className='text-[10px] text-emerald-700 dark:text-emerald-400 font-medium'>
+                                      Dỡ: {grp.unloadQuantity} • Lưu xe: {grp.stayQuantity}
+                                    </div>
+                                  )}
                                 <div className='text-gray-400 text-[10px]'>
                                   {formatWeight(grp.totalWeight)} kg &bull;{' '}
                                   {formatVolume(grp.totalVolume)} m³
@@ -1306,11 +1353,13 @@ function WarehouseInboundContent() {
                             <div className='flex items-center gap-2 font-medium'>
                               <span className='font-bold text-slate-800 dark:text-slate-100'>
                                 {grp.totalQuantity} kiện
-                                {grp.unloadQuantity !== undefined && grp.stayQuantity !== undefined && grp.stayQuantity > 0 && (
-                                  <span className='text-[10px] text-emerald-700 dark:text-emerald-400 font-normal ml-1'>
-                                    (Dỡ: {grp.unloadQuantity} • Lưu: {grp.stayQuantity})
-                                  </span>
-                                )}
+                                {grp.unloadQuantity !== undefined &&
+                                  grp.stayQuantity !== undefined &&
+                                  grp.stayQuantity > 0 && (
+                                    <span className='text-[10px] text-emerald-700 dark:text-emerald-400 font-normal ml-1'>
+                                      (Dỡ: {grp.unloadQuantity} • Lưu: {grp.stayQuantity})
+                                    </span>
+                                  )}
                               </span>
                               <span className='text-slate-300 dark:text-slate-600'>|</span>
                               <span>{formatWeight(grp.totalWeight)} kg</span>

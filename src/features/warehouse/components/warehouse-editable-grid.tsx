@@ -246,18 +246,18 @@ function SearchableHubSelect({
           {/* Header count info */}
           <div className='flex items-center justify-between px-1 text-[10px] text-slate-500 dark:text-slate-400 border-b pb-1.5 dark:border-slate-800'>
             <span className='font-semibold uppercase tracking-wider'>
-              {isXeBo ? 'Danh sách Tuyến Xe bo' : 'Danh sách Hub cấp 1'}
+              {isXeBo ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính'}
             </span>
             <Badge
               variant='outline'
               className={cn(
                 'text-[10px] px-1.5 py-0 h-4 font-mono font-bold',
                 isXeBo
-                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                  ? 'bg-purple-500/15 text-purple-700 border-purple-500/25 dark:text-purple-300'
+                  : 'bg-blue-500/15 text-blue-700 border-blue-500/25 dark:text-blue-300'
               )}
             >
-              {filtered.length} {isXeBo ? 'xe bo' : 'hubs'}
+              {filtered.length} {isXeBo ? 'trạm' : 'hub'}
             </Badge>
           </div>
 
@@ -293,7 +293,14 @@ function SearchableHubSelect({
                         <span className='truncate'>{item.name}</span>
                       </div>
                       <div className='flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400'>
-                        <span className='font-mono font-semibold text-slate-600 dark:text-slate-300'>
+                        <span
+                          className={cn(
+                            'rounded border px-1 py-0 font-mono font-bold',
+                            isXeBo
+                              ? 'border-purple-200 bg-purple-100 text-purple-800 dark:border-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                              : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                          )}
+                        >
                           {item.code}
                         </span>
                         <span>&bull;</span>
@@ -1337,7 +1344,13 @@ function DeliveryAddressCell({ row, table }: CellContext<WarehouseRowItem, unkno
     setModalOpen(false);
   };
 
-  const isRowInbound = isRowInboundLocked(r, meta?.isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
+  const isRowInbound = isRowInboundLocked(
+    r,
+    meta?.isInboundTripMode,
+    meta?.isAdmin,
+    false,
+    meta?.isOutboundMode
+  );
   const isLockedExistingWaybill = isExistingInboundWaybillLocked(r, idx, meta);
   const isOutbound = meta?.isOutboundMode;
 
@@ -1578,7 +1591,13 @@ function ActionsCell({ row, table }: CellContext<WarehouseRowItem, unknown>) {
   const meta = table.options.meta;
   const rowsCount = meta?.rowsCount ?? 1;
   const isInboundTripMode = meta?.isInboundTripMode ?? false;
-  const isOrderInbound = isRowInboundLocked(r, isInboundTripMode, meta?.isAdmin, false, meta?.isOutboundMode);
+  const isOrderInbound = isRowInboundLocked(
+    r,
+    isInboundTripMode,
+    meta?.isAdmin,
+    false,
+    meta?.isOutboundMode
+  );
   const isLoadingThisRow = meta?.loadingRowIndex === idx;
 
   const resolvedHubForPrint =
@@ -1713,25 +1732,7 @@ export function WarehouseEditableGrid({
   const [printLabelData, setPrintLabelData] = useState<PalletLabelData | null>(null);
   const [lookupRowIndex, setLookupRowIndex] = useState<number | null>(null);
   const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
-  const [hubs, setHubs] = useState<HubOption[]>([
-    { id: 1, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 },
-    { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
-    { id: 3, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
-    { id: 100, code: 'HUB-BO-HCM-01', name: 'Xe bo Tuyến HCM', city: 'TP. Hồ Chí Minh', level: 2 },
-    { id: 101, code: 'HUB-BO-DAD-01', name: 'Xe bo Tuyến Đà Nẵng', city: 'Đà Nẵng', level: 2 },
-    { id: 102, code: 'HUB-BO-HYN-01', name: 'Xe bo Tuyến Hưng Yên', city: 'Hưng Yên', level: 2 },
-    { id: 103, code: 'HUB-BO-HAN-01', name: 'Xe bo Tuyến Hà Nội', city: 'TP. Hà Nội', level: 2 },
-    {
-      id: 104,
-      code: 'HUB-BO-HPH-01',
-      name: 'Xe bo Tuyến Hải Phòng',
-      city: 'TP. Hải Phòng',
-      level: 2
-    },
-    { id: 105, code: 'HUB-BO-CTH-01', name: 'Xe bo Tuyến Cần Thơ', city: 'TP. Cần Thơ', level: 2 },
-    { id: 106, code: 'HUB-BO-HUE-01', name: 'Xe bo Tuyến Huế', city: 'TP. Huế', level: 2 },
-    { id: 107, code: 'HUB-BO-BNI-01', name: 'Xe bo Tuyến Bắc Ninh', city: 'Bắc Ninh', level: 2 }
-  ]);
+  const [hubs, setHubs] = useState<HubOption[]>([]);
 
   // Fetch active hubs list for Level 1 & Level 2 dropdowns
   React.useEffect(() => {
@@ -2348,11 +2349,12 @@ export function WarehouseEditableGrid({
               onClick={onRefreshMetrics}
               disabled={isLoadingMetrics}
               className='h-8 text-xs font-semibold border-slate-300 dark:border-slate-700'
+              title='Làm mới dữ liệu'
             >
               <IconRefresh
                 className={`mr-1.5 h-3.5 w-3.5 text-blue-600 ${isLoadingMetrics ? 'animate-spin' : ''}`}
               />
-              Cập nhật lại thông số
+              Làm mới
             </Button>
           )}
         </div>
@@ -2500,8 +2502,8 @@ export function WarehouseEditableGrid({
           <IconSearch className='h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0' />
           <span>
             Thêm hoặc chọn một dòng để chỉnh sửa. Hỗ trợ 3 chế độ giao hàng:{' '}
-            <strong>Địa chỉ thường</strong> (khách nhận), <strong>Hub cấp 1</strong> (liên Hub), và{' '}
-            <strong>Tuyến Xe bo</strong> (tuyến nội thành/vệ tinh).
+            <strong>Địa chỉ thường</strong> (khách nhận), <strong>Cấp 1 • Hub Chính</strong> (liên
+            Hub), và <strong>Cấp 2 • Trạm Xe Bo</strong> (trạm vệ tinh / chặng cuối).
           </span>
         </div>
       )}

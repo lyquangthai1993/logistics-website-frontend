@@ -169,19 +169,10 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const filterParsers = React.useMemo(() => {
     if (enableAdvancedFilter) return {};
 
-    return filterableColumns.reduce<Record<string, Parser<string> | Parser<string[]>>>(
-      (acc, column) => {
-        if (column.meta?.options) {
-          acc[column.id ?? ''] = parseAsArrayOf(parseAsString, ARRAY_SEPARATOR).withOptions(
-            queryStateOptions
-          );
-        } else {
-          acc[column.id ?? ''] = parseAsString.withOptions(queryStateOptions);
-        }
-        return acc;
-      },
-      {}
-    );
+    return filterableColumns.reduce<Record<string, Parser<string>>>((acc, column) => {
+      acc[column.id ?? ''] = parseAsString.withOptions(queryStateOptions);
+      return acc;
+    }, {});
   }, [filterableColumns, queryStateOptions, enableAdvancedFilter]);
 
   const [filterValues, setFilterValues] = useQueryStates(filterParsers);
@@ -195,12 +186,13 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     if (enableAdvancedFilter) return [];
 
     return Object.entries(filterValues).reduce<ColumnFiltersState>((filters, [key, value]) => {
-      if (value !== null) {
+      if (value !== null && value !== undefined && value !== '') {
+        const col = filterableColumns.find((c) => c.id === key);
         const processedValue = Array.isArray(value)
           ? value
-          : typeof value === 'string' && /[^a-zA-Z0-9]/.test(value)
-            ? value.split(/[^a-zA-Z0-9]+/).filter(Boolean)
-            : [value];
+          : col?.meta?.options
+            ? String(value).split(ARRAY_SEPARATOR).filter(Boolean)
+            : String(value);
 
         filters.push({
           id: key,
@@ -209,7 +201,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       }
       return filters;
     }, []);
-  }, [filterValues, enableAdvancedFilter]);
+  }, [filterValues, filterableColumns, enableAdvancedFilter]);
 
   const [columnFilters, setColumnFilters] =
     React.useState<ColumnFiltersState>(initialColumnFilters);
@@ -221,15 +213,19 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       setColumnFilters((prev) => {
         const next = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
 
-        const filterUpdates = next.reduce<Record<string, string | string[] | null>>(
-          (acc, filter) => {
-            if (filterableColumns.find((column) => column.id === filter.id)) {
-              acc[filter.id] = filter.value as string | string[];
+        const filterUpdates = next.reduce<Record<string, string | null>>((acc, filter) => {
+          if (filterableColumns.find((column) => column.id === filter.id)) {
+            const rawVal = filter.value;
+            if (Array.isArray(rawVal)) {
+              acc[filter.id] = rawVal.length > 0 ? rawVal.join(ARRAY_SEPARATOR) : null;
+            } else if (typeof rawVal === 'string') {
+              acc[filter.id] = rawVal || null;
+            } else {
+              acc[filter.id] = null;
             }
-            return acc;
-          },
-          {}
-        );
+          }
+          return acc;
+        }, {});
 
         for (const prevFilter of prev) {
           if (!next.some((filter) => filter.id === prevFilter.id)) {
