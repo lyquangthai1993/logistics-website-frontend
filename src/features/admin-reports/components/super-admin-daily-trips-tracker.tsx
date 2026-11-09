@@ -1025,11 +1025,11 @@ export function SuperAdminDailyTripsTracker() {
             <div>
               {data?.filter?.isCurrentOpen ? (
                 <Badge className='bg-amber-500/15 text-amber-800 border-amber-500/30 dark:text-amber-300 text-[10px] px-1.5 py-0'>
-                  Kỳ đang mở (Chốt lúc 18:00)
+                  Kỳ đang mở (Chốt lúc 06:00)
                 </Badge>
               ) : (
                 <Badge className='bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300 text-[10px] px-1.5 py-0'>
-                  Đã chốt sổ 18:00
+                  Đã chốt sổ 06:00
                 </Badge>
               )}
             </div>
@@ -1412,7 +1412,7 @@ export function SuperAdminDailyTripsTracker() {
                           {d.fullDateLabel}
                         </div>
                         <div className='text-[9px] text-muted-foreground font-normal'>
-                          18:00 D-1 → 18:00 D
+                          06:00 D-1 → 05:59 D
                         </div>
                       </td>
                       <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
@@ -1495,7 +1495,7 @@ export function SuperAdminDailyTripsTracker() {
         </CardContent>
       </Card>
 
-      {/* 5. Khung Cảnh báo Chuyến xe Chưa xác nhận / Đang nháp trước giờ Cut-off 18:00 */}
+      {/* 5. Khung Cảnh báo Chuyến xe Chưa xác nhận / Đang nháp trước giờ Cut-off 06:00 */}
       <Card
         className={`p-2 shadow-2xs ${
           pendingTrips.length > 0
@@ -1513,7 +1513,7 @@ export function SuperAdminDailyTripsTracker() {
                 <IconCheck className='h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0' />
               )}
               <span className='text-xs font-bold uppercase text-slate-900 dark:text-slate-100'>
-                Kiểm soát Chuyến xe Chưa xác nhận trước giờ Cut-off 18:00
+                Kiểm soát Chuyến xe Chưa xác nhận trước giờ Cut-off 06:00
               </span>
               {pendingTrips.length > 0 ? (
                 <Badge className='bg-amber-500/20 text-amber-800 border-amber-500/30 dark:text-amber-300 text-[10px] font-mono px-1.5 py-0'>
@@ -1527,7 +1527,7 @@ export function SuperAdminDailyTripsTracker() {
             </div>
             <span className='text-[10px] text-muted-foreground'>
               {pendingTrips.length > 0
-                ? 'Cần xác nhận Nhập/Xuất kho trước 18:00 để được ghi nhận vào sản lượng chốt ngày'
+                ? 'Cần xác nhận Nhập/Xuất kho trước 06:00 để được ghi nhận vào sản lượng chốt ngày'
                 : 'Tất cả chuyến xe trong kỳ đã được xác nhận Nhập/Xuất kho đầy đủ'}
             </span>
           </div>
