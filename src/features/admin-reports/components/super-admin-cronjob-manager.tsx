@@ -373,7 +373,7 @@ export function SuperAdminCronjobManager() {
               {formatDateVn(data?.scheduleInfo?.latestClosedReportDate)}
             </div>
             <span className='text-[10px] font-mono text-muted-foreground'>
-              Chu kỳ: 18:00 D-1 → 18:00 D
+              Chu kỳ: 06:00 D-1 → 05:59 D
             </span>
           </CardContent>
         </Card>
@@ -1106,7 +1106,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
           <div className='flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground'>
             <span>
               {currentJob?.description ||
-                'Tự động chốt sản lượng CBM, Số Tấn và Chuyến xe (TRIP) xác nhận Nhập/Xuất theo chu kỳ 18:00 ngày D-1 → 18:00 ngày D'}
+                'Tự động chốt sản lượng CBM, Số Tấn và Chuyến xe (TRIP) xác nhận Nhập/Xuất theo chu kỳ 06:00 ngày D-1 → 05:59 ngày D'}
             </span>
             <span className='font-mono'>
               Giờ hệ thống GMT+7:{' '}
@@ -1360,7 +1360,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                     </span>
                   ) : (
                     <span className='text-muted-foreground'>
-                      Mỗi ngày chạy riêng 1 lượt chuẩn 18:00 D-1 → 18:00 D
+                      Mỗi ngày chạy riêng 1 lượt chuẩn 06:00 D-1 → 05:59 D
                     </span>
                   )}
                 </div>
@@ -1745,7 +1745,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                     <th className='py-1 px-1.5'>Thời điểm chạy</th>
                     <th className='py-1 px-1.5'>Ngày báo cáo mục tiêu</th>
                     <th className='py-1 px-1.5'>
-                      Khung giờ quét (18:00 D-1 → 18:00 D)
+                      Khung giờ quét (06:00 D-1 → 05:59 D)
                     </th>
                     <th className='py-1 px-1.5'>Loại kích hoạt</th>
                     <th className='py-1 px-1.5'>Sản lượng Nhập / Xuất chốt</th>
@@ -1861,7 +1861,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                   <tr>
                     <th className='py-1 px-1.5'>Ngày báo cáo</th>
                     <th className='py-1 px-1.5'>
-                      Khung giờ chốt (18:00 D-1 → 18:00 D)
+                      Khung giờ chốt (06:00 D-1 → 05:59 D)
                     </th>
                     <th className='py-1 px-1.5 text-center'>
                       Trạng thái dữ liệu DB

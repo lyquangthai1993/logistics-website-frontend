@@ -178,7 +178,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     // Thử chuyển đổi bộ lọc chiều vận hành
     await page.getByTestId('direction-inbound-btn').click();
     await page.getByTestId('direction-outbound-btn').click();
-    await page.getByTestId('direction-all-btn').click();
+    await page.getByTestId('direction-inbound-btn').click();
 
     await page.getByTestId('tab-confirmed-trips').click();
     await expect(page.getByTestId('tab-hub-breakdown')).toHaveCount(0);
@@ -404,3 +404,4 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     });
   });
 });
+

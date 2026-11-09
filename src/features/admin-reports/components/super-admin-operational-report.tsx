@@ -27,7 +27,9 @@ import {
   IconRefresh,
   IconRoute,
   IconTrendingUp,
-  IconTruck
+  IconTruck,
+  IconArrowDownLeft,
+  IconArrowUpRight
 } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -343,7 +345,7 @@ export function AdminOperationalReportProvider({
   const [fromDate, setFromDate] = useState<string>(defaultRange.fromDate);
   const [toDate, setToDate] = useState<string>(defaultRange.toDate);
   const [selectedHubId, setSelectedHubId] = useState<string>('ALL');
-  const [direction, setDirection] = useState<ReportDirection>('ALL');
+  const [direction, setDirection] = useState<ReportDirection>('INBOUND');
   const [activeTab, setActiveTab] = useState<'daily' | 'trips' | 'hubs'>(
     'daily'
   );
@@ -391,7 +393,7 @@ export function AdminOperationalReportProvider({
     },
     onSuccess: (res) => {
       toast.success(
-        `Đã đồng bộ báo cáo vận hành (${res?.processedDays ?? 0} ngày, khung 18:00 D-1 → 18:00 D)`
+        `Đã đồng bộ báo cáo vận hành (${res?.processedDays ?? 0} ngày, khung 06:00 D-1 → 05:59 D)`
       );
       void queryClient.invalidateQueries({
         queryKey: ['admin-operational-report']
@@ -463,7 +465,7 @@ export function AdminOperationalReportProvider({
     const dailyRows = dailySeries.map((d, idx) => ({
       STT: idx + 1,
       'Ngày báo cáo': d.fullDateLabel,
-      'Khung giờ chốt (18:00 D-1 → 18:00 D)': d.windowLabel,
+      'Khung giờ chốt (06:00 D-1 → 05:59 D)': d.windowLabel,
       'Trạng thái kỳ': d.isFuture
         ? 'Chưa diễn ra'
         : d.isClosed
@@ -700,44 +702,34 @@ export function AdminReportHeaderAndKpis() {
               />
 
               <div
-                className='inline-flex items-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-900 p-0.5 h-8'
+                className='inline-flex items-center gap-1.5 p-0.5'
                 data-testid='report-direction-toggle'
               >
                 <button
                   type='button'
-                  onClick={() => setDirection('ALL')}
-                  data-testid='direction-all-btn'
-                  className={`h-7 px-2 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
-                    direction === 'ALL'
-                      ? 'bg-[#0F3D62] text-white shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-foreground'
-                  }`}
-                >
-                  Tổng lưu thông
-                </button>
-                <button
-                  type='button'
                   onClick={() => setDirection('INBOUND')}
                   data-testid='direction-inbound-btn'
-                  className={`h-7 px-2 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+                  className={`h-8 px-3 rounded-md text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
                     direction === 'INBOUND'
-                      ? 'bg-[#0F3D62] text-white shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-foreground'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm ring-2 ring-blue-400/30'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600'
                   }`}
                 >
-                  Xe nhập kho
+                  <IconArrowDownLeft className='h-3.5 w-3.5' />
+                  <span>Báo cáo Nhập kho</span>
                 </button>
                 <button
                   type='button'
                   onClick={() => setDirection('OUTBOUND')}
                   data-testid='direction-outbound-btn'
-                  className={`h-7 px-2 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+                  className={`h-8 px-3 rounded-md text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
                     direction === 'OUTBOUND'
-                      ? 'bg-[#0F3D62] text-white shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-foreground'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-400/30'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-600'
                   }`}
                 >
-                  Xe xuất kho
+                  <IconArrowUpRight className='h-3.5 w-3.5' />
+                  <span>Báo cáo Xuất kho</span>
                 </button>
               </div>
             </div>
@@ -820,9 +812,9 @@ export function AdminReportHeaderAndKpis() {
                 Báo cáo ngày <strong className='font-mono'>D</strong> tổng hợp
                 từ{' '}
                 <strong className='font-mono text-blue-700 dark:text-blue-300'>
-                  18:00 (6:00 PM) ngày D-1 đến 18:00 (6:00 PM) ngày D
+                  06:00 (6:00 AM) ngày D-1 đến 05:59 (5:59 AM) ngày D
                 </strong>{' '}
-                (VD: ngày 02/11/2026 tính từ 18:00 01/11/2026 đến 18:00
+                (VD: ngày 02/11/2026 tính từ 06:00 01/11/2026 đến 05:59
                 02/11/2026).
               </span>
               <span className='text-muted-foreground'>
@@ -837,7 +829,7 @@ export function AdminReportHeaderAndKpis() {
                 className='text-[10px] px-1.5 py-0 h-4 bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300 font-mono'
               >
                 Cron tự động:{' '}
-                {data?.filter.cronSchedule || '18:05 hàng ngày (GMT+7)'}
+                {data?.filter.cronSchedule || '06:05 hàng ngày (GMT+7)'}
               </Badge>
               {data?.filter.lastClosedReportDate && (
                 <Badge
@@ -1164,7 +1156,7 @@ export function MonthlyOperationalTrendsSlot() {
             variant='outline'
             className='text-[10px] px-1.5 py-0 h-4 bg-slate-500/10 text-slate-700 dark:text-slate-300'
           >
-            Chu kỳ mỗi ngày trong tháng: 18:00 ngày D-1 → 18:00 ngày D
+            Chu kỳ mỗi ngày trong tháng: 06:00 ngày D-1 → 05:59 ngày D
           </Badge>
         </div>
 
@@ -1362,31 +1354,10 @@ export function OperationalDrilldownTableSlot() {
     >
       <CardContent className='p-0 space-y-1.5'>
         <div className='flex flex-wrap items-center justify-between gap-1.5 border-b pb-1.5'>
-          <div className='flex flex-wrap items-center gap-1'>
-            <button
-              type='button'
-              onClick={() => setActiveTab('daily')}
-              data-testid='tab-daily-breakdown'
-              className={`h-7 px-2.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
-                activeTab === 'daily'
-                  ? 'bg-[#0F3D62] text-white'
-                  : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
+          <div className='flex flex-wrap items-center gap-1.5'>
+            <span className='inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-xs font-bold bg-[#0F3D62] text-white shadow-xs' data-testid='tab-daily-breakdown'>
               Bảng kê theo ngày ({dailySeries.length} ngày)
-            </button>
-            <button
-              type='button'
-              onClick={() => setActiveTab('trips')}
-              data-testid='tab-confirmed-trips'
-              className={`h-7 px-2.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
-                activeTab === 'trips'
-                  ? 'bg-[#0F3D62] text-white'
-                  : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              Widget Theo dõi mã TRIP ({confirmedTrips.length} chuyến)
-            </button>
+            </span>
           </div>
 
           <div className='flex flex-wrap items-center gap-1.5'>
@@ -1425,7 +1396,7 @@ export function OperationalDrilldownTableSlot() {
                 <tr className='text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300'>
                   <th className='py-1 px-1.5'>Ngày báo cáo</th>
                   <th className='py-1 px-1.5'>
-                    Khung giờ tổng hợp (18:00 D-1 → 18:00 D)
+                    Khung giờ tổng hợp (06:00 D-1 → 05:59 D)
                   </th>
                   <th className='py-1 px-1.5'>Trạng thái kỳ</th>
                   <th className='py-1 px-1.5 text-right'>
@@ -1477,7 +1448,7 @@ export function OperationalDrilldownTableSlot() {
                           variant='outline'
                           className='text-[10px] px-1 py-0 h-4 bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300'
                         >
-                          Đã chốt sổ 18:00
+                          Đã chốt sổ 06:00
                         </Badge>
                       ) : (
                         <Badge
@@ -1544,7 +1515,7 @@ export function OperationalDrilldownTableSlot() {
                   <th className='py-1 px-1.5'>Mã chuyến (TRIP)</th>
                   <th className='py-1 px-1.5'>Chiều xác nhận</th>
                   <th className='py-1 px-1.5'>Thời điểm xác nhận</th>
-                  <th className='py-1 px-1.5'>Kỳ báo cáo (18:00 → 18:00)</th>
+                  <th className='py-1 px-1.5'>Kỳ báo cáo (06:00 → 05:59)</th>
                   <th className='py-1 px-1.5'>Chi nhánh Kho</th>
                   <th className='py-1 px-1.5'>Biển số / Tài xế</th>
                   <th className='py-1 px-1.5 text-right'>Số đơn / Kiện</th>
@@ -1701,7 +1672,7 @@ export function AdminOperationalReportLayoutShell({
     return (
       <PageContainer
         pageTitle='Theo Dõi Chi Tiết Mã TRIP Nhập/Xuất Theo Ngày'
-        pageDescription='Kiểm tra chi tiết 1 ngày cụ thể (18:00 ngày D-1 → 18:00 ngày D) có bao nhiêu xe nhập kho, bao nhiêu xe xuất kho và danh sách đơn hàng trong từng mã TRIP'
+        pageDescription='Kiểm tra chi tiết 1 ngày cụ thể (06:00 ngày D-1 → 05:59 ngày D) có bao nhiêu xe nhập kho, bao nhiêu xe xuất kho và danh sách đơn hàng trong từng mã TRIP'
       >
         {children}
       </PageContainer>
@@ -1711,7 +1682,7 @@ export function AdminOperationalReportLayoutShell({
   return (
     <PageContainer
       pageTitle='Báo Cáo Kết Quả Hoạt Động Vận Hành'
-      pageDescription='Tổng hợp sản lượng hoạt động của Hub theo ngày và xu hướng tháng (Cronjob chốt sổ 18:00 ngày D-1 → 18:00 ngày D theo thời điểm xác nhận chuyến xe)'
+      pageDescription='Tổng hợp sản lượng hoạt động của Hub theo ngày và xu hướng tháng (Cronjob chốt sổ 06:00 ngày D-1 → 05:59 ngày D theo thời điểm xác nhận chuyến xe)'
     >
       <AdminOperationalReportProvider>
         {/* Primary Slot: Single Global Filter Bar & 4 KPI Summary Cards */}

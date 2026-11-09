@@ -78,6 +78,14 @@ export default function WarehouseOrdersPage() {
     return 'ALL';
   });
 
+  // State lưu trữ tổng số lượng, số kg, số khối cho Super Admin
+  const [adminTotals, setAdminTotals] = useState<{
+    quantity: number;
+    weightKg: number;
+    volumeCbm: number;
+  }>({ quantity: 0, weightKg: 0, volumeCbm: 0 });
+  const [isLoadingAdminTotals, setIsLoadingAdminTotals] = useState(false);
+
   const handleHubIdChange = useCallback((newHubId: string) => {
     const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
     setHubId(normalized);
@@ -776,6 +784,71 @@ export default function WarehouseOrdersPage() {
     };
   }, [fetchOrders]);
 
+  // Fetch 3 ô tính tổng (Số lượng, Số kg, CBM) cho Super Admin khi đổi tab hoặc bộ lọc
+  useEffect(() => {
+    if (!isAdmin) return;
+    let isCancelled = false;
+    setIsLoadingAdminTotals(true);
+    const token = tokenManager.getAccessToken();
+
+    const query = new URLSearchParams({
+      isExport: 'true',
+      ...(effectiveSearch ? { search: effectiveSearch } : {}),
+      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
+    });
+
+    fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((resData) => {
+        if (isCancelled) return;
+        const items: any[] = resData?.data ?? [];
+        let totalQty = 0;
+        let totalWeight = 0;
+        let totalVolume = 0;
+
+        for (const item of items) {
+          const rawStock = Number(item.hubStock ?? item.remainingQuantity ?? 0);
+          const rawTotal = Number(item.totalQuantity ?? 0);
+          const total = Math.max(rawTotal, rawStock, 0);
+          const stock = Math.max(0, Math.min(rawStock, total));
+
+          if (statusFilter === 'INBOUND') {
+            totalQty += stock;
+          } else {
+            totalQty += total;
+          }
+          totalWeight += Number(item.totalWeight ?? 0);
+          totalVolume += Number(item.totalVolume ?? 0);
+        }
+
+        setAdminTotals({
+          quantity: totalQty,
+          weightKg: Math.round(totalWeight * 100) / 100,
+          volumeCbm: Math.round(totalVolume * 1000) / 1000
+        });
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setAdminTotals({ quantity: 0, weightKg: 0, volumeCbm: 0 });
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingAdminTotals(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdmin, statusFilter, hubId, effectiveSearch]);
+
   const COLUMN_COUNT = 11;
 
   /** Date formatting helper: chỉ hiển thị ngày (dd/MM/yyyy), bỏ giờ */
@@ -975,10 +1048,17 @@ export default function WarehouseOrdersPage() {
         {/* Page Header */}
         <div className='flex flex-wrap items-center justify-between gap-2 border-b pb-2'>
           <div>
-            <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
-              <IconBuildingWarehouse className='h-6 w-6' />
-              <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
-            </h1>
+            <div className='flex flex-wrap items-center gap-2.5'>
+              <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
+                <IconBuildingWarehouse className='h-6 w-6' />
+                <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName && !isAdmin ? ` · ${currentHubName}` : ''}</span>
+              </h1>
+              {isAdmin && (
+                <div className='inline-flex items-center' data-testid='admin-header-hub-filter'>
+                  <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />
+                </div>
+              )}
+            </div>
             <p className='text-xs text-slate-500 mt-0.5'>
               Theo dõi, tra cứu và in lại tem nhãn nhận diện A4 cho các lô hàng lưu kho và xuất kho.
             </p>
@@ -1053,7 +1133,7 @@ export default function WarehouseOrdersPage() {
           <CardContent className='p-1 space-y-1.5'>
             {/* Toolbar */}
             <div className='flex flex-wrap items-center justify-between gap-2'>
-              <div className='relative flex-1 min-w-65'>
+              <div className='relative flex-1 min-w-55 max-w-md'>
                 <button
                   type='button'
                   onClick={handleSearchSubmit}
@@ -1081,7 +1161,73 @@ export default function WarehouseOrdersPage() {
                 )}
               </div>
 
-              <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />
+              {/* 3 ô tính tổng cho Super Admin (Số lượng, Số kg, Số khối) */}
+              {isAdmin && (
+                <div
+                  className='flex items-center gap-1.5'
+                  data-testid='admin-orders-metrics-boxes'
+                >
+                  {/* Ô 1: SỐ LƯỢNG */}
+                  <div
+                    className='h-8 min-w-[105px] px-2 rounded-md border border-blue-200/90 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 flex flex-col justify-center'
+                    title='Tổng số kiện hàng theo tab đang chọn'
+                    data-testid='admin-metric-quantity'
+                  >
+                    <div className='flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300'>
+                      <span>SỐ LƯỢNG</span>
+                      <span className='font-normal text-[8.5px] opacity-75'>Kiện</span>
+                    </div>
+                    <div className='text-xs font-black font-mono text-blue-900 dark:text-blue-100 leading-tight'>
+                      {isLoadingAdminTotals ? (
+                        <span className='animate-pulse text-blue-400'>...</span>
+                      ) : (
+                        adminTotals.quantity.toLocaleString('vi-VN')
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ô 2: SỐ KG */}
+                  <div
+                    className='h-8 min-w-[105px] px-2 rounded-md border border-amber-200/90 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/40 flex flex-col justify-center'
+                    title='Tổng khối lượng (kg) theo tab đang chọn'
+                    data-testid='admin-metric-weight'
+                  >
+                    <div className='flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300'>
+                      <span>SỐ KG</span>
+                      <span className='font-normal text-[8.5px] opacity-75'>Kg</span>
+                    </div>
+                    <div className='text-xs font-black font-mono text-amber-900 dark:text-amber-100 leading-tight'>
+                      {isLoadingAdminTotals ? (
+                        <span className='animate-pulse text-amber-400'>...</span>
+                      ) : (
+                        adminTotals.weightKg.toLocaleString('vi-VN')
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ô 3: SỐ KHỐI (CBM) */}
+                  <div
+                    className='h-8 min-w-[105px] px-2 rounded-md border border-emerald-200/90 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/40 flex flex-col justify-center'
+                    title='Tổng thể tích (CBM/m³) theo tab đang chọn'
+                    data-testid='admin-metric-volume'
+                  >
+                    <div className='flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300'>
+                      <span>SỐ KHỐI</span>
+                      <span className='font-normal text-[8.5px] opacity-75'>CBM</span>
+                    </div>
+                    <div className='text-xs font-black font-mono text-emerald-900 dark:text-emerald-100 leading-tight'>
+                      {isLoadingAdminTotals ? (
+                        <span className='animate-pulse text-emerald-400'>...</span>
+                      ) : (
+                        adminTotals.volumeCbm.toLocaleString('vi-VN', { maximumFractionDigits: 3 })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Nếu không phải Super Admin thì vẫn giữ WarehouseHubFilterSelect ở toolbar (hoặc ẩn nếu role không có quyền) */}
+              {!isAdmin && <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />}
 
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
