@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { formatNumberSpaced } from '@/lib/utils';
 
 export interface AdminOrdersMetricsSummaryProps {
   quantity: number;
@@ -42,7 +42,7 @@ export function AdminOrdersMetricsSummaryRow({
             {isLoading ? (
               <span className='animate-pulse text-blue-400'>...</span>
             ) : (
-              quantity.toLocaleString('vi-VN')
+              formatNumberSpaced(quantity, 0)
             )}
           </div>
         </div>
@@ -62,7 +62,7 @@ export function AdminOrdersMetricsSummaryRow({
             {isLoading ? (
               <span className='animate-pulse text-amber-400'>...</span>
             ) : (
-              weightKg.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
+              formatNumberSpaced(weightKg, 2)
             )}
           </div>
         </div>
@@ -82,7 +82,7 @@ export function AdminOrdersMetricsSummaryRow({
             {isLoading ? (
               <span className='animate-pulse text-emerald-400'>...</span>
             ) : (
-              volumeCbm.toLocaleString('vi-VN', { maximumFractionDigits: 3 })
+              formatNumberSpaced(volumeCbm, 2)
             )}
           </div>
         </div>

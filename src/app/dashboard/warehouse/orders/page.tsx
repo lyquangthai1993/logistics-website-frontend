@@ -37,6 +37,7 @@ import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
+import { formatNumberSpaced } from '@/lib/utils';
 
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
@@ -1296,12 +1297,10 @@ export default function WarehouseOrdersPage() {
                             {renderStock(row)}
                           </td>
                           <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
-                            {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')}
+                            {formatNumberSpaced(row.totalWeight, 2)}
                           </td>
                           <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
-                            {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
-                              maximumFractionDigits: 3
-                            })}
+                            {formatNumberSpaced(row.totalVolume, 2)}
                           </td>
                           <td
                             className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-35 max-w-50 truncate'
