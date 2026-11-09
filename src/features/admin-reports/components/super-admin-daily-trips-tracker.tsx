@@ -1412,7 +1412,7 @@ export function SuperAdminDailyTripsTracker() {
                           {d.fullDateLabel}
                         </div>
                         <div className='text-[9px] text-muted-foreground font-normal'>
-                          06:00 D-1 → 05:59 D
+                          06:00 D → 05:59 D+1
                         </div>
                       </td>
                       <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>

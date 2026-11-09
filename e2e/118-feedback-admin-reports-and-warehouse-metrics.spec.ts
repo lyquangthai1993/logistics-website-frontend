@@ -36,7 +36,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
 
     const dayNov02 = data.dailySeries.find((d: any) => d.reportDate === '2026-11-02');
     expect(dayNov02).toBeDefined();
-    expect(dayNov02.windowLabel).toBe('06:00 01/11/2026 → 05:59 02/11/2026');
+    expect(dayNov02.windowLabel).toBe('06:00 02/11/2026 → 05:59 03/11/2026');
   });
 
   test('2. Super Admin Reports UI: Banner 06:00, no Widget Theo dõi mã TRIP tab, separate Nhập/Xuất buttons', async ({
@@ -51,7 +51,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     // 1. Kiểm tra Banner quy chuẩn chốt sổ: 06:00 D-1 đến 05:59 D
     const banner = page.getByTestId('cron-cutoff-rule-banner');
     await expect(banner).toBeVisible({ timeout: 15000 });
-    await expect(banner).toContainText('06:00 (6:00 AM) ngày D-1 đến 05:59 (5:59 AM) ngày D');
+    await expect(banner).toContainText('06:00 (6:00 AM) ngày D đến 05:59 (5:59 AM) ngày D+1');
 
     // 2. Kiểm tra slot drilldown-table & Widget mã TRIP đã được loại bỏ
     await expect(page.getByTestId('tab-confirmed-trips')).toHaveCount(0);

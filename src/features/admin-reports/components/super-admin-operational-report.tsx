@@ -393,7 +393,7 @@ export function AdminOperationalReportProvider({
     },
     onSuccess: (res) => {
       toast.success(
-        `Đã đồng bộ báo cáo vận hành (${res?.processedDays ?? 0} ngày, khung 06:00 D-1 → 05:59 D)`
+        `Đã đồng bộ báo cáo vận hành (${res?.processedDays ?? 0} ngày, khung 06:00 D → 05:59 D+1)`
       );
       void queryClient.invalidateQueries({
         queryKey: ['admin-operational-report']
@@ -465,7 +465,7 @@ export function AdminOperationalReportProvider({
     const dailyRows = dailySeries.map((d, idx) => ({
       STT: idx + 1,
       'Ngày báo cáo': d.fullDateLabel,
-      'Khung giờ chốt (06:00 D-1 → 05:59 D)': d.windowLabel,
+      'Khung giờ chốt (06:00 D → 05:59 D+1)': d.windowLabel,
       'Trạng thái kỳ': d.isFuture
         ? 'Chưa diễn ra'
         : d.isClosed
@@ -812,10 +812,9 @@ export function AdminReportHeaderAndKpis() {
                 Báo cáo ngày <strong className='font-mono'>D</strong> tổng hợp
                 từ{' '}
                 <strong className='font-mono text-blue-700 dark:text-blue-300'>
-                  06:00 (6:00 AM) ngày D-1 đến 05:59 (5:59 AM) ngày D
+                  06:00 (6:00 AM) ngày D đến 05:59 (5:59 AM) ngày D+1
                 </strong>{' '}
-                (VD: ngày 02/11/2026 tính từ 06:00 01/11/2026 đến 05:59
-                02/11/2026).
+                (VD: ngày 09/11/2026 tính từ 06:00 09/11/2026 đến 05:59 10/11/2026).
               </span>
               <span className='text-muted-foreground'>
                 • Thời gian chuyến xe tính theo lúc{' '}
@@ -845,7 +844,7 @@ export function AdminReportHeaderAndKpis() {
       </Card>
 
       {/* 2. Dải 4 thẻ KPI Tóm tắt Sản lượng */}
-      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2'>
         <Card className='p-2 border-l-4 border-l-[#0F3D62] shadow-2xs'>
           <CardContent className='p-0 space-y-1'>
             <div className='flex items-center justify-between'>
@@ -935,34 +934,7 @@ export function AdminReportHeaderAndKpis() {
           </CardContent>
         </Card>
 
-        <Card className='p-2 border-l-4 border-l-purple-600 shadow-2xs'>
-          <CardContent className='p-0 space-y-1'>
-            <div className='flex items-center justify-between'>
-              <span className='text-[10px] font-bold uppercase text-muted-foreground'>
-                Tổng số kiện &amp; ngày hoạt động
-              </span>
-              <IconPackage className='h-3.5 w-3.5 text-purple-600 dark:text-purple-400' />
-            </div>
-            <div
-              className='text-lg font-extrabold font-mono text-purple-700 dark:text-purple-300'
-              data-testid='kpi-total-packages'
-            >
-              {formatNumberVn(summary?.packageCount ?? 0, 0)} kiện
-            </div>
-            <div className='flex items-center justify-between text-[10px] text-muted-foreground'>
-              <span>
-                Đơn hàng:{' '}
-                <strong className='font-mono text-foreground'>
-                  {summary?.orderCount ?? 0} đơn
-                </strong>
-              </span>
-              <span className='font-mono'>
-                Có hàng: {summary?.activeDaysCount ?? 0}/
-                {summary?.effectiveDaysCount ?? 0} ngày
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        
       </div>
     </div>
   );
@@ -1066,13 +1038,7 @@ export function DailyOperationalBarSlot() {
                             </strong>{' '}
                             ({formatNumberVn(pt.weightKg, 0)} kg)
                           </div>
-                          <div>
-                            Chuyến xe xác nhận:{' '}
-                            <strong className='font-mono text-foreground'>
-                              {pt.tripCount} chuyến
-                            </strong>{' '}
-                            • {pt.packageCount} kiện ({pt.orderCount} đơn)
-                          </div>
+                          
                         </div>
                       </div>
                     );
@@ -1156,7 +1122,7 @@ export function MonthlyOperationalTrendsSlot() {
             variant='outline'
             className='text-[10px] px-1.5 py-0 h-4 bg-slate-500/10 text-slate-700 dark:text-slate-300'
           >
-            Chu kỳ mỗi ngày trong tháng: 06:00 ngày D-1 → 05:59 ngày D
+            Chu kỳ mỗi ngày trong tháng: 06:00 ngày D → 05:59 ngày D+1
           </Badge>
         </div>
 
@@ -1396,7 +1362,7 @@ export function OperationalDrilldownTableSlot() {
                 <tr className='text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300'>
                   <th className='py-1 px-1.5'>Ngày báo cáo</th>
                   <th className='py-1 px-1.5'>
-                    Khung giờ tổng hợp (06:00 D-1 → 05:59 D)
+                    Khung giờ tổng hợp (06:00 D → 05:59 D+1)
                   </th>
                   <th className='py-1 px-1.5'>Trạng thái kỳ</th>
                   <th className='py-1 px-1.5 text-right'>
@@ -1672,7 +1638,7 @@ export function AdminOperationalReportLayoutShell({
     return (
       <PageContainer
         pageTitle='Theo Dõi Chi Tiết Mã TRIP Nhập/Xuất Theo Ngày'
-        pageDescription='Kiểm tra chi tiết 1 ngày cụ thể (06:00 ngày D-1 → 05:59 ngày D) có bao nhiêu xe nhập kho, bao nhiêu xe xuất kho và danh sách đơn hàng trong từng mã TRIP'
+        pageDescription='Kiểm tra chi tiết 1 ngày cụ thể (06:00 ngày D → 05:59 ngày D+1) có bao nhiêu xe nhập kho, bao nhiêu xe xuất kho và danh sách đơn hàng trong từng mã TRIP'
       >
         {children}
       </PageContainer>
@@ -1682,7 +1648,7 @@ export function AdminOperationalReportLayoutShell({
   return (
     <PageContainer
       pageTitle='Báo Cáo Kết Quả Hoạt Động Vận Hành'
-      pageDescription='Tổng hợp sản lượng hoạt động của Hub theo ngày và xu hướng tháng (Cronjob chốt sổ 06:00 ngày D-1 → 05:59 ngày D theo thời điểm xác nhận chuyến xe)'
+      pageDescription='Tổng hợp sản lượng hoạt động của Hub theo ngày và xu hướng tháng (Cronjob chốt sổ 06:00 ngày D → 05:59 ngày D+1 theo thời điểm xác nhận chuyến xe)'
     >
       <AdminOperationalReportProvider>
         {/* Primary Slot: Single Global Filter Bar & 4 KPI Summary Cards */}
