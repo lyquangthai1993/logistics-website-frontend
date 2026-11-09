@@ -53,10 +53,9 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await expect(banner).toBeVisible({ timeout: 15000 });
     await expect(banner).toContainText('06:00 (6:00 AM) ngày D-1 đến 05:59 (5:59 AM) ngày D');
 
-    // 2. Kiểm tra tab: Nút 'Widget Theo dõi mã TRIP' đã bị bỏ, chỉ có 'Bảng kê theo ngày'
+    // 2. Kiểm tra slot drilldown-table & Widget mã TRIP đã được loại bỏ
     await expect(page.getByTestId('tab-confirmed-trips')).toHaveCount(0);
-    await expect(page.getByTestId('tab-daily-breakdown')).toBeVisible();
-
+    
     // 3. Kiểm tra 2 nút bấm tách riêng báo cáo Nhập kho và Xuất kho
     const inboundBtn = page.getByTestId('direction-inbound-btn');
     const outboundBtn = page.getByTestId('direction-outbound-btn');
