@@ -36,6 +36,7 @@ import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
+import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
 
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
@@ -1161,71 +1162,6 @@ export default function WarehouseOrdersPage() {
                 )}
               </div>
 
-              {/* 3 ô tính tổng cho Super Admin (Số lượng, Số kg, Số khối) */}
-              {isAdmin && (
-                <div
-                  className='flex items-center gap-1.5'
-                  data-testid='admin-orders-metrics-boxes'
-                >
-                  {/* Ô 1: SỐ LƯỢNG */}
-                  <div
-                    className='h-8 min-w-[105px] px-2 rounded-md border border-blue-200/90 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 flex flex-col justify-center'
-                    title='Tổng số kiện hàng theo tab đang chọn'
-                    data-testid='admin-metric-quantity'
-                  >
-                    <div className='flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300'>
-                      <span>SỐ LƯỢNG</span>
-                      <span className='font-normal text-[8.5px] opacity-75'>Kiện</span>
-                    </div>
-                    <div className='text-xs font-black font-mono text-blue-900 dark:text-blue-100 leading-tight'>
-                      {isLoadingAdminTotals ? (
-                        <span className='animate-pulse text-blue-400'>...</span>
-                      ) : (
-                        adminTotals.quantity.toLocaleString('vi-VN')
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Ô 2: SỐ KG */}
-                  <div
-                    className='h-8 min-w-[105px] px-2 rounded-md border border-amber-200/90 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/40 flex flex-col justify-center'
-                    title='Tổng khối lượng (kg) theo tab đang chọn'
-                    data-testid='admin-metric-weight'
-                  >
-                    <div className='flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300'>
-                      <span>SỐ KG</span>
-                      <span className='font-normal text-[8.5px] opacity-75'>Kg</span>
-                    </div>
-                    <div className='text-xs font-black font-mono text-amber-900 dark:text-amber-100 leading-tight'>
-                      {isLoadingAdminTotals ? (
-                        <span className='animate-pulse text-amber-400'>...</span>
-                      ) : (
-                        adminTotals.weightKg.toLocaleString('vi-VN')
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Ô 3: SỐ KHỐI (CBM) */}
-                  <div
-                    className='h-8 min-w-[105px] px-2 rounded-md border border-emerald-200/90 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/40 flex flex-col justify-center'
-                    title='Tổng thể tích (CBM/m³) theo tab đang chọn'
-                    data-testid='admin-metric-volume'
-                  >
-                    <div className='flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300'>
-                      <span>SỐ KHỐI</span>
-                      <span className='font-normal text-[8.5px] opacity-75'>CBM</span>
-                    </div>
-                    <div className='text-xs font-black font-mono text-emerald-900 dark:text-emerald-100 leading-tight'>
-                      {isLoadingAdminTotals ? (
-                        <span className='animate-pulse text-emerald-400'>...</span>
-                      ) : (
-                        adminTotals.volumeCbm.toLocaleString('vi-VN', { maximumFractionDigits: 3 })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Nếu không phải Super Admin thì vẫn giữ WarehouseHubFilterSelect ở toolbar (hoặc ẩn nếu role không có quyền) */}
               {!isAdmin && <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />}
 
@@ -1303,6 +1239,14 @@ export default function WarehouseOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
+                  {isAdmin && (
+                    <AdminOrdersMetricsSummaryRow
+                      quantity={adminTotals.quantity}
+                      weightKg={adminTotals.weightKg}
+                      volumeCbm={adminTotals.volumeCbm}
+                      isLoading={isLoadingAdminTotals}
+                    />
+                  )}
                   {isLoading ? (
                     <tr>
                       <td colSpan={COLUMN_COUNT} className='p-2 text-center text-gray-500'>
