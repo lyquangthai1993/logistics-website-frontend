@@ -1663,7 +1663,7 @@ export function AdminOperationalReportLayoutShell({
   children: React.ReactNode;
   daily_stats: React.ReactNode;
   monthly_trends: React.ReactNode;
-  drilldown_table: React.ReactNode;
+  drilldown_table?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const isTripsSubpage = pathname?.startsWith('/dashboard/admin/reports/trips');
@@ -1693,9 +1693,6 @@ export function AdminOperationalReportLayoutShell({
 
         {/* Parallel Route Slot 2 (@monthly_trends): Slide 3 — Biểu đồ Đường Xu hướng Tháng (SỐ KHỐI & SỐ TẤN) */}
         <div data-testid='parallel-slot-monthly-trends'>{monthly_trends}</div>
-
-        {/* Parallel Route Slot 3 (@drilldown_table): Widget Theo dõi chi tiết mã TRIP & Bảng đối soát theo Ngày / Chi nhánh Kho */}
-        <div data-testid='parallel-slot-drilldown-table'>{drilldown_table}</div>
       </AdminOperationalReportProvider>
     </PageContainer>
   );
@@ -1710,7 +1707,6 @@ export default function SuperAdminOperationalReport() {
       <AdminReportHeaderAndKpis />
       <DailyOperationalBarSlot />
       <MonthlyOperationalTrendsSlot />
-      <OperationalDrilldownTableSlot />
     </AdminOperationalReportProvider>
   );
 }
