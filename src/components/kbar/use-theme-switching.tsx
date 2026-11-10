@@ -23,14 +23,14 @@ const useThemeSwitching = () => {
       {
         id: 'cycleTheme',
         name: 'Switch Theme',
-        shortcut: ['t', 't'],
+        shortcut: ['[', ']'],
         section: 'Theme',
         perform: cycleTheme
       },
       {
         id: 'toggleDarkLight',
         name: 'Toggle Dark/Light Mode',
-        shortcut: ['d', 'd'],
+        shortcut: ['\\', '\\'],
         section: 'Theme',
         perform: toggleDarkLight
       },

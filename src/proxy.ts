@@ -26,10 +26,10 @@ function getRoleDefaultPath(userRole?: string): string {
     case 'FLEET_MANAGER':
       return '/dashboard/trips';
     case 'DISPATCHER':
-      return '/dashboard/orders';
+      return '/dashboard/warehouse/orders';
     case 'SUPER_ADMIN':
     default:
-      return '/dashboard/orders';
+      return '/dashboard/warehouse/orders';
   }
 }
 
@@ -98,7 +98,6 @@ async function refreshAccessToken(
     }
 
     if (!res.ok) {
-      // 5xx server error, deploy in progress, or cold start -> transient, NOT auth error
       return { isAuthError: false };
     }
 
@@ -116,7 +115,6 @@ async function refreshAccessToken(
       isAuthError: false
     };
   } catch {
-    // Network glitch, aborted, or cold-start timeout -> transient, NOT auth error
     return { isAuthError: false };
   }
 }
@@ -124,12 +122,10 @@ async function refreshAccessToken(
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Always pass OPTIONS preflight requests directly to handlers without triggering redirects
   if (request.method === 'OPTIONS') {
     return NextResponse.next();
   }
 
-  // 2. Bypass API routes from page redirects – let Backend handle API authentication & errors
   if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
@@ -141,7 +137,6 @@ export async function proxy(request: NextRequest) {
   let isRefreshed = false;
   let newRefreshToken: string | undefined;
 
-  // Check if token is missing or expired
   const isExpired = !payload || (payload.exp && payload.exp * 1000 < Date.now());
 
   if (isExpired && refreshToken) {
@@ -152,11 +147,11 @@ export async function proxy(request: NextRequest) {
       isRefreshed = true;
       newRefreshToken = refreshResult.refreshToken;
     } else if (refreshResult?.isAuthError) {
-      // Refresh token is definitively invalid/revoked (401/403) -> clear cookies and redirect to sign-in
       const signInUrl = new URL('/auth/sign-in', request.url);
       if (
         pathname.startsWith('/dashboard') &&
         pathname !== '/dashboard/overview' &&
+        pathname !== '/dashboard/orders' &&
         pathname !== '/dashboard/warehouse/orders'
       ) {
         signInUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search || ''}`);
@@ -179,7 +174,6 @@ export async function proxy(request: NextRequest) {
   const isAuthenticated =
     !!token && !!payload && (!payload.exp || payload.exp * 1000 >= Date.now());
 
-  // If user is already authenticated and visits public auth routes (/auth/sign-in, /auth), redirect to dashboard
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
     if (isAuthenticated) {
       const redirectParam =
@@ -190,6 +184,7 @@ export async function proxy(request: NextRequest) {
         redirectParam &&
         redirectParam.startsWith('/dashboard') &&
         redirectParam !== '/dashboard/overview' &&
+        redirectParam !== '/dashboard/orders' &&
         redirectParam !== '/dashboard'
           ? redirectParam
           : getRoleDefaultPath(userRole);
@@ -210,12 +205,44 @@ export async function proxy(request: NextRequest) {
       }
       return response;
     }
-    // If accessing auth routes while not authenticated, clean any stale/expired cookies to prevent loops
     const response = NextResponse.next();
     if (token || refreshToken) {
       response.cookies.delete('access_token');
       response.cookies.delete('refreshToken');
       response.cookies.delete('refresh_token');
+    }
+    return response;
+  }
+
+  // Tạm thời ẩn '/dashboard/orders' -> chuyển hướng về '/dashboard/warehouse/orders'
+  if (pathname === '/dashboard/orders' || pathname === '/dashboard/orders/') {
+    if (!isAuthenticated) {
+      const signInUrl = new URL('/auth/sign-in', request.url);
+      signInUrl.searchParams.set('redirect', '/dashboard/warehouse/orders');
+      const response = NextResponse.redirect(signInUrl);
+      response.cookies.delete('access_token');
+      if (!refreshToken) {
+        response.cookies.delete('refreshToken');
+        response.cookies.delete('refresh_token');
+      }
+      return response;
+    }
+
+    const warehouseOrdersUrl = new URL('/dashboard/warehouse/orders', request.url);
+    const response = NextResponse.redirect(warehouseOrdersUrl);
+    if (isRefreshed && token) {
+      response.cookies.set('access_token', token, {
+        path: '/',
+        maxAge: 24 * 60 * 60,
+        sameSite: 'lax'
+      });
+      if (newRefreshToken) {
+        response.cookies.set('refreshToken', newRefreshToken, {
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60,
+          sameSite: 'lax'
+        });
+      }
     }
     return response;
   }
@@ -253,17 +280,16 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // If user has NO valid token (or refresh failed with auth error), redirect protected routes to sign-in
   if (!isAuthenticated) {
     const signInUrl = new URL('/auth/sign-in', request.url);
     if (
       pathname.startsWith('/dashboard') &&
       pathname !== '/dashboard/overview' &&
+      pathname !== '/dashboard/orders' &&
       pathname !== '/dashboard/warehouse/orders'
     ) {
       signInUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search || ''}`);
     }
-    // If we still have a refreshToken (transient network/cold-start error), do NOT wipe refreshToken
     const response = NextResponse.redirect(signInUrl);
     response.cookies.delete('access_token');
     if (!refreshToken) {
@@ -273,14 +299,12 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Extract user role string if payload is present
   if (payload) {
     const userRole =
       typeof payload.role === 'object' && payload.role?.id
         ? roleMap[payload.role.id]
         : roleMap[payload.role] || payload.role;
 
-    // Check role-based route access
     for (const [route, roles] of Object.entries(roleRouteMap)) {
       if (pathname.startsWith(route) && !roles.includes(userRole)) {
         const defaultTarget = getRoleDefaultPath(userRole);

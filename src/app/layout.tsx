@@ -1,3 +1,4 @@
+import { EnvironmentBadge } from '@/components/layout/environment-badge';
 import Providers from '@/components/layout/providers';
 import { Toaster } from '@/components/ui/sonner';
 import { fontVariables } from '@/components/themes/font.config';
@@ -63,6 +64,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const activeThemeValue = cookieStore.get('active_theme')?.value;
   const isValidTheme = THEMES.some((t) => t.value === activeThemeValue);
   const themeToApply = isValidTheme ? activeThemeValue! : DEFAULT_THEME;
+  const appEnvLabel = (
+    process.env['NEXT_PUBLIC_LABEL_APP'] ||
+    process.env.NEXT_PUBLIC_LABEL_APP ||
+    ''
+  ).trim();
 
   return (
     <html lang='vi' suppressHydrationWarning data-theme={themeToApply} className={fontVariables}>
@@ -99,6 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Providers activeThemeValue={themeToApply}>
               <Toaster />
               {children}
+              <EnvironmentBadge label={appEnvLabel} />
             </Providers>
           </ThemeProvider>
         </NuqsAdapter>

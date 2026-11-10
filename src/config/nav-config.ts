@@ -20,15 +20,16 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Vận hành TMS',
     items: [
-      {
-        title: 'Lệnh điều vận',
-        url: '/dashboard/orders',
-        icon: 'orders',
-        shortcut: ['o', 'r'],
-        isActive: false,
-        items: [],
-        access: { role: 'SUPER_ADMIN,DISPATCHER' }
-      },
+      // Tạm thời ẩn trang Lệnh điều vận (/dashboard/orders) theo yêu cầu vận hành
+      // {
+      //   title: 'Lệnh điều vận',
+      //   url: '/dashboard/orders',
+      //   icon: 'orders',
+      //   shortcut: ['o', 'r'],
+      //   isActive: false,
+      //   items: [],
+      //   access: { role: 'SUPER_ADMIN,DISPATCHER' }
+      // },
       {
         title: 'Phân công xe',
         url: '/dashboard/trips',
@@ -89,6 +90,33 @@ export const navGroups: NavGroup[] = [
     label: 'Quản trị hệ thống',
     items: [
       {
+        title: 'Báo cáo vận hành',
+        url: '/dashboard/admin/reports',
+        icon: 'trendingUp',
+        shortcut: ['r', 'p'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
+        title: 'Theo dõi TRIP theo ngày',
+        url: '/dashboard/admin/reports/trips',
+        icon: 'trips',
+        shortcut: ['r', 't'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
+        title: 'Quản trị Cronjob',
+        url: '/dashboard/admin/cronjobs',
+        icon: 'settings',
+        shortcut: ['c', 'j'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
         title: 'Chi Nhánh Kho (Hubs)',
         url: '/dashboard/admin/hubs',
         icon: 'mapPin',
@@ -108,105 +136,4 @@ export const navGroups: NavGroup[] = [
       }
     ]
   }
-  /**
-   * REFERENCE UI ELEMENTS & FORM PATTERNS (Hidden from Sidebar UI)
-   *
-   * Note for /ui-ux-flow-designer & Frontend Developers:
-   * When building or refactoring pages, follow the UI/UX design patterns, form structures,
-   * and component standards implemented in these reference routes:
-   * - Product Table: /dashboard/product (Canonical TanStack DataTable & Pagination benchmark)
-   * - Basic Form: /dashboard/forms/basic (Standard form layout with React Hook Form + Zod)
-   * - Multi-Step Form: /dashboard/forms/multi-step (Multi-step form wizard / stepper)
-   * - Sheet & Dialog: /dashboard/forms/sheet-form (Form inside Sheet Drawer & Dialog Modal)
-   * - Advanced Patterns: /dashboard/forms/advanced (Complex input controls & dynamic arrays)
-   * - React Query: /dashboard/react-query (TanStack Query integration patterns)
-   * - Icons: /dashboard/elements/icons (System icon set reference)
-   */
-  // {
-  //   label: 'Elements',
-  //   items: [
-  //     {
-  //       title: 'Product Table',
-  //       url: '/dashboard/product',
-  //       icon: 'product',
-  //       shortcut: ['p', 'p'],
-  //       isActive: false,
-  //       items: []
-  //     },
-  //     {
-  //       title: 'Forms',
-  //       url: '#',
-  //       icon: 'forms',
-  //       isActive: true,
-  //       items: [
-  //         {
-  //           title: 'Basic Form',
-  //           url: '/dashboard/forms/basic',
-  //           icon: 'forms',
-  //           shortcut: ['f', 'f']
-  //         },
-  //         {
-  //           title: 'Multi-Step Form',
-  //           url: '/dashboard/forms/multi-step',
-  //           icon: 'forms'
-  //         },
-  //         {
-  //           title: 'Sheet & Dialog',
-  //           url: '/dashboard/forms/sheet-form',
-  //           icon: 'forms'
-  //         },
-  //         {
-  //           title: 'Advanced Patterns',
-  //           url: '/dashboard/forms/advanced',
-  //           icon: 'forms'
-  //         }
-  //       ]
-  //     },
-  //     {
-  //       title: 'React Query',
-  //       url: '/dashboard/react-query',
-  //       icon: 'code',
-  //       isActive: false,
-  //       items: []
-  //     },
-  //     {
-  //       title: 'Icons',
-  //       url: '/dashboard/elements/icons',
-  //       icon: 'palette',
-  //       isActive: false,
-  //       items: []
-  //     }
-  //   ]
-  // },
-  // {
-  //   label: '',
-  //   items: [
-  //     {
-  //       title: 'Account',
-  //       url: '#',
-  //       icon: 'account',
-  //       isActive: true,
-  //       items: [
-  //         {
-  //           title: 'Profile',
-  //           url: '/dashboard/profile',
-  //           icon: 'profile',
-  //           shortcut: ['m', 'm']
-  //         },
-  //         {
-  //           title: 'Notifications',
-  //           url: '/dashboard/notifications',
-  //           icon: 'notification',
-  //           shortcut: ['n', 'n']
-  //         },
-  //         {
-  //           title: 'Login',
-  //           shortcut: ['l', 'l'],
-  //           url: '/',
-  //           icon: 'login'
-  //         }
-  //       ]
-  //     }
-  //   ]
-  // }
 ];

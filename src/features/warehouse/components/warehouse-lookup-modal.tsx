@@ -20,7 +20,11 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { tokenManager } from '@/lib/token-manager';
-import { availableOutboundStock } from '@/features/warehouse/lib/outbound-stock';
+import {
+  availableOutboundStock,
+  availableOutboundWeight,
+  availableOutboundVolume
+} from '@/features/warehouse/lib/outbound-stock';
 
 export interface WarehouseLookupItem {
   id: number;
@@ -34,6 +38,12 @@ export interface WarehouseLookupItem {
   outboundQuantity?: number;
   totalWeight: number;
   totalVolume: number;
+  exportedWeight?: number;
+  exportedVolume?: number;
+  pendingOutboundWeight?: number;
+  pendingOutboundVolume?: number;
+  remainingWeight?: number;
+  remainingVolume?: number;
   pickupAddress: string;
   deliveryAddress: string;
   deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO';
@@ -398,10 +408,13 @@ export function WarehouseLookupModal({
                         )}
                       </td>
                       <td className='px-1.5 py-1 text-right font-semibold whitespace-nowrap text-slate-700 dark:text-slate-300'>
-                        {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')} kg
+                        {availableOutboundWeight(row, stock).toLocaleString('vi-VN', {
+                          maximumFractionDigits: 3
+                        })}{' '}
+                        kg
                       </td>
                       <td className='px-1.5 py-1 text-right font-semibold whitespace-nowrap text-slate-700 dark:text-slate-300'>
-                        {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
+                        {availableOutboundVolume(row, stock).toLocaleString('vi-VN', {
                           maximumFractionDigits: 3
                         })}{' '}
                         m³

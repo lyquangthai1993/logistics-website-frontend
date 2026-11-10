@@ -94,6 +94,11 @@ export interface InboundVehicleGroup {
   } | null;
   creatorName?: string | null;
   operatorName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  confirmedAt?: string | null;
+  deletedAt?: string | null;
+  invoiceCode?: string | null;
 }
 
 interface WarehouseTripDetailModalProps {
@@ -334,12 +339,12 @@ export function WarehouseTripDetailModal({
         targetLines = manifest.lines.filter((l) =>
           isCompleted
             ? (l.isReceivedHere || Number(l.receivedQuantity) > 0) &&
-              l.deliveryMode !== 'DIRECT_CUSTOMER'
-            : l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
+              (!isTransferTrip || l.deliveryMode !== 'DIRECT_CUSTOMER')
+            : !isTransferTrip || (l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER')
         );
         if (targetLines.length === 0) {
           targetLines = manifest.lines.filter(
-            (l) => l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER'
+            (l) => !isTransferTrip || (l.isForCurrentHub && l.deliveryMode !== 'DIRECT_CUSTOMER')
           );
         }
         if (targetLines.length === 0) {
@@ -381,15 +386,26 @@ export function WarehouseTripDetailModal({
         const resolvedDeliveryAddr =
           printMode === 'OUTBOUND' && outboundHubLabel ? outboundHubLabel : baseDeliveryAddr;
 
+        const lineInboundQty =
+          Number(l.receivedQuantity) > 0
+            ? Number(l.receivedQuantity)
+            : Number(l.quantityAllocated ?? l.expectedQuantity) || 1;
+
         return {
           id: l.id,
           orderCode: l.orderCode,
           goodsDescription: l.goodsDescription || 'Hàng hóa vận chuyển',
-          totalQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
-          inboundQuantity: l.receivedQuantity > 0 ? l.receivedQuantity : l.expectedQuantity,
+          quantity: lineInboundQty,
+          tripInboundQuantity: lineInboundQty,
+          receivedQuantity: l.receivedQuantity,
+          quantityAllocated: l.quantityAllocated ?? l.expectedQuantity,
+          totalQuantity: lineInboundQty,
+          inboundQuantity: lineInboundQty,
           exportedQuantity: l.expectedQuantity || l.totalQuantity,
-          totalWeight: l.totalWeight || l.weightAllocated || 0,
-          totalVolume: l.totalVolume || l.volumeAllocated || 0,
+          weightAllocated: l.weightAllocated,
+          volumeAllocated: l.volumeAllocated,
+          totalWeight: l.weightAllocated || l.totalWeight || 0,
+          totalVolume: l.volumeAllocated || l.totalVolume || 0,
           deliveryAddress: resolvedDeliveryAddr,
           outboundDestination:
             printMode === 'OUTBOUND'
@@ -509,10 +525,17 @@ export function WarehouseTripDetailModal({
   >(null);
 
   const handlePrintLabelForOrder = (orderOrRow: any) => {
+    const labelQty = Number(
+      orderOrRow.tripInboundQuantity ??
+        orderOrRow.quantityAllocated ??
+        orderOrRow.expectedQuantity ??
+        orderOrRow.totalQuantity ??
+        1
+    );
     const label: PalletLabelData = {
       orderCode: orderOrRow.orderCode,
       goodsDescription: orderOrRow.goodsDescription || 'Hàng hóa tổng quan',
-      totalQuantity: Number(orderOrRow.totalQuantity ?? orderOrRow.expectedQuantity ?? 1),
+      totalQuantity: labelQty > 0 ? labelQty : 1,
       originHub:
         orderOrRow.pickupAddress || orderOrRow.originHub || orderOrRow.originHubEntity?.name,
       destinationHub: orderOrRow.destinationHub || orderOrRow.destinationHubEntity?.name,
@@ -551,10 +574,13 @@ export function WarehouseTripDetailModal({
         mode === 'OUTBOUND'
           ? o.outboundDestination || o.deliveryAddress || o.destinationHub || outHub?.name
           : o.destinationHub || o.destinationHubEntity?.name;
+      const labelQty = Number(
+        o.tripInboundQuantity ?? o.quantityAllocated ?? o.expectedQuantity ?? o.totalQuantity ?? 1
+      );
       return {
         orderCode: o.orderCode,
         goodsDescription: o.goodsDescription || 'Hàng hóa tổng quan',
-        totalQuantity: Number(o.totalQuantity ?? o.expectedQuantity ?? 1),
+        totalQuantity: labelQty > 0 ? labelQty : 1,
         originHub: o.pickupAddress || o.originHub || o.originHubEntity?.name,
         destinationHub: outDest,
         originalDestination:
@@ -1327,6 +1353,7 @@ export function WarehouseTripDetailModal({
         const updatedTripGroup: InboundVehicleGroup = {
           ...tripGroup,
           status: 'COMPLETED',
+          receiveDate: new Date().toISOString().split('T')[0],
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || tripGroup.driverName,
           tripCode: tripGroup.tripCode,
@@ -1457,6 +1484,7 @@ export function WarehouseTripDetailModal({
 
         const updatedTripGroup: InboundVehicleGroup = {
           ...tripGroup,
+          receiveDate: new Date().toISOString().split('T')[0],
           licensePlate: licensePlate.trim().toUpperCase(),
           driverName: driverName.trim() || tripGroup.driverName,
           tripCode: manifest.tripCode,

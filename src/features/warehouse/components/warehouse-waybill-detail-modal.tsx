@@ -36,6 +36,7 @@ import {
   IconClock
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { formatWeight, formatVolume } from '@/lib/format';
 
 export interface OrderInventoryTransaction {
   id: number;
@@ -196,8 +197,17 @@ export function WarehouseWaybillDetailModal({
       inboundQuantity: number;
       outboundQuantity: number;
       remainingQuantity: number;
+      totalWeight?: number;
+      totalVolume?: number;
+      inboundWeight?: number;
+      inboundVolume?: number;
+      outboundWeight?: number;
+      outboundVolume?: number;
+      remainingWeight?: number;
+      remainingVolume?: number;
       status: string;
     };
+    trips?: any[];
     transactions?: any[];
   } | null>(null);
 
@@ -541,12 +551,96 @@ export function WarehouseWaybillDetailModal({
       waybill?.totalQuantity ??
       0);
 
+  const effectiveInboundWeight = isDraftOrPending
+    ? 0
+    : Number(
+        serverData?.order?.inboundWeight ??
+          serverData?.order?.totalWeight ??
+          waybill?.totalWeight ??
+          0
+      );
+  const effectiveInboundVolume = isDraftOrPending
+    ? 0
+    : Number(
+        serverData?.order?.inboundVolume ??
+          serverData?.order?.totalVolume ??
+          waybill?.totalVolume ??
+          0
+      );
+  const effectiveOutboundWeight = isDraftOrPending
+    ? 0
+    : Number(serverData?.order?.outboundWeight ?? (waybill as any)?.exportedWeight ?? 0);
+  const effectiveOutboundVolume = isDraftOrPending
+    ? 0
+    : Number(serverData?.order?.outboundVolume ?? (waybill as any)?.exportedVolume ?? 0);
+  const effectiveRemainingWeight =
+    isDraftOrPending || effectiveRemainingQty <= 0
+      ? 0
+      : Number(
+          serverData?.order?.remainingWeight ??
+            (waybill as any)?.remainingWeight ??
+            Math.max(0, Math.round((effectiveInboundWeight - effectiveOutboundWeight) * 1000) / 1000)
+        );
+  const effectiveRemainingVolume =
+    isDraftOrPending || effectiveRemainingQty <= 0
+      ? 0
+      : Number(
+          serverData?.order?.remainingVolume ??
+            (waybill as any)?.remainingVolume ??
+            Math.max(0, Math.round((effectiveInboundVolume - effectiveOutboundVolume) * 1000) / 1000)
+        );
+
   const displayTransactions: any[] = useMemo(() => {
     if (serverData && Array.isArray(serverData.transactions)) {
       return serverData.transactions;
     }
     return transactions;
   }, [serverData, transactions]);
+
+  const step0Trips: any[] = useMemo(() => {
+    const rawTrips =
+      serverData && Array.isArray(serverData.trips) && serverData.trips.length > 0
+        ? serverData.trips
+        : Array.isArray((waybill as any)?.trips) && (waybill as any).trips.length > 0
+          ? (waybill as any).trips
+          : [];
+
+    if (rawTrips.length > 0) {
+      return rawTrips;
+    }
+
+    const fallbackPlate =
+      (waybill as any)?.expectedInboundLicensePlate ||
+      (waybill as any)?.inboundLicensePlate ||
+      waybill?.vehicleLicensePlate ||
+      displayTransactions.find((t: any) => t.type === 'INBOUND')?.licensePlate ||
+      'CHƯA GÁN XE';
+    const fallbackTripCode =
+      (waybill as any)?.tripCode ||
+      (waybill as any)?.pendingInboundTripCodes?.[0] ||
+      displayTransactions.find((t: any) => t.type === 'INBOUND')?.tripCode ||
+      null;
+    const fallbackDriver =
+      waybill?.driverName ||
+      displayTransactions.find((t: any) => t.type === 'INBOUND')?.driverName ||
+      null;
+
+    return [
+      {
+        id: 'fallback-step-0',
+        tripCode: fallbackTripCode,
+        licensePlate: fallbackPlate,
+        driverName: fallbackDriver,
+        type: 'INBOUND',
+        status: isDraftOrPending ? 'PENDING' : 'COMPLETED',
+        quantityAllocated: waybill?.totalQuantity || 1,
+        weightAllocated: waybill?.totalWeight || 0,
+        volumeAllocated: waybill?.totalVolume || 0,
+        createdAt: waybill?.createdAt || new Date(),
+        isDeleted: false
+      }
+    ];
+  }, [serverData, waybill, displayTransactions, isDraftOrPending]);
 
   if (!waybill) return null;
 
@@ -646,50 +740,68 @@ export function WarehouseWaybillDetailModal({
               </div>
 
               {/* 1. Bảng Thống Kê Nhập - Xuất - Tồn Chi Tiết (Stat Cards) */}
-              <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
                 {/* Tổng Nhập */}
-                <div className='p-3 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between'>
+                <div className='p-2.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between'>
                   <div>
                     <span className='text-[11px] font-bold uppercase text-blue-700 dark:text-blue-400 block'>
                       Tổng đã nhập
                     </span>
-                    <span className='text-xl font-black text-blue-900 dark:text-blue-200 font-mono'>
-                      {effectiveInboundQty}
-                    </span>
-                    <span className='text-xs font-semibold text-blue-600 dark:text-blue-300 ml-1'>
-                      kiện
+                    <div>
+                      <span className='text-xl font-black text-blue-900 dark:text-blue-200 font-mono'>
+                        {effectiveInboundQty}
+                      </span>
+                      <span className='text-xs font-semibold text-blue-600 dark:text-blue-300 ml-1'>
+                        kiện
+                      </span>
+                    </div>
+                    <span className='text-[10px] font-mono font-semibold text-blue-700/80 dark:text-blue-300/80 block'>
+                      {formatVolume(effectiveInboundVolume)} m³ •{' '}
+                      {formatWeight(effectiveInboundWeight)} kg
                     </span>
                   </div>
                   <IconTruck className='h-7 w-7 text-blue-400/80 shrink-0' />
                 </div>
 
                 {/* Đã Xuất */}
-                <div className='p-3 rounded-lg bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 flex items-center justify-between'>
+                <div className='p-2.5 rounded-lg bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 flex items-center justify-between'>
                   <div>
                     <span className='text-[11px] font-bold uppercase text-purple-700 dark:text-purple-400 block'>
                       Tổng đã xuất
                     </span>
-                    <span className='text-xl font-black text-purple-900 dark:text-purple-200 font-mono'>
-                      {effectiveOutboundQty}
-                    </span>
-                    <span className='text-xs font-semibold text-purple-600 dark:text-purple-300 ml-1'>
-                      kiện
+                    <div>
+                      <span className='text-xl font-black text-purple-900 dark:text-purple-200 font-mono'>
+                        {effectiveOutboundQty}
+                      </span>
+                      <span className='text-xs font-semibold text-purple-600 dark:text-purple-300 ml-1'>
+                        kiện
+                      </span>
+                    </div>
+                    <span className='text-[10px] font-mono font-semibold text-purple-700/80 dark:text-purple-300/80 block'>
+                      {formatVolume(effectiveOutboundVolume)} m³ •{' '}
+                      {formatWeight(effectiveOutboundWeight)} kg
                     </span>
                   </div>
                   <IconTruck className='h-7 w-7 text-purple-400/80 shrink-0' />
                 </div>
 
                 {/* Tồn Kho Khả Dụng */}
-                <div className='p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 flex items-center justify-between shadow-xs'>
+                <div className='p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 flex items-center justify-between shadow-xs'>
                   <div>
                     <span className='text-[11px] font-black uppercase text-emerald-800 dark:text-emerald-300 block'>
                       Tồn kho khả dụng
                     </span>
-                    <span className='text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono'>
-                      {effectiveRemainingQty}
-                    </span>
-                    <span className='text-xs font-bold text-emerald-700 dark:text-emerald-300 ml-1'>
-                      kiện
+                    <div>
+                      <span className='text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono'>
+                        {effectiveRemainingQty}
+                      </span>
+                      <span className='text-xs font-bold text-emerald-700 dark:text-emerald-300 ml-1'>
+                        kiện
+                      </span>
+                    </div>
+                    <span className='text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 block'>
+                      {formatVolume(effectiveRemainingVolume)} m³ •{' '}
+                      {formatWeight(effectiveRemainingWeight)} kg
                     </span>
                   </div>
                   <div className='h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0'>
@@ -701,6 +813,103 @@ export function WarehouseWaybillDetailModal({
               {/* 2. Dòng Thời Gian Lịch Sử Biến Động Hàng Hóa (Transaction Ledger) */}
               <div className='pt-2'>
                 <div className='space-y-0'>
+                  {/* Bước 0: Tracking Xe Nháp / Khởi Tạo Chuyến Xe Dự Kiến */}
+                  <div
+                    data-testid='waybill-timeline-step-0'
+                    className='relative flex items-stretch gap-3'
+                  >
+                    <div className='flex flex-col items-center shrink-0 w-6'>
+                      <div className='z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-amber-500 text-slate-950 font-mono text-[11px] font-black leading-none tabular-nums shadow-xs ring-4 ring-white dark:ring-slate-900'>
+                        <span className='block leading-none'>0</span>
+                      </div>
+                      <div className='w-0.5 bg-slate-200 dark:bg-slate-700 flex-1' />
+                    </div>
+
+                    <div className='flex-1 min-w-0 pb-3'>
+                      <div className='flex flex-wrap items-center justify-between gap-2 min-h-6'>
+                        <div className='flex flex-wrap items-center gap-2'>
+                          <span className='text-xs font-black text-slate-800 dark:text-slate-200'>
+                            Bước 0: Tracking xe nháp / Khởi tạo chuyến dự kiến
+                          </span>
+                          <Badge className='text-[10px] font-bold border-0 bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'>
+                            Dự kiến: {waybill.totalQuantity || 1} kiện
+                          </Badge>
+                          <span className='text-[11px] text-slate-400 font-mono'>
+                            {formatDateTime(step0Trips[0]?.createdAt || waybill.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className='mt-1 text-xs p-2 rounded-lg border bg-amber-50/40 dark:bg-amber-950/15 border-amber-200/80 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 space-y-1.5'>
+                        {step0Trips.map((tr: any, tIdx: number) => {
+                          const isTripDeleted = Boolean(tr.isDeleted || tr.deletedAt);
+                          const isTripPending =
+                            !isTripDeleted &&
+                            (String(tr.status || '').toUpperCase() === 'PENDING' ||
+                              String(tr.status || '').toUpperCase() === 'DRAFT' ||
+                              isDraftOrPending);
+                          const tripTypeLabel =
+                            String(tr.type || '').toUpperCase() === 'OUTBOUND'
+                              ? 'Xe nháp xuất kho'
+                              : String(tr.type || '').toUpperCase() === 'TRANSFER'
+                                ? 'Xe nháp luân chuyển'
+                                : 'Xe nháp nhập kho';
+                          return (
+                            <div
+                              key={tr.id || tIdx}
+                              className='flex flex-wrap items-center justify-between gap-1.5 border-b last:border-b-0 border-amber-200/50 dark:border-amber-900/40 pb-1 last:pb-0'
+                            >
+                              <div className='flex flex-wrap items-center gap-1.5'>
+                                <Badge
+                                  variant='outline'
+                                  className='text-[10px] h-5 px-1.5 font-bold bg-white dark:bg-slate-900 border-amber-300 text-amber-800 dark:text-amber-300'
+                                >
+                                  {tripTypeLabel}
+                                </Badge>
+                                {tr.tripCode && (
+                                  <span className='font-mono font-bold text-[#0F3D62] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]'>
+                                    {tr.tripCode}
+                                  </span>
+                                )}
+                                <span className='font-mono font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 text-[11px]'>
+                                  <IconTruck className='h-3.5 w-3.5 text-amber-600' />
+                                  {tr.licensePlate || 'CHƯA GÁN XE'}
+                                </span>
+                                {tr.driverName && (
+                                  <span className='text-[11px] text-slate-500'>
+                                    • Tài xế: <strong>{tr.driverName}</strong>
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className='flex flex-wrap items-center gap-1.5'>
+                                <span className='text-[10px] font-semibold text-slate-600 dark:text-slate-400 font-mono'>
+                                  {tr.quantityAllocated ?? waybill.totalQuantity ?? 1} kiện •{' '}
+                                  {formatVolume(tr.volumeAllocated ?? waybill.totalVolume ?? 0)} m³
+                                  • {formatWeight(tr.weightAllocated ?? waybill.totalWeight ?? 0)}{' '}
+                                  kg
+                                </span>
+                                {isTripDeleted ? (
+                                  <Badge className='text-[10px] h-5 px-1.5 font-bold border-0 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'>
+                                    Đã hủy nháp
+                                  </Badge>
+                                ) : isTripPending ? (
+                                  <Badge className='text-[10px] h-5 px-1.5 font-bold border-0 bg-amber-200/80 text-amber-900 dark:bg-amber-900/70 dark:text-amber-200'>
+                                    Chờ xử lý (Xe nháp)
+                                  </Badge>
+                                ) : (
+                                  <Badge className='text-[10px] h-5 px-1.5 font-bold border-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'>
+                                    Đã xác nhận từ nháp
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
                   {displayTransactions.map((tx: any, idx: number) => {
                     const isDeleted = Boolean(tx.isDeleted || tx.deletedAt);
                     const isInbound = tx.type === 'INBOUND';
@@ -716,18 +925,18 @@ export function WarehouseWaybillDetailModal({
                         {/* Cột timeline: Vòng tròn số thứ tự và đường line dọc đồng tâm tuyệt đối */}
                         <div className='flex flex-col items-center shrink-0 w-6'>
                           <div
-                            className={`z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full text-white text-[11px] font-black shadow-xs ring-4 ring-white dark:ring-slate-900 ${
+                            className={`z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full text-white font-mono text-[11px] font-black leading-none tabular-nums shadow-xs ring-4 ring-white dark:ring-slate-900 ${
                               isDeleted ? 'bg-rose-500 line-through' : 'bg-[#0F3D62]'
                             }`}
                           >
-                            {idx + 1}
+                            <span className='block leading-none'>{idx + 1}</span>
                           </div>
                           <div className='w-0.5 bg-slate-200 dark:bg-slate-700 flex-1' />
                         </div>
 
                         {/* Cột nội dung biến động */}
                         <div className='flex-1 min-w-0 pb-4'>
-                          <div className='flex flex-wrap items-center justify-between gap-2'>
+                          <div className='flex flex-wrap items-center justify-between gap-2 min-h-6'>
                             <div className='flex flex-wrap items-center gap-2'>
                               <span
                                 className={`text-xs font-black ${
@@ -938,6 +1147,13 @@ export function WarehouseWaybillDetailModal({
                                   <span className='font-mono text-emerald-600 dark:text-emerald-400 font-black'>
                                     {tx.cumulativeStock ?? tx.remainingQuantity} kiện
                                   </span>
+                                  {(tx.cumulativeVolume !== undefined ||
+                                    tx.cumulativeWeight !== undefined) && (
+                                    <span className='font-mono text-slate-500 dark:text-slate-400 font-semibold ml-1 text-[10px]'>
+                                      ({formatVolume(tx.cumulativeVolume ?? 0)} m³ •{' '}
+                                      {formatWeight(tx.cumulativeWeight ?? 0)} kg)
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1009,8 +1225,9 @@ export function WarehouseWaybillDetailModal({
 
                     if (isDraftOrPendingStatus) {
                       return (
-                        <div className='relative flex items-start gap-3'>
+                        <div className='relative flex items-stretch gap-3'>
                           <div className='flex flex-col items-center shrink-0 w-6'>
+                            <div className='w-0.5 bg-slate-200 dark:bg-slate-700 h-1.5 shrink-0' />
                             <div className='z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-slate-400 text-white shadow-xs ring-4 ring-white dark:ring-slate-900'>
                               <IconClock className='h-3.5 w-3.5' />
                             </div>
@@ -1077,8 +1294,9 @@ export function WarehouseWaybillDetailModal({
 
                     if (isInTransit) {
                       return (
-                        <div className='relative flex items-start gap-3'>
+                        <div className='relative flex items-stretch gap-3'>
                           <div className='flex flex-col items-center shrink-0 w-6'>
+                            <div className='w-0.5 bg-slate-200 dark:bg-slate-700 h-1.5 shrink-0' />
                             <div className='z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-blue-600 text-white shadow-xs ring-4 ring-white dark:ring-slate-900'>
                               <IconTruck className='h-3.5 w-3.5' />
                             </div>
@@ -1105,8 +1323,9 @@ export function WarehouseWaybillDetailModal({
 
                     if (isPartialDispatched) {
                       return (
-                        <div className='relative flex items-start gap-3'>
+                        <div className='relative flex items-stretch gap-3'>
                           <div className='flex flex-col items-center shrink-0 w-6'>
+                            <div className='w-0.5 bg-slate-200 dark:bg-slate-700 h-1.5 shrink-0' />
                             <div className='z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-amber-500 text-white shadow-xs ring-4 ring-white dark:ring-slate-900'>
                               <IconTruck className='h-3.5 w-3.5' />
                             </div>
@@ -1126,8 +1345,9 @@ export function WarehouseWaybillDetailModal({
                     }
 
                     return (
-                      <div className='relative flex items-start gap-3'>
+                      <div className='relative flex items-stretch gap-3'>
                         <div className='flex flex-col items-center shrink-0 w-6'>
+                          <div className='w-0.5 bg-slate-200 dark:bg-slate-700 h-1.5 shrink-0' />
                           <div className='z-10 flex items-center justify-center shrink-0 h-6 w-6 rounded-full bg-emerald-600 text-white shadow-xs ring-4 ring-white dark:ring-slate-900'>
                             <IconCheck className='h-3.5 w-3.5' />
                           </div>
@@ -1175,23 +1395,67 @@ export function WarehouseWaybillDetailModal({
                       <div className='flex flex-wrap items-center justify-between gap-1.5'>
                         <div className='flex items-center gap-2'>
                           <Badge
+                            data-action={log.action}
                             className={`text-[10px] font-bold border-0 ${
-                              log.action === 'TRIP_ROLLBACK'
+                              log.action === 'TRIP_ROLLBACK' ||
+                              log.action === 'TRIP_DRAFT_CREATED' ||
+                              log.action === 'TRIP_DRAFT_UPDATED'
                                 ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300'
                                 : log.action === 'DATA_RECONCILED'
                                   ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300'
-                                  : log.action === 'TRANSACTION_DELETED'
+                                  : log.action === 'TRANSACTION_DELETED' ||
+                                      log.action === 'DRAFT_CANCELLED' ||
+                                      log.action === 'ORDER_DELETED'
                                     ? 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-300'
                                     : log.action === 'TRANSACTION_RESTORED'
                                       ? 'bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-300'
-                                      : log.action === 'TRANSACTION_UPDATED'
+                                      : log.action === 'TRANSACTION_UPDATED' ||
+                                          log.action === 'ORDER_UPDATED' ||
+                                          log.action === 'ADMIN_OVERRIDE'
                                         ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-300'
-                                        : log.action === 'DRAFT_CANCELLED'
-                                          ? 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-300'
+                                        : log.action === 'OUTBOUND_CONFIRMED'
+                                          ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-300'
                                           : 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-300'
                             }`}
                           >
-                            {log.action}
+                            {(() => {
+                              const act = String(log.action || '').toUpperCase();
+                              switch (act) {
+                                case 'ORDER_CREATED':
+                                  return 'Khởi tạo vận đơn';
+                                case 'INBOUND_CONFIRMED':
+                                case 'CONFIRM':
+                                  return 'Xác nhận nhập kho';
+                                case 'RELATED_INBOUND_CONFIRMED':
+                                  return 'Xác nhận nhập kho liên quan';
+                                case 'OUTBOUND_CONFIRMED':
+                                  return 'Xác nhận xuất kho';
+                                case 'TRIP_DRAFT_CREATED':
+                                  return 'Tạo chuyến xe nháp';
+                                case 'TRIP_DRAFT_UPDATED':
+                                  return 'Cập nhật chuyến nháp';
+                                case 'TRIP_ROLLBACK':
+                                  return 'Hoàn tác chuyến xe';
+                                case 'DRAFT_CANCELLED':
+                                  return 'Hủy chuyến nháp';
+                                case 'ADMIN_OVERRIDE':
+                                  return 'Điều chỉnh quản trị';
+                                case 'ORDER_UPDATED':
+                                  return 'Cập nhật vận đơn';
+                                case 'ORDER_DELETED':
+                                  return 'Xóa vận đơn';
+                                case 'DATA_RECONCILED':
+                                  return 'Đối soát tồn kho';
+                                case 'TRANSACTION_DELETED':
+                                  return 'Xóa dòng biến động';
+                                case 'TRANSACTION_RESTORED':
+                                  return 'Khôi phục dòng biến động';
+                                case 'TRANSACTION_UPDATED':
+                                  return 'Điều chỉnh số lượng';
+                                default:
+                                  return log.action || 'Thao tác kho';
+                              }
+                            })()}
                           </Badge>
                           <span className='font-semibold text-slate-700 dark:text-slate-200'>
                             {log.actorName ||
@@ -1200,7 +1464,33 @@ export function WarehouseWaybillDetailModal({
                           </span>
                           {log.actorRole && (
                             <span className='text-[10px] text-slate-400 font-mono'>
-                              ({log.actorRole})
+                              (
+                              {(() => {
+                                const r = String(log.actorRole || '')
+                                  .trim()
+                                  .toUpperCase()
+                                  .replace(/\s+/g, '_');
+                                switch (r) {
+                                  case 'SUPER_ADMIN':
+                                  case 'ADMIN':
+                                    return 'Quản trị viên cao cấp';
+                                  case 'WAREHOUSE_MANAGER':
+                                    return 'Quản lý kho';
+                                  case 'DISPATCHER':
+                                    return 'Điều phối viên';
+                                  case 'FLEET_MANAGER':
+                                    return 'Quản lý đội xe';
+                                  case 'ACCOUNTANT':
+                                    return 'Kế toán';
+                                  case 'DRIVER':
+                                    return 'Tài xế';
+                                  case 'USER':
+                                    return 'Nhân viên vận hành';
+                                  default:
+                                    return log.actorRole;
+                                }
+                              })()}
+                              )
                             </span>
                           )}
                         </div>
@@ -1222,7 +1512,16 @@ export function WarehouseWaybillDetailModal({
                             <span className='text-slate-700 dark:text-slate-300'>
                               Giao dịch:{' '}
                               <strong className='font-mono'>
-                                {log.newValues.transactionType} (
+                                {(() => {
+                                  const t = String(
+                                    log.newValues.transactionType || ''
+                                  ).toUpperCase();
+                                  if (t === 'INBOUND') return 'Nhập kho';
+                                  if (t === 'OUTBOUND') return 'Xuất kho';
+                                  if (t === 'TRANSFER') return 'Luân chuyển liên Hub';
+                                  return log.newValues.transactionType;
+                                })()}{' '}
+                                (
                                 {log.newValues.oldQuantity !== undefined &&
                                 log.newValues.oldQuantity !== log.newValues.quantity
                                   ? `${log.newValues.oldQuantity} → ${log.newValues.quantity}`

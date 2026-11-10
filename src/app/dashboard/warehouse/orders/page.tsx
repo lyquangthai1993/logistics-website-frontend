@@ -36,6 +36,8 @@ import { showApiErrorToast } from '@/lib/api-error';
 import PageContainer from '@/components/layout/page-container';
 import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components/warehouse-tables/columns';
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
+import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
+import { formatNumber } from '@/lib/utils';
 
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
@@ -77,6 +79,14 @@ export default function WarehouseOrdersPage() {
     }
     return 'ALL';
   });
+
+  // State lưu trữ tổng số lượng, số kg, số khối cho Super Admin
+  const [adminTotals, setAdminTotals] = useState<{
+    quantity: number;
+    weightKg: number;
+    volumeCbm: number;
+  }>({ quantity: 0, weightKg: 0, volumeCbm: 0 });
+  const [isLoadingAdminTotals, setIsLoadingAdminTotals] = useState(false);
 
   const handleHubIdChange = useCallback((newHubId: string) => {
     const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
@@ -263,7 +273,12 @@ export default function WarehouseOrdersPage() {
             '—';
 
           const inboundDateStr =
-            item.inboundDate || order.inboundDate || item.createdAt || order.createdAt;
+            item.inboundDate ||
+            order.inboundDate ||
+            item.updatedAt ||
+            order.updatedAt ||
+            item.createdAt ||
+            order.createdAt;
           const destHubStr =
             item.originalDestination ||
             order.originalDestination ||
@@ -453,6 +468,232 @@ export default function WarehouseOrdersPage() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, tabConfig.sheetName);
 
+      // ── Sheet 2 & Sheet 3: Thống kê theo ngày (Tương ứng Slide 2 & Slide 3 Báo cáo KPI) ──
+      type DailyBucket = {
+        dateLabel: string;
+        sortKey: string;
+        dayOfMonth: string;
+        monthLabel: string;
+        orderCodes: Set<string>;
+        totalPackages: number;
+        totalWeightKg: number;
+        totalVolumeCbm: number;
+      };
+      const dailyMap = new Map<string, DailyBucket>();
+
+      const parseDdMmYyyy = (rawDateCell: string) => {
+        const clean = String(rawDateCell || '').trim();
+        const m = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) {
+          const dd = m[1].padStart(2, '0');
+          const mm = m[2].padStart(2, '0');
+          const yyyy = m[3];
+          return {
+            dateLabel: `${dd}/${mm}/${yyyy}`,
+            sortKey: `${yyyy}-${mm}-${dd}`,
+            dayOfMonth: `Ngày ${dd}/${mm}`,
+            monthLabel: `Tháng ${mm}/${yyyy}`
+          };
+        }
+        return {
+          dateLabel: clean || 'Chưa xác định',
+          sortKey: '9999-99-99',
+          dayOfMonth: clean || '—',
+          monthLabel: 'Khác'
+        };
+      };
+
+      for (const r of rows) {
+        const orderCodeCell = String(r[1] || '');
+        const inboundDateCell = String(r[2] || '');
+        const outboundDateCell = String(r[12] || '');
+        const effectiveDateCell =
+          statusFilter === 'COMPLETED_INBOUND' && outboundDateCell
+            ? outboundDateCell
+            : inboundDateCell || outboundDateCell;
+        const parsedDate = parseDdMmYyyy(effectiveDateCell);
+        const key = parsedDate.sortKey + '|' + parsedDate.dateLabel;
+        let bucket = dailyMap.get(key);
+        if (!bucket) {
+          bucket = {
+            dateLabel: parsedDate.dateLabel,
+            sortKey: parsedDate.sortKey,
+            dayOfMonth: parsedDate.dayOfMonth,
+            monthLabel: parsedDate.monthLabel,
+            orderCodes: new Set<string>(),
+            totalPackages: 0,
+            totalWeightKg: 0,
+            totalVolumeCbm: 0
+          };
+          dailyMap.set(key, bucket);
+        }
+        if (orderCodeCell) {
+          bucket.orderCodes.add(orderCodeCell);
+        }
+        bucket.totalPackages += Number(r[6]) || 0;
+        bucket.totalWeightKg += Number(r[7]) || 0;
+        bucket.totalVolumeCbm += Number(r[8]) || 0;
+      }
+
+      const sortedDaily = Array.from(dailyMap.values()).sort((a, b) =>
+        a.sortKey.localeCompare(b.sortKey)
+      );
+
+      const totalDailyOrders = sortedDaily.reduce((s, d) => s + d.orderCodes.size, 0);
+      const totalDailyPackages = sortedDaily.reduce((s, d) => s + d.totalPackages, 0);
+      const totalDailyCbm =
+        Math.round(sortedDaily.reduce((s, d) => s + d.totalVolumeCbm, 0) * 100) / 100;
+      const totalDailyKg =
+        Math.round(sortedDaily.reduce((s, d) => s + d.totalWeightKg, 0) * 100) / 100;
+      const totalDailyTons = Math.round((totalDailyKg / 1000) * 1000) / 1000;
+      const daysCount = sortedDaily.length || 1;
+      const avgDailyCbm = Math.round((totalDailyCbm / daysCount) * 100) / 100;
+      const avgDailyKg = Math.round((totalDailyKg / daysCount) * 100) / 100;
+
+      // Sheet 2: Slide 2 - Thống kê Sản lượng CBM theo ngày
+      const slide2Rows: any[][] = sortedDaily.map((d, idx) => [
+        idx + 1,
+        d.dateLabel,
+        d.dayOfMonth,
+        d.orderCodes.size,
+        d.totalPackages,
+        Math.round(d.totalVolumeCbm * 100) / 100,
+        Math.round(d.totalWeightKg * 100) / 100
+      ]);
+
+      const wsSlide2Data: any[][] = [
+        [
+          'STT',
+          'NGÀY CẬP NHẬT',
+          'NGÀY TRONG THÁNG',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SẢN LƯỢNG CBM (M³)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide2Rows,
+        [
+          '',
+          'TỔNG SẢN LƯỢNG (CBM)',
+          `${sortedDaily.length} ngày`,
+          totalDailyOrders,
+          totalDailyPackages,
+          totalDailyCbm,
+          totalDailyKg
+        ],
+        ['', 'TRUNG BÌNH CBM/NGÀY', '', '', '', avgDailyCbm, avgDailyKg]
+      ];
+      const wsSlide2 = XLSX.utils.aoa_to_sheet(wsSlide2Data);
+      wsSlide2['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSlide2, 'Slide 2 - CBM Theo Ngày');
+
+      // Sheet 3: Slide 3 - Thống kê Số Khối (CBM) & Số Tấn theo ngày / tháng
+      const monthlyMap = new Map<
+        string,
+        {
+          monthLabel: string;
+          days: number;
+          ordersCount: number;
+          totalPackages: number;
+          totalCbm: number;
+          totalKg: number;
+        }
+      >();
+      for (const d of sortedDaily) {
+        const mBucket = monthlyMap.get(d.monthLabel) || {
+          monthLabel: d.monthLabel,
+          days: 0,
+          ordersCount: 0,
+          totalPackages: 0,
+          totalCbm: 0,
+          totalKg: 0
+        };
+        mBucket.days += 1;
+        mBucket.ordersCount += d.orderCodes.size;
+        mBucket.totalPackages += d.totalPackages;
+        mBucket.totalCbm += d.totalVolumeCbm;
+        mBucket.totalKg += d.totalWeightKg;
+        monthlyMap.set(d.monthLabel, mBucket);
+      }
+
+      const slide3DailyRows: any[][] = sortedDaily.map((d, idx) => [
+        idx + 1,
+        d.dateLabel,
+        d.monthLabel,
+        d.orderCodes.size,
+        d.totalPackages,
+        Math.round(d.totalVolumeCbm * 100) / 100,
+        Math.round((d.totalWeightKg / 1000) * 1000) / 1000,
+        Math.round(d.totalWeightKg * 100) / 100
+      ]);
+
+      const slide3MonthlyRows: any[][] = Array.from(monthlyMap.values()).map((m, idx) => [
+        idx + 1,
+        m.monthLabel,
+        m.days,
+        m.ordersCount,
+        m.totalPackages,
+        Math.round(m.totalCbm * 100) / 100,
+        Math.round((m.totalKg / 1000) * 1000) / 1000,
+        Math.round(m.totalKg * 100) / 100
+      ]);
+
+      const wsSlide3Data: any[][] = [
+        [
+          'STT',
+          'NGÀY CẬP NHẬT',
+          'THÁNG',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SỐ KHỐI (CBM)',
+          'SỐ TẤN (TẤN)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide3DailyRows,
+        [
+          '',
+          'TỔNG CỘNG THEO NGÀY',
+          `${sortedDaily.length} ngày`,
+          totalDailyOrders,
+          totalDailyPackages,
+          totalDailyCbm,
+          totalDailyTons,
+          totalDailyKg
+        ],
+        [],
+        [
+          'STT',
+          'THÁNG',
+          'SỐ NGÀY PHÁT SINH',
+          'SỐ ĐƠN HÀNG',
+          'TỔNG SỐ KIỆN',
+          'SỐ KHỐI (CBM)',
+          'SỐ TẤN (TẤN)',
+          'KHỐI LƯỢNG (KG)'
+        ],
+        ...slide3MonthlyRows
+      ];
+      const wsSlide3 = XLSX.utils.aoa_to_sheet(wsSlide3Data);
+      wsSlide3['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 18 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSlide3, 'Slide 3 - Khối & Tấn Theo Ngày');
+
       const hubFileSlug = normalizeNoDiacritics(hubTitle);
       const fileName = `Bao_cao_don_hang_${tabConfig.fileSlug}_${hubFileSlug}_${dateStr}.xlsx`;
 
@@ -544,6 +785,71 @@ export default function WarehouseOrdersPage() {
       abortControllerRef.current?.abort();
     };
   }, [fetchOrders]);
+
+  // Fetch 3 ô tính tổng (Số lượng, Số kg, CBM) cho Super Admin khi đổi tab hoặc bộ lọc
+  useEffect(() => {
+    if (!isAdmin) return;
+    let isCancelled = false;
+    setIsLoadingAdminTotals(true);
+    const token = tokenManager.getAccessToken();
+
+    const query = new URLSearchParams({
+      isExport: 'true',
+      ...(effectiveSearch ? { search: effectiveSearch } : {}),
+      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
+    });
+
+    fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((resData) => {
+        if (isCancelled) return;
+        const items: any[] = resData?.data ?? [];
+        let totalQty = 0;
+        let totalWeight = 0;
+        let totalVolume = 0;
+
+        for (const item of items) {
+          const rawStock = Number(item.hubStock ?? item.remainingQuantity ?? 0);
+          const rawTotal = Number(item.totalQuantity ?? 0);
+          const total = Math.max(rawTotal, rawStock, 0);
+          const stock = Math.max(0, Math.min(rawStock, total));
+
+          if (statusFilter === 'INBOUND') {
+            totalQty += stock;
+          } else {
+            totalQty += total;
+          }
+          totalWeight += Number(item.totalWeight ?? 0);
+          totalVolume += Number(item.totalVolume ?? 0);
+        }
+
+        setAdminTotals({
+          quantity: totalQty,
+          weightKg: Math.round(totalWeight * 100) / 100,
+          volumeCbm: Math.round(totalVolume * 1000) / 1000
+        });
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setAdminTotals({ quantity: 0, weightKg: 0, volumeCbm: 0 });
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingAdminTotals(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdmin, statusFilter, hubId, effectiveSearch]);
 
   const COLUMN_COUNT = 11;
 
@@ -744,10 +1050,17 @@ export default function WarehouseOrdersPage() {
         {/* Page Header */}
         <div className='flex flex-wrap items-center justify-between gap-2 border-b pb-2'>
           <div>
-            <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
-              <IconBuildingWarehouse className='h-6 w-6' />
-              <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName ? ` · ${currentHubName}` : ''}</span>
-            </h1>
+            <div className='flex flex-wrap items-center gap-2.5'>
+              <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
+                <IconBuildingWarehouse className='h-6 w-6' />
+                <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName && !isAdmin ? ` · ${currentHubName}` : ''}</span>
+              </h1>
+              {isAdmin && (
+                <div className='inline-flex items-center' data-testid='admin-header-hub-filter'>
+                  <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />
+                </div>
+              )}
+            </div>
             <p className='text-xs text-slate-500 mt-0.5'>
               Theo dõi, tra cứu và in lại tem nhãn nhận diện A4 cho các lô hàng lưu kho và xuất kho.
             </p>
@@ -822,7 +1135,7 @@ export default function WarehouseOrdersPage() {
           <CardContent className='p-1 space-y-1.5'>
             {/* Toolbar */}
             <div className='flex flex-wrap items-center justify-between gap-2'>
-              <div className='relative flex-1 min-w-65'>
+              <div className='relative flex-1 min-w-55 max-w-md'>
                 <button
                   type='button'
                   onClick={handleSearchSubmit}
@@ -850,7 +1163,8 @@ export default function WarehouseOrdersPage() {
                 )}
               </div>
 
-              <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />
+              {/* Nếu không phải Super Admin thì vẫn giữ WarehouseHubFilterSelect ở toolbar (hoặc ẩn nếu role không có quyền) */}
+              {!isAdmin && <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />}
 
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
@@ -926,6 +1240,14 @@ export default function WarehouseOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
+                  {isAdmin && (
+                    <AdminOrdersMetricsSummaryRow
+                      quantity={adminTotals.quantity}
+                      weightKg={adminTotals.weightKg}
+                      volumeCbm={adminTotals.volumeCbm}
+                      isLoading={isLoadingAdminTotals}
+                    />
+                  )}
                   {isLoading ? (
                     <tr>
                       <td colSpan={COLUMN_COUNT} className='p-2 text-center text-gray-500'>
@@ -975,12 +1297,10 @@ export default function WarehouseOrdersPage() {
                             {renderStock(row)}
                           </td>
                           <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
-                            {(Number(row.totalWeight) || 0).toLocaleString('vi-VN')}
+                            {formatNumber(row.totalWeight, 2)}
                           </td>
                           <td className='py-1 px-1.5 text-right font-mono text-[10px] text-slate-700 dark:text-slate-300'>
-                            {(Number(row.totalVolume) || 0).toLocaleString('vi-VN', {
-                              maximumFractionDigits: 3
-                            })}
+                            {formatNumber(row.totalVolume, 2)}
                           </td>
                           <td
                             className='py-1 px-1.5 text-[10px] text-slate-700 dark:text-slate-300 min-w-35 max-w-50 truncate'

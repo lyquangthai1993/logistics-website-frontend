@@ -49,7 +49,7 @@ export function LoginForm() {
       }
 
       // Map numerical or object role to string role enum used in frontend
-      const roleMap: Record<number | string, any> = {
+      const roleMap: Record<number | string, string> = {
         1: 'SUPER_ADMIN',
         2: 'DISPATCHER',
         3: 'FLEET_MANAGER',
@@ -81,7 +81,7 @@ export function LoginForm() {
         searchParams.get('callbackUrl') ||
         searchParams.get('from');
 
-      let targetUrl = '/dashboard/orders';
+      let targetUrl = '/dashboard/warehouse/orders';
       const roleVal = user?.role;
       const roleStr = typeof roleVal === 'object' ? (roleVal?.name || '') : String(roleVal || '');
       const roleUpper = roleStr.toUpperCase();
@@ -90,13 +90,14 @@ export function LoginForm() {
       } else if (roleUpper.includes('FLEET')) {
         targetUrl = '/dashboard/trips';
       } else if (roleUpper.includes('DISPATCHER')) {
-        targetUrl = '/dashboard/orders';
+        targetUrl = '/dashboard/warehouse/orders';
       }
 
       if (
         redirectParam &&
         redirectParam.startsWith('/dashboard') &&
         redirectParam !== '/dashboard/overview' &&
+        redirectParam !== '/dashboard/orders' &&
         redirectParam !== '/dashboard'
       ) {
         targetUrl = redirectParam;
