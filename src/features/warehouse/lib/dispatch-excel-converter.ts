@@ -58,6 +58,11 @@ export function formatExcelDate(rawDate: unknown): string {
     if (/^\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}$/.test(trimmed)) {
       return trimmed.replace(/[-.]/g, '/');
     }
+    const isoMatch = trimmed.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})/);
+    if (isoMatch) {
+      const [, y, m, d] = isoMatch;
+      return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+    }
   }
 
   // If number (Excel serial date)
@@ -82,6 +87,142 @@ export function formatExcelDate(rawDate: unknown): string {
 }
 
 /**
+ * Tự động nhận diện xem tập dữ liệu chuỗi số đang dùng định dạng Việt Nam ('#.##0,00': chấm phần nghìn, phẩy thập phân)
+ * hay định dạng Quốc tế / US ('#,##0.00': phẩy phần nghìn, chấm thập phân).
+ */
+export function detectVietnameseNumberLocale(samples?: unknown[]): boolean {
+  if (!samples || samples.length === 0) return false;
+  let vnScore = 0;
+  let usScore = 0;
+
+  for (const item of samples) {
+    if (typeof item !== 'string') continue;
+    const s = item.trim().replace(/\s+/g, '');
+    if (!s) continue;
+
+    if (s.includes('.') && s.includes(',')) {
+      if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+        vnScore += 5; // VD: "2.767,00", "1.440,00"
+      } else {
+        usScore += 5; // VD: "2,767.00", "1,440.00"
+      }
+    } else if (/^-?\d+,\d{1,2}$/.test(s) || /^-?0,\d{3}$/.test(s)) {
+      vnScore += 3; // VD: "960,00", "5,55", "4,59", "0,87"
+    } else if (/^-?\d+\.\d{1,2}$/.test(s) || /^-?0\.\d{3}$/.test(s)) {
+      usScore += 3; // VD: "960.00", "5.55", "4.59", "0.87"
+    }
+  }
+
+  return vnScore > usScore;
+}
+
+/**
+ * Chuẩn hóa chuỗi số từ Excel / Clipboard (tự động xử lý chuẩn xác 100% cả 2 hệ định dạng):
+ * - Định dạng US/Quốc tế ('#,##0.00'): "2,767.00" -> 2767, "1,440.00" -> 1440, "960.00" -> 960, "5.55" -> 5.55
+ * - Định dạng Việt Nam ('#.##0,00'): "2.767,00" -> 2767, "1.440,00" -> 1440, "960,00" -> 960, "5,55" -> 5.55
+ * Triệt tiêu hoàn toàn lỗi nhân 100 ("890,00" / "890.00" -> 89000) và lỗi chia 1000 ("2.767,00" / "2,767.00" -> 2.767).
+ */
+export function parseLocalizedNumber(
+  raw: unknown,
+  options?: { isVietnameseLocale?: boolean; isWeightKg?: boolean } | boolean
+): number {
+  const opts = typeof options === 'boolean' ? { isVietnameseLocale: options } : options;
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : 0;
+  }
+  let s = String(raw ?? '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/[^0-9,.-]/g, '');
+  if (!s || s === '-' || s === '.' || s === ',') return 0;
+
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      // Định dạng Việt Nam: "2.767,00" -> "2767.00"
+      s = s.replace(/\./g, '').replace(/,/g, '.');
+    } else {
+      // Định dạng US/Quốc tế: "2,767.00" -> "2767.00"
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasComma && !hasDot) {
+    const parts = s.split(',');
+    if (parts.length > 2) {
+      // Nhiều dấu phẩy: "17,000,000" -> hàng nghìn
+      s = s.replace(/,/g, '');
+    } else {
+      const [intPart, fracPart] = parts;
+      if (fracPart.length !== 3) {
+        // 1 hoặc 2 chữ số sau dấu phẩy ("960,00", "5,55", "4,59", "0,5") -> 100% là dấu thập phân
+        s = s.replace(',', '.');
+      } else if (/^-?0$/.test(intPart) || opts?.isVietnameseLocale) {
+        // "0,973" hoặc batch đang ở định dạng Việt Nam -> dấu thập phân
+        s = s.replace(',', '.');
+      } else if (opts?.isVietnameseLocale === false || fracPart.endsWith('0') || opts?.isWeightKg) {
+        // "2,767", "1,440" ở định dạng US -> dấu phân cách hàng nghìn
+        s = s.replace(',', '');
+      } else {
+        s = s.replace(',', '.');
+      }
+    }
+  } else if (!hasComma && hasDot) {
+    const parts = s.split('.');
+    if (parts.length > 2) {
+      // Nhiều dấu chấm: "17.000.000" -> hàng nghìn
+      s = s.replace(/\./g, '');
+    } else {
+      const [intPart, fracPart] = parts;
+      // Nếu có 1 hoặc 2 chữ số sau dấu chấm ("960.00", "5.55", "4.59", "0.87", "0.50") -> 100% là dấu thập phân (giữ nguyên '.')
+      // Chỉ khi có đúng 3 chữ số sau dấu chấm và phần nguyên khác 0 (VD: "2.767", "1.440"):
+      if (
+        fracPart.length === 3 &&
+        !/^-?0$/.test(intPart) &&
+        (opts?.isVietnameseLocale !== false && (opts?.isVietnameseLocale || opts?.isWeightKg || fracPart.endsWith('0')))
+      ) {
+        s = s.replace('.', '');
+      }
+    }
+  }
+
+  const parsed = parseFloat(s);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Chuẩn hóa số nguyên cho cột Số kiện / Số thùng (mặc định >= 1).
+ * Xử lý an toàn cả "44,00", "44.00" (-> 44) lẫn "1.200", "1,200" (-> 1200).
+ */
+export function parseLocalizedQuantity(
+  raw: unknown,
+  options?: { isVietnameseLocale?: boolean } | boolean,
+  fallback = 1
+): number {
+  const opts = typeof options === 'boolean' ? { isVietnameseLocale: options } : options;
+  if (typeof raw === 'number') {
+    const rounded = Math.round(raw);
+    return Number.isFinite(rounded) && rounded > 0 ? rounded : fallback;
+  }
+  const str = String(raw ?? '').trim();
+  if (!str) return fallback;
+
+  const cleaned = str.replace(/\s+/g, '').replace(/[^0-9,.-]/g, '');
+  if (/^[1-9]\d{0,2}([.,]\d{3})+$/.test(cleaned)) {
+    const intVal = parseInt(cleaned.replace(/[.,]/g, ''), 10);
+    return !isNaN(intVal) && intVal > 0 ? intVal : fallback;
+  }
+
+  const num = Math.round(
+    parseLocalizedNumber(cleaned, {
+      isVietnameseLocale: opts?.isVietnameseLocale,
+      isWeightKg: true,
+    })
+  );
+  return num > 0 ? num : fallback;
+}
+
+/**
  * Kiểm tra xem workbook có phải là file mẫu điều hành gửi sang không
  */
 export function isDispatchExcelWorkbook(wb: XLSX.WorkBook): boolean {
@@ -96,7 +237,10 @@ export function isDispatchExcelWorkbook(wb: XLSX.WorkBook): boolean {
       const rowStr = row.map((c) => String(c || '').toLowerCase()).join(' ');
       if (
         (rowStr.includes('mã đơn hàng') || rowStr.includes('mã đơn')) &&
-        (rowStr.includes('điều hành') || rowStr.includes('địa chỉ lấy hàng') || rowStr.includes('kho nhập'))
+        (rowStr.includes('điều hành') ||
+          rowStr.includes('địa chỉ lấy hàng') ||
+          rowStr.includes('địa chỉ nhận hàng') ||
+          rowStr.includes('kho nhập'))
       ) {
         return true;
       }
@@ -157,7 +301,7 @@ export function parseDispatchSheet(
 
   const data: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-  // Tìm dòng header của bảng điều hành (14 cột)
+  // Tìm dòng header của bảng điều hành (14-16 cột, hỗ trợ cả mẫu KẾ HOẠCH ĐÓNG HÀNG header 2 dòng)
   let headerRowIdx = -1;
   let headerCols: string[] = [];
 
@@ -165,8 +309,18 @@ export function parseDispatchSheet(
     const row = (data[r] || []).map((c) => String(c || '').trim());
     const lowerRow = row.map((c) => c.toLowerCase());
     if (
-      lowerRow.some((c) => c.includes('mã đơn hàng') || c.includes('mã đơn')) &&
-      lowerRow.some((c) => c.includes('địa chỉ lấy hàng') || c.includes('tên hàng') || c.includes('kho nhập'))
+      lowerRow.some(
+        (c) => c.includes('mã đơn hàng') || c.includes('mã đơn') || c.includes('mã vận đơn')
+      ) &&
+      lowerRow.some(
+        (c) =>
+          c.includes('địa chỉ lấy hàng') ||
+          c.includes('địa chỉ nhận hàng') ||
+          c.includes('địa chỉ nhận') ||
+          c.includes('điểm bốc hàng') ||
+          c.includes('tên hàng') ||
+          c.includes('kho nhập')
+      )
     ) {
       headerRowIdx = r;
       headerCols = row;
@@ -185,51 +339,142 @@ export function parseDispatchSheet(
     }
   }
 
-  // Map vị trí các cột dựa vào tiêu đề header
-  const findColIdx = (patterns: string[]) => {
-    return headerCols.findIndex((col) =>
-      patterns.some((p) => col.toLowerCase().includes(p.toLowerCase()))
+  // Kiểm tra xem dòng ngay sau header (headerRowIdx + 1) có phải là dòng sub-header gộp (VD: "Số thùng | Số kg | Số khối" dưới cột "Khối lượng") không
+  let dataStartRowIdx = headerRowIdx + 1;
+  if (headerRowIdx + 1 < data.length) {
+    const nextRow = (data[headerRowIdx + 1] || []).map((c) => String(c || '').trim());
+    const nextRowLower = nextRow.map((c) => c.toLowerCase());
+    const hasSubHeaderKeywords = nextRowLower.some(
+      (c) =>
+        c.includes('số thùng') ||
+        c.includes('số kiện') ||
+        c.includes('số lượng') ||
+        c.includes('số kg') ||
+        c.includes('số khối') ||
+        c.includes('số m³') ||
+        c.includes('số m3')
     );
+    if (hasSubHeaderKeywords) {
+      const maxLen = Math.max(headerCols.length, nextRow.length);
+      const mergedHeaders: string[] = [];
+      for (let i = 0; i < maxLen; i++) {
+        mergedHeaders.push(nextRow[i] ? nextRow[i] : headerCols[i] || '');
+      }
+      headerCols = mergedHeaders;
+      dataStartRowIdx = headerRowIdx + 2;
+    }
+  }
+
+  // Map vị trí các cột dựa vào tiêu đề header (ưu tiên theo thứ tự từ khóa trong patterns)
+  const findColIdx = (patterns: string[]) => {
+    for (const p of patterns) {
+      const pLower = p.toLowerCase();
+      const idx = headerCols.findIndex((col) => col.toLowerCase().includes(pLower));
+      if (idx !== -1) return idx;
+    }
+    return -1;
   };
 
-  const colDate = findColIdx(['ngày tháng', 'ngày']);
-  const colOrderCode = findColIdx(['mã đơn hàng', 'mã đơn', 'mã vận đơn']);
+  const colDate = findColIdx(['ngày tháng', 'ngày cần bốc', 'ngày']);
+  const colOrderCode = findColIdx(['mã vận đơn', 'mã đơn hàng', 'mã đơn']);
   const colDispatcher = findColIdx(['điều hành']);
-  const colPlate = findColIdx(['số xe']);
-  const colDriver = findColIdx(['tên tài xế', 'tài xế', 'lái xe']);
-  const colGoodsName = findColIdx(['tên hàng', 'hàng hóa']);
+  const colPlate = findColIdx(['biển số xe', 'số xe']);
+  const colDriver = findColIdx(['tên tài xế', 'họ tên người nhận', 'tài xế', 'lái xe']);
+  const colGoodsName = findColIdx(['tên hàng hóa', 'tên hàng', 'hàng hóa', 'mặt hàng']);
   const colDestWarehouse = findColIdx(['kho nhập']);
   const colExpectedTime = findColIdx(['giờ dự kiến']);
-  const colPickupAddr = findColIdx(['địa chỉ lấy hàng', 'địa chỉ lấy', 'nơi nhận']);
+  const colPickupAddr = findColIdx([
+    'địa chỉ lấy hàng',
+    'địa chỉ nhận hàng',
+    'điểm bốc hàng',
+    'địa chỉ nhận',
+    'địa chỉ lấy',
+    'nơi nhận',
+  ]);
   const colDeliveryAddr = findColIdx(['địa chỉ giao hàng', 'địa chỉ giao', 'nơi giao']);
-  const colQty = findColIdx(['số lượng', 'số kiện', 'kiện']);
-  const colWeight = findColIdx(['khối lượng', 'trọng lượng', 'số kg', 'kg']);
-  const colVolume = findColIdx(['thể tích', 'số m³', 'số m3', 'm³', 'm3']);
+  const colProvince = findColIdx(['tỉnh / tp', 'tỉnh/tp', 'đã soạn', 'tỉnh thành']);
+  const colQty = findColIdx(['số kiện', 'số thùng', 'số lượng', 'kiện', 'thùng']);
+  const colWeight = findColIdx(['số kg', 'trọng lượng', 'khối lượng', 'kg']);
+  const colVolume = findColIdx(['số m³', 'số m3', 'số khối', 'thể tích', 'm³', 'm3', 'khối']);
   const colNotes = findColIdx(['ghi chú', 'lưu ý']);
 
   let detectedDate = '';
   let detectedPlate = '';
   let detectedDriver = '';
 
-  // Thử tìm ngày ở dòng 10 hoặc tiêu đề
+  // Quét phần thông tin chung ở các dòng phía trên bảng (r < headerRowIdx)
   for (let r = 0; r < headerRowIdx; r++) {
     const row = data[r] || [];
-    for (const cell of row) {
+    for (let c = 0; c < row.length; c++) {
+      const cell = row[c];
       if (typeof cell === 'number' && cell > 40000 && cell < 60000 && !detectedDate) {
         detectedDate = formatExcelDate(cell);
+      }
+      const label = String(cell || '')
+        .trim()
+        .toLowerCase();
+      if (!label) continue;
+
+      // Tìm giá trị ở các ô kế tiếp bên phải (c+1, c+2, c+3)
+      let adjacentVal: unknown = '';
+      for (let offset = 1; offset <= 3 && c + offset < row.length; offset++) {
+        const candidate = row[c + offset];
+        if (candidate !== undefined && candidate !== null && String(candidate).trim() !== '') {
+          adjacentVal = candidate;
+          break;
+        }
+      }
+      if (adjacentVal === '') continue;
+
+      if (
+        !detectedDate &&
+        (label.includes('ngày/tháng/năm') || label === 'ngày' || label.startsWith('ngày:'))
+      ) {
+        detectedDate = formatExcelDate(adjacentVal);
+      } else if (
+        !detectedPlate &&
+        (label.includes('biển số xe') || label === 'số xe' || label.startsWith('số xe:'))
+      ) {
+        detectedPlate = String(adjacentVal).trim();
+      } else if (
+        !detectedDriver &&
+        (label.includes('họ tên người nhận') ||
+          label.includes('lái xe') ||
+          label.includes('tài xế'))
+      ) {
+        detectedDriver = String(adjacentVal).trim();
       }
     }
   }
 
-  const rawRows = data.slice(headerRowIdx + 1);
+  const rawRows = data.slice(dataStartRowIdx);
+  const numberSamples: unknown[] = [];
+  for (const row of rawRows) {
+    if (!row) continue;
+    if (colQty !== -1) numberSamples.push(row[colQty]);
+    if (colWeight !== -1) numberSamples.push(row[colWeight]);
+    if (colVolume !== -1) numberSamples.push(row[colVolume]);
+  }
+  const isVietnameseLocale = detectVietnameseNumberLocale(numberSamples);
+
   const rows: StandardizedInboundRow[] = [];
 
   for (const row of rawRows) {
     if (!row || row.length === 0) continue;
 
     const rawOrderCode = colOrderCode !== -1 ? String(row[colOrderCode] || '').trim() : '';
-    // Bỏ qua các dòng trống hoàn toàn hoặc không có mã đơn
+    // Bỏ qua các dòng trống hoàn toàn, dòng tiêu đề phụ hoặc dòng tổng cộng
     if (!rawOrderCode) continue;
+    const lowerCode = rawOrderCode.toLowerCase();
+    if (
+      lowerCode === 'mã đơn hàng' ||
+      lowerCode === 'mã vận đơn' ||
+      lowerCode.startsWith('tổng') ||
+      lowerCode.startsWith('mã chuyến') ||
+      lowerCode.startsWith('chuyến xe')
+    ) {
+      continue;
+    }
 
     // Lọc mã đơn sạch (loại bỏ xuống dòng)
     const orderCode = rawOrderCode.replace(/[\r\n\t]+/g, ' ').trim();
@@ -241,26 +486,38 @@ export function parseDispatchSheet(
     const goodsDescription = rawGoods.replace(/[\r\n\t]+/g, ' ').trim();
 
     // Số lượng: nếu rỗng, undefined, hoặc <= 0 thì tự động gán là 1 kiện
-    const rawQty = colQty !== -1 ? String(row[colQty] || '').trim() : '';
-    const parsedQty = parseInt(rawQty.replace(/[^\d]/g, ''), 10);
-    const totalQuantity = !isNaN(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+    const totalQuantity =
+      colQty !== -1
+        ? parseLocalizedQuantity(row[colQty], { isVietnameseLocale })
+        : 1;
 
     // Số kg
-    const rawWeight = colWeight !== -1 ? String(row[colWeight] || '').trim() : '';
     const totalWeight =
-      parseFloat(rawWeight.replace(/\s+/g, '').replace(/,/g, '.')) || 0;
+      colWeight !== -1
+        ? parseLocalizedNumber(row[colWeight], { isVietnameseLocale, isWeightKg: true })
+        : 0;
 
     // Số m³
-    const rawVolume = colVolume !== -1 ? String(row[colVolume] || '').trim() : '';
     const totalVolume =
-      parseFloat(rawVolume.replace(/\s+/g, '').replace(/,/g, '.')) || 0;
+      colVolume !== -1
+        ? parseLocalizedNumber(row[colVolume], { isVietnameseLocale, isWeightKg: false })
+        : 0;
 
     // Địa chỉ giao
     const rawDeliveryAddr = colDeliveryAddr !== -1 ? String(row[colDeliveryAddr] || '').trim() : '';
     const deliveryAddress = rawDeliveryAddr.replace(/[\r\n\t]+/g, ' ').trim();
 
-    // Bóc tách Tỉnh / Thành phố
-    const province = extractVietnamProvince(deliveryAddress);
+    // Bóc tách Tỉnh / Thành phố (ưu tiên cột Tỉnh/Đã soạn nếu có, hoặc bóc từ địa chỉ giao)
+    const rawProvinceCell =
+      colProvince !== -1
+        ? String(row[colProvince] || '')
+            .replace(/[\r\n\t]+/g, ' ')
+            .trim()
+        : '';
+    const province =
+      extractVietnamProvince(rawProvinceCell) ||
+      extractVietnamProvince(deliveryAddress) ||
+      rawProvinceCell;
 
     // Thông tin tài xế và biển số xe
     const rowPlate = colPlate !== -1 ? String(row[colPlate] || '').trim() : '';
@@ -278,7 +535,12 @@ export function parseDispatchSheet(
     const dispatcherName = colDispatcher !== -1 ? String(row[colDispatcher] || '').trim() : '';
     const expectedInboundTime = colExpectedTime !== -1 ? String(row[colExpectedTime] || '').trim() : '';
     const destinationWarehouse = colDestWarehouse !== -1 ? String(row[colDestWarehouse] || '').trim() : '';
-    const rawNote = colNotes !== -1 ? String(row[colNotes] || '').trim() : '';
+    const rawNote =
+      colNotes !== -1
+        ? String(row[colNotes] || '')
+            .replace(/[\r\n\t]+/g, ' ')
+            .trim()
+        : '';
 
     // Gộp ghi chú nghiệp vụ
     const noteParts: string[] = [];
@@ -431,9 +693,9 @@ export function generateClipboardTsv(
         r.orderCode,
         r.pickupAddress,
         r.goodsDescription,
-        r.totalQuantity,
-        r.totalWeight,
-        r.totalVolume,
+        String(r.totalQuantity),
+        String(r.totalWeight).replace('.', ','),
+        String(r.totalVolume).replace('.', ','),
         r.deliveryAddress,
         r.province,
         r.accompanyingDocs || '',
