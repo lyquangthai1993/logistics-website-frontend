@@ -74,6 +74,36 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await page.waitForTimeout(600);
     await expect(inboundBtn).toHaveClass(/bg-blue-600/);
 
+    // 4. Kiểm tra dòng TỔNG SẢN LƯỢNG / TRUNG BÌNH trùng lặp bên dưới biểu đồ cột đã được gỡ bỏ
+    await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);
+
+    // 5. Kiểm tra bấm vào 2 thẻ KPI (CBM và Số Tấn) để chuyển đổi biểu đồ tương ứng
+    const cbmCard = page.getByTestId('kpi-card-cbm');
+    const tonsCard = page.getByTestId('kpi-card-tons');
+    const metricLabel = page.getByTestId('slide-2-chart-metric-label');
+
+    await expect(cbmCard).toBeVisible();
+    await expect(tonsCard).toBeVisible();
+    await expect(metricLabel).toHaveText('CBM');
+    await expect(cbmCard).toHaveAttribute('aria-pressed', 'true');
+
+    // Bấm vào thẻ Tổng sản lượng tấn (Số Tấn) -> Biểu đồ chuyển sang SỐ TẤN
+    await tonsCard.click();
+    await expect(metricLabel).toHaveText('SỐ TẤN');
+    await expect(tonsCard).toHaveAttribute('aria-pressed', 'true');
+    await expect(cbmCard).toHaveAttribute('aria-pressed', 'false');
+
+    // Chụp ảnh bằng chứng biểu đồ theo Số Tấn
+    await page.screenshot({
+      path: 'test-results/admin-reports-tons-chart-selected.png',
+      fullPage: false
+    });
+
+    // Bấm lại vào thẻ Tổng sản lượng khối (CBM) -> Biểu đồ chuyển về CBM
+    await cbmCard.click();
+    await expect(metricLabel).toHaveText('CBM');
+    await expect(cbmCard).toHaveAttribute('aria-pressed', 'true');
+
     // Chụp ảnh bằng chứng
     await page.screenshot({
       path: 'test-results/admin-reports-cutoff-and-separated-buttons.png',
@@ -106,19 +136,18 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await expect(weightBox).toBeVisible();
     await expect(volumeBox).toBeVisible();
 
-    // 3. Chuyển sang tab LƯU KHO
+    // 3. Chuyển sang tab LƯU KHO và chờ số liệu tổng tải xong
     const storedTab = page.getByTestId('warehouse-tab-inbound');
     await storedTab.click();
-    await page.waitForTimeout(1000);
+    await expect(qtyBox).toHaveText(/^\d/, { timeout: 15000 });
+    await expect(weightBox).toHaveText(/^\d/, { timeout: 15000 });
+    await expect(volumeBox).toHaveText(/^\d/, { timeout: 15000 });
 
     // Đảm bảo chỉ hiển thị con số tổng gọn gàng, không lặp lại chữ tiêu đề cột
     const qtyText = (await qtyBox.innerText()).trim();
     const weightText = (await weightBox.innerText()).trim();
     const volumeText = (await volumeBox.innerText()).trim();
 
-    expect(qtyText).toMatch(/^\d/);
-    expect(weightText).toMatch(/^\d/);
-    expect(volumeText).toMatch(/^\d/);
     expect(qtyText).not.toContain('SỐ LƯỢNG');
     expect(weightText).not.toContain('SỐ KG');
     expect(volumeText).not.toContain('SỐ KHỐI');

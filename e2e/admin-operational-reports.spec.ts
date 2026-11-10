@@ -160,14 +160,16 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(page.getByTestId('kpi-total-trips')).toBeVisible();
     await expect(page.getByTestId('kpi-total-packages')).toBeVisible();
 
-    // Kiểm tra Slide 2 (Biểu đồ cột CBM theo ngày + TỔNG SẢN LƯỢNG & TRUNG BÌNH CBM/NGÀY)
+    // Kiểm tra Slide 2 (Biểu đồ cột CBM / SỐ TẤN theo ngày, không lặp lại dòng footer trùng thông tin)
     const slide2Card = page.getByTestId('slide-2-daily-chart-card');
     await expect(slide2Card).toBeVisible();
     await expect(slide2Card).toContainText('1. Tình hình hoạt động của Hub');
-    const slide2Footer = page.getByTestId('slide-2-summary-footer');
-    await expect(slide2Footer).toContainText('TỔNG SẢN LƯỢNG:');
-    await expect(slide2Footer).toContainText('TRUNG BÌNH:');
-    await expect(slide2Footer).toContainText('CBM/NGÀY');
+    await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);
+    await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('CBM');
+    await page.getByTestId('kpi-card-tons').click();
+    await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('SỐ TẤN');
+    await page.getByTestId('kpi-card-cbm').click();
+    await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('CBM');
 
     // Kiểm tra Slide 3 (2 Biểu đồ đường SỐ KHỐI & SỐ TẤN theo tháng)
     const slide3Card = page.getByTestId('slide-3-monthly-charts-card');
