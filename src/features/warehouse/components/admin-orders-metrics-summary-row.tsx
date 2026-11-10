@@ -22,7 +22,7 @@ export function AdminOrdersMetricsSummaryRow({
       <td className='hidden md:table-cell py-1 px-1 text-center md:sticky md:left-0 z-20 bg-blue-50/80 dark:bg-blue-950/40 border-b border-blue-200/60 dark:border-blue-900/50'></td>
       <td className='py-1 px-1.5 text-center md:sticky md:left-[36px] z-20 bg-blue-50/80 dark:bg-blue-950/40 border-b border-blue-200/60 dark:border-blue-900/50'></td>
       <td className='py-1 px-1.5 md:sticky md:left-[132px] z-20 bg-blue-50/80 dark:bg-blue-950/40 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)] md:border-r border-b border-blue-200/60 dark:border-blue-900/50'>
-        <span className='text-[10px] font-bold uppercase tracking-wider text-blue-800 dark:text-blue-300'>
+        <span className='text-[10px] font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300'>
           TỔNG CỘNG
         </span>
       </td>
@@ -30,62 +30,44 @@ export function AdminOrdersMetricsSummaryRow({
 
       {/* SỐ LƯỢNG */}
       <td
-        className='py-1 px-1.5 text-right border-b border-blue-200/60 dark:border-blue-900/50'
+        className='py-1 px-1.5 text-right whitespace-nowrap border-b border-blue-200/60 dark:border-blue-900/50'
         data-testid='admin-metric-quantity'
       >
-        <div className='inline-flex flex-col items-end'>
-          <div className='flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300'>
-            <span>SỐ LƯỢNG</span>
-            <span className='font-normal text-[8px] opacity-75'>Kiện</span>
-          </div>
-          <div className='text-xs font-black font-mono text-blue-900 dark:text-blue-100 leading-tight'>
-            {isLoading ? (
-              <span className='animate-pulse text-blue-400'>...</span>
-            ) : (
-              formatNumberSpaced(quantity, 0)
-            )}
-          </div>
-        </div>
+        <span className='text-[10.5px] font-medium font-mono text-blue-900 dark:text-blue-100 leading-tight'>
+          {isLoading ? (
+            <span className='animate-pulse text-blue-400'>...</span>
+          ) : (
+            formatNumberSpaced(quantity, 0)
+          )}
+        </span>
       </td>
 
       {/* SỐ KG */}
       <td
-        className='py-1 px-1.5 text-right border-b border-blue-200/60 dark:border-blue-900/50'
+        className='py-1 px-1.5 text-right whitespace-nowrap border-b border-blue-200/60 dark:border-blue-900/50'
         data-testid='admin-metric-weight'
       >
-        <div className='inline-flex flex-col items-end'>
-          <div className='flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300'>
-            <span>SỐ KG</span>
-            <span className='font-normal text-[8px] opacity-75'>Kg</span>
-          </div>
-          <div className='text-xs font-black font-mono text-amber-900 dark:text-amber-100 leading-tight'>
-            {isLoading ? (
-              <span className='animate-pulse text-amber-400'>...</span>
-            ) : (
-              formatNumberSpaced(weightKg, 2)
-            )}
-          </div>
-        </div>
+        <span className='text-[10.5px] font-medium font-mono text-amber-900 dark:text-amber-100 leading-tight'>
+          {isLoading ? (
+            <span className='animate-pulse text-amber-400'>...</span>
+          ) : (
+            formatNumberSpaced(weightKg, 2)
+          )}
+        </span>
       </td>
 
       {/* CBM */}
       <td
-        className='py-1 px-1.5 text-right border-b border-blue-200/60 dark:border-blue-900/50'
+        className='py-1 px-1.5 text-right whitespace-nowrap border-b border-blue-200/60 dark:border-blue-900/50'
         data-testid='admin-metric-volume'
       >
-        <div className='inline-flex flex-col items-end'>
-          <div className='flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300'>
-            <span>SỐ KHỐI</span>
-            <span className='font-normal text-[8px] opacity-75'>CBM</span>
-          </div>
-          <div className='text-xs font-black font-mono text-emerald-900 dark:text-emerald-100 leading-tight'>
-            {isLoading ? (
-              <span className='animate-pulse text-emerald-400'>...</span>
-            ) : (
-              formatNumberSpaced(volumeCbm, 2)
-            )}
-          </div>
-        </div>
+        <span className='text-[10.5px] font-medium font-mono text-emerald-900 dark:text-emerald-100 leading-tight'>
+          {isLoading ? (
+            <span className='animate-pulse text-emerald-400'>...</span>
+          ) : (
+            formatNumberSpaced(volumeCbm, 2)
+          )}
+        </span>
       </td>
 
       <td colSpan={4} className='py-1 px-1.5 border-b border-blue-200/60 dark:border-blue-900/50'></td>
