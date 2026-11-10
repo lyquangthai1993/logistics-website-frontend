@@ -22,8 +22,12 @@ import { WarehouseRowItem, HubOption } from './warehouse-editable-grid';
 import {
   isDispatchExcelWorkbook,
   inspectDispatchWorkbook,
-  parseDispatchSheet
+  parseDispatchSheet,
+  detectVietnameseNumberLocale,
+  parseLocalizedNumber,
+  parseLocalizedQuantity
 } from '../lib/dispatch-excel-converter';
+import { extractVietnamProvince } from '../lib/vietnam-provinces';
 
 interface WarehouseExcelImportModalProps {
   isOpen: boolean;
@@ -168,15 +172,29 @@ export function WarehouseExcelImportModal({
 
       const validRowsList: ParsedPreviewRow[] = [];
 
+      const findRowVal = (r: Record<string, any>, patterns: string[]) => {
+        const keys = Object.keys(r);
+        for (const p of patterns) {
+          const pNorm = p.toLowerCase();
+          const matchKey = keys.find((k) => k.toLowerCase().includes(pNorm));
+          if (matchKey !== undefined) return r[matchKey];
+        }
+        return '';
+      };
+
+      const numericSamples: unknown[] = [];
+      for (const r of rawJson) {
+        numericSamples.push(
+          findRowVal(r, ['số kiện', 'số thùng', 'số lượng', 'kiện', 'qty', 'quantity']),
+          findRowVal(r, ['số kg', 'khối lượng', 'trọng lượng', 'weight', 'kg']),
+          findRowVal(r, ['số m³', 'số m3', 'số khối', 'thể tích', 'volume', 'm3'])
+        );
+      }
+      const isVietnameseLocale = detectVietnameseNumberLocale(numericSamples);
+
       for (const row of rawJson) {
         // Flexible key matching for both Vietnamese and English headers
-        const keys = Object.keys(row);
-        const findVal = (patterns: string[]) => {
-          const matchKey = keys.find((k) =>
-            patterns.some((p) => k.toLowerCase().includes(p.toLowerCase()))
-          );
-          return matchKey ? row[matchKey] : '';
-        };
+        const findVal = (patterns: string[]) => findRowVal(row, patterns);
 
         const orderCodeRaw = findVal([
           'mã vận đơn',
@@ -196,42 +214,88 @@ export function WarehouseExcelImportModal({
           parsedCode === '(TỰ SINH KHI LƯU)' || parsedCode.startsWith('(TỰ SINH') ? '' : parsedCode;
 
         const pickupAddress =
-          findVal(['địa chỉ nhận', 'nguồn gửi', 'nơi nhận', 'pickup', 'origin']) ||
+          findVal([
+            'địa chỉ nhận hàng',
+            'địa chỉ nhận',
+            'điểm bốc hàng',
+            'nguồn gửi',
+            'nơi nhận',
+            'pickup',
+            'origin'
+          ]) ||
           currentHubName ||
           '';
         const goodsDescription =
           findVal(['tên hàng', 'hàng hóa', 'loại hàng', 'goods', 'description', 'item']) || '';
-        const totalQuantityRaw = findVal(['số kiện', 'số lượng', 'kiện', 'qty', 'quantity']);
+        const totalQuantityRaw = findVal([
+          'số kiện',
+          'số thùng',
+          'số lượng',
+          'kiện',
+          'qty',
+          'quantity'
+        ]);
         const totalWeightRaw = findVal(['số kg', 'khối lượng', 'trọng lượng', 'weight', 'kg']);
-        const totalVolumeRaw = findVal(['số m³', 'số m3', 'thể tích', 'volume', 'm3']);
-        const deliveryModeRaw = findVal(['hình thức giao', 'chế độ', 'mode', 'delivery mode']);
+        const totalVolumeRaw = findVal([
+          'số m³',
+          'số m3',
+          'số khối',
+          'thể tích',
+          'volume',
+          'm3'
+        ]);
         const deliveryAddress =
-          findVal(['địa chỉ giao', 'nơi giao', 'đích nhận', 'delivery', 'destination']) || '';
-        const province =
+          findVal([
+            'địa chỉ giao hàng',
+            'địa chỉ giao',
+            'nơi giao',
+            'đích nhận',
+            'delivery',
+            'destination'
+          ]) || '';
+        const provinceRaw =
           findVal(['tỉnh/tp', 'tỉnh / tp', 'tỉnh', 'thành phố', 'province', 'city']) || '';
+        const province =
+          String(provinceRaw).trim() || extractVietnamProvince(String(deliveryAddress));
         const accompanyingDocs =
           findVal([
             'chứng từ đi kèm',
             'chứng từ',
             'bct',
+            'đã soạn',
             'accompanying docs',
             'documents',
             'kèm theo'
           ]) || '';
         const notes = findVal(['ghi chú', 'note', 'notes', 'remark']) || '';
 
-        // Skip completely blank rows in Excel or placeholder rows that don't have orderCode, goodsDescription, and deliveryAddress
-        if (
-          !String(orderCode).trim() &&
+        // Skip completely blank rows in Excel, summary/footer note rows, or placeholder rows that don't have orderCode, goodsDescription, and deliveryAddress
+        const upperCode = String(orderCode).trim().toUpperCase();
+        const isFooterNoteRow =
           !String(goodsDescription).trim() &&
-          !String(deliveryAddress).trim()
+          !String(deliveryAddress).trim() &&
+          (upperCode.startsWith('CHUYẾN XE') ||
+            upperCode.startsWith('MÃ CHUYẾN') ||
+            upperCode.startsWith('TỔNG') ||
+            upperCode.startsWith('GHI CHÚ'));
+        if (
+          isFooterNoteRow ||
+          (!String(orderCode).trim() &&
+            !String(goodsDescription).trim() &&
+            !String(deliveryAddress).trim())
         ) {
           continue;
         }
 
-        const totalQuantity = parseInt(String(totalQuantityRaw).replace(/\D/g, ''), 10) || 1;
-        const totalWeight = parseFloat(String(totalWeightRaw).replace(/,/g, '.')) || 0;
-        const totalVolume = parseFloat(String(totalVolumeRaw).replace(/,/g, '.')) || 0;
+        const totalQuantity = parseLocalizedQuantity(totalQuantityRaw, isVietnameseLocale, 1);
+        const totalWeight = parseLocalizedNumber(totalWeightRaw, {
+          isVietnameseLocale,
+          isWeightKg: true
+        });
+        const totalVolume = parseLocalizedNumber(totalVolumeRaw, {
+          isVietnameseLocale,
+          isWeightKg: false
+        });
 
         // Default deliveryMode is always DIRECT_CUSTOMER. Operator selects/adjusts on UI grid as needed.
         const deliveryMode: 'DIRECT_CUSTOMER' | 'HUB_L1' | 'XE_BO' = 'DIRECT_CUSTOMER';
