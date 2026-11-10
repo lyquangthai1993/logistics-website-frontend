@@ -111,14 +111,17 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await storedTab.click();
     await page.waitForTimeout(1000);
 
-    // Đảm bảo số lượng hiển thị không rỗng
-    const qtyText = await qtyBox.innerText();
-    const weightText = await weightBox.innerText();
-    const volumeText = await volumeBox.innerText();
+    // Đảm bảo chỉ hiển thị con số tổng gọn gàng, không lặp lại chữ tiêu đề cột
+    const qtyText = (await qtyBox.innerText()).trim();
+    const weightText = (await weightBox.innerText()).trim();
+    const volumeText = (await volumeBox.innerText()).trim();
 
-    expect(qtyText).toContain('SỐ LƯỢNG');
-    expect(weightText).toContain('SỐ KG');
-    expect(volumeText).toContain('SỐ KHỐI');
+    expect(qtyText).toMatch(/^\d/);
+    expect(weightText).toMatch(/^\d/);
+    expect(volumeText).toMatch(/^\d/);
+    expect(qtyText).not.toContain('SỐ LƯỢNG');
+    expect(weightText).not.toContain('SỐ KG');
+    expect(volumeText).not.toContain('SỐ KHỐI');
 
     // Chụp ảnh bằng chứng nghiệm thu
     await page.screenshot({
