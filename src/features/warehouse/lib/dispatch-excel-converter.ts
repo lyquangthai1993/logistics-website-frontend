@@ -87,47 +87,119 @@ export function formatExcelDate(rawDate: unknown): string {
 }
 
 /**
- * Quy chuẩn số liệu cố định:
- * - Dấu chấm (.) là phân cách phần nghìn (VD: "2.767" -> 2767, "1.440" -> 1440, "2.767,00" -> 2767)
- * - Dấu phẩy (,) là phân cách phần thập phân (VD: "4,59" -> 4.59, "890,00" -> 890, "0,973" -> 0.973)
+ * Tự động nhận diện xem tập dữ liệu chuỗi số đang dùng định dạng Việt Nam ('#.##0,00': chấm phần nghìn, phẩy thập phân)
+ * hay định dạng Quốc tế / US ('#,##0.00': phẩy phần nghìn, chấm thập phân).
  */
-export function detectVietnameseNumberLocale(_samples?: unknown[]): boolean {
-  return true;
+export function detectVietnameseNumberLocale(samples?: unknown[]): boolean {
+  if (!samples || samples.length === 0) return false;
+  let vnScore = 0;
+  let usScore = 0;
+
+  for (const item of samples) {
+    if (typeof item !== 'string') continue;
+    const s = item.trim().replace(/\s+/g, '');
+    if (!s) continue;
+
+    if (s.includes('.') && s.includes(',')) {
+      if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+        vnScore += 5; // VD: "2.767,00", "1.440,00"
+      } else {
+        usScore += 5; // VD: "2,767.00", "1,440.00"
+      }
+    } else if (/^-?\d+,\d{1,2}$/.test(s) || /^-?0,\d{3}$/.test(s)) {
+      vnScore += 3; // VD: "960,00", "5,55", "4,59", "0,87"
+    } else if (/^-?\d+\.\d{1,2}$/.test(s) || /^-?0\.\d{3}$/.test(s)) {
+      usScore += 3; // VD: "960.00", "5.55", "4.59", "0.87"
+    }
+  }
+
+  return vnScore > usScore;
 }
 
 /**
- * Chuẩn hóa chuỗi số từ Excel / Clipboard theo quy chuẩn cố định:
- * Chấm (.) là phần nghìn, phẩy (,) là phần thập phân.
- * Triệt tiêu hoàn toàn lỗi nhân 100 ("890,00" -> 89000) và lỗi chia 1000 ("2.767,00" / "1.440" -> 2.767 / 1.44).
+ * Chuẩn hóa chuỗi số từ Excel / Clipboard (tự động xử lý chuẩn xác 100% cả 2 hệ định dạng):
+ * - Định dạng US/Quốc tế ('#,##0.00'): "2,767.00" -> 2767, "1,440.00" -> 1440, "960.00" -> 960, "5.55" -> 5.55
+ * - Định dạng Việt Nam ('#.##0,00'): "2.767,00" -> 2767, "1.440,00" -> 1440, "960,00" -> 960, "5,55" -> 5.55
+ * Triệt tiêu hoàn toàn lỗi nhân 100 ("890,00" / "890.00" -> 89000) và lỗi chia 1000 ("2.767,00" / "2,767.00" -> 2.767).
  */
 export function parseLocalizedNumber(
   raw: unknown,
-  _options?: { isVietnameseLocale?: boolean; isWeightKg?: boolean } | boolean
+  options?: { isVietnameseLocale?: boolean; isWeightKg?: boolean } | boolean
 ): number {
+  const opts = typeof options === 'boolean' ? { isVietnameseLocale: options } : options;
   if (typeof raw === 'number') {
     return Number.isFinite(raw) ? raw : 0;
   }
-  const s = String(raw ?? '')
+  let s = String(raw ?? '')
     .trim()
     .replace(/\s+/g, '')
     .replace(/[^0-9,.-]/g, '');
   if (!s || s === '-' || s === '.' || s === ',') return 0;
 
-  // Chấm (.) là phần nghìn -> xóa toàn bộ dấu chấm; Phẩy (,) là phần thập phân -> đổi thành dấu chấm cho parseFloat
-  const normalized = s.replace(/\./g, '').replace(/,/g, '.');
-  const parsed = parseFloat(normalized);
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      // Định dạng Việt Nam: "2.767,00" -> "2767.00"
+      s = s.replace(/\./g, '').replace(/,/g, '.');
+    } else {
+      // Định dạng US/Quốc tế: "2,767.00" -> "2767.00"
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasComma && !hasDot) {
+    const parts = s.split(',');
+    if (parts.length > 2) {
+      // Nhiều dấu phẩy: "17,000,000" -> hàng nghìn
+      s = s.replace(/,/g, '');
+    } else {
+      const [intPart, fracPart] = parts;
+      if (fracPart.length !== 3) {
+        // 1 hoặc 2 chữ số sau dấu phẩy ("960,00", "5,55", "4,59", "0,5") -> 100% là dấu thập phân
+        s = s.replace(',', '.');
+      } else if (/^-?0$/.test(intPart) || opts?.isVietnameseLocale) {
+        // "0,973" hoặc batch đang ở định dạng Việt Nam -> dấu thập phân
+        s = s.replace(',', '.');
+      } else if (opts?.isVietnameseLocale === false || fracPart.endsWith('0') || opts?.isWeightKg) {
+        // "2,767", "1,440" ở định dạng US -> dấu phân cách hàng nghìn
+        s = s.replace(',', '');
+      } else {
+        s = s.replace(',', '.');
+      }
+    }
+  } else if (!hasComma && hasDot) {
+    const parts = s.split('.');
+    if (parts.length > 2) {
+      // Nhiều dấu chấm: "17.000.000" -> hàng nghìn
+      s = s.replace(/\./g, '');
+    } else {
+      const [intPart, fracPart] = parts;
+      // Nếu có 1 hoặc 2 chữ số sau dấu chấm ("960.00", "5.55", "4.59", "0.87", "0.50") -> 100% là dấu thập phân (giữ nguyên '.')
+      // Chỉ khi có đúng 3 chữ số sau dấu chấm và phần nguyên khác 0 (VD: "2.767", "1.440"):
+      if (
+        fracPart.length === 3 &&
+        !/^-?0$/.test(intPart) &&
+        (opts?.isVietnameseLocale !== false && (opts?.isVietnameseLocale || opts?.isWeightKg || fracPart.endsWith('0')))
+      ) {
+        s = s.replace('.', '');
+      }
+    }
+  }
+
+  const parsed = parseFloat(s);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 /**
- * Chuẩn hóa số nguyên cho cột Số kiện / Số thùng (mặc định >= 1) theo quy chuẩn:
- * Chấm (.) là phần nghìn, phẩy (,) là phần thập phân (VD: "44,00" -> 44, "1.200" -> 1200).
+ * Chuẩn hóa số nguyên cho cột Số kiện / Số thùng (mặc định >= 1).
+ * Xử lý an toàn cả "44,00", "44.00" (-> 44) lẫn "1.200", "1,200" (-> 1200).
  */
 export function parseLocalizedQuantity(
   raw: unknown,
-  _options?: { isVietnameseLocale?: boolean } | boolean,
+  options?: { isVietnameseLocale?: boolean } | boolean,
   fallback = 1
 ): number {
+  const opts = typeof options === 'boolean' ? { isVietnameseLocale: options } : options;
   if (typeof raw === 'number') {
     const rounded = Math.round(raw);
     return Number.isFinite(rounded) && rounded > 0 ? rounded : fallback;
@@ -135,7 +207,18 @@ export function parseLocalizedQuantity(
   const str = String(raw ?? '').trim();
   if (!str) return fallback;
 
-  const num = Math.round(parseLocalizedNumber(str));
+  const cleaned = str.replace(/\s+/g, '').replace(/[^0-9,.-]/g, '');
+  if (/^[1-9]\d{0,2}([.,]\d{3})+$/.test(cleaned)) {
+    const intVal = parseInt(cleaned.replace(/[.,]/g, ''), 10);
+    return !isNaN(intVal) && intVal > 0 ? intVal : fallback;
+  }
+
+  const num = Math.round(
+    parseLocalizedNumber(cleaned, {
+      isVietnameseLocale: opts?.isVietnameseLocale,
+      isWeightKg: true,
+    })
+  );
   return num > 0 ? num : fallback;
 }
 

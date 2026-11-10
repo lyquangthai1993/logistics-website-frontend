@@ -500,7 +500,7 @@ export function hasSttColumn(cols: string[]): boolean {
   const isCol3Qty = isNumericTsvCell(cols[3]);
   const isCol4Qty = isNumericTsvCell(cols[4]);
 
-  if (!isCol3Qty && isCol4Qty) {
+  if (!isCol3Qty && (isCol4Qty || (isNumericTsvCell(cols[5]) && isNumericTsvCell(cols[6])))) {
     return true;
   }
 
@@ -599,8 +599,11 @@ export function mapPastedColsToRow(
   });
   const deliveryAddress = cols[offset + 6]?.trim() || '';
 
-  // Province (auto-extract from deliveryAddress if blank)
-  const province = cols[offset + 7]?.trim() || extractVietnamProvince(deliveryAddress);
+  // Province (auto-extract from deliveryAddress if blank or if cols[offset + 7] is a numeric column like hidden Giá cước)
+  const rawProvinceCol = cols[offset + 7]?.trim() || '';
+  const province =
+    (!isNumericTsvCell(rawProvinceCol) ? rawProvinceCol : '') ||
+    extractVietnamProvince(deliveryAddress);
 
   // Accompanying docs (Chứng từ)
   const accompanyingDocs = cols[offset + 8]?.trim() || '';
@@ -1455,7 +1458,7 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     const text = e.clipboardData.getData('text');
     if (!text || text.includes('\t') || text.includes('\n')) return;
     e.preventDefault();
-    const parsed = parseLocalizedNumber(text);
+    const parsed = parseLocalizedNumber(text, { isWeightKg: true });
     setValue(parsed);
     table.options.meta?.updateData(row.index, column.id, parsed);
   };
