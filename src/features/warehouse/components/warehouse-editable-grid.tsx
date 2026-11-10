@@ -49,6 +49,12 @@ import {
 import { WarehouseExcelImportModal } from './warehouse-excel-import-modal';
 import { WarehouseDestinationModal } from './warehouse-destination-modal';
 import { DestinationHubInfoCard, resolveHubOption } from './destination-hub-info-card';
+import {
+  detectVietnameseNumberLocale,
+  parseLocalizedNumber,
+  parseLocalizedQuantity
+} from '../lib/dispatch-excel-converter';
+import { extractVietnamProvince } from '../lib/vietnam-provinces';
 
 export interface HubOption {
   id: number;
@@ -396,35 +402,85 @@ export function parseTsvWithQuotes(text: string): string[][] {
   return rows;
 }
 
+function isNumericTsvCell(val: string | undefined): boolean {
+  const s = (val || '').trim().replace(/\s+/g, '');
+  if (!s) return false;
+  return /^-?\d+(?:[.,]\d+)*$/.test(s);
+}
+
+function isDateLikeTsvCell(val: string | undefined): boolean {
+  const s = (val || '').trim();
+  if (!s) return false;
+  return /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(s);
+}
+
 /**
- * Checks if a parsed TSV row looks like an Excel header row.
+ * Checks if a parsed TSV row looks like an Excel header, sub-header, metadata, or summary row.
  */
 export function isTsvHeaderRow(cols: string[]): boolean {
   if (!cols || cols.length === 0) return true;
-  const col0 = (cols[0] || '').toLowerCase().trim();
-  const col1 = (cols[1] || '').toLowerCase().trim();
-  const col2 = (cols[2] || '').toLowerCase().trim();
-  const col3 = (cols[3] || '').toLowerCase().trim();
-  const col6 = (cols[6] || '').toLowerCase().trim();
-  const col7 = (cols[7] || '').toLowerCase().trim();
+  const normalized = cols.map((c) => (c || '').toLowerCase().trim());
+  const nonEmpty = normalized.filter(Boolean);
+  if (nonEmpty.length === 0) return true;
 
-  return (
+  const col0 = normalized[0] || '';
+  const col1 = normalized[1] || '';
+  const col2 = normalized[2] || '';
+  const col3 = normalized[3] || '';
+  const col6 = normalized[6] || '';
+  const col7 = normalized[7] || '';
+  const col8 = normalized[8] || '';
+  const col9 = normalized[9] || '';
+
+  // Primary & sub-header rows (including 2-row merged header of KẾ HOẠCH ĐÓNG HÀNG: Số thùng | Số kg | Số khối)
+  if (
     col0 === 'stt' ||
     col0.includes('mã vận đơn') ||
     col0.includes('mã đơn') ||
     col1.includes('mã vận đơn') ||
     col1.includes('mã đơn') ||
+    col1.includes('điều hành') ||
     col1.includes('địa chỉ nhận') ||
     col1.includes('nơi nhận') ||
+    col2.includes('mã vận đơn') ||
+    col2.includes('mã đơn') ||
     col2.includes('địa chỉ nhận') ||
     col2.includes('nơi nhận') ||
     col2.includes('tên hàng') ||
     col2.includes('mặt hàng') ||
     col3.includes('tên hàng') ||
     col3.includes('số kiện') ||
+    col3.includes('số thùng') ||
     col6.includes('địa chỉ giao') ||
-    col7.includes('địa chỉ giao')
-  );
+    col7.includes('địa chỉ giao') ||
+    col7 === 'số thùng' ||
+    col7 === 'số kiện' ||
+    col8 === 'số kg' ||
+    col9 === 'số khối' ||
+    (nonEmpty.length <= 4 &&
+      nonEmpty.some((c) => c === 'số thùng' || c === 'số kiện' || c === 'số kg' || c === 'số khối'))
+  ) {
+    return true;
+  }
+
+  // Summary / Total row ("Tổng cộng") or metadata / footer rows when copying an entire dispatch sheet
+  const firstText = nonEmpty[0] || '';
+  if (
+    normalized.some((c) => c === 'tổng cộng' || c === 'tổng' || c === 'total') ||
+    firstText.startsWith('bảng kê đóng hàng') ||
+    firstText.startsWith('kế hoạch đóng hàng') ||
+    firstText.startsWith('mã chuyến') ||
+    firstText.startsWith('ngày/tháng/năm') ||
+    firstText.startsWith('biển số xe') ||
+    firstText.startsWith('điện thoại') ||
+    firstText.startsWith('người lập biểu') ||
+    firstText.startsWith('ghi chú:') ||
+    (nonEmpty.length === 1 && firstText.startsWith('công ty'))
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -441,8 +497,8 @@ export function hasSttColumn(cols: string[]): boolean {
 
   // In 10-column without STT: cols[3] is qty (numeric)
   // In 10-column WITH STT: cols[3] is goodsDescription (text), cols[4] is qty (numeric)
-  const isCol3Qty = !isNaN(Number(cols[3]?.trim())) && cols[3]?.trim() !== '';
-  const isCol4Qty = !isNaN(Number(cols[4]?.trim())) && cols[4]?.trim() !== '';
+  const isCol3Qty = isNumericTsvCell(cols[3]);
+  const isCol4Qty = isNumericTsvCell(cols[4]);
 
   if (!isCol3Qty && isCol4Qty) {
     return true;
@@ -457,11 +513,72 @@ export function hasSttColumn(cols: string[]): boolean {
 
 /**
  * Maps raw TSV column array from Excel clipboard to a WarehouseRowItem.
- * Supports both layouts:
- * - With STT (11 columns): STT (0), Mã vận đơn (1), Địa chỉ nhận (2), Tên hàng (3), Số kiện (4), Số kg (5), Số m³ (6), Địa chỉ giao (7), Tỉnh/TP (8), Chứng từ (9), Ghi chú (10)
- * - Without STT (10 columns): Mã vận đơn (0), Địa chỉ nhận (1), Tên hàng (2), Số kiện (3), Số kg (4), Số m³ (5), Địa chỉ giao (6), Tỉnh/TP (7), Chứng từ (8), Ghi chú (9)
+ * Supports:
+ * 1. Dispatch Sheet Layout (KẾ HOẠCH ĐÓNG HÀNG / BẢNG KÊ ĐÓNG HÀNG, 12-16 cols with STT & Điều hành, or starting from Mã đơn hàng)
+ * 2. Standard Template with STT (11 columns): STT (0), Mã vận đơn (1), Địa chỉ nhận (2), Tên hàng (3), Số kiện (4), Số kg (5), Số m³ (6), Địa chỉ giao (7), Tỉnh/TP (8), Chứng từ (9), Ghi chú (10)
+ * 3. Standard Template without STT (10 columns): Mã vận đơn (0), Địa chỉ nhận (1), Tên hàng (2), Số kiện (3), Số kg (4), Số m³ (5), Địa chỉ giao (6), Tỉnh/TP (7), Chứng từ (8), Ghi chú (9)
  */
-export function mapPastedColsToRow(cols: string[], defaultPickup = ''): WarehouseRowItem {
+export function mapPastedColsToRow(
+  cols: string[],
+  defaultPickup = '',
+  isVietnameseLocale?: boolean
+): WarehouseRowItem {
+  const vnLocale =
+    isVietnameseLocale !== undefined ? isVietnameseLocale : detectVietnameseNumberLocale(cols);
+
+  // Check if pasted row matches Dispatch Sheet Layout (with STT & Điều hành: cols[2] is Mã đơn hàng, cols[7..9] are Số thùng / Số kg / Số khối)
+  const isDispatchWithStt =
+    cols.length >= 12 &&
+    /^\d{1,4}$/.test(cols[0]?.trim() || '') &&
+    isNumericTsvCell(cols[7]) &&
+    (isNumericTsvCell(cols[8]) || isNumericTsvCell(cols[9]) || isDateLikeTsvCell(cols[5]));
+
+  // Check if pasted row matches Dispatch Sheet Layout starting from Mã đơn hàng (without STT & Điều hành: cols[0] is Mã đơn hàng, cols[3] is Ngày nhận, cols[5..7] are Số thùng / Số kg / Số khối)
+  const isDispatchFromCode =
+    !isDispatchWithStt &&
+    cols.length >= 10 &&
+    isDateLikeTsvCell(cols[3]) &&
+    isNumericTsvCell(cols[5]) &&
+    (isNumericTsvCell(cols[6]) || isNumericTsvCell(cols[7]));
+
+  if (isDispatchWithStt || isDispatchFromCode) {
+    const base = isDispatchWithStt ? 2 : 0;
+    const rawCode = (cols[base] || '').trim().toUpperCase();
+    const cleanCode =
+      rawCode === '(TỰ SINH KHI LƯU)' || rawCode.startsWith('(TỰ SINH') ? '' : rawCode;
+    const pickupAddress = (cols[base + 2] || '').trim() || defaultPickup;
+    const goodsDescription = (cols[base + 4] || '').trim() || 'Hàng hóa tiếp nhận';
+    const totalQuantity = parseLocalizedQuantity(cols[base + 5], vnLocale, 1);
+    const totalWeight = parseLocalizedNumber(cols[base + 6], {
+      isVietnameseLocale: vnLocale,
+      isWeightKg: true
+    });
+    const totalVolume = parseLocalizedNumber(cols[base + 7], {
+      isVietnameseLocale: vnLocale,
+      isWeightKg: false
+    });
+    const deliveryAddress = (cols[base + 9] || '').trim();
+    const col12Val = (cols[base + 10] || '').trim();
+    const col12Province = extractVietnamProvince(col12Val);
+    const province = col12Province || extractVietnamProvince(deliveryAddress);
+    const accompanyingDocs = col12Province ? '' : col12Val;
+    const notes = (cols[base + 11] || '').trim();
+
+    return {
+      orderCode: cleanCode,
+      pickupAddress,
+      goodsDescription,
+      totalQuantity,
+      totalWeight,
+      totalVolume,
+      deliveryMode: 'DIRECT_CUSTOMER',
+      deliveryAddress,
+      province,
+      accompanyingDocs,
+      notes
+    };
+  }
+
   const withStt = hasSttColumn(cols);
   const offset = withStt ? 1 : 0;
 
@@ -471,13 +588,19 @@ export function mapPastedColsToRow(cols: string[], defaultPickup = ''): Warehous
 
   const pickupAddress = cols[offset + 1]?.trim() || defaultPickup;
   const goodsDescription = cols[offset + 2]?.trim() || 'Hàng hóa tiếp nhận';
-  const totalQuantity = parseInt(cols[offset + 3]?.trim(), 10) || 1;
-  const totalWeight = parseFloat((cols[offset + 4] || '0').replace(/,/g, '')) || 0;
-  const totalVolume = parseFloat((cols[offset + 5] || '0').replace(/,/g, '')) || 0;
+  const totalQuantity = parseLocalizedQuantity(cols[offset + 3], vnLocale, 1);
+  const totalWeight = parseLocalizedNumber(cols[offset + 4], {
+    isVietnameseLocale: vnLocale,
+    isWeightKg: true
+  });
+  const totalVolume = parseLocalizedNumber(cols[offset + 5], {
+    isVietnameseLocale: vnLocale,
+    isWeightKg: false
+  });
   const deliveryAddress = cols[offset + 6]?.trim() || '';
 
-  // Province
-  const province = cols[offset + 7]?.trim() || '';
+  // Province (auto-extract from deliveryAddress if blank)
+  const province = cols[offset + 7]?.trim() || extractVietnamProvince(deliveryAddress);
 
   // Accompanying docs (Chứng từ)
   const accompanyingDocs = cols[offset + 8]?.trim() || '';
@@ -1193,6 +1316,23 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     }
   };
 
+  const handleCellPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (!text || text.includes('\t') || text.includes('\n')) return;
+    e.preventDefault();
+    const parsed = parseLocalizedQuantity(text, true, 1);
+    setValue(parsed);
+    if (isOutbound) {
+      table.options.meta?.updateRow(row.index, {
+        ...r,
+        totalQuantity: parsed,
+        quantityToExport: parsed
+      });
+    } else {
+      table.options.meta?.updateData(row.index, column.id, parsed);
+    }
+  };
+
   const isExceeded = isOutbound && availStock !== undefined && Number(value) > availStock;
   const isPartialExport = Boolean(
     isOutbound && availStock !== undefined && Number(value) > 0 && Number(value) < availStock
@@ -1232,6 +1372,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
           max={isOutbound && availStock !== undefined ? availStock : undefined}
           value={value}
           onChange={handleChange}
+          onPaste={handleCellPaste}
           onBlur={handleBlur}
           disabled={isRowInbound}
           data-testid={`input-quantity-${row.index}`}
@@ -1310,6 +1451,15 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     }
   };
 
+  const handleWeightPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (!text || text.includes('\t') || text.includes('\n')) return;
+    e.preventDefault();
+    const parsed = parseLocalizedNumber(text);
+    setValue(parsed);
+    table.options.meta?.updateData(row.index, column.id, parsed);
+  };
+
   return (
     <Input
       type='number'
@@ -1317,6 +1467,7 @@ function WeightCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
       min={0}
       value={value}
       onChange={handleChange}
+      onPaste={handleWeightPaste}
       onBlur={handleBlur}
       disabled={isRowInbound}
       data-testid={`input-weight-${row.index}`}
@@ -1356,6 +1507,15 @@ function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
     }
   };
 
+  const handleVolumePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (!text || text.includes('\t') || text.includes('\n')) return;
+    e.preventDefault();
+    const parsed = parseLocalizedNumber(text);
+    setValue(parsed);
+    table.options.meta?.updateData(row.index, column.id, parsed);
+  };
+
   return (
     <Input
       type='number'
@@ -1363,6 +1523,7 @@ function VolumeCell({ getValue, row, column, table }: CellContext<WarehouseRowIt
       min={0}
       value={value}
       onChange={handleChange}
+      onPaste={handleVolumePaste}
       onBlur={handleBlur}
       disabled={isRowInbound}
       data-testid={`input-volume-${row.index}`}
@@ -2093,8 +2254,10 @@ export function WarehouseEditableGrid({
       const dataRows = parsedMatrix.filter(
         (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== '')
       );
+      const numericCells = dataRows.flatMap((cols) => cols.filter((c) => isNumericTsvCell(c)));
+      const isVietnameseLocale = detectVietnameseNumberLocale(numericCells);
       const parsedRows: WarehouseRowItem[] = dataRows.map((cols) =>
-        mapPastedColsToRow(cols, defaultPickup)
+        mapPastedColsToRow(cols, defaultPickup, isVietnameseLocale)
       );
 
       applyPastedRows(parsedRows);
@@ -2113,8 +2276,10 @@ export function WarehouseEditableGrid({
           const dataRows = parsedMatrix.filter(
             (cols) => !isTsvHeaderRow(cols) && cols.some((c) => c.trim() !== '')
           );
+          const numericCells = dataRows.flatMap((cols) => cols.filter((c) => isNumericTsvCell(c)));
+          const isVietnameseLocale = detectVietnameseNumberLocale(numericCells);
           const parsedRows: WarehouseRowItem[] = dataRows.map((cols) =>
-            mapPastedColsToRow(cols, defaultPickup)
+            mapPastedColsToRow(cols, defaultPickup, isVietnameseLocale)
           );
 
           applyPastedRows(parsedRows);
