@@ -27,6 +27,7 @@ import {
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
+import { formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -181,11 +182,7 @@ export interface DailyTripsDetailResponse {
 }
 
 function formatNumberVn(val: number, maxDecimals = 1): string {
-  if (!Number.isFinite(val)) return '0';
-  return val.toLocaleString('vi-VN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: maxDecimals
-  });
+  return formatNumber(val, maxDecimals);
 }
 
 function formatDateTimeVn(iso?: string | null): string {

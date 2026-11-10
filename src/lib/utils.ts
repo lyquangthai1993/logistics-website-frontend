@@ -36,30 +36,32 @@ export function getInitials(name?: string | null, fallback = 'CN'): string {
 }
 
 /**
- * Định dạng số theo chuẩn ISO 31-0 / SI:
- * - Hàng nghìn: dấu cách (non-breaking space \u00A0 để không bao giờ bị ngắt dòng)
- * - Thập phân: dấu chấm '.'
- * Ví dụ: 12345.43 -> "12 345.43", 383380.59 -> "383 380.59"
+ * Hàm util định dạng số chuẩn dùng chung toàn hệ thống:
+ * - Viết liền không dấu cách phân tách hàng nghìn
+ * - Thập phân dùng dấu chấm '.' (tự động lược bỏ số 0 vô nghĩa ở đuôi)
+ * Ví dụ: 43190 -> "43190", 144045.65 -> "144045.65", 823.00 -> "823"
  */
-export function formatNumberSpaced(
+export function formatNumber(
   val: number | string | null | undefined,
   maxDecimals: number = 2
 ): string {
   if (val === null || val === undefined || val === '') return '0';
   const num = typeof val === 'number' ? val : Number(val);
-  if (isNaN(num)) return '0';
+  if (!Number.isFinite(num)) return '0';
+
+  if (maxDecimals <= 0) {
+    return String(Math.round(num));
+  }
 
   const factor = Math.pow(10, maxDecimals);
   const rounded = Math.round(num * factor) / factor;
+  const [integerPart, decimalPart] = rounded.toString().split('.');
 
-  const parts = rounded.toString().split('.');
-  const integerPart = parts[0];
-  const decimalPart = parts[1];
-
-  const spacedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
-
-  if (decimalPart && maxDecimals > 0) {
-    return `${spacedInteger}.${decimalPart.slice(0, maxDecimals)}`;
+  if (decimalPart) {
+    return `${integerPart}.${decimalPart.slice(0, maxDecimals)}`;
   }
-  return spacedInteger;
+  return integerPart;
 }
+
+/** Alias tương thích ngược */
+export const formatNumberSpaced = formatNumber;

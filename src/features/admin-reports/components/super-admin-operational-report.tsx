@@ -33,6 +33,7 @@ import {
 } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { formatNumber } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-error';
 import { Badge } from '@/components/ui/badge';
@@ -159,11 +160,7 @@ function getDefaultMonthRange(): { fromDate: string; toDate: string } {
 }
 
 function formatNumberVn(val: number, maxDecimals = 1): string {
-  if (!Number.isFinite(val)) return '0';
-  return val.toLocaleString('vi-VN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: maxDecimals
-  });
+  return formatNumber(val, maxDecimals);
 }
 
 function formatDateTimeVn(iso?: string | null): string {
