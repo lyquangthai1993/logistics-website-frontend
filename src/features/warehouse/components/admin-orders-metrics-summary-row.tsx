@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNumberSpaced } from '@/lib/utils';
+import { formatNumber } from '@/lib/utils';
 
 export interface AdminOrdersMetricsSummaryProps {
   quantity: number;
@@ -37,7 +37,7 @@ export function AdminOrdersMetricsSummaryRow({
           {isLoading ? (
             <span className='animate-pulse text-blue-400'>...</span>
           ) : (
-            formatNumberSpaced(quantity, 0)
+            formatNumber(quantity, 0)
           )}
         </span>
       </td>
@@ -51,7 +51,7 @@ export function AdminOrdersMetricsSummaryRow({
           {isLoading ? (
             <span className='animate-pulse text-amber-400'>...</span>
           ) : (
-            formatNumberSpaced(weightKg, 2)
+            formatNumber(weightKg, 2)
           )}
         </span>
       </td>
@@ -65,7 +65,7 @@ export function AdminOrdersMetricsSummaryRow({
           {isLoading ? (
             <span className='animate-pulse text-emerald-400'>...</span>
           ) : (
-            formatNumberSpaced(volumeCbm, 2)
+            formatNumber(volumeCbm, 2)
           )}
         </span>
       </td>
