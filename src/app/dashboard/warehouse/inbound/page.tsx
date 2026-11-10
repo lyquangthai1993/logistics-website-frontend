@@ -614,12 +614,29 @@ function WarehouseInboundContent() {
 
     const getOrderTripInboundQty = (o: any) => {
       if (Array.isArray(o.inventoryTransactions) && grp.tripCode && grp.tripCode !== '—') {
-        const tx = o.inventoryTransactions.find(
+        const matchingTxs = o.inventoryTransactions.filter(
           (t: any) =>
-            t.type === 'INBOUND' &&
+            (!t.type || t.type === 'INBOUND') &&
+            !t.deletedAt &&
             (t.tripCode === grp.tripCode || (t.tripCode && grp.tripCode.includes(t.tripCode)))
         );
-        if (tx && Number(tx.quantity) > 0) return Number(tx.quantity);
+        const txQtySum = matchingTxs.reduce(
+          (sum: number, t: any) => sum + (Number(t.quantity) || 0),
+          0
+        );
+        if (txQtySum > 0) return txQtySum;
+      }
+      if (o.tripInboundQuantity != null && Number(o.tripInboundQuantity) > 0) {
+        return Number(o.tripInboundQuantity);
+      }
+      if (o.receivedQuantity != null && Number(o.receivedQuantity) > 0) {
+        return Number(o.receivedQuantity);
+      }
+      if (o.quantityAllocated != null && Number(o.quantityAllocated) > 0) {
+        return Number(o.quantityAllocated);
+      }
+      if (o.quantity != null && Number(o.quantity) > 0) {
+        return Number(o.quantity);
       }
       return o.inboundQuantity ?? o.totalQuantity ?? 1;
     };
@@ -636,11 +653,11 @@ function WarehouseInboundContent() {
 
     const totalQty = items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
     const totalWt = effectiveOrders.reduce(
-      (sum: number, o: any) => sum + (Number(o.totalWeight) || 0),
+      (sum: number, o: any) => sum + (Number(o.weightAllocated ?? o.totalWeight) || 0),
       0
     );
     const totalVol = effectiveOrders.reduce(
-      (sum: number, o: any) => sum + (Number(o.totalVolume) || 0),
+      (sum: number, o: any) => sum + (Number(o.volumeAllocated ?? o.totalVolume) || 0),
       0
     );
 
