@@ -42,6 +42,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { WarehouseHubFilterSelect } from '@/features/warehouse/components/warehouse-hub-filter-select';
 
 export type ReportDirection = 'INBOUND' | 'OUTBOUND' | 'ALL';
+export type ReportChartMetric = 'CBM' | 'TONS';
 
 export interface DirectionMetrics {
   cbm: number;
@@ -294,6 +295,8 @@ interface AdminOperationalReportContextValue {
   setSelectedHubId: React.Dispatch<React.SetStateAction<string>>;
   direction: ReportDirection;
   setDirection: React.Dispatch<React.SetStateAction<ReportDirection>>;
+  chartMetric: ReportChartMetric;
+  setChartMetric: React.Dispatch<React.SetStateAction<ReportChartMetric>>;
   activeTab: 'daily' | 'trips' | 'hubs';
   setActiveTab: React.Dispatch<React.SetStateAction<'daily' | 'trips' | 'hubs'>>;
   data: OperationalReportResponse | undefined;
@@ -343,6 +346,7 @@ export function AdminOperationalReportProvider({
   const [toDate, setToDate] = useState<string>(defaultRange.toDate);
   const [selectedHubId, setSelectedHubId] = useState<string>('ALL');
   const [direction, setDirection] = useState<ReportDirection>('INBOUND');
+  const [chartMetric, setChartMetric] = useState<ReportChartMetric>('CBM');
   const [activeTab, setActiveTab] = useState<'daily' | 'trips' | 'hubs'>(
     'daily'
   );
@@ -566,6 +570,8 @@ export function AdminOperationalReportProvider({
     setSelectedHubId,
     direction,
     setDirection,
+    chartMetric,
+    setChartMetric,
     activeTab,
     setActiveTab,
     data,
@@ -606,6 +612,8 @@ export function AdminReportHeaderAndKpis() {
     setSelectedHubId,
     direction,
     setDirection,
+    chartMetric,
+    setChartMetric,
     data,
     isLoading,
     isFetching,
@@ -840,9 +848,26 @@ export function AdminReportHeaderAndKpis() {
         </CardContent>
       </Card>
 
-      {/* 2. Dải 4 thẻ KPI Tóm tắt Sản lượng */}
+      {/* 2. Dải thẻ KPI Tóm tắt Sản lượng (Bấm vào thẻ CBM hoặc Số Tấn để đổi biểu đồ) */}
       <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2'>
-        <Card className='p-2 border-l-4 border-l-[#0F3D62] shadow-2xs'>
+        <Card
+          role='button'
+          tabIndex={0}
+          aria-pressed={chartMetric === 'CBM'}
+          onClick={() => setChartMetric('CBM')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setChartMetric('CBM');
+            }
+          }}
+          data-testid='kpi-card-cbm'
+          className={`p-2 border-l-4 border-l-[#0F3D62] cursor-pointer transition-all select-none ${
+            chartMetric === 'CBM'
+              ? 'ring-2 ring-blue-600 bg-blue-50/60 dark:bg-blue-950/40 shadow-sm'
+              : 'opacity-80 hover:opacity-100 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 shadow-2xs'
+          }`}
+        >
           <CardContent className='p-0 space-y-1'>
             <div className='flex items-center justify-between'>
               <span className='text-[10px] font-bold uppercase text-muted-foreground'>
@@ -871,7 +896,24 @@ export function AdminReportHeaderAndKpis() {
           </CardContent>
         </Card>
 
-        <Card className='p-2 border-l-4 border-l-sky-600 shadow-2xs'>
+        <Card
+          role='button'
+          tabIndex={0}
+          aria-pressed={chartMetric === 'TONS'}
+          onClick={() => setChartMetric('TONS')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setChartMetric('TONS');
+            }
+          }}
+          data-testid='kpi-card-tons'
+          className={`p-2 border-l-4 border-l-sky-600 cursor-pointer transition-all select-none ${
+            chartMetric === 'TONS'
+              ? 'ring-2 ring-sky-600 bg-sky-50/60 dark:bg-sky-950/40 shadow-sm'
+              : 'opacity-80 hover:opacity-100 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 shadow-2xs'
+          }`}
+        >
           <CardContent className='p-0 space-y-1'>
             <div className='flex items-center justify-between'>
               <span className='text-[10px] font-bold uppercase text-muted-foreground'>
@@ -930,8 +972,6 @@ export function AdminReportHeaderAndKpis() {
             </div>
           </CardContent>
         </Card>
-
-        
       </div>
     </div>
   );
@@ -939,7 +979,7 @@ export function AdminReportHeaderAndKpis() {
 
 /**
  * Parallel Route Slot `@daily_stats`:
- * Renders SLIDE 2: Biểu đồ Cột Sản lượng theo Ngày (CBM) — Zero local filter controls.
+ * Renders SLIDE 2: Biểu đồ Cột Sản lượng theo Ngày (CBM hoặc SỐ TẤN theo thẻ KPI đang chọn).
  */
 export function DailyOperationalBarSlot() {
   const {
@@ -947,10 +987,14 @@ export function DailyOperationalBarSlot() {
     toDate,
     data,
     directionLabel,
+    chartMetric,
     isLoading,
-    dailySeries,
-    summary
+    dailySeries
   } = useAdminOperationalReport();
+
+  const isTons = chartMetric === 'TONS';
+  const metricKey = isTons ? 'weightTons' : 'cbm';
+  const barFill = isTons ? '#0284C7' : '#0F5C7E';
 
   return (
     <Card
@@ -973,8 +1017,11 @@ export function DailyOperationalBarSlot() {
         </div>
 
         <div className='text-center'>
-          <span className='text-sm font-bold tracking-wider text-slate-700 dark:text-slate-200'>
-            CBM
+          <span
+            className='text-sm font-bold tracking-wider text-slate-700 dark:text-slate-200'
+            data-testid='slide-2-chart-metric-label'
+          >
+            {isTons ? 'SỐ TẤN' : 'CBM'}
           </span>
         </div>
 
@@ -1035,26 +1082,27 @@ export function DailyOperationalBarSlot() {
                             </strong>{' '}
                             ({formatNumberVn(pt.weightKg, 0)} kg)
                           </div>
-                          
                         </div>
                       </div>
                     );
                   }}
                 />
                 <Bar
-                  dataKey='cbm'
-                  fill='#0F5C7E'
+                  dataKey={metricKey}
+                  fill={barFill}
                   radius={[2, 2, 0, 0]}
                   maxBarSize={26}
                   isAnimationActive={false}
                 >
                   <LabelList
-                    dataKey='cbm'
+                    dataKey={metricKey}
                     position='top'
                     formatter={(val: unknown) => {
                       const n = Number(val);
                       if (!n || n <= 0) return '';
-                      return n.toFixed(1);
+                      return isTons
+                        ? Number(n.toFixed(2)).toString()
+                        : n.toFixed(1);
                     }}
                     style={{ fontSize: 9, fill: '#334155', fontWeight: 600 }}
                   />
@@ -1063,30 +1111,6 @@ export function DailyOperationalBarSlot() {
             </ResponsiveContainer>
           </div>
         )}
-
-        <div
-          className='flex flex-col items-center justify-center pt-1 border-t border-slate-100 dark:border-slate-800 text-center'
-          data-testid='slide-2-summary-footer'
-        >
-          <div className='text-sm sm:text-base font-medium tracking-wide text-slate-900 dark:text-slate-100'>
-            TỔNG SẢN LƯỢNG:{' '}
-            <strong className='font-extrabold font-mono'>
-              {formatNumberVn(summary?.cbm ?? 0, 1)}
-            </strong>{' '}
-            <em className='font-semibold not-italic'>CBM</em>
-          </div>
-          <div className='text-xs sm:text-sm font-medium tracking-wide text-slate-800 dark:text-slate-200'>
-            TRUNG BÌNH:{' '}
-            <strong className='font-bold font-mono'>
-              {formatNumberVn(summary?.averageCbmPerDay ?? 0, 1)}
-            </strong>{' '}
-            <em className='font-semibold not-italic'>CBM/NGÀY</em>
-            <span className='text-[10px] text-muted-foreground ml-1.5'>
-              (Tính trên {summary?.effectiveDaysCount ?? 1} ngày đã mở kỳ •{' '}
-              {summary?.activeDaysCount ?? 0} ngày phát sinh sản lượng)
-            </span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
