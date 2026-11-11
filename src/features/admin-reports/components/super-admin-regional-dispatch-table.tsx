@@ -364,7 +364,7 @@ export function SuperAdminRegionalDispatchTable() {
             <h3 className='text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
               Cân Đối Tải Trọng Đội Xe Theo Miền (Bắc - Trung - Nam)
               <Badge variant='outline' className='text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40'>
-                Live & Chốt 17:00
+                Thời gian thực (Live)
               </Badge>
             </h3>
           </div>
@@ -416,9 +416,9 @@ export function SuperAdminRegionalDispatchTable() {
             {syncMutation.isPending ? (
               <IconLoader2 className='h-3.5 w-3.5 animate-spin' />
             ) : (
-              <IconClock className='h-3.5 w-3.5' />
+              <IconRefresh className='h-3.5 w-3.5' />
             )}
-            Chốt sổ 17:00
+            Đồng bộ số liệu
           </Button>
         </div>
       </div>
