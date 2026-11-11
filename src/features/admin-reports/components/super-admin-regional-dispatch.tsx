@@ -130,10 +130,15 @@ export function SuperAdminRegionalDispatch() {
   const { data, isLoading, isError, refetch } = useQuery<RegionalReportApiResponse>({
     queryKey: ['admin-regional-dispatch-report', selectedHubId, selectedDate],
     queryFn: async () => {
-      const res = await apiClient.get<RegionalReportApiResponse>(
+      const res = await apiClient.get<
+        RegionalReportApiResponse | { data: RegionalReportApiResponse }
+      >(
         `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&date=${selectedDate}&mode=live`
       );
-      return res.data;
+      const raw = res.data as { data?: RegionalReportApiResponse } &
+        RegionalReportApiResponse;
+      const resolved = raw?.data ?? raw;
+      return resolved;
     },
     staleTime: 30000,
     refetchOnWindowFocus: false
@@ -167,7 +172,7 @@ export function SuperAdminRegionalDispatch() {
 
   // Xuất file Excel báo cáo
   const handleExportExcel = () => {
-    if (!data) return;
+    if (!data || !data.regions) return;
 
     const summaryRows = [
       {
@@ -412,7 +417,7 @@ export function SuperAdminRegionalDispatch() {
       )}
 
       {/* ── NỘI DUNG CHÍNH (3 CARDS MIỀN + CHI TIẾT) ────────────────── */}
-      {data && (
+      {data && data.regions && (
         <>
           {/* 3 THẺ TẢI TRỌNG NỔI BẬT */}
           <div className='grid grid-cols-1 gap-2 md:grid-cols-3'>
