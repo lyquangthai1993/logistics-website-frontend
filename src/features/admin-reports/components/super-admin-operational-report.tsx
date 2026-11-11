@@ -1680,10 +1680,7 @@ export function AdminOperationalReportLayoutShell({
           {daily_stats || <DailyOperationalBarSlot />}
         </div>
 
-        {/* Parallel Route Slot 2 (@monthly_trends): Slide 3 — Biểu đồ Đường Xu hướng Tháng (SỐ KHỐI & SỐ TẤN) */}
-        <div data-testid='parallel-slot-monthly-trends'>
-          {monthly_trends || <MonthlyOperationalTrendsSlot />}
-        </div>
+        
       </AdminOperationalReportProvider>
     </PageContainer>
   );
