@@ -123,11 +123,12 @@ export function collectConsoleLogs(page: Page) {
  * Perform login via UI and wait for redirect.
  */
 export async function loginAs(page: Page, creds: LoginCredentials, baseUrl?: string): Promise<void> {
-  const targetBase =
+  const targetBase = (
     baseUrl ||
     process.env.PLAYWRIGHT_BASE_URL ||
     process.env.BASE_URL ||
-    'http://localhost:4000';
+    'http://localhost:4000'
+  ).trim();
   const target = targetBase ? `${targetBase.replace(/\/$/, '')}/auth/sign-in` : '/auth/sign-in';
   await page.goto(target);
   await page.locator('input[name="email"]:not([disabled])').waitFor({ state: 'visible', timeout: 15_000 });

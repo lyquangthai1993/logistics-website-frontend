@@ -1014,30 +1014,20 @@ export function SuperAdminRegionalDispatchTable() {
                       <span>TỔNG CỘNG TOÀN QUỐC</span>
                     </div>
                   </td>
-                  <td className='py-3 px-3'>
-                    <div className='space-y-1'>
-                      <div className='flex items-baseline justify-between'>
-                        <span className='text-sm text-purple-700 dark:text-purple-300 font-extrabold'>
-                          {formatNumber(totals.totalWeightTons)} Tấn
-                        </span>
-                        <span className='text-[10px] text-slate-500 font-normal'>
-                          Kho: {formatNumber(Math.round(((totals.onhandWeightKg || 0) / 1000) * 100) / 100)}T • Xe: {formatNumber(Math.round(((totals.incomingWeightKg || 0) / 1000) * 100) / 100)}T
-                        </span>
-                      </div>
-                      <div className='w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden'>
-                        <div className='h-full bg-purple-600 rounded-full w-full' />
-                      </div>
+                  <td className='py-3 px-3 align-middle'>
+                    <div className='flex items-baseline justify-between'>
+                      <span className='text-sm text-purple-700 dark:text-purple-300 font-extrabold font-mono'>
+                        {formatNumber(totals.totalWeightTons)} Tấn
+                      </span>
+                      <span className='text-[10px] text-slate-500 font-normal'>
+                        Kho: {formatNumber(Math.round(((totals.onhandWeightKg || 0) / 1000) * 100) / 100)}T • Xe: {formatNumber(Math.round(((totals.incomingWeightKg || 0) / 1000) * 100) / 100)}T
+                      </span>
                     </div>
                   </td>
-                  <td className='py-3 px-3'>
-                    <div className='space-y-1'>
-                      <span className='text-sm text-purple-700 dark:text-purple-300 font-extrabold'>
-                        {formatNumber(totals.totalVolumeCbm)} m³
-                      </span>
-                      <div className='w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden'>
-                        <div className='h-full bg-purple-500 rounded-full w-full' />
-                      </div>
-                    </div>
+                  <td className='py-3 px-3 align-middle'>
+                    <span className='text-sm text-purple-700 dark:text-purple-300 font-extrabold font-mono'>
+                      {formatNumber(totals.totalVolumeCbm)} m³
+                    </span>
                   </td>
                   <td className='py-3 px-3'>
                     <div className='text-slate-800 dark:text-slate-200'>
