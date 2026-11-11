@@ -1654,20 +1654,6 @@ export function AdminOperationalReportLayoutShell({
 }) {
   const pathname = usePathname();
   const isTripsSubpage = pathname?.startsWith('/dashboard/admin/reports/trips');
-  const isRegionalDispatchSubpage = pathname?.startsWith(
-    '/dashboard/admin/reports/regional-dispatch'
-  );
-
-  if (isRegionalDispatchSubpage) {
-    return (
-      <PageContainer
-        pageTitle='Cân Đối Tải Trọng Đội Xe Theo Miền (Bắc - Trung - Nam)'
-        pageDescription='Tổng hợp sản lượng Tồn kho và Hàng sắp về theo 3 Miền phục vụ đàm phán và điều phối đội xe liên tỉnh'
-      >
-        {children}
-      </PageContainer>
-    );
-  }
 
   if (isTripsSubpage) {
     return (
