@@ -865,32 +865,25 @@ export function SuperAdminRegionalDispatchTable() {
                         </div>
                       </td>
 
-                      {/* Weight Column with Horizontal Bar Chart */}
+                      {/* Weight Column (Clean Numbers) */}
                       <td className='py-2.5 px-3 align-middle'>
-                        <div className='space-y-1.5'>
-                          {/* Bar + Value at the tip (exact user reference image style) */}
-                          <div className='flex items-center gap-2'>
-                            <div className='flex-1 max-w-[160px] sm:max-w-[200px] bg-slate-100 dark:bg-slate-800 rounded h-5 p-0.5 flex overflow-hidden'>
-                              <div
-                                className={`h-full ${cfg.barColorWeight} rounded-xs transition-all duration-500 ease-out`}
-                                style={{
-                                  width: `${Math.min(
-                                    100,
-                                    Math.max(weightBarWidth, metric.totalWeightKg > 0 ? 5 : 0)
-                                  )}%`
-                                }}
-                              />
-                            </div>
-                            <span className='font-bold text-xs text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
-                              {formatNumber(metric.totalWeightTons)} Tấn
-                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
-                                ({weightPct}%)
+                        <div className='space-y-1'>
+                          <div className='flex items-baseline justify-between gap-2'>
+                            <div className='flex items-baseline gap-1.5'>
+                              <span className='font-bold text-slate-900 dark:text-slate-100 text-sm font-mono'>
+                                {formatNumber(metric.totalWeightTons)} Tấn
                               </span>
+                              <span className='text-[11px] text-slate-500 dark:text-slate-400 font-mono'>
+                                ({formatNumber(metric.totalWeightKg)} kg)
+                              </span>
+                            </div>
+                            <span className='text-xs font-bold text-purple-700 dark:text-purple-300 font-mono'>
+                              {weightPct}%
                             </span>
                           </div>
 
                           {/* Sub-breakdown: Onhand vs Incoming */}
-                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 max-w-[280px]'>
+                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5'>
                             <span className='flex items-center gap-1'>
                               <span className='inline-block w-1.5 h-1.5 rounded-full bg-slate-400' />
                               Kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandWeightTons)}T</strong>
@@ -899,39 +892,24 @@ export function SuperAdminRegionalDispatchTable() {
                               <span className='inline-block w-1.5 h-1.5 rounded-full bg-purple-500' />
                               Xe về: <strong className='text-purple-700 dark:text-purple-300'>{formatNumber(metric.incomingWeightTons)}T</strong>
                             </span>
-                            <span className='font-mono text-slate-400 dark:text-slate-500'>
-                              ({formatNumber(metric.totalWeightKg)} kg)
-                            </span>
                           </div>
                         </div>
                       </td>
 
-                      {/* Volume Column with Horizontal Bar Chart */}
+                      {/* Volume Column (Clean Numbers) */}
                       <td className='py-2.5 px-3 align-middle'>
-                        <div className='space-y-1.5'>
-                          {/* Bar + Value at the tip (exact user reference image style) */}
-                          <div className='flex items-center gap-2'>
-                            <div className='flex-1 max-w-[160px] sm:max-w-[200px] bg-slate-100 dark:bg-slate-800 rounded h-5 p-0.5 flex overflow-hidden'>
-                              <div
-                                className={`h-full ${cfg.barColorVolume} rounded-xs transition-all duration-500 ease-out`}
-                                style={{
-                                  width: `${Math.min(
-                                    100,
-                                    Math.max(volumeBarWidth, metric.totalVolumeCbm > 0 ? 5 : 0)
-                                  )}%`
-                                }}
-                              />
-                            </div>
-                            <span className='font-bold text-xs text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
+                        <div className='space-y-1'>
+                          <div className='flex items-baseline justify-between gap-2'>
+                            <span className='font-bold text-slate-900 dark:text-slate-100 text-sm font-mono'>
                               {formatNumber(metric.totalVolumeCbm)} m³
-                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
-                                ({volumePct}%)
-                              </span>
+                            </span>
+                            <span className='text-xs font-bold text-purple-700 dark:text-purple-300 font-mono'>
+                              {volumePct}%
                             </span>
                           </div>
 
                           {/* Sub-breakdown */}
-                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 max-w-[280px]'>
+                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5'>
                             <span>Kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandVolumeCbm)} m³</strong></span>
                             <span>Xe về: <strong className='text-purple-700 dark:text-purple-300'>{formatNumber(metric.incomingVolumeCbm)} m³</strong></span>
                           </div>
