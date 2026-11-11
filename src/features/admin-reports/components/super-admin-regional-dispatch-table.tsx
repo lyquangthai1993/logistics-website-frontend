@@ -366,6 +366,11 @@ export function SuperAdminRegionalDispatchTable() {
               <Badge variant='outline' className='text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40'>
                 Thời gian thực (Live)
               </Badge>
+              {data?.cronInfo?.cronTime && (
+                <Badge variant='outline' className='text-[10px] py-0 px-1.5 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-mono'>
+                  Lịch Cronjob: {data.cronInfo.cronTime}
+                </Badge>
+              )}
             </h3>
           </div>
           <p className='text-xs text-slate-500 dark:text-slate-400'>
