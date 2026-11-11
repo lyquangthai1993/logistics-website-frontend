@@ -680,13 +680,34 @@ export function SuperAdminRegionalDispatch() {
             </Card>
           </div>
 
-          {/* CẢNH BÁO N/A NẾU CÓ ĐƠN CHƯA PHÂN MIỀN */}
+          {/* CẢNH BÁO N/A NẾU CÓ ĐƠN HOẶC XE CHƯA PHÂN MIỀN */}
           {data.regions.na.totalWeightKg > 0 && (
             <div className='flex items-center justify-between rounded-md border border-amber-300 bg-amber-50/80 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'>
               <div className='flex items-center gap-2'>
-                <IconAlertTriangle className='h-4 w-4 text-amber-600' />
+                <IconAlertTriangle className='h-4 w-4 shrink-0 text-amber-600' />
                 <span>
-                  <strong>CẢNH BÁO:</strong> Có <strong>{data.regions.na.onhandOrderCount} đơn hàng ({data.regions.na.totalWeightKg} kg)</strong> chưa xác định được Miền do nhập sai hoặc thiếu tỉnh thành.
+                  <strong>CẢNH BÁO CHƯA PHÂN MIỀN:</strong>{' '}
+                  {data.regions.na.onhandOrderCount > 0 && (
+                    <>
+                      Có{' '}
+                      <strong>
+                        {data.regions.na.onhandOrderCount} đơn hàng tồn kho (
+                        {data.regions.na.onhandWeightTons} Tấn •{' '}
+                        {formatNumber(data.regions.na.onhandPackageCount)} kiện)
+                      </strong>{' '}
+                    </>
+                  )}
+                  {data.regions.na.incomingTripCount > 0 && (
+                    <>
+                      {data.regions.na.onhandOrderCount > 0 ? 'và ' : 'Có '}
+                      <strong>
+                        {data.regions.na.incomingTripCount} chuyến xe sắp về (
+                        {data.regions.na.incomingWeightTons} Tấn)
+                      </strong>{' '}
+                    </>
+                  )}
+                  chưa xác định được Miền do thiếu hoặc sai tỉnh thành (Tổng:{' '}
+                  {data.regions.na.totalWeightTons} Tấn).
                 </span>
               </div>
               <Button
@@ -694,11 +715,13 @@ export function SuperAdminRegionalDispatch() {
                 size='sm'
                 onClick={() => {
                   setRegionFilter('N/A');
-                  setActiveTab('ONHAND');
+                  setActiveTab(
+                    data.regions.na.onhandOrderCount > 0 ? 'ONHAND' : 'INCOMING'
+                  );
                 }}
                 className='h-7 border-amber-400 bg-white text-[10px] text-amber-800 dark:bg-slate-900 dark:text-amber-300'
               >
-                Rà soát các đơn này
+                Rà soát danh sách
               </Button>
             </div>
           )}
