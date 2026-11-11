@@ -6,7 +6,10 @@ import {
   IconAlertTriangle,
   IconBuildingWarehouse,
   IconCalendar,
+  IconChartBar,
   IconCheck,
+  IconChevronDown,
+  IconChevronUp,
   IconClock,
   IconCopy,
   IconDownload,
@@ -17,6 +20,7 @@ import {
   IconRefresh,
   IconSearch,
   IconSparkles,
+  IconTable,
   IconTruck
 } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
@@ -185,6 +189,8 @@ export function SuperAdminRegionalDispatchTable() {
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedHubId, setSelectedHubId] = useState<string>('ALL');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showVisualChart, setShowVisualChart] = useState<boolean>(true);
+  const [chartMetricTab, setChartMetricTab] = useState<'both' | 'weight' | 'volume'>('both');
 
   // Drilldown Modal
   const [drilldownRegion, setDrilldownRegion] = useState<{
@@ -352,6 +358,26 @@ export function SuperAdminRegionalDispatchTable() {
     });
   }, [drilldownRegion, data, drilldownSearch]);
 
+  const naOrders = useMemo(() => {
+    if (!data?.onhandOrdersList) return [];
+    return data.onhandOrdersList.filter(
+      (o) =>
+        o.region?.includes('N/A') ||
+        o.region === 'CHƯA PHÂN MIỀN (N/A)' ||
+        o.region === 'N/A'
+    );
+  }, [data]);
+
+  const naTrips = useMemo(() => {
+    if (!data?.incomingTripsList) return [];
+    return data.incomingTripsList.filter(
+      (t) =>
+        t.region?.includes('N/A') ||
+        t.region === 'CHƯA PHÂN MIỀN (N/A)' ||
+        t.region === 'N/A'
+    );
+  }, [data]);
+
   return (
     <Card className='border border-slate-200 dark:border-slate-800 shadow-sm'>
       {/* Table Header Bar */}
@@ -404,6 +430,21 @@ export function SuperAdminRegionalDispatchTable() {
           <Button
             variant='outline'
             size='sm'
+            onClick={() => setShowVisualChart(!showVisualChart)}
+            className='h-8 text-xs gap-1.5'
+          >
+            <IconChartBar className='h-3.5 w-3.5 text-purple-600' />
+            {showVisualChart ? 'Thu gọn biểu đồ' : 'Biểu đồ thanh ngang'}
+            {showVisualChart ? (
+              <IconChevronUp className='h-3 w-3 text-slate-400' />
+            ) : (
+              <IconChevronDown className='h-3 w-3 text-slate-400' />
+            )}
+          </Button>
+
+          <Button
+            variant='outline'
+            size='sm'
             onClick={handleExportExcel}
             disabled={isLoading || !data}
             className='h-8 text-xs gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/40'
@@ -430,14 +471,86 @@ export function SuperAdminRegionalDispatchTable() {
 
       <CardContent className='p-0'>
         {/* Warning Banner if N/A cargo detected */}
-        {data?.regions?.na && data.regions.na.totalWeightKg > 0 && (
-          <div className='mx-3 mt-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/30 flex items-start gap-2.5'>
+        {data?.regions?.na &&
+          (data.regions.na.totalWeightKg > 0 ||
+            data.regions.na.totalVolumeCbm > 0 ||
+            data.regions.na.onhandOrderCount > 0 ||
+            data.regions.na.incomingTripCount > 0) && (
+          <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
             <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
-            <div className='text-xs text-amber-800 dark:text-amber-300 space-y-0.5'>
-              <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN: </span>
-              Có {data.regions.na.onhandOrderCount > 0 ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho` : ''}
-              {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0 ? ' và ' : ''}
-              {data.regions.na.incomingTripCount > 0 ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về` : ''} ({formatNumber(data.regions.na.totalWeightTons)} Tấn • {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại đơn hàng!
+            <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
+              <div>
+                <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN: </span>
+                Có{' '}
+                {data.regions.na.onhandOrderCount > 0
+                  ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
+                  : ''}
+                {data.regions.na.onhandOrderCount > 0 &&
+                data.regions.na.incomingTripCount > 0
+                  ? ' và '
+                  : ''}
+                {data.regions.na.incomingTripCount > 0
+                  ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
+                  : ''}{' '}
+                (
+                {formatNumber(data.regions.na.totalWeightTons)} Tấn •{' '}
+                {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được
+                Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+              </div>
+
+              {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
+              {naOrders.length > 0 && (
+                <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                  <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                    Danh sách đơn hàng cụ thể cần rà soát:
+                  </div>
+                  <div className='flex flex-wrap gap-1.5'>
+                    {naOrders.map((ord) => (
+                      <span
+                        key={ord.id}
+                        className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
+                      >
+                        <strong className='text-purple-700 dark:text-purple-300'>
+                          {ord.orderCode}
+                        </strong>
+                        <span className='text-slate-600 dark:text-slate-300 font-sans'>
+                          (Tỉnh nhập:{' '}
+                          <strong className='text-rose-600 dark:text-rose-400'>
+                            {ord.province || 'Chưa nhập'}
+                          </strong>{' '}
+                          • {formatNumber(ord.remainingQuantity)} kiện •{' '}
+                          {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Danh sách các chuyến xe N/A nếu có */}
+              {naTrips.length > 0 && (
+                <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                  <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                    Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
+                  </div>
+                  <div className='flex flex-wrap gap-1.5'>
+                    {naTrips.map((tr) => (
+                      <span
+                        key={tr.id}
+                        className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
+                      >
+                        <strong className='text-blue-700 dark:text-blue-300'>
+                          {tr.tripCode}
+                        </strong>
+                        <span className='text-slate-600 dark:text-slate-300 font-sans'>
+                          (BS: {tr.licensePlate || '—'} • {tr.originHubName} →{' '}
+                          {tr.destinationHubName})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -449,7 +562,226 @@ export function SuperAdminRegionalDispatchTable() {
             <span className='text-xs'>Đang tải dữ liệu cân đối đội xe...</span>
           </div>
         ) : (
-          <div className='overflow-x-auto'>
+          <>
+            {/* Visual Horizontal Bar Chart Section (Styled exactly like user reference image) */}
+            {data?.regions && showVisualChart && (
+              <div className='p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-3'>
+                {/* Chart Toolbar */}
+                <div className='flex items-center justify-between flex-wrap gap-2'>
+                  <div className='flex items-center gap-2'>
+                    <div className='p-1 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'>
+                      <IconChartBar className='h-4 w-4' />
+                    </div>
+                    <div>
+                      <h4 className='text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
+                        BIỂU ĐỒ THANH NGANG SO SÁNH TỶ TRỌNG CÂN ĐỐI THEO VÙNG MIỀN
+                        <Badge
+                          variant='outline'
+                          className='text-[10px] py-0 px-1.5 font-normal border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300'
+                        >
+                          Mô hình thanh ngang
+                        </Badge>
+                      </h4>
+                      <p className='text-[11px] text-slate-500 dark:text-slate-400'>
+                        Trực quan hóa tỷ trọng Tải trọng (Tấn) và Thể tích (m³) tương quan giữa các miền
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Metric Tab Selector */}
+                  <div className='flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs'>
+                    <button
+                      type='button'
+                      onClick={() => setChartMetricTab('both')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                        chartMetricTab === 'both'
+                          ? 'bg-purple-600 text-white shadow-2xs font-semibold'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                      }`}
+                    >
+                      Cả hai chỉ số
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setChartMetricTab('weight')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                        chartMetricTab === 'weight'
+                          ? 'bg-purple-600 text-white shadow-2xs font-semibold'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                      }`}
+                    >
+                      Khối Lượng (Tấn)
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setChartMetricTab('volume')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                        chartMetricTab === 'volume'
+                          ? 'bg-purple-600 text-white shadow-2xs font-semibold'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                      }`}
+                    >
+                      Thể Tích (m³)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Visual Charts Grid */}
+                <div
+                  className={`grid gap-4 ${
+                    chartMetricTab === 'both'
+                      ? 'grid-cols-1 lg:grid-cols-2'
+                      : 'grid-cols-1'
+                  }`}
+                >
+                  {/* Chart 1: Weight (Tấn • Kg) */}
+                  {(chartMetricTab === 'both' || chartMetricTab === 'weight') && (
+                    <div className='p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2.5'>
+                      <div className='flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-2'>
+                        <div className='flex items-center gap-1.5'>
+                          <span className='inline-block w-2.5 h-2.5 rounded-full bg-purple-600' />
+                          <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
+                            Khối Lượng Vận Tải Theo Miền (Tấn • Kg)
+                          </span>
+                        </div>
+                        <span className='text-xs font-mono font-bold text-purple-700 dark:text-purple-300'>
+                          Tổng: {formatNumber(totals.totalWeightTons)} Tấn
+                        </span>
+                      </div>
+
+                      {/* Horizontal Bars */}
+                      <div className='space-y-2 pt-1'>
+                        {REGION_CONFIGS.map((cfg) => {
+                          const metric = data.regions[cfg.key];
+                          const weightPct =
+                            totals.totalWeightKg > 0 && metric?.totalWeightKg
+                              ? Math.round(
+                                  (metric.totalWeightKg / totals.totalWeightKg) * 1000
+                                ) / 10
+                              : 0;
+                          return (
+                            <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
+                              {/* Label on left (right-aligned, clean font like reference image) */}
+                              <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
+                                <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
+                                  {cfg.name}
+                                </span>
+                              </div>
+
+                              {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
+                              <div className='flex-1 flex items-center min-w-0'>
+                                <div
+                                  className='h-6 sm:h-7 bg-purple-600 dark:bg-purple-500 rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0'
+                                  style={{
+                                    width: `${Math.max(
+                                      weightPct > 0 ? weightPct : 0,
+                                      (metric?.totalWeightKg || 0) > 0 ? 3 : 0
+                                    )}%`,
+                                    maxWidth: 'calc(100% - 110px)'
+                                  }}
+                                />
+                                <span className='ml-2 font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
+                                  {formatNumber(metric?.totalWeightTons || 0)} Tấn
+                                  <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
+                                    ({weightPct}%)
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Bottom axis line with ticks & scale (0 ... 100) */}
+                        <div className='flex items-center gap-2.5 pt-1.5'>
+                          <div className='w-28 sm:w-36 shrink-0' />
+                          <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chart 2: Volume (m³) */}
+                  {(chartMetricTab === 'both' || chartMetricTab === 'volume') && (
+                    <div className='p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2.5'>
+                      <div className='flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-2'>
+                        <div className='flex items-center gap-1.5'>
+                          <span className='inline-block w-2.5 h-2.5 rounded-full bg-purple-600' />
+                          <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
+                            Thể Tích Hàng Hóa Theo Miền (m³)
+                          </span>
+                        </div>
+                        <span className='text-xs font-mono font-bold text-purple-700 dark:text-purple-300'>
+                          Tổng: {formatNumber(totals.totalVolumeCbm)} m³
+                        </span>
+                      </div>
+
+                      {/* Horizontal Bars */}
+                      <div className='space-y-2 pt-1'>
+                        {REGION_CONFIGS.map((cfg) => {
+                          const metric = data.regions[cfg.key];
+                          const volumePct =
+                            totals.totalVolumeCbm > 0 && metric?.totalVolumeCbm
+                              ? Math.round(
+                                  (metric.totalVolumeCbm / totals.totalVolumeCbm) * 1000
+                                ) / 10
+                              : 0;
+                          return (
+                            <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
+                              {/* Label on left (right-aligned, clean font like reference image) */}
+                              <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
+                                <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
+                                  {cfg.name}
+                                </span>
+                              </div>
+
+                              {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
+                              <div className='flex-1 flex items-center min-w-0'>
+                                <div
+                                  className='h-6 sm:h-7 bg-purple-600 dark:bg-purple-500 rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0'
+                                  style={{
+                                    width: `${Math.max(
+                                      volumePct > 0 ? volumePct : 0,
+                                      (metric?.totalVolumeCbm || 0) > 0 ? 3 : 0
+                                    )}%`,
+                                    maxWidth: 'calc(100% - 110px)'
+                                  }}
+                                />
+                                <span className='ml-2 font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
+                                  {formatNumber(metric?.totalVolumeCbm || 0)} m³
+                                  <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
+                                    ({volumePct}%)
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Bottom axis line with ticks & scale (0 ... 100) */}
+                        <div className='flex items-center gap-2.5 pt-1.5'>
+                          <div className='w-28 sm:w-36 shrink-0' />
+                          <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className='overflow-x-auto'>
             <table className='w-full text-left border-collapse'>
               <thead>
                 <tr className='border-b border-slate-200 dark:border-slate-800 bg-slate-100/75 dark:bg-slate-900/75 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider'>
@@ -534,70 +866,72 @@ export function SuperAdminRegionalDispatchTable() {
                       </td>
 
                       {/* Weight Column with Horizontal Bar Chart */}
-                      <td className='py-3 px-3 align-top'>
+                      <td className='py-2.5 px-3 align-middle'>
                         <div className='space-y-1.5'>
-                          {/* Value header */}
-                          <div className='flex items-baseline justify-between gap-2'>
-                            <div className='flex items-baseline gap-1.5'>
-                              <span className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
-                                {formatNumber(metric.totalWeightTons)} Tấn
-                              </span>
-                              <span className='text-[11px] text-slate-500 dark:text-slate-400 font-mono'>
-                                ({formatNumber(metric.totalWeightKg)} kg)
-                              </span>
+                          {/* Bar + Value at the tip (exact user reference image style) */}
+                          <div className='flex items-center gap-2'>
+                            <div className='flex-1 max-w-[160px] sm:max-w-[200px] bg-slate-100 dark:bg-slate-800 rounded h-5 p-0.5 flex overflow-hidden'>
+                              <div
+                                className={`h-full ${cfg.barColorWeight} rounded-xs transition-all duration-500 ease-out`}
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.max(weightBarWidth, metric.totalWeightKg > 0 ? 5 : 0)
+                                  )}%`
+                                }}
+                              />
                             </div>
-                            <span className='text-[11px] font-bold text-slate-700 dark:text-slate-300'>
-                              {weightPct}%
+                            <span className='font-bold text-xs text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
+                              {formatNumber(metric.totalWeightTons)} Tấn
+                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
+                                ({weightPct}%)
+                              </span>
                             </span>
                           </div>
 
-                          {/* Horizontal Bar Chart (Styled exactly like user reference image) */}
-                          <div className='w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3.5 overflow-hidden flex shadow-inner'>
-                            <div
-                              className={`h-full ${cfg.barColorWeight} rounded-full transition-all duration-500 ease-out`}
-                              style={{ width: `${Math.min(100, weightBarWidth)}%` }}
-                              title={`${cfg.name}: ${formatNumber(metric.totalWeightTons)} Tấn (${weightPct}%)`}
-                            />
-                          </div>
-
                           {/* Sub-breakdown: Onhand vs Incoming */}
-                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5'>
+                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 max-w-[280px]'>
                             <span className='flex items-center gap-1'>
                               <span className='inline-block w-1.5 h-1.5 rounded-full bg-slate-400' />
-                              Sẵn kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandWeightTons)}T</strong>
+                              Kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandWeightTons)}T</strong>
                             </span>
                             <span className='flex items-center gap-1'>
                               <span className='inline-block w-1.5 h-1.5 rounded-full bg-purple-500' />
                               Xe về: <strong className='text-purple-700 dark:text-purple-300'>{formatNumber(metric.incomingWeightTons)}T</strong>
+                            </span>
+                            <span className='font-mono text-slate-400 dark:text-slate-500'>
+                              ({formatNumber(metric.totalWeightKg)} kg)
                             </span>
                           </div>
                         </div>
                       </td>
 
                       {/* Volume Column with Horizontal Bar Chart */}
-                      <td className='py-3 px-3 align-top'>
+                      <td className='py-2.5 px-3 align-middle'>
                         <div className='space-y-1.5'>
-                          {/* Value header */}
-                          <div className='flex items-baseline justify-between gap-2'>
-                            <span className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
+                          {/* Bar + Value at the tip (exact user reference image style) */}
+                          <div className='flex items-center gap-2'>
+                            <div className='flex-1 max-w-[160px] sm:max-w-[200px] bg-slate-100 dark:bg-slate-800 rounded h-5 p-0.5 flex overflow-hidden'>
+                              <div
+                                className={`h-full ${cfg.barColorVolume} rounded-xs transition-all duration-500 ease-out`}
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.max(volumeBarWidth, metric.totalVolumeCbm > 0 ? 5 : 0)
+                                  )}%`
+                                }}
+                              />
+                            </div>
+                            <span className='font-bold text-xs text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
                               {formatNumber(metric.totalVolumeCbm)} m³
+                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
+                                ({volumePct}%)
+                              </span>
                             </span>
-                            <span className='text-[11px] font-bold text-slate-700 dark:text-slate-300'>
-                              {volumePct}%
-                            </span>
-                          </div>
-
-                          {/* Horizontal Bar Chart for Volume */}
-                          <div className='w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3.5 overflow-hidden flex shadow-inner'>
-                            <div
-                              className={`h-full ${cfg.barColorVolume} rounded-full transition-all duration-500 ease-out`}
-                              style={{ width: `${Math.min(100, volumeBarWidth)}%` }}
-                              title={`${cfg.name}: ${formatNumber(metric.totalVolumeCbm)} m³ (${volumePct}%)`}
-                            />
                           </div>
 
                           {/* Sub-breakdown */}
-                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5'>
+                          <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 max-w-[280px]'>
                             <span>Kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandVolumeCbm)} m³</strong></span>
                             <span>Xe về: <strong className='text-purple-700 dark:text-purple-300'>{formatNumber(metric.incomingVolumeCbm)} m³</strong></span>
                           </div>
@@ -719,8 +1053,9 @@ export function SuperAdminRegionalDispatchTable() {
               </tfoot>
             </table>
           </div>
-        )}
-      </CardContent>
+        </>
+      )}
+    </CardContent>
 
       {/* Drilldown Modal (Detailed Trips & Onhand Orders per Region) */}
       <Dialog open={!!drilldownRegion} onOpenChange={(open) => !open && setDrilldownRegion(null)}>
