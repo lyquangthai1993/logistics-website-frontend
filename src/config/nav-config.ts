@@ -108,6 +108,15 @@ export const navGroups: NavGroup[] = [
         access: { role: 'SUPER_ADMIN' }
       },
       {
+        title: 'Cân đối đội xe theo miền',
+        url: '/dashboard/admin/reports/regional-dispatch',
+        icon: 'truck',
+        shortcut: ['r', 'd'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
         title: 'Quản trị Cronjob',
         url: '/dashboard/admin/cronjobs',
         icon: 'settings',
