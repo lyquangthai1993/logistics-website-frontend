@@ -10,6 +10,7 @@
 interface StockSource {
   hubStock?: number | null;
   remainingQuantity?: number | null;
+  outboundQuantity?: number | null;
   totalQuantity?: number | null;
   totalWeight?: number | null;
   totalVolume?: number | null;
@@ -24,29 +25,41 @@ interface StockSource {
   pendingOutboundQuantity?: number | null;
   effectiveHubStock?: number | null;
   pendingOutboundTripCodes?: string[] | null;
+  pendingInboundQuantity?: number | null;
+  pendingInboundTripCodes?: string[] | null;
+  hasPendingInboundTrip?: boolean | null;
 }
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
-/** Packages that can be dispatched from the viewer's hub. */
+/** Packages that can be dispatched (or planned onto an outbound draft) from the viewer's hub. */
 export function availableOutboundStock(
   order: StockSource & { status?: string; hubStatus?: string | null }
 ): number {
-  if (order.effectiveHubStock !== null && order.effectiveHubStock !== undefined) {
-    return Math.max(0, Number(order.effectiveHubStock) || 0);
-  }
-
   const st = (order.hubStatus ?? order.status ?? '').toUpperCase();
   const isDraft = ['DRAFT', 'PENDING', 'WAITING'].includes(st);
-  const pending = Number(order.pendingOutboundQuantity) || 0;
+  const pendingOut = Number(order.pendingOutboundQuantity) || 0;
+  const pendingIn = Number(order.pendingInboundQuantity) || 0;
 
-  // Nếu là đơn nháp, tồn khả dụng để xếp xe chính là số kiện kế hoạch của đơn hàng trừ đi số kiện đã xếp vào chuyến nháp khác
+  // Nếu là đơn nháp (chưa nhập kho vật lý nên hubStock = 0 và remainingQuantity = 0),
+  // tồn khả dụng để xếp xe xuất nháp = số kiện kế hoạch (hoặc số kiện đang nằm ở chuyến nhập nháp) trừ đi số kiện đã xếp vào chuyến xuất nháp khác
   if (isDraft) {
-    const baseDraft =
-      order.remainingQuantity !== null && order.remainingQuantity !== undefined
-        ? Number(order.remainingQuantity) || 0
-        : Number(order.totalQuantity) || 0;
-    return Math.max(0, baseDraft - pending);
+    const rem = Number(order.remainingQuantity) || 0;
+    const out = Number(order.outboundQuantity) || 0;
+    const tot = Number(order.totalQuantity) || 0;
+    const baseDraft = rem > 0 ? rem : Math.max(0, tot - out, pendingIn);
+    return Math.max(0, baseDraft - pendingOut);
+  }
+
+  if (order.effectiveHubStock !== null && order.effectiveHubStock !== undefined) {
+    if (pendingIn > 0) {
+      if (order.hubStock !== null && order.hubStock !== undefined) {
+        const confirmedHub = Math.max(0, Number(order.hubStock) || 0);
+        return Math.max(0, confirmedHub + pendingIn - pendingOut);
+      }
+      return Math.max(0, (Number(order.effectiveHubStock) || 0) + pendingIn);
+    }
+    return Math.max(0, Number(order.effectiveHubStock) || 0);
   }
 
   let baseStock = 0;
@@ -58,7 +71,7 @@ export function availableOutboundStock(
     baseStock = Number(order.totalQuantity) || 0;
   }
 
-  return Math.max(0, baseStock - pending);
+  return Math.max(0, baseStock + pendingIn - pendingOut);
 }
 
 /** Share of a contract metric (kg, m³) for a partial package quantity — mirrors backend `proportional`. */
@@ -84,7 +97,15 @@ export function availableOutboundWeight(
 ): number {
   const stock = availStock !== undefined ? availStock : availableOutboundStock(order);
   if (stock <= 0) return 0;
-  if (order.remainingWeight !== undefined && order.remainingWeight !== null) {
+  const st = (order.hubStatus ?? order.status ?? '').toUpperCase();
+  const isDraftOrPendingIn =
+    ['DRAFT', 'PENDING', 'WAITING'].includes(st) ||
+    (Number(order.pendingInboundQuantity) || 0) > 0;
+  if (
+    !isDraftOrPendingIn &&
+    order.remainingWeight !== undefined &&
+    order.remainingWeight !== null
+  ) {
     return Math.max(0, round3(Number(order.remainingWeight) || 0));
   }
   if (
@@ -94,7 +115,8 @@ export function availableOutboundWeight(
     const totalW = Number(order.totalWeight) || 0;
     const exportedW = Number(order.exportedWeight) || 0;
     const pendingW = Number(order.pendingOutboundWeight) || 0;
-    return Math.max(0, round3(totalW - exportedW - pendingW));
+    const remW = Math.max(0, round3(totalW - exportedW - pendingW));
+    return proportionalMetric(remW, stock, order.totalQuantity);
   }
   return proportionalMetric(order.totalWeight, stock, order.totalQuantity);
 }
@@ -110,7 +132,15 @@ export function availableOutboundVolume(
 ): number {
   const stock = availStock !== undefined ? availStock : availableOutboundStock(order);
   if (stock <= 0) return 0;
-  if (order.remainingVolume !== undefined && order.remainingVolume !== null) {
+  const st = (order.hubStatus ?? order.status ?? '').toUpperCase();
+  const isDraftOrPendingIn =
+    ['DRAFT', 'PENDING', 'WAITING'].includes(st) ||
+    (Number(order.pendingInboundQuantity) || 0) > 0;
+  if (
+    !isDraftOrPendingIn &&
+    order.remainingVolume !== undefined &&
+    order.remainingVolume !== null
+  ) {
     return Math.max(0, round3(Number(order.remainingVolume) || 0));
   }
   if (
@@ -120,7 +150,8 @@ export function availableOutboundVolume(
     const totalV = Number(order.totalVolume) || 0;
     const exportedV = Number(order.exportedVolume) || 0;
     const pendingV = Number(order.pendingOutboundVolume) || 0;
-    return Math.max(0, round3(totalV - exportedV - pendingV));
+    const remV = Math.max(0, round3(totalV - exportedV - pendingV));
+    return proportionalMetric(remV, stock, order.totalQuantity);
   }
   return proportionalMetric(order.totalVolume, stock, order.totalQuantity);
 }

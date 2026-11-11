@@ -793,15 +793,19 @@ function OrderCodeCell({ row, column, table }: CellContext<WarehouseRowItem, unk
             String(foundOrder.hubStatus ?? foundOrder.status ?? '').toUpperCase()
           );
 
+          const hasPendingInbound = Boolean(
+            foundOrder.hasPendingInboundTrip ||
+            (foundOrder.pendingInboundTripCodes && foundOrder.pendingInboundTripCodes.length > 0)
+          );
+
           // Orders outside this hub's stock (on the way, dispatched...) cannot be exported here.
-          // Đối với đơn nháp: Cho phép chọn, lấy availStock = remainingQuantity ?? totalQuantity
-          const availStock = isDraft
-            ? Math.max(0, Number(foundOrder.remainingQuantity ?? foundOrder.totalQuantity) || 1)
-            : foundInHubStock
+          // Đối với đơn nháp / đơn có chuyến nhập nháp tại kho: tính số kiện khả dụng qua availableOutboundStock
+          const availStock =
+            foundInHubStock || isDraft || hasPendingInbound
               ? availableOutboundStock(foundOrder)
               : 0;
 
-          if (isOutbound && !isDraft && availStock <= 0) {
+          if (isOutbound && availStock <= 0) {
             if (Number(foundOrder.pendingOutboundQuantity) > 0) {
               toast.error(
                 `Đơn hàng ${foundOrder.orderCode} đã được xếp hết số kiện vào chuyến xe chờ xuất (${foundOrder.pendingOutboundTripCodes?.join(', ') || 'khác'}). Không thể thêm vào chuyến xe này!`
