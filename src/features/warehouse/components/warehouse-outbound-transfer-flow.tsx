@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { showApiErrorToast } from '@/lib/api-error';
 import { cn } from '@/lib/utils';
 import { formatWeight, formatVolume } from '@/lib/format';
+import { availableOutboundStock } from '../lib/outbound-stock';
 
 export interface HubOption {
   id: number;
@@ -50,12 +51,16 @@ export interface StoredOrderItem {
   totalWeight: number;
   totalVolume: number;
   status: string;
+  hubStatus?: string | null;
   createdAt: string;
   destinationHub?: string;
   deliveryAddress?: string;
   originHub?: string;
   province?: string | null;
   destinationHubEntity?: { id?: number; name?: string; code?: string; city?: string | null } | null;
+  hasPendingInboundTrip?: boolean;
+  pendingInboundTripCodes?: string[];
+  pendingInboundQuantity?: number;
 }
 
 interface WarehouseOutboundTransferFlowProps {
@@ -165,13 +170,7 @@ export function WarehouseOutboundTransferFlow({
       .then((resData) => {
         const rawOrders = resData?.data || [];
         const formatted: StoredOrderItem[] = rawOrders.map((o: any) => {
-          const st = String(o.hubStatus ?? o.status ?? '').toUpperCase();
-          const isDraft = ['DRAFT', 'PENDING', 'WAITING'].includes(st);
-          const availQty = isDraft
-            ? Math.max(0, Number(o.remainingQuantity ?? o.totalQuantity) || 0)
-            : o.hubStock !== null && o.hubStock !== undefined
-              ? Math.max(0, Number(o.hubStock) || 0)
-              : Math.max(0, Number(o.remainingQuantity ?? o.totalQuantity) || 0);
+          const availQty = availableOutboundStock(o);
           return {
             id: o.id,
             orderCode: o.orderCode ?? `#${o.id}`,
@@ -180,10 +179,16 @@ export function WarehouseOutboundTransferFlow({
             totalWeight: Number(o.totalWeight ?? 0),
             totalVolume: Number(o.totalVolume ?? 0),
             status: o.hubStatus ?? o.status ?? 'INBOUND',
+            hubStatus: o.hubStatus ?? null,
             createdAt: o.createdAt ?? '',
             destinationHub: o.destinationHub || o.route || '',
             deliveryAddress: o.deliveryAddress || '',
-            originHub: o.originHub || user?.hub?.name || ''
+            originHub: o.originHub || user?.hub?.name || '',
+            province: o.province ?? null,
+            destinationHubEntity: o.destinationHubEntity ?? null,
+            hasPendingInboundTrip: Boolean(o.hasPendingInboundTrip),
+            pendingInboundTripCodes: o.pendingInboundTripCodes || [],
+            pendingInboundQuantity: o.pendingInboundQuantity || 0
           };
         });
         setWarehouseOrders(formatted);
