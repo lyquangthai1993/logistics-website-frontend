@@ -987,7 +987,11 @@ function WarehouseOutboundContent() {
         province: o.province || '',
         accompanyingDocs: o.accompanyingDocs || '',
         notes: o.notes || '',
-        status: o.hubStatus ?? o.status
+        status: o.status ?? o.hubStatus,
+        hubStatus: o.hubStatus ?? o.status,
+        hasPendingInboundTrip: Boolean(o.hasPendingInboundTrip),
+        pendingInboundTripCodes: o.pendingInboundTripCodes || [],
+        pendingInboundQuantity: o.pendingInboundQuantity || 0
       };
     });
 
