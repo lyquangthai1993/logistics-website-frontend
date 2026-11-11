@@ -1005,10 +1005,10 @@ export function DailyOperationalBarSlot() {
         <div className='flex flex-wrap items-center justify-between gap-1.5 border-b pb-1.5'>
           <div>
             <h2 className='text-xs font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100'>
-              I. BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH ({fromDate} → {toDate})
+              BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH ({fromDate} → {toDate})
             </h2>
             <p className='text-xs font-bold text-[#0F3D62] dark:text-blue-300'>
-              1. Tình hình hoạt động của Hub —{' '}
+              Tình hình hoạt động của Hub —{' '}
               <span className='font-semibold text-muted-foreground'>
                 {data?.filter.hubName || 'Tất cả Chi nhánh'} • {directionLabel}
               </span>
@@ -1132,10 +1132,10 @@ export function MonthlyOperationalTrendsSlot() {
         <div className='flex flex-wrap items-center justify-between gap-1.5 border-b pb-1.5'>
           <div>
             <h2 className='text-xs font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100'>
-              I. BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH — XU HƯỚNG THEO THÁNG
+              BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH — XU HƯỚNG THEO THÁNG
             </h2>
             <p className='text-xs font-bold text-[#0F3D62] dark:text-blue-300'>
-              1. Tình hình hoạt động của Hub (So sánh Số Khối &amp; Số Tấn qua
+              Tình hình hoạt động của Hub (So sánh Số Khối &amp; Số Tấn qua
               các tháng)
             </p>
           </div>
