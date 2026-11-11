@@ -329,6 +329,10 @@ export function useAdminOperationalReport(): AdminOperationalReportContextValue 
   return ctx;
 }
 
+export function useOptionalAdminOperationalReport(): AdminOperationalReportContextValue | null {
+  return useContext(AdminOperationalReportContext);
+}
+
 /**
  * Shared Context Provider for Next.js Parallel Routes in `/dashboard/admin/reports/layout.tsx`.
  * Single Global Filter state (`fromDate`, `toDate`, `selectedHubId`, `direction`) controls
@@ -1678,6 +1682,11 @@ export function AdminOperationalReportLayoutShell({
         {/* Parallel Route Slot 1 (@daily_stats): Slide 2 — Biểu đồ Cột Sản lượng theo Ngày & Trung bình CBM/Ngày */}
         <div data-testid='parallel-slot-daily-stats'>
           {daily_stats || <DailyOperationalBarSlot />}
+        </div>
+
+        {/* Parallel Route Slot 2 (@monthly_trends): Slide 3 — Báo cáo Kết quả Hoạt động Vận hành Xu hướng theo Tháng */}
+        <div data-testid='parallel-slot-monthly-trends'>
+          {monthly_trends || <MonthlyOperationalTrendsSlot />}
         </div>
 
         

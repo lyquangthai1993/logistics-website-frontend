@@ -23,9 +23,13 @@ test.describe('[Task 119] Regional Dispatch Report with Horizontal Bar Charts', 
     const regionalReportTitle = page.locator('text=Cân Đối Tải Trọng Đội Xe Theo Miền');
     await expect(regionalReportTitle).toBeVisible({ timeout: 15_000 });
 
-    // 6. Verify Visual Horizontal Bar Chart Section
-    const horizontalChartTitle = page.locator('text=BIỂU ĐỒ THANH NGANG SO SÁNH TỶ TRỌNG CÂN ĐỐI THEO VÙNG MIỀN');
-    await expect(horizontalChartTitle).toBeVisible({ timeout: 15_000 });
+    // 6. Verify Visual Horizontal Bar Chart Section / Metric Selector
+    const chartMetricTab = page.locator('button:has-text("Cả hai chỉ số")');
+    await expect(chartMetricTab).toBeVisible({ timeout: 15_000 });
+
+    // 6b. Verify Regional Dispatch Table uses the global filter and has NO redundant local date input
+    const localCalendarInputs = page.locator('div:has(> h3:has-text("Cân Đối Tải Trọng Đội Xe Theo Miền"))').locator('input[type="date"]');
+    await expect(localCalendarInputs).toHaveCount(0);
 
     // 7. Verify regions in table
     await expect(page.locator('text=MIỀN BẮC').first()).toBeVisible();
