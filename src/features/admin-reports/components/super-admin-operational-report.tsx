@@ -23,7 +23,6 @@ import {
   IconClock,
   IconFileTypeXls,
   IconLoader2,
-  IconPackage,
   IconRefresh,
   IconRoute,
   IconTrendingUp,
@@ -180,16 +179,12 @@ function formatDateTimeVn(iso?: string | null): string {
   });
 }
 
-function renderHubLevelBadge(
-  level?: number | null,
-  code?: string | null,
-  name?: string | null
-) {
+function renderHubLevelBadge(level?: number | null, code?: string | null, name?: string | null) {
   const isSatellite = Boolean(
     (level && level > 1) ||
-      code?.startsWith('XB-') ||
-      code?.startsWith('HUB-BO-') ||
-      name?.toLowerCase().includes('xe bo')
+    code?.startsWith('XB-') ||
+    code?.startsWith('HUB-BO-') ||
+    name?.toLowerCase().includes('xe bo')
   );
   if (isSatellite) {
     return (
@@ -220,13 +215,7 @@ interface CalloutLabelProps {
 /** Custom boxed label for Slide 3 Top Chart (SỐ KHỐI) */
 function renderMonthlyCbmCallout(props: CalloutLabelProps) {
   const { x, y, value } = props;
-  if (
-    x === undefined ||
-    y === undefined ||
-    value === undefined ||
-    value === null
-  )
-    return null;
+  if (x === undefined || y === undefined || value === undefined || value === null) return null;
   const numX = Number(x);
   const numY = Number(y);
   const text = formatNumberVn(Math.round(Number(value) * 10) / 10, 1);
@@ -260,13 +249,7 @@ function renderMonthlyCbmCallout(props: CalloutLabelProps) {
 /** Custom label for Slide 3 Bottom Chart (SỐ TẤN on dark #0F5C7E background) */
 function renderMonthlyTonsCallout(props: CalloutLabelProps) {
   const { x, y, value } = props;
-  if (
-    x === undefined ||
-    y === undefined ||
-    value === undefined ||
-    value === null
-  )
-    return null;
+  if (x === undefined || y === undefined || value === undefined || value === null) return null;
   const numX = Number(x);
   const numY = Number(y);
   const text = formatNumberVn(Math.round(Number(value) * 100) / 100, 2);
@@ -316,15 +299,14 @@ interface AdminOperationalReportContextValue {
   summary: OperationalReportResponse['summary'] | undefined;
 }
 
-const AdminOperationalReportContext =
-  createContext<AdminOperationalReportContextValue | null>(null);
+const AdminOperationalReportContext = createContext<AdminOperationalReportContextValue | null>(
+  null
+);
 
 export function useAdminOperationalReport(): AdminOperationalReportContextValue {
   const ctx = useContext(AdminOperationalReportContext);
   if (!ctx) {
-    throw new Error(
-      'useAdminOperationalReport must be used within AdminOperationalReportProvider'
-    );
+    throw new Error('useAdminOperationalReport must be used within AdminOperationalReportProvider');
   }
   return ctx;
 }
@@ -338,11 +320,7 @@ export function useOptionalAdminOperationalReport(): AdminOperationalReportConte
  * Single Global Filter state (`fromDate`, `toDate`, `selectedHubId`, `direction`) controls
  * all parallel route slots (`@daily_stats`, `@monthly_trends`, `@drilldown_table`) simultaneously.
  */
-export function AdminOperationalReportProvider({
-  children
-}: {
-  children: React.ReactNode;
-}) {
+export function AdminOperationalReportProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const defaultRange = useMemo(() => getDefaultMonthRange(), []);
 
@@ -351,18 +329,10 @@ export function AdminOperationalReportProvider({
   const [selectedHubId, setSelectedHubId] = useState<string>('ALL');
   const [direction, setDirection] = useState<ReportDirection>('INBOUND');
   const [chartMetric, setChartMetric] = useState<ReportChartMetric>('CBM');
-  const [activeTab, setActiveTab] = useState<'daily' | 'trips' | 'hubs'>(
-    'daily'
-  );
+  const [activeTab, setActiveTab] = useState<'daily' | 'trips' | 'hubs'>('daily');
 
   const { data, isLoading, isFetching } = useQuery<OperationalReportResponse>({
-    queryKey: [
-      'admin-operational-report',
-      fromDate,
-      toDate,
-      selectedHubId,
-      direction
-    ],
+    queryKey: ['admin-operational-report', fromDate, toDate, selectedHubId, direction],
     queryFn: async () => {
       const params: Record<string, string | number> = {
         fromDate,
@@ -376,8 +346,7 @@ export function AdminOperationalReportProvider({
       const res = await apiClient.get<
         OperationalReportResponse | { data: OperationalReportResponse }
       >('/api/v1/admin/reports/operational', { params });
-      const raw = res.data as { data?: OperationalReportResponse } &
-        OperationalReportResponse;
+      const raw = res.data as { data?: OperationalReportResponse } & OperationalReportResponse;
       return raw?.data ?? raw;
     },
     staleTime: 30 * 1000
@@ -421,9 +390,7 @@ export function AdminOperationalReportProvider({
 
     if (preset === 'THIS_MONTH') {
       const start = `${year}-${String(month).padStart(2, '0')}-01`;
-      const end = new Date(Date.UTC(year, month, 0))
-        .toISOString()
-        .slice(0, 10);
+      const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
       setFromDate(start);
       setToDate(end);
     } else if (preset === 'LAST_MONTH') {
@@ -453,10 +420,7 @@ export function AdminOperationalReportProvider({
   const dailySeries = data?.dailySeries ?? [];
   const monthlySeries = data?.monthlySeries ?? [];
   const hubBreakdown = data?.hubBreakdown ?? [];
-  const confirmedTrips = useMemo(
-    () => data?.confirmedTrips ?? [],
-    [data?.confirmedTrips]
-  );
+  const confirmedTrips = useMemo(() => data?.confirmedTrips ?? [], [data?.confirmedTrips]);
   const summary = data?.summary;
 
   const handleExportExcel = () => {
@@ -471,11 +435,7 @@ export function AdminOperationalReportProvider({
       STT: idx + 1,
       'Ngày báo cáo': d.fullDateLabel,
       'Khung giờ chốt (06:00 D → 05:59 D+1)': d.windowLabel,
-      'Trạng thái kỳ': d.isFuture
-        ? 'Chưa diễn ra'
-        : d.isClosed
-          ? 'Đã chốt sổ'
-          : 'Đang ghi nhận',
+      'Trạng thái kỳ': d.isFuture ? 'Chưa diễn ra' : d.isClosed ? 'Đã chốt sổ' : 'Đang ghi nhận',
       'Sản lượng chọn (CBM)': d.cbm,
       'Trọng lượng chọn (Tấn)': d.weightTons,
       'Trọng lượng chọn (Kg)': d.weightKg,
@@ -540,8 +500,7 @@ export function AdminOperationalReportProvider({
       'Thuộc ngày báo cáo': t.reportDate,
       'Khung giờ báo cáo': t.windowLabel,
       'Chi nhánh Kho': t.hubName,
-      'Phân cấp Hub':
-        t.hubLevel > 1 ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính',
+      'Phân cấp Hub': t.hubLevel > 1 ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính',
       'Biển số xe': t.licensePlate || '—',
       'Tài xế': t.driverName || '—',
       'Số đơn': t.orderCount,
@@ -640,9 +599,7 @@ export function AdminReportHeaderAndKpis() {
             <div className='flex flex-wrap items-center gap-1.5'>
               <div className='inline-flex items-center gap-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 h-8'>
                 <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400 shrink-0' />
-                <span className='text-[10px] font-semibold text-muted-foreground'>
-                  Từ ngày
-                </span>
+                <span className='text-[10px] font-semibold text-muted-foreground'>Từ ngày</span>
                 <input
                   type='date'
                   value={fromDate}
@@ -650,9 +607,7 @@ export function AdminReportHeaderAndKpis() {
                   data-testid='report-from-date-input'
                   className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
                 />
-                <span className='text-[10px] font-semibold text-muted-foreground'>
-                  đến
-                </span>
+                <span className='text-[10px] font-semibold text-muted-foreground'>đến</span>
                 <input
                   type='date'
                   value={toDate}
@@ -763,7 +718,9 @@ export function AdminReportHeaderAndKpis() {
                 </Button>
               </Link>
 
-              <Link href={`/dashboard/admin/cronjobs/DAILY_HUB_OPERATIONAL_REPORT?fromDate=${fromDate}&toDate=${toDate}`}>
+              <Link
+                href={`/dashboard/admin/cronjobs/DAILY_HUB_OPERATIONAL_REPORT?fromDate=${fromDate}&toDate=${toDate}`}
+              >
                 <Button
                   type='button'
                   variant='outline'
@@ -818,17 +775,15 @@ export function AdminReportHeaderAndKpis() {
                 Quy chuẩn chốt sổ Cronjob hàng ngày:
               </span>
               <span>
-                Báo cáo ngày <strong className='font-mono'>D</strong> tổng hợp
-                từ{' '}
+                Báo cáo ngày <strong className='font-mono'>D</strong> tổng hợp từ{' '}
                 <strong className='font-mono text-blue-700 dark:text-blue-300'>
                   06:00 (6:00 AM) ngày D đến 05:59 (5:59 AM) ngày D+1
                 </strong>{' '}
                 (VD: ngày 09/11/2026 tính từ 06:00 09/11/2026 đến 05:59 10/11/2026).
               </span>
               <span className='text-muted-foreground'>
-                • Thời gian chuyến xe tính theo lúc{' '}
-                <strong>Xác nhận Nhập/Xuất chuyến xe</strong> (loại trừ chuyến
-                nháp).
+                • Thời gian chuyến xe tính theo lúc <strong>Xác nhận Nhập/Xuất chuyến xe</strong>{' '}
+                (loại trừ chuyến nháp).
               </span>
             </div>
             <div className='flex items-center gap-1.5 shrink-0'>
@@ -836,8 +791,7 @@ export function AdminReportHeaderAndKpis() {
                 variant='outline'
                 className='text-[10px] px-1.5 py-0 h-4 bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300 font-mono'
               >
-                Cron tự động:{' '}
-                {data?.filter.cronSchedule || '06:05 hàng ngày (GMT+7)'}
+                Cron tự động: {data?.filter.cronSchedule || '06:05 hàng ngày (GMT+7)'}
               </Badge>
               {data?.filter.lastClosedReportDate && (
                 <Badge
@@ -938,9 +892,7 @@ export function AdminReportHeaderAndKpis() {
                   {formatNumberVn(summary?.averageTonsPerDay ?? 0, 2)} Tấn/ngày
                 </strong>
               </span>
-              <span className='font-mono'>
-                ({formatNumberVn(summary?.weightKg ?? 0, 0)} kg)
-              </span>
+              <span className='font-mono'>({formatNumberVn(summary?.weightKg ?? 0, 0)} kg)</span>
             </div>
           </CardContent>
         </Card>
@@ -986,15 +938,8 @@ export function AdminReportHeaderAndKpis() {
  * Renders SLIDE 2: Biểu đồ Cột Sản lượng theo Ngày (CBM hoặc SỐ TẤN theo thẻ KPI đang chọn).
  */
 export function DailyOperationalBarSlot() {
-  const {
-    fromDate,
-    toDate,
-    data,
-    directionLabel,
-    chartMetric,
-    isLoading,
-    dailySeries
-  } = useAdminOperationalReport();
+  const { fromDate, toDate, data, directionLabel, chartMetric, isLoading, dailySeries } =
+    useAdminOperationalReport();
 
   const isTons = chartMetric === 'TONS';
   const metricKey = isTons ? 'weightTons' : 'cbm';
@@ -1037,15 +982,8 @@ export function DailyOperationalBarSlot() {
         ) : (
           <div className='h-72 w-full' data-testid='slide-2-bar-chart-container'>
             <ResponsiveContainer width='100%' height='100%'>
-              <BarChart
-                data={dailySeries}
-                margin={{ top: 22, right: 12, left: 0, bottom: 8 }}
-              >
-                <CartesianGrid
-                  strokeDasharray='3 3'
-                  vertical={false}
-                  stroke='#E2E8F0'
-                />
+              <BarChart data={dailySeries} margin={{ top: 22, right: 12, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray='3 3' vertical={false} stroke='#E2E8F0' />
                 <XAxis
                   dataKey='dayLabel'
                   tick={{ fontSize: 10, fill: '#475569' }}
@@ -1104,9 +1042,7 @@ export function DailyOperationalBarSlot() {
                     formatter={(val: unknown) => {
                       const n = Number(val);
                       if (!n || n <= 0) return '';
-                      return isTons
-                        ? Number(n.toFixed(2)).toString()
-                        : n.toFixed(1);
+                      return isTons ? Number(n.toFixed(2)).toString() : n.toFixed(1);
                     }}
                     style={{ fontSize: 9, fill: '#334155', fontWeight: 600 }}
                   />
@@ -1139,8 +1075,7 @@ export function MonthlyOperationalTrendsSlot() {
               BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH — XU HƯỚNG THEO THÁNG
             </h2>
             <p className='text-xs font-bold text-[#0F3D62] dark:text-blue-300'>
-              Tình hình hoạt động của Hub (So sánh Số Khối &amp; Số Tấn qua
-              các tháng)
+              Tình hình hoạt động của Hub (So sánh Số Khối &amp; Số Tấn qua các tháng)
             </p>
           </div>
           <Badge
@@ -1161,10 +1096,7 @@ export function MonthlyOperationalTrendsSlot() {
           </div>
           <div className='h-52 w-full'>
             <ResponsiveContainer width='100%' height='100%'>
-              <LineChart
-                data={monthlySeries}
-                margin={{ top: 32, right: 36, left: 24, bottom: 6 }}
-              >
+              <LineChart data={monthlySeries} margin={{ top: 32, right: 36, left: 24, bottom: 6 }}>
                 <CartesianGrid stroke='#CBD5E1' vertical={false} />
                 <XAxis
                   dataKey='monthLabel'
@@ -1174,10 +1106,7 @@ export function MonthlyOperationalTrendsSlot() {
                 />
                 <YAxis
                   hide
-                  domain={[
-                    0,
-                    (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.25))
-                  ]}
+                  domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.25))]}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -1190,15 +1119,12 @@ export function MonthlyOperationalTrendsSlot() {
                         </div>
                         <div>
                           Số khối:{' '}
-                          <strong className='font-mono'>
-                            {formatNumberVn(m.cbm, 1)} CBM
-                          </strong>{' '}
+                          <strong className='font-mono'>{formatNumberVn(m.cbm, 1)} CBM</strong>{' '}
                           (Nhập: {formatNumberVn(m.inbound.cbm, 1)} • Xuất:{' '}
                           {formatNumberVn(m.outbound.cbm, 1)})
                         </div>
                         <div>
-                          Số chuyến xác nhận:{' '}
-                          <strong>{m.tripCount} chuyến</strong> •{' '}
+                          Số chuyến xác nhận: <strong>{m.tripCount} chuyến</strong> •{' '}
                           {m.packageCount} kiện
                         </div>
                       </div>
@@ -1236,15 +1162,8 @@ export function MonthlyOperationalTrendsSlot() {
           </div>
           <div className='h-52 w-full'>
             <ResponsiveContainer width='100%' height='100%'>
-              <LineChart
-                data={monthlySeries}
-                margin={{ top: 28, right: 36, left: 10, bottom: 6 }}
-              >
-                <CartesianGrid
-                  stroke='rgba(255,255,255,0.18)'
-                  vertical={true}
-                  horizontal={true}
-                />
+              <LineChart data={monthlySeries} margin={{ top: 28, right: 36, left: 10, bottom: 6 }}>
+                <CartesianGrid stroke='rgba(255,255,255,0.18)' vertical={true} horizontal={true} />
                 <XAxis
                   dataKey='monthLabel'
                   tick={{ fontSize: 10, fill: '#FFFFFF', fontWeight: 600 }}
@@ -1256,10 +1175,7 @@ export function MonthlyOperationalTrendsSlot() {
                   axisLine={false}
                   tickLine={false}
                   width={40}
-                  domain={[
-                    0,
-                    (dataMax: number) => Math.max(10, Math.ceil(dataMax * 1.25))
-                  ]}
+                  domain={[0, (dataMax: number) => Math.max(10, Math.ceil(dataMax * 1.25))]}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -1278,8 +1194,8 @@ export function MonthlyOperationalTrendsSlot() {
                           ({formatNumberVn(m.weightKg, 0)} kg)
                         </div>
                         <div>
-                          Nhập: {formatNumberVn(m.inbound.weightTons, 2)} Tấn •
-                          Xuất: {formatNumberVn(m.outbound.weightTons, 2)} Tấn
+                          Nhập: {formatNumberVn(m.inbound.weightTons, 2)} Tấn • Xuất:{' '}
+                          {formatNumberVn(m.outbound.weightTons, 2)} Tấn
                         </div>
                       </div>
                     );
@@ -1299,10 +1215,7 @@ export function MonthlyOperationalTrendsSlot() {
                   }}
                   activeDot={{ r: 6, fill: '#38BDF8' }}
                 >
-                  <LabelList
-                    dataKey='weightTons'
-                    content={renderMonthlyTonsCallout}
-                  />
+                  <LabelList dataKey='weightTons' content={renderMonthlyTonsCallout} />
                 </Line>
               </LineChart>
             </ResponsiveContainer>
@@ -1319,14 +1232,8 @@ export function MonthlyOperationalTrendsSlot() {
  * kết nối trực tiếp sang trang chuyên biệt `/dashboard/admin/reports/trips?date=YYYY-MM-DD`.
  */
 export function OperationalDrilldownTableSlot() {
-  const {
-    activeTab,
-    setActiveTab,
-    dailySeries,
-    confirmedTrips,
-    selectedHubId,
-    summary
-  } = useAdminOperationalReport();
+  const { activeTab, dailySeries, confirmedTrips, selectedHubId, summary } =
+    useAdminOperationalReport();
 
   const buildDayTripsHref = (reportDate?: string) => {
     const params = new URLSearchParams();
@@ -1346,7 +1253,10 @@ export function OperationalDrilldownTableSlot() {
       <CardContent className='p-0 space-y-1.5'>
         <div className='flex flex-wrap items-center justify-between gap-1.5 border-b pb-1.5'>
           <div className='flex flex-wrap items-center gap-1.5'>
-            <span className='inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-xs font-bold bg-[#0F3D62] text-white shadow-xs' data-testid='tab-daily-breakdown'>
+            <span
+              className='inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-xs font-bold bg-[#0F3D62] text-white shadow-xs'
+              data-testid='tab-daily-breakdown'
+            >
               Bảng kê theo ngày ({dailySeries.length} ngày)
             </span>
           </div>
@@ -1386,25 +1296,13 @@ export function OperationalDrilldownTableSlot() {
               <thead className='sticky top-0 bg-slate-100 dark:bg-slate-900 border-b z-10'>
                 <tr className='text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300'>
                   <th className='py-1 px-1.5'>Ngày báo cáo</th>
-                  <th className='py-1 px-1.5'>
-                    Khung giờ tổng hợp (06:00 D → 05:59 D+1)
-                  </th>
+                  <th className='py-1 px-1.5'>Khung giờ tổng hợp (06:00 D → 05:59 D+1)</th>
                   <th className='py-1 px-1.5'>Trạng thái kỳ</th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Xe nhập (Chuyến / Kiện)
-                  </th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Nhập kho (CBM / Tấn)
-                  </th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Xe xuất (Chuyến / Kiện)
-                  </th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Xuất kho (CBM / Tấn)
-                  </th>
-                  <th className='py-1 px-1.5 text-right'>
-                    Sản lượng chọn (CBM)
-                  </th>
+                  <th className='py-1 px-1.5 text-right'>Xe nhập (Chuyến / Kiện)</th>
+                  <th className='py-1 px-1.5 text-right'>Nhập kho (CBM / Tấn)</th>
+                  <th className='py-1 px-1.5 text-right'>Xe xuất (Chuyến / Kiện)</th>
+                  <th className='py-1 px-1.5 text-right'>Xuất kho (CBM / Tấn)</th>
+                  <th className='py-1 px-1.5 text-right'>Sản lượng chọn (CBM)</th>
                   <th className='py-1 px-1.5 text-right'>Số Tấn chọn</th>
                   <th className='py-1 px-1.5 text-right'>Chi tiết TRIP ngày</th>
                 </tr>
@@ -1416,16 +1314,11 @@ export function OperationalDrilldownTableSlot() {
                     className='text-[10px] hover:bg-muted/60 transition-colors'
                   >
                     <td className='py-1 px-1.5 font-mono font-bold text-[#0F3D62] dark:text-blue-300'>
-                      <Link
-                        href={buildDayTripsHref(d.reportDate)}
-                        className='hover:underline'
-                      >
+                      <Link href={buildDayTripsHref(d.reportDate)} className='hover:underline'>
                         {d.fullDateLabel}
                       </Link>
                     </td>
-                    <td className='py-1 px-1.5 font-mono text-muted-foreground'>
-                      {d.windowLabel}
-                    </td>
+                    <td className='py-1 px-1.5 font-mono text-muted-foreground'>{d.windowLabel}</td>
                     <td className='py-1 px-1.5'>
                       {d.isFuture ? (
                         <Badge
@@ -1518,12 +1411,8 @@ export function OperationalDrilldownTableSlot() {
               <tbody className='divide-y divide-border/60'>
                 {confirmedTrips.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={10}
-                      className='py-3 text-center text-xs text-muted-foreground'
-                    >
-                      Không có chuyến xe đã xác nhận nào trong khung thời gian
-                      này.
+                    <td colSpan={10} className='py-3 text-center text-xs text-muted-foreground'>
+                      Không có chuyến xe đã xác nhận nào trong khung thời gian này.
                     </td>
                   </tr>
                 ) : (
@@ -1576,9 +1465,7 @@ export function OperationalDrilldownTableSlot() {
                         <span className='font-bold text-[#0F3D62] dark:text-blue-300'>
                           {t.reportDate}
                         </span>
-                        <span className='block text-muted-foreground'>
-                          {t.windowLabel}
-                        </span>
+                        <span className='block text-muted-foreground'>{t.windowLabel}</span>
                       </td>
                       <td className='py-1 px-1.5'>
                         <div className='flex items-center gap-1'>
@@ -1588,27 +1475,17 @@ export function OperationalDrilldownTableSlot() {
                             <IconBuildingWarehouse className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0' />
                           )}
                           <span className='font-semibold'>{t.hubName}</span>
-                          {renderHubLevelBadge(
-                            t.hubLevel,
-                            t.hubCode,
-                            t.hubName
-                          )}
+                          {renderHubLevelBadge(t.hubLevel, t.hubCode, t.hubName)}
                         </div>
                       </td>
                       <td className='py-1 px-1.5'>
-                        <span className='font-mono font-bold'>
-                          {t.licensePlate || '—'}
-                        </span>
+                        <span className='font-mono font-bold'>{t.licensePlate || '—'}</span>
                         {t.driverName && (
-                          <span className='text-muted-foreground'>
-                            {' '}
-                            • {t.driverName}
-                          </span>
+                          <span className='text-muted-foreground'> • {t.driverName}</span>
                         )}
                       </td>
                       <td className='py-1 px-1.5 text-right font-mono'>
-                        {t.orderCount} đơn •{' '}
-                        <strong>{t.packageCount} kiện</strong>
+                        {t.orderCount} đơn • <strong>{t.packageCount} kiện</strong>
                       </td>
                       <td className='py-1 px-1.5 text-right font-mono font-bold text-[#0F3D62] dark:text-blue-300'>
                         {formatNumberVn(t.volumeCbm, 1)} CBM
@@ -1635,7 +1512,6 @@ export function OperationalDrilldownTableSlot() {
             </table>
           </div>
         )}
-
       </CardContent>
     </Card>
   );
@@ -1647,9 +1523,7 @@ export function OperationalDrilldownTableSlot() {
  */
 export function AdminOperationalReportLayoutShell({
   children,
-  daily_stats,
-  monthly_trends,
-  drilldown_table
+  daily_stats
 }: {
   children: React.ReactNode;
   daily_stats: React.ReactNode;
@@ -1676,20 +1550,13 @@ export function AdminOperationalReportLayoutShell({
       pageDescription='Tổng hợp sản lượng hoạt động của Hub theo ngày và xu hướng tháng (Cronjob chốt sổ 06:00 ngày D → 05:59 ngày D+1 theo thời điểm xác nhận chuyến xe)'
     >
       <AdminOperationalReportProvider>
-        {/* Primary Slot: Single Global Filter Bar & 4 KPI Summary Cards */}
+        <AdminReportHeaderAndKpis />
+
         {children}
 
-        {/* Parallel Route Slot 1 (@daily_stats): Slide 2 — Biểu đồ Cột Sản lượng theo Ngày & Trung bình CBM/Ngày */}
         <div data-testid='parallel-slot-daily-stats'>
           {daily_stats || <DailyOperationalBarSlot />}
         </div>
-
-        {/* Parallel Route Slot 2 (@monthly_trends): Slide 3 — Báo cáo Kết quả Hoạt động Vận hành Xu hướng theo Tháng */}
-        <div data-testid='parallel-slot-monthly-trends'>
-          {monthly_trends || <MonthlyOperationalTrendsSlot />}
-        </div>
-
-        
       </AdminOperationalReportProvider>
     </PageContainer>
   );
@@ -1703,7 +1570,6 @@ export default function SuperAdminOperationalReport() {
     <AdminOperationalReportProvider>
       <AdminReportHeaderAndKpis />
       <DailyOperationalBarSlot />
-      <MonthlyOperationalTrendsSlot />
     </AdminOperationalReportProvider>
   );
 }
