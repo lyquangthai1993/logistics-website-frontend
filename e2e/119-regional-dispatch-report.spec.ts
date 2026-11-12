@@ -19,22 +19,35 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   await expect(page.getByRole('heading', { name: /Tình hình hàng hóa/ })).toBeVisible();
   await expect(page.getByTestId('regional-weight-chart')).toBeVisible({ timeout: 45_000 });
   await expect(page.getByTestId('regional-volume-chart')).toBeVisible();
-  const raw = await (await responsePromise).json();
+  const response = await responsePromise;
+  const requestUrl = new URL(response.url());
+  const fromDate = await page.getByTestId('report-from-date-input').inputValue();
+  const toDate = await page.getByTestId('report-to-date-input').inputValue();
+  expect(requestUrl.searchParams.get('fromDate')).toBe(fromDate);
+  expect(requestUrl.searchParams.get('toDate')).toBe(toDate);
+  expect(requestUrl.searchParams.get('hubId')).toBe('ALL');
+  const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
   expect(report.draftRegions).toBeDefined();
+  expect(report.dailySeries.length).toBeGreaterThan(0);
   expect(report.onhandOrdersList.length).toBeGreaterThan(0);
   const regions = ['north', 'central', 'south', 'na'] as const;
   const storedWeight = regions.reduce((sum, key) => sum + report.regions[key].onhandWeightKg, 0);
   const storedVolume = regions.reduce((sum, key) => sum + report.regions[key].onhandVolumeCbm, 0);
   const draftWeight = regions.reduce((sum, key) => sum + report.draftRegions[key].weightKg, 0);
   const draftVolume = regions.reduce((sum, key) => sum + report.draftRegions[key].volumeCbm, 0);
+  for (const key of regions) {
+    expect(Array.isArray(report.regions[key].onhandOrderCodes)).toBe(true);
+    expect(Array.isArray(report.regions[key].draftOrderCodes)).toBe(true);
+    expect(Array.isArray(report.draftRegions[key].orderCodes)).toBe(true);
+  }
   const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
   const weight = page.getByTestId('regional-weight-chart');
   const volume = page.getByTestId('regional-volume-chart');
   const cases = [
     ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume],
     ['Lưu kho', storedWeight, storedVolume],
-    ['Dự kiến về kho', draftWeight, draftVolume],
+    ['Đơn nháp', draftWeight, draftVolume],
     ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume]
   ] as const;
   await expect(controls.getByRole('button', { name: cases[0][0], exact: true })).toHaveAttribute(
@@ -68,7 +81,23 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
   });
   await page.screenshot({
-    path: 'e2e/screenshots/screenshot_report_full_updated_verified.png',
+    path: 'e2e/screenshots/screenshot_regional_dispatch_range_verified.png',
     fullPage: true
   });
+
+  const changedFromDate = '2026-11-03';
+  const rangeResponsePromise = page.waitForResponse((nextResponse) => {
+    const url = new URL(nextResponse.url());
+    return (
+      nextResponse.status() === 200 &&
+      url.pathname.endsWith('/admin/reports/regional-dispatch') &&
+      url.searchParams.get('fromDate') === changedFromDate
+    );
+  });
+  await page.getByTestId('report-from-date-input').fill(changedFromDate);
+  const rangeResponse = await rangeResponsePromise;
+  const updatedRaw = await rangeResponse.json();
+  const updatedReport: RegionalReportApiResponse = updatedRaw.data ?? updatedRaw;
+  expect(updatedReport.range.fromDate).toBe(changedFromDate);
+  expect(updatedReport.range.toDate).toBe(toDate);
 });
