@@ -4,39 +4,19 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   IconAlertTriangle,
-  IconBuildingWarehouse,
-  IconChartBar,
-  IconCheck,
-  IconChevronDown,
-  IconChevronUp,
-  IconClock,
-  IconCopy,
   IconDownload,
-  IconEye,
-  IconInfoCircle,
   IconLoader2,
-  IconPackage,
   IconRefresh,
-  IconSearch,
-  IconSparkles,
-  IconTable,
   IconTruck
 } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
+import { formatApiError } from '@/lib/api-error';
 import { formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
 import { useOptionalAdminOperationalReport } from './super-admin-operational-report';
 
 export interface RegionalMetricItem {
@@ -59,6 +39,10 @@ export interface RegionalMetricItem {
 }
 
 export interface RegionalReportApiResponse {
+  draftRegions: Record<
+    'north' | 'central' | 'south' | 'na',
+    { weightKg: number; volumeCbm: number }
+  >;
   hub: {
     id: number;
     code: string;
@@ -175,9 +159,9 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     name: 'CHƯA PHÂN MIỀN (N/A)',
     subtitle: 'Đơn hàng thiếu/sai thông tin tỉnh thành đến',
     badgeBg: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    badgeText: 'text-rose-700 dark:text-rose-300',
+    badgeText: 'text-slate-600 dark:text-slate-300',
     badgeBorder: 'border-rose-500/30',
-    barColorWeight: 'bg-rose-500 dark:bg-rose-400',
+    barColorWeight: 'bg-slate-500 dark:bg-slate-400',
     barColorVolume: 'bg-rose-400/80 dark:bg-rose-300/80',
     dotColor: 'bg-rose-500'
   }
@@ -191,18 +175,7 @@ export function SuperAdminRegionalDispatchTable() {
   // Lấy theo bộ filter tổng đang có sẵn trên trang (toDate & selectedHubId)
   const selectedDate = globalFilter?.toDate || todayStr;
   const selectedHubId = globalFilter?.selectedHubId || 'ALL';
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [showVisualChart, setShowVisualChart] = useState<boolean>(true);
-  const [chartMetricTab, setChartMetricTab] = useState<'both' | 'weight' | 'volume'>('both');
-
-  // Drilldown Modal
-  const [drilldownRegion, setDrilldownRegion] = useState<{
-    key: 'north' | 'central' | 'south' | 'na';
-    name: string;
-    metric: RegionalMetricItem;
-  } | null>(null);
-  const [drilldownTab, setDrilldownTab] = useState<'incoming' | 'onhand'>('incoming');
-  const [drilldownSearch, setDrilldownSearch] = useState('');
+  const [chartStatus, setChartStatus] = useState<'onhand' | 'draft' | 'total'>('total');
 
   const {
     data: raw,
@@ -212,7 +185,9 @@ export function SuperAdminRegionalDispatchTable() {
   } = useQuery({
     queryKey: ['admin-regional-dispatch-report-table', selectedHubId, selectedDate],
     queryFn: async () => {
-      const res = await apiClient.get<any>(
+      const res = await apiClient.get<
+        RegionalReportApiResponse | { data: RegionalReportApiResponse }
+      >(
         `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&date=${selectedDate}&mode=live`
       );
       return res.data;
@@ -231,15 +206,13 @@ export function SuperAdminRegionalDispatchTable() {
         queryKey: ['admin-regional-dispatch-report-table']
       });
     },
-    onError: (err: any) => {
-      toast.error(
-        err?.response?.data?.message || 'Đồng bộ snapshot thất bại. Vui lòng thử lại.'
-      );
+    onError: (err: unknown) => {
+      toast.error(formatApiError(err));
     }
   });
 
   // Unwrap ApiResponse envelope safely
-  const data: RegionalReportApiResponse | undefined = (raw as any)?.data ?? (raw as any);
+  const data = raw ? ('data' in raw ? raw.data : raw) : undefined;
 
   const totals = data?.totals || {
     totalWeightKg: 0,
@@ -252,35 +225,25 @@ export function SuperAdminRegionalDispatchTable() {
     incomingTripCount: 0
   };
 
-  // Find max values for horizontal bar scaling
-  const maxWeightKg = useMemo(() => {
-    if (!data?.regions) return 1;
-    const weights = [
-      data.regions.north?.totalWeightKg || 0,
-      data.regions.central?.totalWeightKg || 0,
-      data.regions.south?.totalWeightKg || 0,
-      data.regions.na?.totalWeightKg || 0
-    ];
-    return Math.max(...weights, 1);
-  }, [data]);
-
-  const maxVolumeCbm = useMemo(() => {
-    if (!data?.regions) return 1;
-    const volumes = [
-      data.regions.north?.totalVolumeCbm || 0,
-      data.regions.central?.totalVolumeCbm || 0,
-      data.regions.south?.totalVolumeCbm || 0,
-      data.regions.na?.totalVolumeCbm || 0
-    ];
-    return Math.max(...volumes, 1);
-  }, [data]);
-
-  const handleCopySnippet = (key: string, snippet: string) => {
-    navigator.clipboard.writeText(snippet);
-    setCopiedKey(key);
-    toast.success('Đã sao chép tin nhắn điều hành nhanh vào Clipboard!');
-    setTimeout(() => setCopiedKey(null), 2500);
-  };
+  const chartRegions = REGION_CONFIGS.map((cfg) => {
+    const stored = data?.regions[cfg.key];
+    const draft = data?.draftRegions?.[cfg.key];
+    const weightKg =
+      (chartStatus === 'draft' ? 0 : (stored?.onhandWeightKg ?? 0)) +
+      (chartStatus === 'onhand' ? 0 : (draft?.weightKg ?? 0));
+    const volumeCbm =
+      (chartStatus === 'draft' ? 0 : (stored?.onhandVolumeCbm ?? 0)) +
+      (chartStatus === 'onhand' ? 0 : (draft?.volumeCbm ?? 0));
+    return { totalWeightKg: weightKg, totalWeightTons: weightKg / 1000, totalVolumeCbm: volumeCbm };
+  });
+  const chartTotals = chartRegions.reduce(
+    (sum, region) => ({
+      totalWeightKg: sum.totalWeightKg + region.totalWeightKg,
+      totalWeightTons: sum.totalWeightTons + region.totalWeightTons,
+      totalVolumeCbm: sum.totalVolumeCbm + region.totalVolumeCbm
+    }),
+    { totalWeightKg: 0, totalWeightTons: 0, totalVolumeCbm: 0 }
+  );
 
   const handleExportExcel = () => {
     if (!data?.regions) return;
@@ -329,55 +292,17 @@ export function SuperAdminRegionalDispatchTable() {
     toast.success(`Đã xuất file ${fileName} thành công!`);
   };
 
-  // Filter drilldown items
-  const filteredIncomingTrips = useMemo(() => {
-    if (!drilldownRegion || !data?.incomingTripsList) return [];
-    return data.incomingTripsList.filter((trip) => {
-      const matchRegion = trip.region === drilldownRegion.name;
-      if (!matchRegion) return false;
-      if (!drilldownSearch) return true;
-      const s = drilldownSearch.toLowerCase();
-      return (
-        trip.tripCode?.toLowerCase().includes(s) ||
-        trip.licensePlate?.toLowerCase().includes(s) ||
-        trip.driverName?.toLowerCase().includes(s) ||
-        trip.province?.toLowerCase().includes(s)
-      );
-    });
-  }, [drilldownRegion, data, drilldownSearch]);
-
-  const filteredOnhandOrders = useMemo(() => {
-    if (!drilldownRegion || !data?.onhandOrdersList) return [];
-    return data.onhandOrdersList.filter((order) => {
-      const matchRegion = order.region === drilldownRegion.name;
-      if (!matchRegion) return false;
-      if (!drilldownSearch) return true;
-      const s = drilldownSearch.toLowerCase();
-      return (
-        order.orderCode?.toLowerCase().includes(s) ||
-        order.province?.toLowerCase().includes(s) ||
-        order.goodsDescription?.toLowerCase().includes(s)
-      );
-    });
-  }, [drilldownRegion, data, drilldownSearch]);
-
   const naOrders = useMemo(() => {
     if (!data?.onhandOrdersList) return [];
     return data.onhandOrdersList.filter(
-      (o) =>
-        o.region?.includes('N/A') ||
-        o.region === 'CHƯA PHÂN MIỀN (N/A)' ||
-        o.region === 'N/A'
+      (o) => o.region?.includes('N/A') || o.region === 'CHƯA PHÂN MIỀN (N/A)' || o.region === 'N/A'
     );
   }, [data]);
 
   const naTrips = useMemo(() => {
     if (!data?.incomingTripsList) return [];
     return data.incomingTripsList.filter(
-      (t) =>
-        t.region?.includes('N/A') ||
-        t.region === 'CHƯA PHÂN MIỀN (N/A)' ||
-        t.region === 'N/A'
+      (t) => t.region?.includes('N/A') || t.region === 'CHƯA PHÂN MIỀN (N/A)' || t.region === 'N/A'
     );
   }, [data]);
 
@@ -391,12 +316,18 @@ export function SuperAdminRegionalDispatchTable() {
               <IconTruck className='h-4 w-4' />
             </div>
             <h3 className='text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
-              Cân Đối Tải Trọng Đội Xe Theo Miền (Bắc - Trung - Nam)
-              <Badge variant='outline' className='text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40'>
+              Tình hình hàng hóa
+              <Badge
+                variant='outline'
+                className='text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40'
+              >
                 Thời gian thực (Live)
               </Badge>
               {data?.cronInfo?.cronTime && (
-                <Badge variant='outline' className='text-[10px] py-0 px-1.5 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-mono'>
+                <Badge
+                  variant='outline'
+                  className='text-[10px] py-0 px-1.5 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-mono'
+                >
                   Lịch Cronjob: {data.cronInfo.cronTime}
                 </Badge>
               )}
@@ -415,21 +346,6 @@ export function SuperAdminRegionalDispatchTable() {
           >
             <IconRefresh className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
             Làm mới
-          </Button>
-
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => setShowVisualChart(!showVisualChart)}
-            className='h-8 text-xs gap-1.5'
-          >
-            <IconChartBar className='h-3.5 w-3.5 text-purple-600' />
-            {showVisualChart ? 'Thu gọn biểu đồ' : 'Biểu đồ thanh ngang'}
-            {showVisualChart ? (
-              <IconChevronUp className='h-3 w-3 text-slate-400' />
-            ) : (
-              <IconChevronDown className='h-3 w-3 text-slate-400' />
-            )}
           </Button>
 
           <Button
@@ -465,84 +381,82 @@ export function SuperAdminRegionalDispatchTable() {
             data.regions.na.totalVolumeCbm > 0 ||
             data.regions.na.onhandOrderCount > 0 ||
             data.regions.na.incomingTripCount > 0) && (
-          <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
-            <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
-            <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
-              <div>
-                <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN: </span>
-                Có{' '}
-                {data.regions.na.onhandOrderCount > 0
-                  ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
-                  : ''}
-                {data.regions.na.onhandOrderCount > 0 &&
-                data.regions.na.incomingTripCount > 0
-                  ? ' và '
-                  : ''}
-                {data.regions.na.incomingTripCount > 0
-                  ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
-                  : ''}{' '}
-                (
-                {formatNumber(data.regions.na.totalWeightTons)} Tấn •{' '}
-                {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được
-                Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+            <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
+              <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
+              <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
+                <div>
+                  <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN: </span>
+                  Có{' '}
+                  {data.regions.na.onhandOrderCount > 0
+                    ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
+                    : ''}
+                  {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0
+                    ? ' và '
+                    : ''}
+                  {data.regions.na.incomingTripCount > 0
+                    ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
+                    : ''}{' '}
+                  ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{' '}
+                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do nhập
+                  sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+                </div>
+
+                {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
+                {naOrders.length > 0 && (
+                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                      Danh sách đơn hàng cụ thể cần rà soát:
+                    </div>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {naOrders.map((ord) => (
+                        <span
+                          key={ord.id}
+                          className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
+                        >
+                          <strong className='text-purple-700 dark:text-purple-300'>
+                            {ord.orderCode}
+                          </strong>
+                          <span className='text-slate-600 dark:text-slate-300 font-sans'>
+                            (Tỉnh nhập:{' '}
+                            <strong className='text-rose-600 dark:text-rose-400'>
+                              {ord.province || 'Chưa nhập'}
+                            </strong>{' '}
+                            • {formatNumber(ord.remainingQuantity)} kiện •{' '}
+                            {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Danh sách các chuyến xe N/A nếu có */}
+                {naTrips.length > 0 && (
+                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                      Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
+                    </div>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {naTrips.map((tr) => (
+                        <span
+                          key={tr.id}
+                          className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
+                        >
+                          <strong className='text-blue-700 dark:text-blue-300'>
+                            {tr.tripCode}
+                          </strong>
+                          <span className='text-slate-600 dark:text-slate-300 font-sans'>
+                            (BS: {tr.licensePlate || '—'} • {tr.originHubName} →{' '}
+                            {tr.destinationHubName})
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
-              {naOrders.length > 0 && (
-                <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                  <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                    Danh sách đơn hàng cụ thể cần rà soát:
-                  </div>
-                  <div className='flex flex-wrap gap-1.5'>
-                    {naOrders.map((ord) => (
-                      <span
-                        key={ord.id}
-                        className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
-                      >
-                        <strong className='text-purple-700 dark:text-purple-300'>
-                          {ord.orderCode}
-                        </strong>
-                        <span className='text-slate-600 dark:text-slate-300 font-sans'>
-                          (Tỉnh nhập:{' '}
-                          <strong className='text-rose-600 dark:text-rose-400'>
-                            {ord.province || 'Chưa nhập'}
-                          </strong>{' '}
-                          • {formatNumber(ord.remainingQuantity)} kiện •{' '}
-                          {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Danh sách các chuyến xe N/A nếu có */}
-              {naTrips.length > 0 && (
-                <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                  <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                    Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
-                  </div>
-                  <div className='flex flex-wrap gap-1.5'>
-                    {naTrips.map((tr) => (
-                      <span
-                        key={tr.id}
-                        className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
-                      >
-                        <strong className='text-blue-700 dark:text-blue-300'>
-                          {tr.tripCode}
-                        </strong>
-                        <span className='text-slate-600 dark:text-slate-300 font-sans'>
-                          (BS: {tr.licensePlate || '—'} • {tr.originHubName} →{' '}
-                          {tr.destinationHubName})
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        )}
+          )}
 
         {/* Loading Skeleton */}
         {isLoading ? (
@@ -553,80 +467,67 @@ export function SuperAdminRegionalDispatchTable() {
         ) : (
           <>
             {/* Visual Horizontal Bar Chart Section (Styled exactly like user reference image) */}
-            {data?.regions && showVisualChart && (
-              <div className='p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-3'>
+            {data?.regions && (
+              <div className='p-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-2'>
                 {/* Chart Toolbar */}
                 <div className='flex items-center justify-between flex-wrap gap-2'>
-
-                  {/* Metric Tab Selector */}
-                  <div className='flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs'>
-                    <button
-                      type='button'
-                      onClick={() => setChartMetricTab('both')}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-                        chartMetricTab === 'both'
-                          ? 'bg-purple-600 text-white shadow-2xs font-semibold'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                      }`}
-                    >
-                      Cả hai chỉ số
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setChartMetricTab('weight')}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-                        chartMetricTab === 'weight'
-                          ? 'bg-purple-600 text-white shadow-2xs font-semibold'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                      }`}
-                    >
-                      Khối Lượng (Tấn)
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setChartMetricTab('volume')}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-                        chartMetricTab === 'volume'
-                          ? 'bg-purple-600 text-white shadow-2xs font-semibold'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                      }`}
-                    >
-                      Thể Tích (m³)
-                    </button>
+                  <div
+                    role='group'
+                    aria-label='Trạng thái đơn hàng'
+                    className='flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs'
+                  >
+                    {(
+                      [
+                        ['onhand', 'Lưu kho'],
+                        ['draft', 'Dự kiến về kho'],
+                        ['total', 'Tổng hợp']
+                      ] as const
+                    ).map(([status, label]) => (
+                      <button
+                        key={status}
+                        type='button'
+                        aria-pressed={chartStatus === status}
+                        onClick={() => setChartStatus(status)}
+                        className={`h-8 px-2.5 rounded text-xs font-medium cursor-pointer ${
+                          chartStatus === status
+                            ? 'bg-purple-600 text-white font-semibold'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 {/* Visual Charts Grid */}
-                <div
-                  className={`grid gap-4 ${
-                    chartMetricTab === 'both'
-                      ? 'grid-cols-1 lg:grid-cols-2'
-                      : 'grid-cols-1'
-                  }`}
-                >
+                <div className='grid gap-2 grid-cols-1 lg:grid-cols-2'>
                   {/* Chart 1: Weight (Tấn • Kg) */}
-                  {(chartMetricTab === 'both' || chartMetricTab === 'weight') && (
-                    <div className='p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2.5'>
+                  {
+                    <div
+                      data-testid='regional-weight-chart'
+                      className='p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2'
+                    >
                       <div className='flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-2'>
                         <div className='flex items-center gap-1.5'>
                           <span className='inline-block w-2.5 h-2.5 rounded-full bg-purple-600' />
                           <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
-                            Khối Lượng Vận Tải Theo Miền (Tấn • Kg)
+                            Khối Lượng Vận Tải Theo Miền (kg)
                           </span>
                         </div>
                         <span className='text-xs font-mono font-bold text-purple-700 dark:text-purple-300'>
-                          Tổng: {formatNumber(totals.totalWeightTons)} Tấn
+                          Tổng: {formatNumber(chartTotals.totalWeightKg)} kg
                         </span>
                       </div>
 
                       {/* Horizontal Bars */}
                       <div className='space-y-2 pt-1'>
-                        {REGION_CONFIGS.map((cfg) => {
-                          const metric = data.regions[cfg.key];
+                        {REGION_CONFIGS.map((cfg, index) => {
+                          const metric = chartRegions[index];
                           const weightPct =
-                            totals.totalWeightKg > 0 && metric?.totalWeightKg
+                            chartTotals.totalWeightKg > 0 && metric?.totalWeightKg
                               ? Math.round(
-                                  (metric.totalWeightKg / totals.totalWeightKg) * 1000
+                                  (metric.totalWeightKg / chartTotals.totalWeightKg) * 1000
                                 ) / 10
                               : 0;
                           return (
@@ -641,17 +542,19 @@ export function SuperAdminRegionalDispatchTable() {
                               {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
                               <div className='flex-1 flex items-center min-w-0'>
                                 <div
-                                  className='h-6 sm:h-7 bg-purple-600 dark:bg-purple-500 rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0'
+                                  className={`h-6 sm:h-7 ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
                                   style={{
                                     width: `${Math.max(
                                       weightPct > 0 ? weightPct : 0,
                                       (metric?.totalWeightKg || 0) > 0 ? 3 : 0
                                     )}%`,
-                                    maxWidth: 'calc(100% - 110px)'
+                                    maxWidth: 'calc(100% - 170px)'
                                   }}
                                 />
-                                <span className='ml-2 font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
-                                  {formatNumber(metric?.totalWeightTons || 0)} Tấn
+                                <span
+                                  className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
+                                >
+                                  {formatNumber(metric?.totalWeightKg ?? 0)} kg
                                   <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
                                     ({weightPct}%)
                                   </span>
@@ -674,11 +577,14 @@ export function SuperAdminRegionalDispatchTable() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  }
 
                   {/* Chart 2: Volume (m³) */}
-                  {(chartMetricTab === 'both' || chartMetricTab === 'volume') && (
-                    <div className='p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2.5'>
+                  {
+                    <div
+                      data-testid='regional-volume-chart'
+                      className='p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2'
+                    >
                       <div className='flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-2'>
                         <div className='flex items-center gap-1.5'>
                           <span className='inline-block w-2.5 h-2.5 rounded-full bg-purple-600' />
@@ -687,18 +593,18 @@ export function SuperAdminRegionalDispatchTable() {
                           </span>
                         </div>
                         <span className='text-xs font-mono font-bold text-purple-700 dark:text-purple-300'>
-                          Tổng: {formatNumber(totals.totalVolumeCbm)} m³
+                          Tổng: {formatNumber(chartTotals.totalVolumeCbm)} m³
                         </span>
                       </div>
 
                       {/* Horizontal Bars */}
                       <div className='space-y-2 pt-1'>
-                        {REGION_CONFIGS.map((cfg) => {
-                          const metric = data.regions[cfg.key];
+                        {REGION_CONFIGS.map((cfg, index) => {
+                          const metric = chartRegions[index];
                           const volumePct =
-                            totals.totalVolumeCbm > 0 && metric?.totalVolumeCbm
+                            chartTotals.totalVolumeCbm > 0 && metric?.totalVolumeCbm
                               ? Math.round(
-                                  (metric.totalVolumeCbm / totals.totalVolumeCbm) * 1000
+                                  (metric.totalVolumeCbm / chartTotals.totalVolumeCbm) * 1000
                                 ) / 10
                               : 0;
                           return (
@@ -713,16 +619,18 @@ export function SuperAdminRegionalDispatchTable() {
                               {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
                               <div className='flex-1 flex items-center min-w-0'>
                                 <div
-                                  className='h-6 sm:h-7 bg-purple-600 dark:bg-purple-500 rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0'
+                                  className={`h-6 sm:h-7 ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
                                   style={{
                                     width: `${Math.max(
                                       volumePct > 0 ? volumePct : 0,
                                       (metric?.totalVolumeCbm || 0) > 0 ? 3 : 0
                                     )}%`,
-                                    maxWidth: 'calc(100% - 110px)'
+                                    maxWidth: 'calc(100% - 170px)'
                                   }}
                                 />
-                                <span className='ml-2 font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-mono whitespace-nowrap shrink-0'>
+                                <span
+                                  className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
+                                >
                                   {formatNumber(metric?.totalVolumeCbm || 0)} m³
                                   <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
                                     ({volumePct}%)
@@ -746,421 +654,13 @@ export function SuperAdminRegionalDispatchTable() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  }
                 </div>
               </div>
             )}
-
-            <div className='overflow-x-auto'>
-              <table className='w-full text-left border-collapse'>
-                <thead>
-                  <tr className='border-b border-slate-200 dark:border-slate-800 bg-slate-100/75 dark:bg-slate-900/75 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider'>
-                    <th className='py-2.5 px-3 w-[180px] sm:w-[220px]'>Khu Vực (Vùng Miền)</th>
-                    <th className='py-2.5 px-3 min-w-[260px] sm:min-w-[320px]'>
-                      Khối Lượng (Kg / Tấn) & Tỷ Trọng
-                    </th>
-                    <th className='py-2.5 px-3 min-w-[220px] sm:min-w-[280px]'>
-                      Thể Tích (m³) & Tỷ Trọng
-                    </th>
-                    <th className='py-2.5 px-3 w-[150px]'>Số Kiện & Xe</th>
-                    <th className='py-2.5 px-3 min-w-[200px]'>Đề Xuất Điều Xe</th>
-                    <th className='py-2.5 px-3 w-[90px] text-center'>Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-slate-100 dark:divide-slate-800 text-xs'>
-                  {REGION_CONFIGS.map((cfg) => {
-                    const metric = data?.regions?.[cfg.key] || {
-                      region: cfg.name,
-                      onhandWeightKg: 0,
-                      onhandWeightTons: 0,
-                      onhandVolumeCbm: 0,
-                      onhandPackageCount: 0,
-                      onhandOrderCount: 0,
-                      incomingWeightKg: 0,
-                      incomingWeightTons: 0,
-                      incomingVolumeCbm: 0,
-                      incomingPackageCount: 0,
-                      incomingTripCount: 0,
-                      totalWeightKg: 0,
-                      totalWeightTons: 0,
-                      totalVolumeCbm: 0,
-                      recommendedVehicle: 'Chưa đủ sản lượng',
-                      quickSnippet: ''
-                    };
-
-                    const weightPct =
-                      totals.totalWeightKg > 0
-                        ? Math.round((metric.totalWeightKg / totals.totalWeightKg) * 1000) / 10
-                        : 0;
-
-                    const volumePct =
-                      totals.totalVolumeCbm > 0
-                        ? Math.round((metric.totalVolumeCbm / totals.totalVolumeCbm) * 1000) / 10
-                        : 0;
-
-                    const isNA = cfg.key === 'na';
-
-                    return (
-                      <tr
-                        key={cfg.key}
-                        className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
-                          isNA && metric.totalWeightKg > 0 ? 'bg-rose-50/20 dark:bg-rose-950/10' : ''
-                        }`}
-                      >
-                        {/* Region Column */}
-                        <td className='py-3 px-3 align-top'>
-                          <div className='space-y-1'>
-                            <div className='flex items-center gap-1.5'>
-                              <span className={`inline-block w-2.5 h-2.5 rounded-full ${cfg.dotColor} shrink-0`} />
-                              <span className='font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm'>
-                                {cfg.name}
-                              </span>
-                            </div>
-                            <p className='text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 pl-4'>
-                              {cfg.subtitle}
-                            </p>
-                            <div className='pl-4 pt-0.5'>
-                              <Badge
-                                variant='outline'
-                                className={`text-[9px] py-0 px-1.5 font-normal ${cfg.badgeBg} ${cfg.badgeBorder}`}
-                              >
-                                {cfg.key === 'south'
-                                  ? 'Đã gộp Miền Tây'
-                                  : isNA
-                                  ? 'Cần rà soát'
-                                  : 'Tuyến trục chính'}
-                              </Badge>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Weight Column (Clean Numbers) */}
-                        <td className='py-2.5 px-3 align-middle'>
-                          <div className='space-y-1'>
-                            <div className='flex items-baseline justify-between gap-2'>
-                              <div className='flex items-baseline gap-1.5'>
-                                <span className='font-bold text-slate-900 dark:text-slate-100 text-sm font-mono'>
-                                  {formatNumber(metric.totalWeightTons)} Tấn
-                                </span>
-                                <span className='text-[11px] text-slate-500 dark:text-slate-400 font-mono'>
-                                  ({formatNumber(metric.totalWeightKg)} kg)
-                                </span>
-                              </div>
-                              <span className='text-xs font-bold text-purple-700 dark:text-purple-300 font-mono'>
-                                {weightPct}%
-                              </span>
-                            </div>
-
-                            {/* Sub-breakdown: Onhand vs Incoming */}
-                            <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5'>
-                              <span className='flex items-center gap-1'>
-                                <span className='inline-block w-1.5 h-1.5 rounded-full bg-slate-400' />
-                                Kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandWeightTons)}T</strong>
-                              </span>
-                              <span className='flex items-center gap-1'>
-                                <span className='inline-block w-1.5 h-1.5 rounded-full bg-purple-500' />
-                                Xe về: <strong className='text-purple-700 dark:text-purple-300'>{formatNumber(metric.incomingWeightTons)}T</strong>
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Volume Column (Clean Numbers) */}
-                        <td className='py-2.5 px-3 align-middle'>
-                          <div className='space-y-1'>
-                            <div className='flex items-baseline justify-between gap-2'>
-                              <span className='font-bold text-slate-900 dark:text-slate-100 text-sm font-mono'>
-                                {formatNumber(metric.totalVolumeCbm)} m³
-                              </span>
-                              <span className='text-xs font-bold text-purple-700 dark:text-purple-300 font-mono'>
-                                {volumePct}%
-                              </span>
-                            </div>
-
-                            {/* Sub-breakdown */}
-                            <div className='flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5'>
-                              <span>Kho: <strong className='text-slate-700 dark:text-slate-300'>{formatNumber(metric.onhandVolumeCbm)} m³</strong></span>
-                              <span>Xe về: <strong className='text-purple-700 dark:text-purple-300'>{formatNumber(metric.incomingVolumeCbm)} m³</strong></span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Packages & Trips Column */}
-                        <td className='py-3 px-3 align-top text-xs'>
-                          <div className='space-y-1'>
-                            <div className='flex items-center gap-1 text-slate-800 dark:text-slate-200'>
-                              <IconPackage className='h-3.5 w-3.5 text-slate-400' />
-                              <strong className='font-semibold'>{formatNumber((metric.onhandPackageCount || 0) + (metric.incomingPackageCount || 0))}</strong> kiện
-                            </div>
-                            <div className='flex items-center gap-1 text-[11px] text-purple-700 dark:text-purple-300'>
-                              <IconTruck className='h-3.5 w-3.5 text-purple-500' />
-                              <span><strong>{formatNumber(metric.incomingTripCount)}</strong> xe sắp về</span>
-                            </div>
-                            <div className='text-[10px] text-slate-400'>
-                              Kho: {formatNumber(metric.onhandOrderCount)} đơn
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Vehicle Recommendation & Snippet */}
-                        <td className='py-3 px-3 align-top'>
-                          <div className='space-y-1.5'>
-                            <div className='text-xs font-semibold text-slate-900 dark:text-slate-100 leading-tight'>
-                              {metric.recommendedVehicle}
-                            </div>
-                            {metric.quickSnippet && (
-                              <button
-                                onClick={() => handleCopySnippet(cfg.key, metric.quickSnippet)}
-                                className='inline-flex items-center gap-1 text-[10px] text-purple-600 hover:text-purple-700 dark:text-purple-400 hover:underline font-medium cursor-pointer'
-                              >
-                                {copiedKey === cfg.key ? (
-                                  <>
-                                    <IconCheck className='h-3 w-3 text-emerald-600' />
-                                    <span className='text-emerald-600 font-bold'>Đã chép tin nhắn</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <IconCopy className='h-3 w-3' />
-                                    <span>Sao chép tin nhắn điều xe</span>
-                                  </>
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Actions Column */}
-                        <td className='py-3 px-3 align-middle text-center'>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() =>
-                              setDrilldownRegion({
-                                key: cfg.key,
-                                name: cfg.name,
-                                metric
-                              })
-                            }
-                            className='h-7 w-7 p-0 text-slate-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded'
-                            title={`Xem chi tiết chuyến xe và đơn hàng ${cfg.name}`}
-                          >
-                            <IconEye className='h-4 w-4' />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-                {/* Total Footer Row */}
-                <tfoot>
-                  <tr className='border-t-2 border-slate-300 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-900/90 font-bold text-slate-900 dark:text-slate-100 text-xs'>
-                    <td className='py-3 px-3'>
-                      <div className='flex items-center gap-1.5'>
-                        <IconBuildingWarehouse className='h-4 w-4 text-purple-600' />
-                        <span>TỔNG CỘNG TOÀN QUỐC</span>
-                      </div>
-                    </td>
-                    <td className='py-3 px-3 align-middle'>
-                      <div className='flex items-baseline justify-between'>
-                        <span className='text-sm text-purple-700 dark:text-purple-300 font-extrabold font-mono'>
-                          {formatNumber(totals.totalWeightTons)} Tấn
-                        </span>
-                        <span className='text-[10px] text-slate-500 font-normal'>
-                          Kho: {formatNumber(Math.round(((totals.onhandWeightKg || 0) / 1000) * 100) / 100)}T • Xe: {formatNumber(Math.round(((totals.incomingWeightKg || 0) / 1000) * 100) / 100)}T
-                        </span>
-                      </div>
-                    </td>
-                    <td className='py-3 px-3 align-middle'>
-                      <span className='text-sm text-purple-700 dark:text-purple-300 font-extrabold font-mono'>
-                        {formatNumber(totals.totalVolumeCbm)} m³
-                      </span>
-                    </td>
-                    <td className='py-3 px-3'>
-                      <div className='text-slate-800 dark:text-slate-200'>
-                        <strong>{formatNumber(totals.packageCount)}</strong> kiện • <strong>{formatNumber(totals.incomingTripCount)}</strong> xe
-                      </div>
-                    </td>
-                    <td className='py-3 px-3' colSpan={2}>
-                      <span className='text-[11px] text-slate-500 font-normal'>
-                        Khuyến nghị phân bổ theo từng miền tương ứng
-                      </span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-        </>
-      )}
-    </CardContent>
-
-      {/* Drilldown Modal (Detailed Trips & Onhand Orders per Region) */}
-      <Dialog open={!!drilldownRegion} onOpenChange={(open) => !open && setDrilldownRegion(null)}>
-        <DialogContent className='sm:max-w-4xl max-h-[85vh] overflow-y-auto p-4'>
-          {drilldownRegion && (
-            <>
-              <DialogHeader>
-                <DialogTitle className='flex items-center justify-between text-base font-bold'>
-                  <div className='flex items-center gap-2'>
-                    <span>Chi Tiết Hàng Hóa — {drilldownRegion.name}</span>
-                    <Badge variant='outline' className='text-xs'>
-                      {formatNumber(drilldownRegion.metric.totalWeightTons)} Tấn • {formatNumber(drilldownRegion.metric.totalVolumeCbm)} m³
-                    </Badge>
-                  </div>
-                </DialogTitle>
-                <DialogDescription className='text-xs'>
-                  Danh sách chi tiết các chuyến xe đang trung chuyển về kho và các đơn hàng sẵn tại kho
-                </DialogDescription>
-              </DialogHeader>
-
-              {/* Drilldown Tabs & Search */}
-              <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 border-b border-slate-200 dark:border-slate-800 pb-2'>
-                <div className='flex items-center gap-1.5'>
-                  <Button
-                    size='sm'
-                    variant={drilldownTab === 'incoming' ? 'default' : 'outline'}
-                    onClick={() => setDrilldownTab('incoming')}
-                    className={`h-7 text-xs ${drilldownTab === 'incoming' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}`}
-                  >
-                    <IconTruck className='h-3.5 w-3.5 mr-1' />
-                    Xe sắp về ({filteredIncomingTrips.length})
-                  </Button>
-                  <Button
-                    size='sm'
-                    variant={drilldownTab === 'onhand' ? 'default' : 'outline'}
-                    onClick={() => setDrilldownTab('onhand')}
-                    className={`h-7 text-xs ${drilldownTab === 'onhand' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}`}
-                  >
-                    <IconPackage className='h-3.5 w-3.5 mr-1' />
-                    Đơn sẵn tại kho ({filteredOnhandOrders.length})
-                  </Button>
-                </div>
-
-                <div className='relative w-full sm:w-64'>
-                  <IconSearch className='h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400' />
-                  <Input
-                    placeholder='Tìm biển số, mã chuyến, tỉnh...'
-                    value={drilldownSearch}
-                    onChange={(e) => setDrilldownSearch(e.target.value)}
-                    className='h-7 text-xs pl-8'
-                  />
-                </div>
-              </div>
-
-              {/* Drilldown Content */}
-              <div className='pt-2'>
-                {drilldownTab === 'incoming' ? (
-                  filteredIncomingTrips.length === 0 ? (
-                    <div className='py-8 text-center text-xs text-slate-400'>
-                      Không có chuyến xe nào sắp về thuộc khu vực này.
-                    </div>
-                  ) : (
-                    <div className='overflow-x-auto max-h-[380px] border border-slate-200 dark:border-slate-800 rounded-md'>
-                      <table className='w-full text-left text-xs'>
-                        <thead className='bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 sticky top-0'>
-                          <tr>
-                            <th className='py-1.5 px-2.5'>Mã Chuyến</th>
-                            <th className='py-1.5 px-2.5'>Biển Số & Tài Xế</th>
-                            <th className='py-1.5 px-2.5'>Lộ Trình</th>
-                            <th className='py-1.5 px-2.5 text-right'>Khối Lượng</th>
-                            <th className='py-1.5 px-2.5 text-right'>Thể Tích</th>
-                            <th className='py-1.5 px-2.5 text-right'>Số Kiện</th>
-                            <th className='py-1.5 px-2.5'>Trạng Thái</th>
-                          </tr>
-                        </thead>
-                        <tbody className='divide-y divide-slate-100 dark:divide-slate-800 text-[11px]'>
-                          {filteredIncomingTrips.map((t, idx) => (
-                            <tr key={`${t.id}-${idx}`} className='hover:bg-slate-50 dark:hover:bg-slate-800/50'>
-                              <td className='py-1.5 px-2.5 font-mono font-bold text-purple-600 dark:text-purple-400'>
-                                {t.tripCode}
-                              </td>
-                              <td className='py-1.5 px-2.5'>
-                                <div><strong className='font-semibold'>{t.licensePlate || '—'}</strong></div>
-                                <div className='text-[10px] text-slate-400'>{t.driverName || 'Chưa gán tài xế'}</div>
-                              </td>
-                              <td className='py-1.5 px-2.5'>
-                                <div>{t.originHubName} → {t.destinationHubName}</div>
-                                {t.province && (
-                                  <div className='text-[10px] text-slate-400'>Tỉnh đích: {t.province}</div>
-                                )}
-                              </td>
-                              <td className='py-1.5 px-2.5 text-right font-medium'>
-                                {formatNumber(t.weightTons)} T ({formatNumber(t.weightKg)} kg)
-                              </td>
-                              <td className='py-1.5 px-2.5 text-right font-medium'>
-                                {formatNumber(t.volumeCbm)} m³
-                              </td>
-                              <td className='py-1.5 px-2.5 text-right font-bold text-slate-700 dark:text-slate-300'>
-                                {formatNumber(t.packageCount)}
-                              </td>
-                              <td className='py-1.5 px-2.5'>
-                                <Badge variant='outline' className='text-[9px] py-0 px-1 border-blue-300 text-blue-700 bg-blue-50'>
-                                  {t.status}
-                                </Badge>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                ) : (
-                  filteredOnhandOrders.length === 0 ? (
-                    <div className='py-8 text-center text-xs text-slate-400'>
-                      Không có đơn hàng tồn kho nào thuộc khu vực này.
-                    </div>
-                  ) : (
-                    <div className='overflow-x-auto max-h-[380px] border border-slate-200 dark:border-slate-800 rounded-md'>
-                      <table className='w-full text-left text-xs'>
-                        <thead className='bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 sticky top-0'>
-                          <tr>
-                            <th className='py-1.5 px-2.5'>Mã Vận Đơn</th>
-                            <th className='py-1.5 px-2.5'>Tỉnh Thành</th>
-                            <th className='py-1.5 px-2.5'>Kho Lưu Hiện Tại</th>
-                            <th className='py-1.5 px-2.5 text-right'>Số Kiện Tồn</th>
-                            <th className='py-1.5 px-2.5 text-right'>Khối Lượng</th>
-                            <th className='py-1.5 px-2.5 text-right'>Thể Tích</th>
-                            <th className='py-1.5 px-2.5'>Mô Tả Hàng</th>
-                          </tr>
-                        </thead>
-                        <tbody className='divide-y divide-slate-100 dark:divide-slate-800 text-[11px]'>
-                          {filteredOnhandOrders.map((o) => (
-                            <tr key={o.id} className='hover:bg-slate-50 dark:hover:bg-slate-800/50'>
-                              <td className='py-1.5 px-2.5 font-mono font-bold text-slate-800 dark:text-slate-200'>
-                                {o.orderCode}
-                              </td>
-                              <td className='py-1.5 px-2.5'>
-                                <Badge variant='outline' className='text-[9px] py-0 px-1.5'>
-                                  {o.province || 'N/A'}
-                                </Badge>
-                              </td>
-                              <td className='py-1.5 px-2.5 text-slate-600 dark:text-slate-400'>
-                                {o.currentHubName}
-                              </td>
-                              <td className='py-1.5 px-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400'>
-                                {formatNumber(o.remainingQuantity)} / {formatNumber(o.totalQuantity)}
-                              </td>
-                              <td className='py-1.5 px-2.5 text-right font-medium'>
-                                {formatNumber(o.weightTons)} T ({formatNumber(o.weightKg)} kg)
-                              </td>
-                              <td className='py-1.5 px-2.5 text-right font-medium'>
-                                {formatNumber(o.volumeCbm)} m³
-                              </td>
-                              <td className='py-1.5 px-2.5 text-[10px] text-slate-500 max-w-[150px] truncate'>
-                                {o.goodsDescription || '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
+      </CardContent>
     </Card>
   );
 }
