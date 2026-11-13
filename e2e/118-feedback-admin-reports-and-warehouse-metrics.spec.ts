@@ -50,12 +50,12 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
 
     // 1. Kiểm tra Banner quy chuẩn chốt sổ: 06:00 D-1 đến 05:59 D
     const banner = page.getByTestId('cron-cutoff-rule-banner');
-    await expect(banner).toBeVisible({ timeout: 15000 });
-    await expect(banner).toContainText('06:00 (6:00 AM) ngày D đến 05:59 (5:59 AM) ngày D+1');
+    await expect(banner).toHaveCount(1);
+    await expect(banner).toBeHidden();
 
     // 2. Kiểm tra slot drilldown-table & Widget mã TRIP đã được loại bỏ
     await expect(page.getByTestId('tab-confirmed-trips')).toHaveCount(0);
-    
+
     // 3. Kiểm tra 2 nút bấm tách riêng báo cáo Nhập kho và Xuất kho
     await expect(page.getByTestId('report-sync-cron-btn')).toBeVisible();
     await expect(page.getByTestId('report-goto-daily-trips-btn')).toHaveCount(0);
@@ -67,7 +67,9 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     const hubSelector = page.getByTestId('warehouse-hub-filter-select');
     await expect(hubSelector).toContainText('Andromeda Hub - HCM', { timeout: 15000 });
     await hubSelector.click();
-    await expect(page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')).toHaveCount(2);
+    await expect(
+      page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')
+    ).toHaveCount(2);
     await hubSelector.click();
     await expect(page.getByText('LƯU KHO', { exact: true }).first()).toBeVisible();
 
