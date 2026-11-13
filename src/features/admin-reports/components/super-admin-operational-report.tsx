@@ -627,6 +627,7 @@ export function AdminReportHeaderAndKpis() {
     handleExportExcel,
     summary,
   } = useAdminOperationalReport();
+  const showSecondaryReportActions = false;
 
   return (
     <div className="space-y-2">
@@ -662,7 +663,7 @@ export function AdminReportHeaderAndKpis() {
                 />
               </div>
 
-              <div className="inline-flex items-center gap-1">
+              {showSecondaryReportActions && <div className="inline-flex items-center gap-1">
                 <Button
                   type="button"
                   variant="outline"
@@ -703,14 +704,15 @@ export function AdminReportHeaderAndKpis() {
                 >
                   30 ngày
                 </Button>
-              </div>
+              </div>}
 
               <WarehouseHubFilterSelect
                 value={selectedHubId}
                 onChange={(val) => setSelectedHubId(val)}
+                reportScope
               />
 
-              <div
+              {showSecondaryReportActions && <div
                 className="inline-flex items-center gap-1.5 p-0.5"
                 data-testid="report-direction-toggle"
               >
@@ -740,11 +742,11 @@ export function AdminReportHeaderAndKpis() {
                   <IconArrowUpRight className="h-3.5 w-3.5" />
                   <span>Báo cáo Xuất kho</span>
                 </button>
-              </div>
+              </div>}
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Link
+              {showSecondaryReportActions && <Link
                 href={
                   selectedHubId && selectedHubId !== "ALL"
                     ? `/dashboard/admin/reports/trips?hubId=${selectedHubId}`
@@ -761,9 +763,9 @@ export function AdminReportHeaderAndKpis() {
                   <IconRoute className="h-3.5 w-3.5 mr-1" />
                   Theo dõi TRIP theo ngày
                 </Button>
-              </Link>
+              </Link>}
 
-              <Link
+              {showSecondaryReportActions && <Link
                 href={`/dashboard/admin/cronjobs/DAILY_HUB_OPERATIONAL_REPORT?fromDate=${fromDate}&toDate=${toDate}`}
               >
                 <Button
@@ -776,7 +778,7 @@ export function AdminReportHeaderAndKpis() {
                   <IconClock className="h-3.5 w-3.5 mr-1" />
                   Quản trị Cronjob
                 </Button>
-              </Link>
+              </Link>}
 
               <Button
                 type="button"
@@ -795,7 +797,7 @@ export function AdminReportHeaderAndKpis() {
                 Đồng bộ báo cáo
               </Button>
 
-              <Button
+              {showSecondaryReportActions && <Button
                 type="button"
                 variant="default"
                 size="sm"
@@ -806,7 +808,7 @@ export function AdminReportHeaderAndKpis() {
               >
                 <IconFileTypeXls className="h-3.5 w-3.5 mr-1" />
                 Xuất Excel
-              </Button>
+              </Button>}
             </div>
           </div>
 
@@ -993,7 +995,6 @@ export function DailyOperationalBarSlot() {
     fromDate,
     toDate,
     data,
-    directionLabel,
     chartMetric,
     isLoading,
     dailySeries,
@@ -1017,7 +1018,7 @@ export function DailyOperationalBarSlot() {
             <p className="text-xs font-bold text-[#0F3D62] dark:text-blue-300">
               Tình hình hoạt động của Hub —{" "}
               <span className="font-semibold text-muted-foreground">
-                {data?.filter.hubName || "Tất cả Chi nhánh"} • {directionLabel}
+                {data?.filter.hubName || "Tất cả Chi nhánh"}
               </span>
             </p>
           </div>

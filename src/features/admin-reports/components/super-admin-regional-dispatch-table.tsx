@@ -42,7 +42,7 @@ export interface RegionalMetricItem {
 
 export interface RegionalReportApiResponse {
   draftRegions: Record<
-    'north' | 'central' | 'south' | 'na',
+    'north' | 'central' | 'south' | 'storage' | 'na',
     {
       weightKg: number;
       volumeCbm: number;
@@ -85,6 +85,7 @@ export interface RegionalReportApiResponse {
     north: RegionalMetricItem;
     central: RegionalMetricItem;
     south: RegionalMetricItem;
+    storage: RegionalMetricItem;
     na: RegionalMetricItem;
   };
   totals: {
@@ -132,7 +133,7 @@ export interface RegionalReportApiResponse {
 }
 
 interface RegionRowConfig {
-  key: 'north' | 'central' | 'south' | 'na';
+  key: 'north' | 'central' | 'south' | 'storage' | 'na';
   name: string;
   subtitle: string;
   badgeBg: string;
@@ -176,6 +177,17 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     barColorWeight: 'bg-purple-600 dark:bg-purple-500',
     barColorVolume: 'bg-purple-500/80 dark:bg-purple-400/80',
     dotColor: 'bg-purple-600'
+  },
+  {
+    key: 'storage',
+    name: 'LƯU KHO',
+    subtitle: 'Hàng khách gửi lưu tại kho chờ lấy ra',
+    badgeBg: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+    badgeText: 'text-cyan-700 dark:text-cyan-300',
+    badgeBorder: 'border-cyan-500/30',
+    barColorWeight: 'bg-cyan-600 dark:bg-cyan-500',
+    barColorVolume: 'bg-cyan-500/80 dark:bg-cyan-400/80',
+    dotColor: 'bg-cyan-600'
   },
   {
     key: 'na',

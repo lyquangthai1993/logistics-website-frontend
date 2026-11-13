@@ -39,7 +39,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     expect(dayNov02.windowLabel).toBe('06:00 02/11/2026 → 05:59 03/11/2026');
   });
 
-  test('2. Super Admin Reports UI: Banner 06:00, no Widget Theo dõi mã TRIP tab, separate Nhập/Xuất buttons', async ({
+  test('2. Super Admin Reports UI: keep sync, show LƯU KHO, scope hub selector to HCM', async ({
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
@@ -57,22 +57,19 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await expect(page.getByTestId('tab-confirmed-trips')).toHaveCount(0);
     
     // 3. Kiểm tra 2 nút bấm tách riêng báo cáo Nhập kho và Xuất kho
-    const inboundBtn = page.getByTestId('direction-inbound-btn');
-    const outboundBtn = page.getByTestId('direction-outbound-btn');
-    await expect(inboundBtn).toBeVisible();
-    await expect(outboundBtn).toBeVisible();
-    await expect(inboundBtn).toContainText('Báo cáo Nhập kho');
-    await expect(outboundBtn).toContainText('Báo cáo Xuất kho');
+    await expect(page.getByTestId('report-sync-cron-btn')).toBeVisible();
+    await expect(page.getByTestId('report-goto-daily-trips-btn')).toHaveCount(0);
+    await expect(page.getByTestId('report-goto-cronjobs-btn')).toHaveCount(0);
+    await expect(page.getByTestId('report-export-excel-btn')).toHaveCount(0);
+    await expect(page.getByTestId('direction-inbound-btn')).toHaveCount(0);
+    await expect(page.getByTestId('direction-outbound-btn')).toHaveCount(0);
 
-    // Bấm Báo cáo Xuất kho
-    await outboundBtn.click();
-    await page.waitForTimeout(600);
-    await expect(outboundBtn).toHaveClass(/bg-emerald-600/);
-
-    // Bấm Báo cáo Nhập kho
-    await inboundBtn.click();
-    await page.waitForTimeout(600);
-    await expect(inboundBtn).toHaveClass(/bg-blue-600/);
+    const hubSelector = page.getByTestId('warehouse-hub-filter-select');
+    await expect(hubSelector).toContainText('Andromeda Hub - HCM', { timeout: 15000 });
+    await hubSelector.click();
+    await expect(page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')).toHaveCount(2);
+    await hubSelector.click();
+    await expect(page.getByText('LƯU KHO', { exact: true }).first()).toBeVisible();
 
     // 4. Kiểm tra dòng TỔNG SẢN LƯỢNG / TRUNG BÌNH trùng lặp bên dưới biểu đồ cột đã được gỡ bỏ
     await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);
