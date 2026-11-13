@@ -27,17 +27,20 @@ export default defineConfig({
   ],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000',
+    // Keep a real Chromium window available without taking the operator's focus.
+    // Set HEADLESS=true for fully headless CI runs.
     headless: process.env.HEADLESS === 'true',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'on-first-retry',
-    ...(process.env.WINDOW_POSITION
-      ? {
-          launchOptions: {
-            args: [`--window-position=${process.env.WINDOW_POSITION}`]
-          }
-        }
-      : {})
+    launchOptions: {
+      args: [
+        '--start-minimized',
+        ...(process.env.WINDOW_POSITION
+          ? [`--window-position=${process.env.WINDOW_POSITION}`]
+          : [])
+      ]
+    }
   },
   projects: [
     {

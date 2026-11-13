@@ -73,7 +73,7 @@ test.describe('Login Page — Runtime Error Interception', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Per-role Dashboard — API Error Interception', () => {
   for (const user of TEST_USERS) {
-    test(`[${user.role}] no server errors during login + dashboard load`, async ({ page }) => {
+    test(`[${user.username} / ${user.role}] no server errors during login + dashboard load`, async ({ page }) => {
       const session = captureRuntimeLogs(page);
 
       // Login and wait for dashboard

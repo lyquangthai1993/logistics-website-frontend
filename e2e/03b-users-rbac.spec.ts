@@ -12,7 +12,7 @@ test.describe('[RBAC] Users Management (/dashboard/users) Access Control', () =>
   for (const user of TEST_USERS) {
     const isSuperAdmin = user.role === 'SUPER_ADMIN';
 
-    test(`${isSuperAdmin ? '✅ ALLOW' : '🚫 BLOCK'} ${user.role} → /dashboard/users`, async ({
+    test(`${isSuperAdmin ? '✅ ALLOW' : '🚫 BLOCK'} ${user.username} / ${user.role} → /dashboard/users`, async ({
       page
     }) => {
       await loginAs(page, user);
