@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -117,6 +118,84 @@ interface WarehouseWaybillDetailModalProps {
   onStartTally?: (waybill: WaybillDetailData) => void;
   onPrintLabel?: (waybill: WaybillDetailData) => void;
   onSuccess?: () => void;
+}
+
+const TRIP_CODE_PATTERN = /\bSD\d+\b/gi;
+
+function getTripBoardHref(
+  tripCode: string,
+  type?: string | null,
+  dateValue?: string | Date | null
+) {
+  const boardPath =
+    String(type || '').toUpperCase() === 'INBOUND'
+      ? '/dashboard/warehouse/inbound'
+      : '/dashboard/warehouse/outbound';
+  const params = new URLSearchParams({ search: tripCode });
+  if (dateValue) {
+    const date = new Date(dateValue);
+    if (!Number.isNaN(date.getTime())) {
+      const dateParam = [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+        .map((part, index) => (index === 0 ? String(part) : String(part).padStart(2, '0')))
+        .join('-');
+      params.set('fromDate', dateParam);
+      params.set('toDate', dateParam);
+    }
+  }
+  return `${boardPath}?${params.toString()}`;
+}
+
+function TripCodeLink({
+  tripCode,
+  type,
+  dateValue,
+  className
+}: {
+  tripCode: string;
+  type?: string | null;
+  dateValue?: string | Date | null;
+  className?: string;
+}) {
+  const isInbound = String(type || '').toUpperCase() === 'INBOUND';
+  const badgeTone = isInbound
+    ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/70'
+    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300 dark:hover:bg-purple-900/70';
+
+  return (
+    <Link
+      href={getTripBoardHref(tripCode, type, dateValue)}
+      onClick={(event) => event.stopPropagation()}
+      aria-label={`Mở chuyến ${tripCode} trên bảng ${isInbound ? 'nhập kho' : 'xuất kho'}`}
+      className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] leading-4 font-mono font-extrabold no-underline shadow-2xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${badgeTone} ${className || ''}`}
+      title={`Mở chuyến ${tripCode} trên bảng ${String(type || '').toUpperCase() === 'INBOUND' ? 'nhập kho' : 'xuất kho'}`}
+    >
+      {tripCode}
+    </Link>
+  );
+}
+
+function renderTextWithTripLinks(
+  text: string,
+  type?: string | null,
+  dateValue?: string | Date | null
+) {
+  const parts = text.split(TRIP_CODE_PATTERN);
+  const matches = text.match(TRIP_CODE_PATTERN) || [];
+  return parts.flatMap((part, index) => {
+    const result: React.ReactNode[] = [part];
+    const tripCode = matches[index];
+    if (tripCode) {
+      result.push(
+        <TripCodeLink
+          key={`${tripCode}-${index}`}
+          tripCode={tripCode}
+          type={type}
+          dateValue={dateValue}
+        />
+      );
+    }
+    return result;
+  });
 }
 
 function getWaybillStatusBadge(status: string) {
@@ -437,7 +516,7 @@ export function WarehouseWaybillDetailModal({
     React.useMemo(() => {
       let rawList: OrderInventoryTransaction[] = [];
       if (waybill?.inventoryTransactions && waybill.inventoryTransactions.length > 0) {
-        rawList = [...waybill.inventoryTransactions].sort((a, b) => {
+        rawList = [...waybill.inventoryTransactions].toSorted((a, b) => {
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         });
       }
@@ -579,7 +658,10 @@ export function WarehouseWaybillDetailModal({
       : Number(
           serverData?.order?.remainingWeight ??
             (waybill as any)?.remainingWeight ??
-            Math.max(0, Math.round((effectiveInboundWeight - effectiveOutboundWeight) * 1000) / 1000)
+            Math.max(
+              0,
+              Math.round((effectiveInboundWeight - effectiveOutboundWeight) * 1000) / 1000
+            )
         );
   const effectiveRemainingVolume =
     isDraftOrPending || effectiveRemainingQty <= 0
@@ -587,7 +669,10 @@ export function WarehouseWaybillDetailModal({
       : Number(
           serverData?.order?.remainingVolume ??
             (waybill as any)?.remainingVolume ??
-            Math.max(0, Math.round((effectiveInboundVolume - effectiveOutboundVolume) * 1000) / 1000)
+            Math.max(
+              0,
+              Math.round((effectiveInboundVolume - effectiveOutboundVolume) * 1000) / 1000
+            )
         );
 
   const displayTransactions: any[] = useMemo(() => {
@@ -867,8 +952,12 @@ export function WarehouseWaybillDetailModal({
                                   {tripTypeLabel}
                                 </Badge>
                                 {tr.tripCode && (
-                                  <span className='font-mono font-bold text-[#0F3D62] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]'>
-                                    {tr.tripCode}
+                                  <span className='text-[11px]'>
+                                    <TripCodeLink
+                                      tripCode={tr.tripCode}
+                                      type={tr.type}
+                                      dateValue={tr.createdAt}
+                                    />
                                   </span>
                                 )}
                                 <span className='font-mono font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 text-[11px]'>
@@ -973,6 +1062,13 @@ export function WarehouseWaybillDetailModal({
                               <span className='text-[11px] text-slate-400 font-mono'>
                                 {formatDateTime(tx.createdAt)}
                               </span>
+                              {tx.tripCode && (
+                                <TripCodeLink
+                                  tripCode={tx.tripCode}
+                                  type={tx.type}
+                                  dateValue={tx.createdAt}
+                                />
+                              )}
                             </div>
 
                             {/* ── Nút CTA Thao Tác Cho SUPER ADMIN ── */}
@@ -1196,7 +1292,10 @@ export function WarehouseWaybillDetailModal({
 
                             {tx.notes && (
                               <div className='text-[11px] text-slate-500 italic'>
-                                <span>Ghi chú: {tx.notes}</span>
+                                <span>
+                                  Ghi chú:{' '}
+                                  {renderTextWithTripLinks(tx.notes, tx.type, tx.createdAt)}
+                                </span>
                               </div>
                             )}
 
@@ -1309,7 +1408,15 @@ export function WarehouseWaybillDetailModal({
                               </strong>
                               , chuyến xe{' '}
                               <strong className='font-mono text-[#0F3D62] dark:text-blue-200'>
-                                {tripCode}
+                                {tripCode !== '—' ? (
+                                  <TripCodeLink
+                                    tripCode={tripCode}
+                                    type={latestOutboundTx?.type || activeTrip?.type || 'OUTBOUND'}
+                                    dateValue={latestOutboundTx?.createdAt || activeTrip?.createdAt}
+                                  />
+                                ) : (
+                                  tripCode
+                                )}
                               </strong>
                               {destName ? ` · Đang vận chuyển đến ${destName}` : ''}
                             </span>
@@ -1334,7 +1441,17 @@ export function WarehouseWaybillDetailModal({
                             <span className='font-bold text-amber-900 dark:text-amber-300'>
                               Đang xuất từng phần · Còn tồn {effectiveRemainingQty} kiện tại{' '}
                               {currentWarehouseName} · Đã xuất {effectiveOutboundQty} kiện trên xe{' '}
-                              {vehiclePlate} ({tripCode})
+                              {vehiclePlate} (
+                              {tripCode !== '—' ? (
+                                <TripCodeLink
+                                  tripCode={tripCode}
+                                  type={latestOutboundTx?.type || activeTrip?.type || 'OUTBOUND'}
+                                  dateValue={latestOutboundTx?.createdAt || activeTrip?.createdAt}
+                                />
+                              ) : (
+                                tripCode
+                              )}
+                              )
                             </span>
                             <span className='font-mono font-black text-amber-700 dark:text-amber-400'>
                               Tồn: {effectiveRemainingQty} kiện
