@@ -95,6 +95,8 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     );
   });
   await page.getByTestId('report-from-date-input').fill(changedFromDate);
+  await expect(page.getByTestId('report-apply-date-range-btn')).toBeVisible();
+  await page.getByTestId('report-apply-date-range-btn').click();
   const rangeResponse = await rangeResponsePromise;
   const updatedRaw = await rangeResponse.json();
   const updatedReport: RegionalReportApiResponse = updatedRaw.data ?? updatedRaw;

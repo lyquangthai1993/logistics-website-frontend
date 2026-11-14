@@ -274,6 +274,11 @@ interface AdminOperationalReportContextValue {
   setFromDate: React.Dispatch<React.SetStateAction<string>>;
   toDate: string;
   setToDate: React.Dispatch<React.SetStateAction<string>>;
+  draftFromDate: string;
+  setDraftFromDate: React.Dispatch<React.SetStateAction<string>>;
+  draftToDate: string;
+  setDraftToDate: React.Dispatch<React.SetStateAction<string>>;
+  applyDateRange: () => void;
   selectedHubId: string;
   setSelectedHubId: React.Dispatch<React.SetStateAction<string>>;
   direction: ReportDirection;
@@ -326,6 +331,8 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
 
   const [fromDate, setFromDate] = useState<string>(defaultRange.fromDate);
   const [toDate, setToDate] = useState<string>(defaultRange.toDate);
+  const [draftFromDate, setDraftFromDate] = useState<string>(defaultRange.fromDate);
+  const [draftToDate, setDraftToDate] = useState<string>(defaultRange.toDate);
   const [selectedHubId, setSelectedHubId] = useState<string>('ALL');
   const [direction, setDirection] = useState<ReportDirection>('INBOUND');
   const [chartMetric, setChartMetric] = useState<ReportChartMetric>('CBM');
@@ -381,6 +388,26 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     }
   });
 
+  const applyDateRange = () => {
+    if (!draftFromDate || !draftToDate) {
+      toast.error('Vui lòng chọn đủ ngày bắt đầu và ngày kết thúc');
+      return;
+    }
+    if (draftFromDate > draftToDate) {
+      toast.error('Ngày bắt đầu không được sau ngày kết thúc');
+      return;
+    }
+    setFromDate(draftFromDate);
+    setToDate(draftToDate);
+  };
+
+  const setDateRange = (start: string, end: string) => {
+    setDraftFromDate(start);
+    setDraftToDate(end);
+    setFromDate(start);
+    setToDate(end);
+  };
+
   const applyQuickRange = (
     preset: 'THIS_MONTH' | 'LAST_MONTH' | 'OCT_2026' | 'LAST_7' | 'LAST_30'
   ) => {
@@ -393,29 +420,24 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     if (preset === 'THIS_MONTH') {
       const start = `${year}-${String(month).padStart(2, '0')}-01`;
       const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-      setFromDate(start);
-      setToDate(end);
+      setDateRange(start, end);
     } else if (preset === 'LAST_MONTH') {
       const prevMonthDate = new Date(Date.UTC(year, month - 2, 1));
       const py = prevMonthDate.getUTCFullYear();
       const pm = prevMonthDate.getUTCMonth() + 1;
       const start = `${py}-${String(pm).padStart(2, '0')}-01`;
       const end = new Date(Date.UTC(py, pm, 0)).toISOString().slice(0, 10);
-      setFromDate(start);
-      setToDate(end);
+      setDateRange(start, end);
     } else if (preset === 'OCT_2026') {
-      setFromDate('2026-10-01');
-      setToDate('2026-10-31');
+      setDateRange('2026-10-01', '2026-10-31');
     } else if (preset === 'LAST_7') {
       const d = new Date(`${todayStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() - 6);
-      setFromDate(d.toISOString().slice(0, 10));
-      setToDate(todayStr);
+      setDateRange(d.toISOString().slice(0, 10), todayStr);
     } else if (preset === 'LAST_30') {
       const d = new Date(`${todayStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() - 29);
-      setFromDate(d.toISOString().slice(0, 10));
-      setToDate(todayStr);
+      setDateRange(d.toISOString().slice(0, 10), todayStr);
     }
   };
 
@@ -531,6 +553,11 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     setFromDate,
     toDate,
     setToDate,
+    draftFromDate,
+    setDraftFromDate,
+    draftToDate,
+    setDraftToDate,
+    applyDateRange,
     selectedHubId,
     setSelectedHubId,
     direction,
@@ -570,9 +597,12 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
 export function AdminReportHeaderAndKpis() {
   const {
     fromDate,
-    setFromDate,
     toDate,
-    setToDate,
+    draftFromDate,
+    setDraftFromDate,
+    draftToDate,
+    setDraftToDate,
+    applyDateRange,
     selectedHubId,
     setSelectedHubId,
     direction,
@@ -605,20 +635,32 @@ export function AdminReportHeaderAndKpis() {
                 <span className='text-[10px] font-semibold text-muted-foreground'>Từ ngày</span>
                 <input
                   type='date'
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
+                  value={draftFromDate}
+                  onChange={(e) => setDraftFromDate(e.target.value)}
                   data-testid='report-from-date-input'
                   className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
                 />
                 <span className='text-[10px] font-semibold text-muted-foreground'>đến</span>
                 <input
                   type='date'
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
+                  value={draftToDate}
+                  min={draftFromDate || undefined}
+                  onChange={(e) => setDraftToDate(e.target.value)}
                   data-testid='report-to-date-input'
                   className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
                 />
               </div>
+
+              <Button
+                type='button'
+                size='sm'
+                onClick={applyDateRange}
+                data-testid='report-apply-date-range-btn'
+                className='h-8 px-2.5 text-[11px] font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
+                title='Áp dụng bộ lọc theo khoảng thời gian'
+              >
+                Áp dụng
+              </Button>
 
               {showSecondaryReportActions && (
                 <div className='inline-flex items-center gap-1'>
