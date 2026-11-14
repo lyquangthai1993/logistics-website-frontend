@@ -130,6 +130,19 @@ export interface RegionalReportApiResponse {
     currentHubId: number;
     currentHubName: string;
   }>;
+  provinceAudit?: {
+    scannedOrderCount: number;
+    invalidOrderCount: number;
+    missingProvinceCount: number;
+    unrecognizedProvinceCount: number;
+    isTruncated: boolean;
+    orders: Array<{
+      id: number;
+      orderCode: string;
+      province: string | null;
+      reason: 'MISSING_PROVINCE' | 'UNRECOGNIZED_PROVINCE';
+    }>;
+  };
 }
 
 interface RegionRowConfig {
@@ -429,7 +442,8 @@ export function SuperAdminRegionalDispatchTable() {
           (data.regions.na.totalWeightKg > 0 ||
             data.regions.na.totalVolumeCbm > 0 ||
             data.regions.na.onhandOrderCount > 0 ||
-            data.regions.na.incomingTripCount > 0) && (
+            data.regions.na.incomingTripCount > 0 ||
+            (data.provinceAudit?.invalidOrderCount ?? 0) > 0) && (
             <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
               <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
               <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
@@ -451,6 +465,32 @@ export function SuperAdminRegionalDispatchTable() {
                 </div>
 
                 {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
+                {data.provinceAudit && data.provinceAudit.invalidOrderCount > 0 && (
+                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                      Quét đơn thiếu hoặc sai tỉnh/thành:{' '}
+                      {formatNumber(data.provinceAudit.invalidOrderCount)} mã
+                    </div>
+                    <div className='text-[10px] text-amber-800 dark:text-amber-300'>
+                      Đã quét {formatNumber(data.provinceAudit.scannedOrderCount)} đơn theo Hub ·
+                      Thiếu tỉnh: {formatNumber(data.provinceAudit.missingProvinceCount)} · Không
+                      nhận diện: {formatNumber(data.provinceAudit.unrecognizedProvinceCount)}
+                      {data.provinceAudit.isTruncated ? ' · Hiển thị tối đa 500 mã' : ''}
+                    </div>
+                    <div className='max-h-28 overflow-y-auto flex flex-wrap gap-1 rounded border border-amber-200 bg-white/70 p-1 dark:border-amber-900/40 dark:bg-slate-900/50'>
+                      {data.provinceAudit.orders.map((order) => (
+                        <span
+                          key={`province-audit-${order.id}`}
+                          title={order.province || 'Chưa nhập tỉnh/thành'}
+                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200'
+                        >
+                          {order.orderCode}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {naOrders.length > 0 && (
                   <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
                     <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
