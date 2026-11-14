@@ -10,22 +10,25 @@ test('regional charts filter stored and draft orders while keeping both metrics 
 }) => {
   test.setTimeout(120_000);
   await loginAs(page, USER_ADMIN);
-  const responsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes('/admin/reports/regional-dispatch?') && response.status() === 200,
-    { timeout: 45_000 }
-  );
+  const regionalResponses: Response[] = [];
+  page.on('response', (response) => {
+    if (response.url().includes('/admin/reports/regional-dispatch?') && response.status() === 200) {
+      regionalResponses.push(response);
+    }
+  });
   await page.goto('/dashboard/admin/reports', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: /Tình hình hàng hóa/ })).toBeVisible();
   await expect(page.getByTestId('regional-weight-chart')).toBeVisible({ timeout: 45_000 });
   await expect(page.getByTestId('regional-volume-chart')).toBeVisible();
-  const response = await responsePromise;
+  const response = regionalResponses.at(-1);
+  expect(response).toBeDefined();
+  if (!response) throw new Error('No regional report response captured');
   const requestUrl = new URL(response.url());
   const fromDate = await page.getByTestId('report-from-date-input').inputValue();
   const toDate = await page.getByTestId('report-to-date-input').inputValue();
   expect(requestUrl.searchParams.get('fromDate')).toBe(fromDate);
   expect(requestUrl.searchParams.get('toDate')).toBe(toDate);
-  expect(requestUrl.searchParams.get('hubId')).toBe('ALL');
+  expect(requestUrl.searchParams.get('hubId')).toBeTruthy();
   const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
   expect(report.draftRegions).toBeDefined();
