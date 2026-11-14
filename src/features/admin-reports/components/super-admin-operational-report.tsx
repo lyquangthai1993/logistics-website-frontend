@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import PageContainer from '@/components/layout/page-container';
 import {
@@ -327,6 +327,8 @@ export function useOptionalAdminOperationalReport(): AdminOperationalReportConte
  */
 export function AdminOperationalReportProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const defaultRange = useMemo(() => getDefaultMonthRange(), []);
 
   const [fromDate, setFromDate] = useState<string>(defaultRange.fromDate);
@@ -388,6 +390,14 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     }
   });
 
+  const syncDateRangeToUrl = (start: string, end: string) => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('fromDate', start);
+    params.set('toDate', end);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const applyDateRange = () => {
     if (!draftFromDate || !draftToDate) {
       toast.error('Vui lòng chọn đủ ngày bắt đầu và ngày kết thúc');
@@ -399,6 +409,7 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     }
     setFromDate(draftFromDate);
     setToDate(draftToDate);
+    syncDateRangeToUrl(draftFromDate, draftToDate);
   };
 
   const setDateRange = (start: string, end: string) => {
@@ -406,6 +417,7 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     setDraftToDate(end);
     setFromDate(start);
     setToDate(end);
+    syncDateRangeToUrl(start, end);
   };
 
   const applyQuickRange = (

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Response as PlaywrightResponse } from '@playwright/test';
 import { loginAs, USER_ADMIN } from './helpers/auth';
 import { formatNumber } from '../src/lib/utils';
 import type { RegionalReportApiResponse } from '../src/features/admin-reports/components/super-admin-regional-dispatch-table';
@@ -10,7 +11,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
 }) => {
   test.setTimeout(120_000);
   await loginAs(page, USER_ADMIN);
-  const regionalResponses: Response[] = [];
+  const regionalResponses: PlaywrightResponse[] = [];
   page.on('response', (response) => {
     if (response.url().includes('/admin/reports/regional-dispatch?') && response.status() === 200) {
       regionalResponses.push(response);
@@ -34,7 +35,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(report.draftRegions).toBeDefined();
   expect(report.dailySeries.length).toBeGreaterThan(0);
   expect(report.onhandOrdersList.length).toBeGreaterThan(0);
-  const regions = ['north', 'central', 'south', 'na'] as const;
+  const regions = ['north', 'central', 'south', 'storage', 'na'] as const;
   const storedWeight = regions.reduce((sum, key) => sum + report.regions[key].onhandWeightKg, 0);
   const storedVolume = regions.reduce((sum, key) => sum + report.regions[key].onhandVolumeCbm, 0);
   const draftWeight = regions.reduce((sum, key) => sum + report.draftRegions[key].weightKg, 0);
@@ -47,6 +48,13 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
   const weight = page.getByTestId('regional-weight-chart');
   const volume = page.getByTestId('regional-volume-chart');
+  const orderCount = page.getByTestId('regional-order-count-chart');
+  await expect(orderCount).toBeVisible();
+  await expect(orderCount).toContainText('Số mã đơn theo miền');
+  const orderSearchLinks = page.locator('a[href^="/dashboard/warehouse/orders?search="]');
+  if ((await orderSearchLinks.count()) > 0) {
+    await expect(orderSearchLinks.first()).toHaveAttribute('target', '_blank');
+  }
   const cases = [
     ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume],
     ['Lưu kho', storedWeight, storedVolume],
@@ -105,4 +113,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   const updatedReport: RegionalReportApiResponse = updatedRaw.data ?? updatedRaw;
   expect(updatedReport.range.fromDate).toBe(changedFromDate);
   expect(updatedReport.range.toDate).toBe(toDate);
+  const updatedUrl = new URL(page.url());
+  expect(updatedUrl.searchParams.get('fromDate')).toBe(changedFromDate);
+  expect(updatedUrl.searchParams.get('toDate')).toBe(toDate);
 });
