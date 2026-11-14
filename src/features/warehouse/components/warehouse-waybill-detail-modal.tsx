@@ -952,7 +952,7 @@ export function WarehouseWaybillDetailModal({
                                   {tripTypeLabel}
                                 </Badge>
                                 {tr.tripCode && (
-                                  <span className='font-mono font-bold text-[#0F3D62] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]'>
+                                  <span className='text-[11px]'>
                                     <TripCodeLink
                                       tripCode={tr.tripCode}
                                       type={tr.type}
