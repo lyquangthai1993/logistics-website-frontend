@@ -156,11 +156,17 @@ function TripCodeLink({
   dateValue?: string | Date | null;
   className?: string;
 }) {
+  const isInbound = String(type || '').toUpperCase() === 'INBOUND';
+  const badgeTone = isInbound
+    ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/70'
+    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300 dark:hover:bg-purple-900/70';
+
   return (
     <Link
       href={getTripBoardHref(tripCode, type, dateValue)}
       onClick={(event) => event.stopPropagation()}
-      className={`${className || ''} underline decoration-dotted underline-offset-2 hover:decoration-solid hover:text-blue-600 dark:hover:text-blue-300`}
+      aria-label={`Mở chuyến ${tripCode} trên bảng ${isInbound ? 'nhập kho' : 'xuất kho'}`}
+      className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] leading-4 font-mono font-extrabold no-underline shadow-2xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${badgeTone} ${className || ''}`}
       title={`Mở chuyến ${tripCode} trên bảng ${String(type || '').toUpperCase() === 'INBOUND' ? 'nhập kho' : 'xuất kho'}`}
     >
       {tripCode}
@@ -185,7 +191,6 @@ function renderTextWithTripLinks(
           tripCode={tripCode}
           type={type}
           dateValue={dateValue}
-          className='font-mono font-bold text-[#0F3D62] dark:text-blue-400'
         />
       );
     }
@@ -1062,7 +1067,6 @@ export function WarehouseWaybillDetailModal({
                                   tripCode={tx.tripCode}
                                   type={tx.type}
                                   dateValue={tx.createdAt}
-                                  className='text-[11px] font-mono font-bold text-[#0F3D62] dark:text-blue-400'
                                 />
                               )}
                             </div>
