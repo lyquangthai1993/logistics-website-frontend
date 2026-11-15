@@ -54,7 +54,7 @@ test.describe('Tooltip Người thao tác (người tạo) trên cột Ngày (Cl
     await loginAs(page, userHcm);
 
     await page.goto('/dashboard/warehouse/inbound', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     // Trên mobile, tìm trigger ngày trong mobile card (sử dụng :visible để bỏ qua phần tử của desktop table đang bị ẩn)
     const dateTrigger = page.locator('[data-testid="trip-date-tooltip-trigger"]:visible').first();

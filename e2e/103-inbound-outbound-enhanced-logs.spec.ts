@@ -133,7 +133,7 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
     // =========================================================================
     console.log(`--- CASE 3: Inspect UI Waybill Detail Modal for ${testOrderCode} ---`);
     await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     // Search for test order
     const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();

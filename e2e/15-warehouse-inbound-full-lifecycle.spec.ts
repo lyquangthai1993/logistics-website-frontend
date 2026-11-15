@@ -27,7 +27,7 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
     // ── 1. Đăng nhập với quyền Quản lý Kho Hưng Yên ─────────────────────────────
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Kiểm tra tiêu đề trang và 4 Stat Cards
     await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 10_000 });
@@ -78,7 +78,7 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
   test('Kịch bản 2: Xem chi tiết mã vận đơn (No-SKU Standard Modal) & In tem A4 Pallet', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Kiểm tra danh sách bảng đơn hàng
     const orderLink = page.locator('tbody tr button[title*="Xem chi tiết"], tbody tr td:nth-child(2) button').first();
@@ -117,7 +117,7 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
   test('Kịch bản 3: Quy trình Kiểm đếm thực tế (Tally Modal) ➔ Chuyển trạng thái sang ĐÃ NHẬP KHO', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Tìm nút "Kiểm đếm" nếu có đơn ở trạng thái chờ
     const tallyBtn = page.locator('tbody tr button:has-text("Kiểm đếm")').first();
@@ -153,7 +153,7 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
   test('Kịch bản 4: Tương tác Thanh Phân Trang & Bộ Lọc Status Tabs', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Chuyển đổi giữa các tab trạng thái
     const waitingTab = page.locator('button:has-text("Chờ nhập kho")');

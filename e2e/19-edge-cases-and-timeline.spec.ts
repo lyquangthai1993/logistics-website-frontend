@@ -103,7 +103,7 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     // Đăng nhập vào giao diện
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Tìm dòng đơn hàng ORD-HYN-001 trong bảng
     const orderRow = page.locator('tbody tr:has-text("ORD-HYN-001")').first();

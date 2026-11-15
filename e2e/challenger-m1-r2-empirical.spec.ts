@@ -8,7 +8,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Hubs CRUD & Instant React
     await clearSession(page);
     await loginAs(page, superAdmin);
     await page.goto('/dashboard/admin/hubs');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('Empirical Test 1: Active toggle immediate reactivity (double flip without reload)', async ({

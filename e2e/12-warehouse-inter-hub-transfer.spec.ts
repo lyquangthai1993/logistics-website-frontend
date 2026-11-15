@@ -35,7 +35,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 1. Điều hướng đến trang Nhập kho
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra Header hiển thị Hub hiện tại và mở Mode 1
     await expect(page.getByRole('heading', { name: /Nhập kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
@@ -96,7 +96,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 1. Điều hướng đến trang Xuất kho
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra Header & 4 Stat Cards
     await expect(page.getByRole('heading', { name: /Xuất kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
@@ -129,7 +129,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 1. Vào trang Nhập kho
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra Header hiển thị đúng Hub Đà Nẵng
     await expect(page.getByRole('heading', { name: /Nhập kho.*Magellan Hub - Đà Nẵng/ })).toBeVisible({ timeout: 10_000 });
@@ -151,7 +151,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 1. Vào trang Đơn hàng kho
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra giao diện và bộ lọc trạng thái và Hub HCM
     await expect(page.getByRole('heading', { name: /Tổng Hợp Đơn Hàng Tại Kho.*Andromeda Hub - HCM/ })).toBeVisible({ timeout: 10_000 });
@@ -166,7 +166,7 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 1. Kiểm tra Sidebar Navigation hiển thị đủ 3 menu kho
     await page.goto('/dashboard/overview');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.locator('a[href="/dashboard/warehouse/inbound"]')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('a[href="/dashboard/warehouse/outbound"]')).toBeVisible();

@@ -38,7 +38,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       // Step 1: Super Admin has full UI & Route access
       await loginAs(page, adminUser);
       await page.goto('/dashboard/users');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await expect(page).toHaveURL(/\/dashboard\/users/);
       await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible({
         timeout: 8000
@@ -53,7 +53,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       for (const nonAdmin of nonAdminUsers) {
         await loginAs(page, nonAdmin);
         await page.goto('/dashboard/users');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         // Route guard must redirect to /dashboard/overview
         await expect(page).not.toHaveURL(/\/dashboard\/users/);
         await expect(page).toHaveURL(/\/dashboard\/overview/);
@@ -90,7 +90,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await loginAs(page, adminUser);
       // Load table with perPage=50 to ensure new user appears in page view
       await page.goto('/dashboard/users?perPage=50');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // 1.2.1 Open Add User Sheet
       const addUserBtn = page.locator('#btn-add-user').first();
@@ -120,7 +120,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
 
       // 1.2.3 Reload table to bypass missing client-side query invalidation and verify user persistence in table with role badge
       await page.reload();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       const userRow = page.locator('tr', { hasText: testEmail });
       await expect(userRow).toBeVisible({ timeout: 10000 });
       await expect(userRow.locator('text=Quản lý kho')).toBeVisible();
@@ -179,7 +179,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await page.goto(
         '/dashboard/users?page=9999&perPage=50&name=%3Cscript%3Ealert(1)%3C%2Fscript%3E&role=999'
       );
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Expect page not to crash, table renders empty state gracefully
       await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible();
@@ -206,7 +206,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
     }) => {
       await loginAs(page, warehouseUser);
       await page.goto('/dashboard/warehouse');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Verify Page Title & Description
       await expect(
@@ -239,7 +239,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
     test('2.2 Hub Filter & Search Filter URL Synchronization', async ({ page }) => {
       await loginAs(page, warehouseUser);
       await page.goto('/dashboard/warehouse');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // 2.2.1 Hub Selector
       const hubSelect = page.locator('#warehouse-hub-filter');
@@ -285,7 +285,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       await page.goto(
         '/dashboard/warehouse?page=-10&perPage=100&hub=%27%20OR%201=1--&status=CORRUPT_STATUS&view=table'
       );
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Page stays alive, KPI cards and fallback table render
       await expect(
@@ -307,7 +307,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
     test('3.1 Header Bell Popover & Quick Actions', async ({ page }) => {
       await loginAs(page, adminUser);
       await page.waitForURL(/\/dashboard\/.+/);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Bell trigger button in header
       const bellBtn = page
@@ -331,7 +331,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
     test('3.2 Notifications Page Tabs, Badge Counts & State Consistency', async ({ page }) => {
       await loginAs(page, adminUser);
       await page.goto('/dashboard/notifications');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Tabs presence
       const tabAll = page.getByRole('tab', { name: /all/i });
@@ -379,7 +379,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
         // Created successfully -> Navigate to /dashboard/notifications
         await loginAs(page, adminUser);
         await page.goto('/dashboard/notifications?tab=all');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Verify seeded notification appears
         await expect(page.getByText(testTitle)).toBeVisible({ timeout: 10_000 });
@@ -410,7 +410,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
 
       // Injected parameters
       await page.goto('/dashboard/notifications?tab=malformed_tab&page=-99&perPage=99999');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Page stays resilient
       await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();

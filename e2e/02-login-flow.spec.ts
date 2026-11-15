@@ -5,7 +5,7 @@
  * Validates for each role:
  *   1. Sign-in page renders correctly
  *   2. Login form accepts credentials & submits
- *   3. Redirects to /dashboard/overview after successful login
+ *   3. Redirects to the role's current dashboard landing page after successful login
  *   4. Error message shown on invalid credentials
  *   5. No browser console errors during login flow
  */
@@ -102,7 +102,7 @@ for (const user of TEST_USERS) {
       page
     }) => {
       await clearSession(page);
-      await page.goto('/dashboard/overview');
+      await page.goto('/dashboard/warehouse/orders');
       await expect(page).toHaveURL(/\/auth\/sign-in/);
     });
 

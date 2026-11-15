@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Check Localhost Sign-in Error UI Consistency', () => {
   test('Capture localhost sign-in error UI after invalid submit', async ({ page }) => {
     await page.goto(`${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000'}/auth/sign-in`, {
-      waitUntil: 'networkidle'
+      waitUntil: 'domcontentloaded'
     });
 
     await page.fill('input[name="email"]', 'admin@spiderexpress.vn');

@@ -30,7 +30,7 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
 
     // 2. Navigate directly to Inbound page with date range covering SD537 (26/10/2026) and search=537
     await page.goto(`${baseUrl}/dashboard/warehouse/inbound?fromDate=2026-10-01&toDate=2026-11-05&search=537`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // 3. Verify trip SD537 row in Inbound table

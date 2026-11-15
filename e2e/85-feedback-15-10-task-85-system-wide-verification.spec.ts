@@ -220,7 +220,7 @@ test.describe('Task #85: Comprehensive Logistics TMS System & Quality Verificati
     `;
 
     await page.setContent(html);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
 
     expect(fs.existsSync(SCREENSHOT_PATH)).toBeTruthy();

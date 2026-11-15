@@ -31,7 +31,7 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
     if (!fs.existsSync(sc1) || !fs.existsSync(sc2) || !fs.existsSync(sc3)) {
       console.log('2. Navigating to Inbound Warehouse...');
       await page.goto(`${BASE_URL}/dashboard/warehouse/inbound`);
-      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
 
       await expect(page.locator('h1').filter({ hasText: 'Nhập kho' })).toBeVisible({ timeout: 15_000 });
 
@@ -86,7 +86,7 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
     // Now navigate to Warehouse Orders to inspect audit log
     console.log('10. Navigating to Warehouse Orders to inspect NDA2610-0213...');
     await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     // Search NDA2610-0213
     const orderSearch = page.locator('input[placeholder*="Tìm kiếm"]').first();

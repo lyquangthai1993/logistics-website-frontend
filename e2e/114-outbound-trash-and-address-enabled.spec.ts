@@ -27,7 +27,7 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled & Way
 
     // 2. Navigate to Outbound list page
     await page.goto(`${baseUrl}/dashboard/warehouse/outbound`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // Click "Xuất kho" button to open "Tạo Phiếu Xuất Kho"
