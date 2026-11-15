@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Check Localhost Sign-in Error UI Consistency', () => {
-  test('Capture localhost sign-in error UI after invalid submit', async ({ page }) => {
+test.describe('Check Sign-in Error UI Consistency', () => {
+  test('Capture configured sign-in error UI after invalid submit', async ({ page }) => {
     await page.goto(`${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000'}/auth/sign-in`, {
       waitUntil: 'domcontentloaded'
     });
@@ -16,6 +16,6 @@ test.describe('Check Localhost Sign-in Error UI Consistency', () => {
     // Capture screenshot
     await page.screenshot({ path: 'e2e/screenshots/login_error_consistent.png', fullPage: true });
 
-    console.log('✅ Localhost Error UI captured!');
+    console.log('✅ Configured environment error UI captured!');
   });
 });
