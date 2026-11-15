@@ -84,6 +84,11 @@ function WarehouseInboundContent() {
   const [activeView, setActiveView] = useState<'BOARD' | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'>(
     'BOARD'
   );
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Inbound Board State synchronized with URL query params (?search=&fromDate=&toDate=&status=&page=)
   const {
@@ -991,6 +996,7 @@ function WarehouseInboundContent() {
               {activeView === 'BOARD' && (
                 <>
                   <Button
+                    disabled={!isHydrated}
                     onClick={() => {
                       resetMode1Form();
                       setActiveView('MODE1_CUSTOMER');
