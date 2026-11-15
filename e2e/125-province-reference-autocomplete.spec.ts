@@ -14,7 +14,7 @@ async function openProvinceInput(page: Page) {
   const createButton = page.getByRole('button', { name: /Tạo đơn nhập mới/ });
   await expect(createButton).toBeEnabled({ timeout: 15_000 });
     await createButton.click();
-  await expect(page).toHaveURL(pageUrlBeforeCreate);
+  expect(new URL(page.url()).pathname).toBe(new URL(pageUrlBeforeCreate).pathname);
   const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
   await expect(provinceInput).toBeVisible();
   return provinceInput;

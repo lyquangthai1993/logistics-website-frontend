@@ -23,7 +23,8 @@ function normalizeLookupValue(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
 function resolveCanonicalName(value: string, references: ProvinceReference[]): string {
@@ -33,6 +34,7 @@ function resolveCanonicalName(value: string, references: ProvinceReference[]): s
   const match = references.find(
     (reference) =>
       normalizeLookupValue(reference.name) === normalized ||
+      normalizeLookupValue(reference.normalizedName) === normalized ||
       reference.aliases.some((alias) => normalizeLookupValue(alias) === normalized)
   );
 
