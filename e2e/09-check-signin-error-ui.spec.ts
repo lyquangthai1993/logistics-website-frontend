@@ -12,6 +12,9 @@ test.describe('Check Sign-in Error UI Consistency', () => {
 
     const errorDiv = page.locator('[data-testid="login-error"]');
     await expect(errorDiv).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('input[name="email"]')).toHaveValue('admin@spiderexpress.vn');
+    await expect(page.locator('input[name="password"]')).toHaveValue('WrongPassword123');
+    await expect(errorDiv).not.toHaveText('');
 
     // Capture screenshot
     await page.screenshot({ path: 'e2e/screenshots/login_error_consistent.png', fullPage: true });
