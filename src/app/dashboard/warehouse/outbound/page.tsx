@@ -575,6 +575,7 @@ function WarehouseOutboundContent() {
                     : proportionalMetric(remVolume, reqQty, availStock),
               deliveryAddress:
                 rowItem.deliveryAddress || found.destinationHub || found.deliveryAddress || '',
+              province: rowItem.province || found.province || '',
               hasPendingInboundTrip: Boolean(found.hasPendingInboundTrip),
               pendingInboundTripCodes: found.pendingInboundTripCodes || [],
               pendingInboundQuantity: found.pendingInboundQuantity || 0
@@ -591,6 +592,10 @@ function WarehouseOutboundContent() {
 
     // Partial stock validation
     for (const r of validRows) {
+      if (!r.province || !r.province.trim()) {
+        toast.error(`Đơn ${r.orderCode}: Vui lòng nhập Tỉnh / TP`);
+        return null;
+      }
       const exportQty = Number(r.totalQuantity) || 0;
       if (exportQty <= 0) {
         toast.error(`Đơn ${r.orderCode}: Số lượng xuất phải lớn hơn 0`);

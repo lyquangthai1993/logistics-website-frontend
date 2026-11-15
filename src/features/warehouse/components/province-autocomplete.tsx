@@ -10,6 +10,7 @@ interface ProvinceAutocompleteProps {
   references: ProvinceReference[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  required?: boolean;
   title?: string;
   className?: string;
   placeholder?: string;
@@ -46,6 +47,7 @@ export function ProvinceAutocomplete({
   references,
   onChange,
   disabled = false,
+  required = false,
   title,
   className,
   placeholder = 'Tìm tỉnh/thành...'
@@ -67,6 +69,7 @@ export function ProvinceAutocomplete({
         onChange={(event) => onChange(event.target.value)}
         onBlur={(event) => onChange(resolveCanonicalName(event.target.value, references))}
         disabled={disabled}
+        required={required}
         title={title}
         placeholder={placeholder}
         className={cn('h-8 text-[10px]', className)}
