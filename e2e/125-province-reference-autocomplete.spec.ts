@@ -83,6 +83,6 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
   });
 
   test('Case 5: unknown province text is preserved for review', async ({ page }) => {
-    await assertProvinceCase(page, 'Tỉnh Sao Hỏa', 'Tỉnh Sao Hỏa');
+    await assertProvinceCase(page, '  Tỉnh Sao Hỏa  ', 'Tỉnh Sao Hỏa');
   });
 });
