@@ -16,6 +16,8 @@ interface ProvinceAutocompleteProps {
   placeholder?: string;
 }
 
+const SPECIAL_PROVINCE_OPTIONS = [{ value: 'Lưu Kho', label: 'Ngoại lệ vận hành' }];
+
 function normalizeLookupValue(value: string): string {
   return value
     .trim()
@@ -31,6 +33,10 @@ function normalizeLookupValue(value: string): string {
 function resolveCanonicalName(value: string, references: ProvinceReference[]): string {
   const normalized = normalizeLookupValue(value);
   if (!normalized) return '';
+  const specialOption = SPECIAL_PROVINCE_OPTIONS.find(
+    (option) => normalizeLookupValue(option.value) === normalized
+  );
+  if (specialOption) return specialOption.value;
 
   const match = references.find(
     (reference) =>
@@ -53,13 +59,16 @@ export function ProvinceAutocomplete({
   placeholder = 'Tìm tỉnh/thành...'
 }: ProvinceAutocompleteProps) {
   const listId = `province-reference-${useId().replace(/:/g, '')}`;
-  const options = references.flatMap((reference) => [
+  const options = [
+    ...SPECIAL_PROVINCE_OPTIONS,
+    ...references.flatMap((reference) => [
     { value: reference.name, label: reference.region },
     ...reference.aliases.map((alias) => ({
       value: alias,
       label: `${reference.name} • ${reference.region}`
     }))
-  ]);
+    ])
+  ];
 
   return (
     <>

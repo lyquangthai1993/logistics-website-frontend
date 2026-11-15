@@ -88,4 +88,14 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
   test('Case 5: unknown province text is preserved for review', async ({ page }) => {
     await assertProvinceCase(page, '  Tỉnh Sao Hỏa  ', 'Tỉnh Sao Hỏa');
   });
+
+  test('Case 6: operational exception resolves to Lưu Kho', async ({ page }) => {
+    const provinceInput = await openProvinceInput(page);
+    const datalistId = await provinceInput.getAttribute('list');
+    expect(datalistId).toBeTruthy();
+    await expect(page.locator(`#${datalistId} option[value="Lưu Kho"]`)).toHaveCount(1);
+    await provinceInput.fill('  LUU   KHO  ');
+    await provinceInput.press('Tab');
+    await expect(provinceInput).toHaveValue('Lưu Kho');
+  });
 });
