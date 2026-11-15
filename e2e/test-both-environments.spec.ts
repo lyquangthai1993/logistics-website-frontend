@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Verify session persistence after 70s on Vercel and Localhost', () => {
+test.describe('Verify session persistence on configured environment', () => {
   test.setTimeout(300000);
 
   const TARGETS = [
-    { name: 'Vercel Live', url: 'https://logistics-website-frontend-kappa.vercel.app' },
-    { name: 'Localhost Dev', url: 'http://localhost:3000' }
+    {
+      name: process.env.PLAYWRIGHT_BASE_URL?.includes('railway.app') ? 'Railway Dev' : 'Local Dev',
+      url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000'
+    }
   ];
 
   for (const target of TARGETS) {

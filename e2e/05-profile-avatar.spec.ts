@@ -30,7 +30,7 @@ test.describe('Profile Avatar Upload & Removal Flow', () => {
   test('should successfully upload new avatar image and then remove it', async ({ page }) => {
     // 1. Navigate to profile page
     await page.goto('/dashboard/profile');
-    await page.waitForURL('/dashboard/profile', { waitUntil: 'networkidle' });
+    await page.waitForURL('/dashboard/profile', { waitUntil: 'domcontentloaded' });
 
     // Verify profile page loaded
     await expect(page.locator('main').getByText(superAdmin.email)).toBeVisible();
@@ -76,7 +76,7 @@ test.describe('Profile Avatar Upload & Removal Flow', () => {
     });
 
     // 7. Reload page and check avatar persists
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     const removeBtn = page.getByRole('button', { name: 'Xóa ảnh' });
     await expect(removeBtn).toBeVisible();
 

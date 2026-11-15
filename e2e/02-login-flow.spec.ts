@@ -16,7 +16,7 @@ import { TEST_USERS, loginAs, clearSession, collectConsoleLogs } from './helpers
 test.describe('[Login Page] UI baseline', () => {
   test('renders form fields and submit button', async ({ page }) => {
     await page.goto('/auth/sign-in');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.locator('input[name="email"]')).toBeVisible();
     await expect(page.locator('input[name="password"]')).toBeVisible();

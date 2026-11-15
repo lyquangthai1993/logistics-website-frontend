@@ -17,7 +17,7 @@ const WAREHOUSE_DAD = {
   role: 'WAREHOUSE_MANAGER' as const,
 };
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000';
 
 // Seed 10 sample orders at Hub A if less than 10 are stored
 async function ensureHubAHasOrders(request: any) {

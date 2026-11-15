@@ -10,7 +10,7 @@ if (!fs.existsSync(ARTIFACT_DIR)) {
 
 const TARGET_BASE_URL =
   process.env.TARGET_URL ||
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000');
 
 const USER = {
   email: 'lyquangthai1993+4@gmail.com',

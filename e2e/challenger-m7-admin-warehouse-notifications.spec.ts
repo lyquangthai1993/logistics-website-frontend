@@ -1,7 +1,7 @@
 import { test, expect, request } from '@playwright/test';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_BASE = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001/api/v1').replace(/\/$/, '');
 
 test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & Notifications', () => {
   const adminUser = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
@@ -12,7 +12,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
   // ── Helper: lấy JWT token qua API login ─────────────────────────────────────
   async function getAdminToken(): Promise<{ token: string; userId: number }> {
     const ctx = await request.newContext();
-    const res = await ctx.post(`${API_BASE}/api/v1/auth/email/login`, {
+    const res = await ctx.post(`${API_BASE}/auth/email/login`, {
       data: { email: adminUser.email, password: adminUser.password }
     });
     expect(res.status(), 'Login API should return 200').toBe(200);
@@ -62,14 +62,14 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
 
       // Step 3: Backend API guard test (@Roles(RoleEnum.SUPER_ADMIN))
       const ctx = await request.newContext();
-      const dispLoginRes = await ctx.post(`${API_BASE}/api/v1/auth/email/login`, {
+      const dispLoginRes = await ctx.post(`${API_BASE}/auth/email/login`, {
         data: { email: dispatcherUser.email, password: dispatcherUser.password }
       });
       const dispBody = await dispLoginRes.json();
       const dispToken = dispBody.token ?? dispBody.data?.token;
 
       // Dispatcher attempts GET /api/v1/users -> Expect 403 Forbidden
-      const unauthorizedRes = await ctx.get(`${API_BASE}/api/v1/users`, {
+      const unauthorizedRes = await ctx.get(`${API_BASE}/users`, {
         headers: { Authorization: `Bearer ${dispToken}` }
       });
       expect(unauthorizedRes.status()).toBe(403);
@@ -366,7 +366,7 @@ test.describe('Challenger 2 Empirical Hardening Suite: Admin Users, Warehouse & 
       const ctx = await request.newContext({
         extraHTTPHeaders: { Authorization: `Bearer ${token}` }
       });
-      const postRes = await ctx.post(`${API_BASE}/api/v1/notifications`, {
+      const postRes = await ctx.post(`${API_BASE}/notifications`, {
         data: {
           userId,
           title: testTitle,

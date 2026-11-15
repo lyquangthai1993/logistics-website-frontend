@@ -22,7 +22,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
   test('1. Header bell badge shows unread count', async ({ page }) => {
     await loginAs(page, DISPATCHER);
     await page.waitForURL(/\/dashboard\/.+/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Đợi TanStack Query fetch xong (staleTime=30s nên cần đủ time)
     await page.waitForTimeout(2500);
@@ -51,7 +51,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
   test('2. Bell popover shows notification list', async ({ page }) => {
     await loginAs(page, DISPATCHER);
     await page.waitForURL(/\/dashboard\/.+/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // Click bell
@@ -80,7 +80,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
   test('3. Notifications page – All tab with badge & tabs', async ({ page }) => {
     await loginAs(page, DISPATCHER);
     await page.goto('/dashboard/notifications');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // Screenshot full page
@@ -106,7 +106,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
   test('4. Unread tab shows only unread items', async ({ page }) => {
     await loginAs(page, DISPATCHER);
     await page.goto('/dashboard/notifications');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // Click Unread tab
@@ -127,7 +127,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
   test('5. Mark single notification as read', async ({ page }) => {
     await loginAs(page, DISPATCHER);
     await page.goto('/dashboard/notifications');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // Click Unread tab
@@ -138,7 +138,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
     const firstMarkReadBtn = page.getByRole('button', { name: /mark as read/i }).first();
     if (await firstMarkReadBtn.isVisible()) {
       await firstMarkReadBtn.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
       await page.screenshot({
@@ -161,7 +161,7 @@ test.describe('[Notifications] Visual UI – Dispatcher', () => {
   test('6. Read tab shows read items', async ({ page }) => {
     await loginAs(page, DISPATCHER);
     await page.goto('/dashboard/notifications');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // Click Read tab — dùng exact để tránh match "Unread"
