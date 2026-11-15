@@ -56,13 +56,21 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     // 2. Kiểm tra slot drilldown-table & Widget mã TRIP đã được loại bỏ
     await expect(page.getByTestId('tab-confirmed-trips')).toHaveCount(0);
 
-    // 3. Kiểm tra 2 nút bấm tách riêng báo cáo Nhập kho và Xuất kho
+    // 3. Kiểm tra bộ chọn tiêu chí Nhập / Xuất
     await expect(page.getByTestId('report-sync-cron-btn')).toBeVisible();
     await expect(page.getByTestId('report-goto-daily-trips-btn')).toHaveCount(0);
     await expect(page.getByTestId('report-goto-cronjobs-btn')).toHaveCount(0);
     await expect(page.getByTestId('report-export-excel-btn')).toHaveCount(0);
-    await expect(page.getByTestId('direction-inbound-btn')).toHaveCount(0);
-    await expect(page.getByTestId('direction-outbound-btn')).toHaveCount(0);
+    await expect(page.getByTestId('report-direction-toggle')).toBeVisible();
+    await expect(page.getByTestId('direction-inbound-btn')).toBeVisible();
+    await expect(page.getByTestId('direction-outbound-btn')).toBeVisible();
+    await expect(page.getByTestId('direction-inbound-btn')).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('direction-outbound-btn').click();
+    await expect(page.getByTestId('direction-outbound-btn')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await page.getByTestId('direction-inbound-btn').click();
 
     const hubSelector = page.getByTestId('warehouse-hub-filter-select');
     await expect(hubSelector).toContainText('Andromeda Hub - HCM', { timeout: 15000 });
@@ -72,6 +80,16 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     ).toHaveCount(2);
     await hubSelector.click();
     await expect(page.getByText('LƯU KHO', { exact: true }).first()).toBeVisible();
+
+    const inboundTrips = Number(
+      (await page.getByTestId('kpi-inbound-trips').textContent())?.replace(/\D/g, '') || 0
+    );
+    const outboundTrips = Number(
+      (await page.getByTestId('kpi-outbound-trips').textContent())?.replace(/\D/g, '') || 0
+    );
+    await expect(page.getByTestId('kpi-total-trips')).toContainText(
+      `${inboundTrips + outboundTrips} chuyến`
+    );
 
     // 4. Kiểm tra dòng TỔNG SẢN LƯỢNG / TRUNG BÌNH trùng lặp bên dưới biểu đồ cột đã được gỡ bỏ
     await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);

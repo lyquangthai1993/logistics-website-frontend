@@ -39,6 +39,11 @@ import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
 import { formatNumber } from '@/lib/utils';
 
+function getInitialOrderSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return (new URLSearchParams(window.location.search).get('search') || '').trim();
+}
+
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name;
@@ -47,12 +52,29 @@ export default function WarehouseOrdersPage() {
     (user?.role as any)?.id === 1 ||
     (user?.role as any)?.name === 'SUPER_ADMIN';
 
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [search, setSearch] = useState(getInitialOrderSearch);
+  const [appliedSearch, setAppliedSearch] = useState(getInitialOrderSearch);
+
+  const syncSearchToUrl = useCallback((value: string) => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const clean = value.trim();
+    if (clean) {
+      sp.set('search', clean);
+    } else {
+      sp.delete('search');
+      sp.delete('q');
+    }
+    sp.delete('page');
+    const qs = sp.toString();
+    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+  }, []);
 
   const handleSearchSubmit = () => {
     setPage(1);
-    setAppliedSearch(search.trim());
+    const clean = search.trim();
+    setAppliedSearch(clean);
+    syncSearchToUrl(clean);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -66,6 +88,7 @@ export default function WarehouseOrdersPage() {
     setSearch('');
     setAppliedSearch('');
     setPage(1);
+    syncSearchToUrl('');
   };
 
   const effectiveSearch = appliedSearch.trim();

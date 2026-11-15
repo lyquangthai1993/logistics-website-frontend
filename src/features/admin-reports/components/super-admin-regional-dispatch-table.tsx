@@ -130,6 +130,19 @@ export interface RegionalReportApiResponse {
     currentHubId: number;
     currentHubName: string;
   }>;
+  provinceAudit?: {
+    scannedOrderCount: number;
+    invalidOrderCount: number;
+    missingProvinceCount: number;
+    unrecognizedProvinceCount: number;
+    isTruncated: boolean;
+    orders: Array<{
+      id: number;
+      orderCode: string;
+      province: string | null;
+      reason: 'MISSING_PROVINCE' | 'UNRECOGNIZED_PROVINCE';
+    }>;
+  };
 }
 
 interface RegionRowConfig {
@@ -294,6 +307,19 @@ export function SuperAdminRegionalDispatchTable() {
     { totalWeightKg: 0, totalWeightTons: 0, totalVolumeCbm: 0 }
   );
 
+  // Province audit scans all recent orders, including orders that no longer
+  // contribute cargo to the weight/volume snapshot. Keep the audit count in a
+  // separate count chart so the 55 unresolved order codes remain visible
+  // without mixing order counts with kg or m³.
+  const chartOrderCounts = REGION_CONFIGS.map((cfg) => {
+    const stored = data?.regions[cfg.key];
+    const draft = data?.draftRegions?.[cfg.key];
+    return cfg.key === 'na'
+      ? data?.provinceAudit?.invalidOrderCount ?? 0
+      : (stored?.onhandOrderCount ?? 0) + (draft?.orderCount ?? 0);
+  });
+  const totalChartOrderCount = chartOrderCounts.reduce((sum, count) => sum + count, 0);
+
   const handleExportExcel = () => {
     if (!data?.regions) return;
     const wb = XLSX.utils.book_new();
@@ -429,7 +455,8 @@ export function SuperAdminRegionalDispatchTable() {
           (data.regions.na.totalWeightKg > 0 ||
             data.regions.na.totalVolumeCbm > 0 ||
             data.regions.na.onhandOrderCount > 0 ||
-            data.regions.na.incomingTripCount > 0) && (
+            data.regions.na.incomingTripCount > 0 ||
+            (data.provinceAudit?.invalidOrderCount ?? 0) > 0) && (
             <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
               <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
               <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
@@ -451,6 +478,35 @@ export function SuperAdminRegionalDispatchTable() {
                 </div>
 
                 {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
+                {data.provinceAudit && data.provinceAudit.invalidOrderCount > 0 && (
+                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                      Quét đơn thiếu hoặc sai tỉnh/thành:{' '}
+                      {formatNumber(data.provinceAudit.invalidOrderCount)} mã
+                    </div>
+                    <div className='text-[10px] text-amber-800 dark:text-amber-300'>
+                      Đã quét {formatNumber(data.provinceAudit.scannedOrderCount)} đơn theo Hub ·
+                      Thiếu tỉnh: {formatNumber(data.provinceAudit.missingProvinceCount)} · Không
+                      nhận diện: {formatNumber(data.provinceAudit.unrecognizedProvinceCount)}
+                      {data.provinceAudit.isTruncated ? ' · Hiển thị tối đa 500 mã' : ''}
+                    </div>
+                    <div className='max-h-28 overflow-y-auto flex flex-wrap gap-1 rounded border border-amber-200 bg-white/70 p-1 dark:border-amber-900/40 dark:bg-slate-900/50'>
+                      {data.provinceAudit.orders.map((order) => (
+                        <a
+                          key={`province-audit-${order.id}`}
+                          href={`/dashboard/warehouse/orders?search=${encodeURIComponent(order.orderCode)}`}
+                          target='_blank'
+                          rel='noreferrer'
+                          title={order.province || 'Chưa nhập tỉnh/thành'}
+                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
+                        >
+                          {order.orderCode}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {naOrders.length > 0 && (
                   <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
                     <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
@@ -550,7 +606,7 @@ export function SuperAdminRegionalDispatchTable() {
                 </div>
 
                 {/* Visual Charts Grid */}
-                <div className='grid gap-2 grid-cols-1 lg:grid-cols-2'>
+                <div className='grid gap-2 grid-cols-1 lg:grid-cols-3'>
                   {/* Chart 1: Weight (Tấn • Kg) */}
                   {
                     <div
@@ -704,6 +760,73 @@ export function SuperAdminRegionalDispatchTable() {
                       </div>
                     </div>
                   }
+                {/* Chart 3: Order-code count, including the province audit list */}
+                <div
+                  data-testid='regional-order-count-chart'
+                  className='rounded-lg bg-white p-2 shadow-2xs border border-slate-200 dark:bg-slate-900 dark:border-slate-800 space-y-2'
+                >
+                  <div className='flex items-baseline justify-between border-b border-slate-100 pb-2 dark:border-slate-800'>
+                    <div className='flex items-center gap-1.5'>
+                      <span className='inline-block h-2.5 w-2.5 rounded-full bg-rose-500' />
+                      <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
+                        Số mã đơn theo miền
+                      </span>
+                    </div>
+                    <span className='text-xs font-mono font-bold text-rose-700 dark:text-rose-300'>
+                      Tổng: {formatNumber(totalChartOrderCount)} mã
+                    </span>
+                  </div>
+
+                  <div className='space-y-2 pt-1'>
+                    {REGION_CONFIGS.map((cfg, index) => {
+                      const orderCount = chartOrderCounts[index] || 0;
+                      const orderPct =
+                        totalChartOrderCount > 0
+                          ? Math.round((orderCount / totalChartOrderCount) * 1000) / 10
+                          : 0;
+                      return (
+                        <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
+                          <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
+                            <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
+                              {cfg.name}
+                            </span>
+                          </div>
+                          <div className='flex-1 flex items-center min-w-0'>
+                            <div
+                              className={`h-6 sm:h-7 ${cfg.barColorVolume} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
+                              style={{
+                                width: `${Math.max(
+                                  orderPct > 0 ? orderPct : 0,
+                                  orderCount > 0 ? 3 : 0
+                                )}%`,
+                                maxWidth: 'calc(100% - 170px)'
+                              }}
+                            />
+                            <span
+                              className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
+                            >
+                              {formatNumber(orderCount)} mã
+                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
+                                ({orderPct}%)
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className='flex items-center gap-2.5 pt-1.5'>
+                      <div className='w-28 sm:w-36 shrink-0' />
+                      <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
+                        <span>0%</span>
+                        <span>25%</span>
+                        <span>50%</span>
+                        <span>75%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 </div>
               </div>
             )}
@@ -727,12 +850,15 @@ export function SuperAdminRegionalDispatchTable() {
                         <span className='w-full text-[10px] font-semibold'>Mã vận đơn lưu kho</span>
                         {storedCodes.length ? (
                           storedCodes.map((code) => (
-                            <span
+                            <a
                               key={`stored-${code}`}
+                              href={`/dashboard/warehouse/orders?search=${encodeURIComponent(code)}`}
+                              target='_blank'
+                              rel='noreferrer'
                               className='rounded bg-blue-50 px-1 font-mono text-[10px] dark:bg-blue-950/40'
                             >
                               {code}
-                            </span>
+                            </a>
                           ))
                         ) : (
                           <span className='text-[10px] text-slate-500'>
@@ -746,12 +872,15 @@ export function SuperAdminRegionalDispatchTable() {
                         </span>
                         {draftCodes.length ? (
                           draftCodes.map((code) => (
-                            <span
+                            <a
                               key={`draft-${code}`}
+                              href={`/dashboard/warehouse/orders?search=${encodeURIComponent(code)}`}
+                              target='_blank'
+                              rel='noreferrer'
                               className='rounded bg-amber-50 px-1 font-mono text-[10px] dark:bg-amber-950/40'
                             >
                               {code}
-                            </span>
+                            </a>
                           ))
                         ) : (
                           <span className='text-[10px] text-slate-500'>

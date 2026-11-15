@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import PageContainer from '@/components/layout/page-container';
 import {
@@ -274,6 +274,11 @@ interface AdminOperationalReportContextValue {
   setFromDate: React.Dispatch<React.SetStateAction<string>>;
   toDate: string;
   setToDate: React.Dispatch<React.SetStateAction<string>>;
+  draftFromDate: string;
+  setDraftFromDate: React.Dispatch<React.SetStateAction<string>>;
+  draftToDate: string;
+  setDraftToDate: React.Dispatch<React.SetStateAction<string>>;
+  applyDateRange: () => void;
   selectedHubId: string;
   setSelectedHubId: React.Dispatch<React.SetStateAction<string>>;
   direction: ReportDirection;
@@ -322,10 +327,14 @@ export function useOptionalAdminOperationalReport(): AdminOperationalReportConte
  */
 export function AdminOperationalReportProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const defaultRange = useMemo(() => getDefaultMonthRange(), []);
 
   const [fromDate, setFromDate] = useState<string>(defaultRange.fromDate);
   const [toDate, setToDate] = useState<string>(defaultRange.toDate);
+  const [draftFromDate, setDraftFromDate] = useState<string>(defaultRange.fromDate);
+  const [draftToDate, setDraftToDate] = useState<string>(defaultRange.toDate);
   const [selectedHubId, setSelectedHubId] = useState<string>('ALL');
   const [direction, setDirection] = useState<ReportDirection>('INBOUND');
   const [chartMetric, setChartMetric] = useState<ReportChartMetric>('CBM');
@@ -381,6 +390,36 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     }
   });
 
+  const syncDateRangeToUrl = (start: string, end: string) => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('fromDate', start);
+    params.set('toDate', end);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const applyDateRange = () => {
+    if (!draftFromDate || !draftToDate) {
+      toast.error('Vui lòng chọn đủ ngày bắt đầu và ngày kết thúc');
+      return;
+    }
+    if (draftFromDate > draftToDate) {
+      toast.error('Ngày bắt đầu không được sau ngày kết thúc');
+      return;
+    }
+    setFromDate(draftFromDate);
+    setToDate(draftToDate);
+    syncDateRangeToUrl(draftFromDate, draftToDate);
+  };
+
+  const setDateRange = (start: string, end: string) => {
+    setDraftFromDate(start);
+    setDraftToDate(end);
+    setFromDate(start);
+    setToDate(end);
+    syncDateRangeToUrl(start, end);
+  };
+
   const applyQuickRange = (
     preset: 'THIS_MONTH' | 'LAST_MONTH' | 'OCT_2026' | 'LAST_7' | 'LAST_30'
   ) => {
@@ -393,29 +432,24 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     if (preset === 'THIS_MONTH') {
       const start = `${year}-${String(month).padStart(2, '0')}-01`;
       const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-      setFromDate(start);
-      setToDate(end);
+      setDateRange(start, end);
     } else if (preset === 'LAST_MONTH') {
       const prevMonthDate = new Date(Date.UTC(year, month - 2, 1));
       const py = prevMonthDate.getUTCFullYear();
       const pm = prevMonthDate.getUTCMonth() + 1;
       const start = `${py}-${String(pm).padStart(2, '0')}-01`;
       const end = new Date(Date.UTC(py, pm, 0)).toISOString().slice(0, 10);
-      setFromDate(start);
-      setToDate(end);
+      setDateRange(start, end);
     } else if (preset === 'OCT_2026') {
-      setFromDate('2026-10-01');
-      setToDate('2026-10-31');
+      setDateRange('2026-10-01', '2026-10-31');
     } else if (preset === 'LAST_7') {
       const d = new Date(`${todayStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() - 6);
-      setFromDate(d.toISOString().slice(0, 10));
-      setToDate(todayStr);
+      setDateRange(d.toISOString().slice(0, 10), todayStr);
     } else if (preset === 'LAST_30') {
       const d = new Date(`${todayStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() - 29);
-      setFromDate(d.toISOString().slice(0, 10));
-      setToDate(todayStr);
+      setDateRange(d.toISOString().slice(0, 10), todayStr);
     }
   };
 
@@ -531,6 +565,11 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     setFromDate,
     toDate,
     setToDate,
+    draftFromDate,
+    setDraftFromDate,
+    draftToDate,
+    setDraftToDate,
+    applyDateRange,
     selectedHubId,
     setSelectedHubId,
     direction,
@@ -570,9 +609,12 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
 export function AdminReportHeaderAndKpis() {
   const {
     fromDate,
-    setFromDate,
     toDate,
-    setToDate,
+    draftFromDate,
+    setDraftFromDate,
+    draftToDate,
+    setDraftToDate,
+    applyDateRange,
     selectedHubId,
     setSelectedHubId,
     direction,
@@ -589,7 +631,8 @@ export function AdminReportHeaderAndKpis() {
     summary
   } = useAdminOperationalReport();
   const showSecondaryReportActions = false;
-
+  const totalConfirmedTrips =
+    (summary?.inbound.tripCount ?? 0) + (summary?.outbound.tripCount ?? 0);
   return (
     <div className='space-y-2'>
       {/* 1. BỘ LỌC CHUNG GLOBAL DUY NHẤT TRÊN CÙNG (Single Unified Global Filter Bar) */}
@@ -605,20 +648,32 @@ export function AdminReportHeaderAndKpis() {
                 <span className='text-[10px] font-semibold text-muted-foreground'>Từ ngày</span>
                 <input
                   type='date'
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
+                  value={draftFromDate}
+                  onChange={(e) => setDraftFromDate(e.target.value)}
                   data-testid='report-from-date-input'
                   className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
                 />
                 <span className='text-[10px] font-semibold text-muted-foreground'>đến</span>
                 <input
                   type='date'
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
+                  value={draftToDate}
+                  min={draftFromDate || undefined}
+                  onChange={(e) => setDraftToDate(e.target.value)}
                   data-testid='report-to-date-input'
                   className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
                 />
               </div>
+
+              <Button
+                type='button'
+                size='sm'
+                onClick={applyDateRange}
+                data-testid='report-apply-date-range-btn'
+                className='h-8 px-2.5 text-[11px] font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
+                title='Áp dụng bộ lọc theo khoảng thời gian'
+              >
+                Áp dụng
+              </Button>
 
               {showSecondaryReportActions && (
                 <div className='inline-flex items-center gap-1'>
@@ -671,39 +726,43 @@ export function AdminReportHeaderAndKpis() {
                 reportScope
               />
 
-              {showSecondaryReportActions && (
-                <div
-                  className='inline-flex items-center gap-1.5 p-0.5'
-                  data-testid='report-direction-toggle'
+              <div
+                className='inline-flex items-center gap-1 rounded-md border border-slate-300 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-900/70'
+                data-testid='report-direction-toggle'
+                aria-label='Tiêu chí báo cáo'
+              >
+                <span className='px-1 text-[10px] font-semibold text-muted-foreground'>
+                  Tiêu chí
+                </span>
+                <button
+                  type='button'
+                  onClick={() => setDirection('INBOUND')}
+                  data-testid='direction-inbound-btn'
+                  aria-pressed={direction === 'INBOUND'}
+                  className={`h-7 px-2 rounded-sm text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 border ${
+                    direction === 'INBOUND'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm'
+                      : 'bg-white dark:bg-slate-900 border-transparent text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600'
+                  }`}
                 >
-                  <button
-                    type='button'
-                    onClick={() => setDirection('INBOUND')}
-                    data-testid='direction-inbound-btn'
-                    className={`h-8 px-3 rounded-md text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
-                      direction === 'INBOUND'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm ring-2 ring-blue-400/30'
-                        : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600'
-                    }`}
-                  >
-                    <IconArrowDownLeft className='h-3.5 w-3.5' />
-                    <span>Báo cáo Nhập kho</span>
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setDirection('OUTBOUND')}
-                    data-testid='direction-outbound-btn'
-                    className={`h-8 px-3 rounded-md text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
-                      direction === 'OUTBOUND'
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-400/30'
-                        : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-600'
-                    }`}
-                  >
-                    <IconArrowUpRight className='h-3.5 w-3.5' />
-                    <span>Báo cáo Xuất kho</span>
-                  </button>
-                </div>
-              )}
+                  <IconArrowDownLeft className='h-3.5 w-3.5' />
+                  <span>Nhập</span>
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setDirection('OUTBOUND')}
+                  data-testid='direction-outbound-btn'
+                  aria-pressed={direction === 'OUTBOUND'}
+                  className={`h-7 px-2 rounded-sm text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 border ${
+                    direction === 'OUTBOUND'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm'
+                      : 'bg-white dark:bg-slate-900 border-transparent text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-600'
+                  }`}
+                >
+                  <IconArrowUpRight className='h-3.5 w-3.5' />
+                  <span>Xuất</span>
+                </button>
+              </div>
             </div>
 
             <div className='flex items-center gap-1.5'>
@@ -920,16 +979,16 @@ export function AdminReportHeaderAndKpis() {
               className='text-lg font-extrabold font-mono text-emerald-700 dark:text-emerald-300'
               data-testid='kpi-total-trips'
             >
-              {formatNumberVn(summary?.tripCount ?? 0, 0)} chuyến
+              {formatNumberVn(totalConfirmedTrips, 0)} chuyến
             </div>
             <div className='flex items-center justify-between text-[10px] text-muted-foreground'>
               <span>
                 Xe nhập:{' '}
-                <strong className='font-mono text-foreground'>
+                <strong className='font-mono text-foreground' data-testid='kpi-inbound-trips'>
                   {summary?.inbound.tripCount ?? 0}
                 </strong>{' '}
                 • Xe xuất:{' '}
-                <strong className='font-mono text-foreground'>
+                <strong className='font-mono text-foreground' data-testid='kpi-outbound-trips'>
                   {summary?.outbound.tripCount ?? 0}
                 </strong>
               </span>
