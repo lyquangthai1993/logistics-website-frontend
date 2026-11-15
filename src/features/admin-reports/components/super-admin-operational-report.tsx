@@ -32,12 +32,23 @@ import {
 } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { format, parseISO } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { formatNumber } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { WarehouseHubFilterSelect } from '@/features/warehouse/components/warehouse-hub-filter-select';
 
 export type ReportDirection = 'INBOUND' | 'OUTBOUND' | 'ALL';
@@ -365,7 +376,7 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiClient.post<{
+      const operationalResponse = await apiClient.post<{
         processedDays?: number;
         upsertedRows?: number;
         data?: { processedDays?: number; upsertedRows?: number };
@@ -374,19 +385,22 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
         toDate,
         notifySuperAdmins: true
       });
-      return res.data?.data ?? res.data;
+      const operational = operationalResponse.data?.data ?? operationalResponse.data;
+      await apiClient.post('/api/v1/admin/reports/regional-dispatch/sync');
+      return operational;
     },
     onSuccess: (res) => {
-      toast.success(
-        `Đã đồng bộ báo cáo vận hành (${res?.processedDays ?? 0} ngày, khung 06:00 D → 05:59 D+1)`
-      );
+      toast.success(`Đã đồng bộ toàn bộ báo cáo (${res?.processedDays ?? 0} ngày vận hành)`);
       void queryClient.invalidateQueries({
         queryKey: ['admin-operational-report']
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['admin-regional-dispatch-report-table']
       });
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (err) => {
-      toast.error(formatApiError(err, 'Không thể đồng bộ báo cáo vận hành'));
+      toast.error(formatApiError(err, 'Không thể đồng bộ đầy đủ báo cáo'));
     }
   });
 
@@ -412,14 +426,6 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     syncDateRangeToUrl(draftFromDate, draftToDate);
   };
 
-  const setDateRange = (start: string, end: string) => {
-    setDraftFromDate(start);
-    setDraftToDate(end);
-    setFromDate(start);
-    setToDate(end);
-    syncDateRangeToUrl(start, end);
-  };
-
   const applyQuickRange = (
     preset: 'THIS_MONTH' | 'LAST_MONTH' | 'OCT_2026' | 'LAST_7' | 'LAST_30'
   ) => {
@@ -432,24 +438,29 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
     if (preset === 'THIS_MONTH') {
       const start = `${year}-${String(month).padStart(2, '0')}-01`;
       const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-      setDateRange(start, end);
+      setDraftFromDate(start);
+      setDraftToDate(end);
     } else if (preset === 'LAST_MONTH') {
       const prevMonthDate = new Date(Date.UTC(year, month - 2, 1));
       const py = prevMonthDate.getUTCFullYear();
       const pm = prevMonthDate.getUTCMonth() + 1;
       const start = `${py}-${String(pm).padStart(2, '0')}-01`;
       const end = new Date(Date.UTC(py, pm, 0)).toISOString().slice(0, 10);
-      setDateRange(start, end);
+      setDraftFromDate(start);
+      setDraftToDate(end);
     } else if (preset === 'OCT_2026') {
-      setDateRange('2026-10-01', '2026-10-31');
+      setDraftFromDate('2026-10-01');
+      setDraftToDate('2026-10-31');
     } else if (preset === 'LAST_7') {
       const d = new Date(`${todayStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() - 6);
-      setDateRange(d.toISOString().slice(0, 10), todayStr);
+      setDraftFromDate(d.toISOString().slice(0, 10));
+      setDraftToDate(todayStr);
     } else if (preset === 'LAST_30') {
       const d = new Date(`${todayStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() - 29);
-      setDateRange(d.toISOString().slice(0, 10), todayStr);
+      setDraftFromDate(d.toISOString().slice(0, 10));
+      setDraftToDate(todayStr);
     }
   };
 
@@ -630,9 +641,20 @@ export function AdminReportHeaderAndKpis() {
     handleExportExcel,
     summary
   } = useAdminOperationalReport();
+  const [quickRangePreset, setQuickRangePreset] = useState<
+    'THIS_MONTH' | 'LAST_MONTH' | 'LAST_7' | ''
+  >('THIS_MONTH');
   const showSecondaryReportActions = false;
   const totalConfirmedTrips =
     (summary?.inbound.tripCount ?? 0) + (summary?.outbound.tripCount ?? 0);
+  const selectedDateRange: DateRange = {
+    from: draftFromDate ? parseISO(draftFromDate) : undefined,
+    to: draftToDate ? parseISO(draftToDate) : undefined
+  };
+  const dateRangeLabel =
+    selectedDateRange.from && selectedDateRange.to
+      ? `${format(selectedDateRange.from, 'dd/MM/yyyy')} – ${format(selectedDateRange.to, 'dd/MM/yyyy')}`
+      : 'Chọn khoảng ngày';
   return (
     <div className='space-y-2'>
       {/* 1. BỘ LỌC CHUNG GLOBAL DUY NHẤT TRÊN CÙNG (Single Unified Global Filter Bar) */}
@@ -643,37 +665,75 @@ export function AdminReportHeaderAndKpis() {
         <CardContent className='p-0 space-y-1.5'>
           <div className='flex flex-wrap items-center justify-between gap-1.5'>
             <div className='flex flex-wrap items-center gap-1.5'>
-              <div className='inline-flex items-center gap-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 h-8'>
-                <IconCalendar className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400 shrink-0' />
-                <span className='text-[10px] font-semibold text-muted-foreground'>Từ ngày</span>
-                <input
-                  type='date'
-                  value={draftFromDate}
-                  onChange={(e) => setDraftFromDate(e.target.value)}
-                  data-testid='report-from-date-input'
-                  className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
-                />
-                <span className='text-[10px] font-semibold text-muted-foreground'>đến</span>
-                <input
-                  type='date'
-                  value={draftToDate}
-                  min={draftFromDate || undefined}
-                  onChange={(e) => setDraftToDate(e.target.value)}
-                  data-testid='report-to-date-input'
-                  className='text-xs font-mono font-bold bg-transparent outline-none text-foreground cursor-pointer'
-                />
-              </div>
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      data-testid='report-date-range-picker'
+                      aria-label='Chọn khoảng ngày báo cáo'
+                      className='h-8 min-w-60 justify-start gap-1.5 border-slate-300 bg-white px-2 text-left text-[11px] font-semibold dark:border-slate-700 dark:bg-slate-900'
+                    />
+                  }
+                >
+                  <IconCalendar className='h-3.5 w-3.5 shrink-0 text-[#0F3D62] dark:text-blue-400' />
+                  <span className='text-[10px] text-muted-foreground'>Khoảng ngày</span>
+                  <span className='font-mono font-bold text-foreground'>{dateRangeLabel}</span>
+                </PopoverTrigger>
+                <PopoverContent align='start' className='w-auto p-2'>
+                  <div className='mb-1.5 flex items-center justify-between border-b border-slate-200 pb-1.5 dark:border-slate-800'>
+                    <span className='text-[11px] font-bold text-slate-700 dark:text-slate-200'>
+                      Chọn khoảng ngày báo cáo
+                    </span>
+                    <span className='text-[10px] text-muted-foreground'>
+                      Bấm “Áp dụng” để tải dữ liệu
+                    </span>
+                  </div>
+                  <Calendar
+                    mode='range'
+                    selected={selectedDateRange}
+                    onSelect={(range) => {
+                      setDraftFromDate(range?.from ? format(range.from, 'yyyy-MM-dd') : '');
+                      setDraftToDate(range?.to ? format(range.to, 'yyyy-MM-dd') : '');
+                    }}
+                    numberOfMonths={2}
+                    autoFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-              <Button
-                type='button'
-                size='sm'
-                onClick={applyDateRange}
-                data-testid='report-apply-date-range-btn'
-                className='h-8 px-2.5 text-[11px] font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
-                title='Áp dụng bộ lọc theo khoảng thời gian'
+              <Select
+                value={quickRangePreset}
+                onValueChange={(value) => {
+                  const preset = value as 'THIS_MONTH' | 'LAST_MONTH' | 'LAST_7';
+                  setQuickRangePreset(preset);
+                  applyQuickRange(preset);
+                }}
               >
-                Áp dụng
-              </Button>
+                <SelectTrigger
+                  size='sm'
+                  data-testid='report-quick-range-select'
+                  aria-label='Lọc nhanh theo thời gian'
+                  className='h-8 min-w-32 text-[11px] font-semibold'
+                >
+                  <SelectValue placeholder='Lọc nhanh'>
+                    {quickRangePreset === 'THIS_MONTH'
+                      ? 'Tháng này'
+                      : quickRangePreset === 'LAST_MONTH'
+                        ? 'Tháng trước'
+                        : quickRangePreset === 'LAST_7'
+                          ? '7 ngày trước'
+                          : 'Lọc nhanh'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='LAST_MONTH'>Tháng trước</SelectItem>
+                  <SelectItem value='LAST_7'>7 ngày trước</SelectItem>
+                  <SelectItem value='THIS_MONTH'>Tháng này</SelectItem>
+                </SelectContent>
+              </Select>
 
               {showSecondaryReportActions && (
                 <div className='inline-flex items-center gap-1'>
@@ -725,6 +785,17 @@ export function AdminReportHeaderAndKpis() {
                 onChange={(val) => setSelectedHubId(val)}
                 reportScope
               />
+
+              <Button
+                type='button'
+                size='sm'
+                onClick={applyDateRange}
+                data-testid='report-apply-date-range-btn'
+                className='h-8 px-2.5 text-[11px] font-semibold bg-[#0F3D62] hover:bg-[#0c2f4d] text-white shadow-xs cursor-pointer'
+                title='Áp dụng bộ lọc theo khoảng thời gian và kho'
+              >
+                Áp dụng
+              </Button>
 
               <div
                 className='inline-flex items-center gap-1 rounded-md border border-slate-300 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-900/70'
@@ -818,7 +889,7 @@ export function AdminReportHeaderAndKpis() {
                 ) : (
                   <IconRefresh className='h-3.5 w-3.5 mr-1' />
                 )}
-                Đồng bộ báo cáo
+                Đồng bộ toàn bộ báo cáo
               </Button>
 
               {showSecondaryReportActions && (
