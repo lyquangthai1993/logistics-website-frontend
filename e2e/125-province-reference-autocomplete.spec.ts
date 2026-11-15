@@ -18,7 +18,9 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
     await page.goto('/dashboard/warehouse/inbound', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 15_000 });
 
+    const pageUrlBeforeCreate = page.url();
     await page.getByRole('button', { name: /Tạo đơn nhập mới/ }).click();
+    await expect(page).toHaveURL(pageUrlBeforeCreate);
     const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
     await expect(provinceInput).toBeVisible();
 
