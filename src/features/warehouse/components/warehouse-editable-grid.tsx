@@ -1738,6 +1738,7 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
         table.options.meta?.updateData(row.index, column.id, nextValue);
       }}
       disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
+      required
       title={
         isLockedExistingWaybill
           ? 'Khóa cứng tỉnh/TP theo thông tin lần đầu nhập của mã vận đơn'
@@ -2492,17 +2493,17 @@ export function WarehouseEditableGrid({
         size: isOutboundMode ? 210 : 150,
         cell: DeliveryAddressCell
       },
-      ...(isOutboundMode
-        ? []
-        : [
-            {
-              accessorKey: 'province',
-              id: 'province',
-              header: 'TỈNH / TP',
-              size: 92,
-              cell: ProvinceCell
-            }
-          ]),
+      {
+        accessorKey: 'province',
+        id: 'province',
+        header: () => (
+          <span>
+            TỈNH / TP <span className='text-red-600 font-black'>*</span>
+          </span>
+        ),
+        size: 92,
+        cell: ProvinceCell
+      },
       {
         accessorKey: 'accompanyingDocs',
         id: 'accompanyingDocs',
