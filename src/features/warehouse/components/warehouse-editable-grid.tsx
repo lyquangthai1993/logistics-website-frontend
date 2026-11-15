@@ -2684,7 +2684,8 @@ export function WarehouseEditableGrid({
                     'totalQuantity',
                     'totalWeight',
                     'totalVolume',
-                    'deliveryAddress'
+                    'deliveryAddress',
+                    'province'
                   ].includes(colId);
 
                   return (
