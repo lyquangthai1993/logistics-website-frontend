@@ -38,7 +38,7 @@ function resolveCanonicalName(value: string, references: ProvinceReference[]): s
       reference.aliases.some((alias) => normalizeLookupValue(alias) === normalized)
   );
 
-  return match?.name ?? value;
+  return match?.name ?? value.trim();
 }
 
 export function ProvinceAutocomplete({
