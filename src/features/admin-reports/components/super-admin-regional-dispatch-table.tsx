@@ -355,6 +355,8 @@ export function SuperAdminRegionalDispatchTable() {
     );
   }, [data]);
 
+  const naSnapshotOrderCodes = useMemo(() => data?.regions.na.onhandOrderCodes ?? [], [data]);
+
   const naTrips = useMemo(() => {
     if (!data?.incomingTripsList) return [];
     return data.incomingTripsList.filter(
@@ -497,6 +499,27 @@ export function SuperAdminRegionalDispatchTable() {
                             {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
                           </span>
                         </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {naSnapshotOrderCodes.length > 0 && (
+                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                      Mã đơn ghi nhận trong snapshot N/A:
+                    </div>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {naSnapshotOrderCodes.map((orderCode) => (
+                        <a
+                          key={`snapshot-na-${orderCode}`}
+                          href={`/dashboard/warehouse/orders?search=${encodeURIComponent(orderCode)}`}
+                          target='_blank'
+                          rel='noreferrer'
+                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
+                        >
+                          {orderCode}
+                        </a>
                       ))}
                     </div>
                   </div>

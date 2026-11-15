@@ -49,6 +49,14 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(report.draftRegions).toBeDefined();
   expect(report.dailySeries.length).toBeGreaterThan(0);
   expect(report.onhandOrdersList.length).toBeGreaterThan(0);
+  expect(report.regions.na.onhandOrderCodes.length).toBeGreaterThan(0);
+  for (const orderCode of report.regions.na.onhandOrderCodes) {
+    const orderCodeMatches = await page.getByText(orderCode, { exact: true }).all();
+    const hasVisibleOrderCode = (
+      await Promise.all(orderCodeMatches.map((match) => match.isVisible()))
+    ).some(Boolean);
+    expect(hasVisibleOrderCode).toBe(true);
+  }
   const regions = ['north', 'central', 'south', 'storage', 'na'] as const;
   const storedWeight = regions.reduce((sum, key) => sum + report.regions[key].onhandWeightKg, 0);
   const storedVolume = regions.reduce((sum, key) => sum + report.regions[key].onhandVolumeCbm, 0);
