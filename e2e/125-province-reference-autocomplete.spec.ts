@@ -1,9 +1,33 @@
 import { test, expect } from '@playwright/test';
 import { loginAs, clearSession, USER_WAREHOUSE_HCM } from './helpers/auth';
+import type { Page } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const EVIDENCE_DIR = path.resolve(__dirname, '../playwright-report/evidence');
+
+async function openProvinceInput(page: Page) {
+  await loginAs(page, USER_WAREHOUSE_HCM);
+  await page.goto('/dashboard/warehouse/inbound', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 15_000 });
+  const pageUrlBeforeCreate = page.url();
+  const createButton = page.getByRole('button', { name: /Tạo đơn nhập mới/ });
+  await expect(createButton).toBeEnabled({ timeout: 15_000 });
+    await createButton.click();
+  await expect(page).toHaveURL(pageUrlBeforeCreate);
+  const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
+  await expect(provinceInput).toBeVisible();
+  return provinceInput;
+}
+
+async function assertProvinceCase(page: Page, inputValue: string, expectedValue: string) {
+  const provinceInput = await openProvinceInput(page);
+  const datalistId = await provinceInput.getAttribute('list');
+  expect(datalistId).toBeTruthy();
+  await provinceInput.fill(inputValue);
+  await provinceInput.press('Tab');
+  await expect(provinceInput).toHaveValue(expectedValue);
+}
 
 test.describe('Province reference autocomplete in warehouse inbound', () => {
   test.beforeEach(async ({ page }) => {
@@ -11,19 +35,8 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Warehouse HCM: loads 63 DB references and canonicalizes a province alias', async ({
-    page,
-  }) => {
-    await loginAs(page, USER_WAREHOUSE_HCM);
-    await page.goto('/dashboard/warehouse/inbound', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 15_000 });
-
-    const pageUrlBeforeCreate = page.url();
-    await page.getByRole('button', { name: /Tạo đơn nhập mới/ }).click();
-    await expect(page).toHaveURL(pageUrlBeforeCreate);
-    const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
-    await expect(provinceInput).toBeVisible();
-
+  test('Case 1: loads 63 DB references and canonicalizes TP. Huế', async ({ page }) => {
+    const provinceInput = await openProvinceInput(page);
     const apiUrl = process.env.API_URL ?? 'http://localhost:4001/api/v1';
     const apiResult = await page.evaluate(async (url) => {
       const persisted = JSON.parse(window.localStorage.getItem('auth-storage') ?? '{}');
@@ -52,8 +65,24 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
 
     fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
     await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'province-reference-autocomplete-verified.png'),
+      path: path.join(EVIDENCE_DIR, 'province-reference-autocomplete-5-cases-verified.png'),
       fullPage: true,
     });
+  });
+
+  test('Case 2: canonical province remains unchanged', async ({ page }) => {
+    await assertProvinceCase(page, 'Đà Nẵng', 'Đà Nẵng');
+  });
+
+  test('Case 3: no-accent input resolves to Cần Thơ', async ({ page }) => {
+    await assertProvinceCase(page, 'can tho', 'Cần Thơ');
+  });
+
+  test('Case 4: uppercase extra spaces resolve to Khánh Hòa', async ({ page }) => {
+    await assertProvinceCase(page, '  KHÁNH   HÒA  ', 'Khánh Hòa');
+  });
+
+  test('Case 5: unknown province text is preserved for review', async ({ page }) => {
+    await assertProvinceCase(page, 'Tỉnh Sao Hỏa', 'Tỉnh Sao Hỏa');
   });
 });
