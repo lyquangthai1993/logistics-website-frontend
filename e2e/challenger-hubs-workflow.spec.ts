@@ -8,7 +8,7 @@ test.describe('Challenger 2 Empirical Verification: Hubs Modals, Validations & M
     await clearSession(page);
     await loginAs(page, superAdmin);
     await page.goto('/dashboard/admin/hubs');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('1. Hub Creation dialog validation and workflow', async ({ page }) => {

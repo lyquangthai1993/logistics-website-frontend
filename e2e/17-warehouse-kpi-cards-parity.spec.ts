@@ -31,7 +31,7 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
 
     // 2. Navigate to Inbound
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Check Inbound Stat Cards
@@ -58,7 +58,7 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
 
     // 3. Navigate to Outbound
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Check Outbound Stat Cards (Card 4 is now ĐÃ XUẤT KHO, removing "HÔM NAY")

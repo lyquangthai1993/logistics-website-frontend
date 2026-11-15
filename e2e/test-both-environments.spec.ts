@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Verify session persistence after 70s on Vercel and Localhost', () => {
+test.describe('Verify session persistence on configured environment', () => {
   test.setTimeout(300000);
 
   const TARGETS = [
-    { name: 'Vercel Live', url: 'https://logistics-website-frontend-kappa.vercel.app' },
-    { name: 'Localhost Dev', url: 'http://localhost:3000' }
+    {
+      name: process.env.PLAYWRIGHT_BASE_URL?.includes('railway.app') ? 'Railway Dev' : 'Local Dev',
+      url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000'
+    }
   ];
 
   for (const target of TARGETS) {
@@ -30,7 +32,7 @@ test.describe('Verify session persistence after 70s on Vercel and Localhost', ()
 
       // 1. Sign In
       console.log(`1. Navigating to ${target.url}/auth/sign-in...`);
-      await page.goto(`${target.url}/auth/sign-in`, { waitUntil: 'networkidle' });
+      await page.goto(`${target.url}/auth/sign-in`, { waitUntil: 'domcontentloaded' });
 
       console.log(`2. Logging in with SUPER_ADMIN account...`);
       await page.locator('#email').fill('lyquangthai1993+1@gmail.com');
@@ -48,7 +50,7 @@ test.describe('Verify session persistence after 70s on Vercel and Localhost', ()
 
       // 3. Client-side navigation by clicking sidebar Orders link
       console.log(`5. Performing client-side navigation to /dashboard/orders...`);
-      await page.goto(`${target.url}/dashboard/orders`, { waitUntil: 'networkidle' });
+      await page.goto(`${target.url}/dashboard/orders`, { waitUntil: 'domcontentloaded' });
       console.log(`URL after navigation on ${target.name}:`, page.url());
       expect(page.url()).toContain('/dashboard/orders');
 
@@ -59,19 +61,19 @@ test.describe('Verify session persistence after 70s on Vercel and Localhost', ()
 
       // 5. Full Browser Reload (F5)
       console.log(`7. Performing full page reload (F5) on ${target.url}/dashboard/orders...`);
-      await page.reload({ waitUntil: 'networkidle' });
+      await page.reload({ waitUntil: 'domcontentloaded' });
       console.log(`URL after F5 reload on ${target.name}:`, page.url());
       expect(page.url()).toContain('/dashboard/orders');
 
       // 6. Navigate to Fleet page
       console.log(`8. Navigating to ${target.url}/dashboard/fleet...`);
-      await page.goto(`${target.url}/dashboard/fleet`, { waitUntil: 'networkidle' });
+      await page.goto(`${target.url}/dashboard/fleet`, { waitUntil: 'domcontentloaded' });
       console.log(`URL after fleet navigation on ${target.name}:`, page.url());
       expect(page.url()).toContain('/dashboard/fleet');
 
       // 7. Full Browser Reload (F5) on Fleet
       console.log(`9. Performing full page reload (F5) on ${target.url}/dashboard/fleet...`);
-      await page.reload({ waitUntil: 'networkidle' });
+      await page.reload({ waitUntil: 'domcontentloaded' });
       console.log(`URL after fleet F5 reload on ${target.name}:`, page.url());
       expect(page.url()).toContain('/dashboard/fleet');
 

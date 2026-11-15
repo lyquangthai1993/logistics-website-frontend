@@ -27,7 +27,7 @@ test.describe('Phân Hệ Nhập Kho - Bổ Sung Cột Chứng Từ Đi Kèm (Op
     // ── 1. Đăng nhập với quyền Quản lý Kho ───────────────────────────────────
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Chờ tiêu đề trang xuất hiện
     await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 15_000 });

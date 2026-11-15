@@ -9,6 +9,23 @@ const isRemote = Boolean(
     !process.env.BASE_URL.includes('127.0.0.1'))
 );
 
+const configuredBaseUrl = (
+  process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000'
+).replace(/\/$/, '');
+const configuredApiUrl = (
+  process.env.API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:4001/api/v1'
+).replace(/\/$/, '');
+
+// Keep legacy specs on the same target as Playwright instead of silently falling back
+// to obsolete ports when the suite runs against Railway Dev.
+process.env.PLAYWRIGHT_BASE_URL = configuredBaseUrl;
+process.env.BASE_URL = configuredBaseUrl;
+process.env.NEXT_PUBLIC_BASE_URL = configuredBaseUrl;
+process.env.API_URL = configuredApiUrl;
+process.env.NEXT_PUBLIC_API_URL = configuredApiUrl;
+
 /**
  * Playwright E2E Config – Logistics TMS
  * Scope: Login flow, RBAC routing, browser console health checks
@@ -26,7 +43,7 @@ export default defineConfig({
     ['json', { outputFile: 'playwright-report/results.json' }]
   ],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000',
+    baseURL: configuredBaseUrl,
     // Keep a real Chromium window available without taking the operator's focus.
     // Set HEADLESS=true for fully headless CI runs.
     headless: process.env.HEADLESS === 'true',

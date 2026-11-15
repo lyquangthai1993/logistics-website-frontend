@@ -25,7 +25,7 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
 
     // 2. Navigate to Inbound page
     await page.goto(`${baseUrl}/dashboard/warehouse/inbound`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Verify URL initially includes fromDate & toDate
@@ -74,7 +74,7 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
 
     // 6. Test direct URL hydration
     await page.goto(`${baseUrl}/dashboard/warehouse/inbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Verify input hydrated with SD537
@@ -100,7 +100,7 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
 
     // 2. Navigate to Outbound page
     await page.goto(`${baseUrl}/dashboard/warehouse/outbound`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Verify URL initially includes fromDate & toDate
@@ -149,7 +149,7 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
 
     // 6. Test direct URL hydration
     await page.goto(`${baseUrl}/dashboard/warehouse/outbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Verify input hydrated with SD537

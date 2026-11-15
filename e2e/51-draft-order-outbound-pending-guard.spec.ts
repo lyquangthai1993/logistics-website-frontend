@@ -86,6 +86,7 @@ test.describe
         receiverName: 'Khách nhận Nháp Task 51',
         receiverPhone: '0987654321',
         deliveryAddress: 'Kho Andromeda - TP.HCM',
+        province: 'Hồ Chí Minh',
         goodsDescription: 'Lô hàng nháp kiểm thử Task 51',
         totalQuantity: 5,
         totalWeight: 50,

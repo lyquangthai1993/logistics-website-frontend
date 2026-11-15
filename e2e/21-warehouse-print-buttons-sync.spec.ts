@@ -6,7 +6,7 @@ const ARTIFACT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-48
 // Test against the Vercel dev branch deployment
 const TARGET_BASE_URL =
   process.env.TARGET_URL ||
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000');
 
 const USER = {
   email: 'lyquangthai1993+4@gmail.com',

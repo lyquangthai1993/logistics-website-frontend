@@ -24,7 +24,7 @@ for (const { path, label } of PUBLIC_PAGES) {
     const logger = collectConsoleLogs(page);
 
     await page.goto(path);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Assert zero Next.js Error Overlays / Redbox (<nextjs-portal>)
     await assertNoNextJsErrors(page, errorCollector);
@@ -92,7 +92,7 @@ test('[Console Health] Detect known font warning – Google Sans Flex', async ({
   });
 
   await page.goto('/auth/sign-in');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 
   const fontWarning = logs.find(
     (l) => l.includes('Google Sans Flex') || l.includes('font override')

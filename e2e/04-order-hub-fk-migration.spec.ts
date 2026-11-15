@@ -13,8 +13,8 @@
 import { test, expect } from '@playwright/test';
 import { loginAs, TEST_USERS } from './helpers/auth';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000';
+const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
 
 test.describe('Order Hub FK Migration — Phase 1', () => {
   // Only DISPATCHER can create orders
@@ -22,7 +22,7 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
     const dispatcher = TEST_USERS.find((u) => u.role === 'DISPATCHER')!;
     await loginAs(page, dispatcher);
     await page.goto(`${BASE_URL}/dashboard/orders`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   // ─── Test 1: Hub dropdown is populated from API (not hardcoded strings) ───────
@@ -71,32 +71,6 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
       }
     });
 
-    // Mock a successful response to avoid actually creating an order in DB
-    await page.route('**/api/v1/orders', async (route) => {
-      if (route.request().method() === 'POST') {
-        const body = JSON.parse(route.request().postData() || '{}');
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 9999,
-            orderCode: body.orderCode,
-            status: 'DRAFT',
-            originHub: body.originHub,
-            destinationHub: body.destinationHub,
-            originHubId: body.originHubId,
-            destinationHubId: body.destinationHubId,
-            totalWeight: body.totalWeight,
-            totalVolume: body.totalVolume,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          })
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
     // Open create order dialog
     const createBtn = page.getByRole('button', { name: /tạo lệnh|tạo đơn|new order/i }).first();
     await createBtn.click();
@@ -107,7 +81,7 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
     await page.waitForTimeout(300);
 
     // Fill required fields
-    await page.getByTestId('order-code-input').fill('E2E-TEST-001');
+    await page.getByTestId('order-code-input').fill(`E2E-TEST-${Date.now()}`);
     await page.locator('input[id="total-weight-input"]').fill('1000');
     await page.locator('input[id="total-volume-input"]').fill('10');
 
@@ -171,7 +145,7 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
     const orderCode = `E2E-FK-${Date.now()}`;
 
     // Fetch active hubs directly to get valid IDs
-    const hubsRes = await page.request.get(`${API_URL}/api/v1/hubs/active`);
+    const hubsRes = await page.request.get(`${API_URL}/hubs/active`);
     const hubs = await hubsRes.json();
     expect(hubs.length).toBeGreaterThanOrEqual(2);
 
@@ -183,7 +157,7 @@ test.describe('Order Hub FK Migration — Phase 1', () => {
     const authHeader = tokenCookie ? `Bearer ${tokenCookie.value}` : '';
 
     // Make direct API call
-    const createRes = await page.request.post(`${API_URL}/api/v1/orders`, {
+    const createRes = await page.request.post(`${API_URL}/orders`, {
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
       data: {
         orderCode,
@@ -213,7 +187,7 @@ test.describe('Order Hub FK — Backward Compatibility', () => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
     await loginAs(page, superAdmin);
     await page.goto(`${BASE_URL}/dashboard/orders`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // No JS errors related to FK fields
     const errors: string[] = [];

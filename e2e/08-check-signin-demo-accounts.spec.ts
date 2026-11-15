@@ -4,6 +4,8 @@ test.describe('Check Sign-in UI — Demo Accounts Removed', () => {
   test('Verify demo button and banner are absent on sign-in page', async ({ page }) => {
     await page.goto('/auth/sign-in');
 
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    await expect(page.locator('input[name="password"]')).toBeVisible();
     const demoBtn = page.getByRole('button', { name: /Xem tài khoản Demo/i });
     await expect(demoBtn).toHaveCount(0);
 
@@ -12,5 +14,6 @@ test.describe('Check Sign-in UI — Demo Accounts Removed', () => {
 
     const popoverContent = page.locator('[data-slot="popover-content"], [role="dialog"]');
     await expect(popoverContent).toHaveCount(0);
+    await page.screenshot({ path: 'e2e/screenshots/signin_demo_accounts_absent.png', fullPage: true });
   });
 });

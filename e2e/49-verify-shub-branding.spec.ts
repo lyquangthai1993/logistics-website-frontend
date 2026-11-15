@@ -47,7 +47,7 @@ test.describe('Verify S-Hub Branding & Logo (Multi-Environment)', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const targetSignInUrl = `${BASE_URL.replace(/\/$/, '')}/auth/sign-in`;
     console.log(`[E2E] Navigating to target sign-in: ${targetSignInUrl}`);
-    await page.goto(targetSignInUrl, { waitUntil: 'networkidle' });
+    await page.goto(targetSignInUrl, { waitUntil: 'domcontentloaded' });
 
     // Assert Logo Image is visible on AuthHeroBanner
     const loginLogoImg = page.locator('img[src*="logo_phieu_xuat_nhap_kho"]').first();

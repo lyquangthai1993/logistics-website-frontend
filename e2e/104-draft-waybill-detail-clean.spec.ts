@@ -13,7 +13,7 @@ test.describe('Waybill Detail Modal - Draft Order & Status Verification', () => 
 
     // 2. Navigate to warehouse orders page
     await page.goto('/dashboard/warehouse/orders', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 3. Search for NMT2611-0036
     const searchInput = page.locator('input[placeholder*="Tìm mã vận đơn"], input[placeholder*="Tìm kiếm"]').first();

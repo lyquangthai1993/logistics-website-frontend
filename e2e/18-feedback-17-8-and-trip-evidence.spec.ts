@@ -38,7 +38,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
   test('Evidence 1: Sidebar 3 items for WAREHOUSE_MANAGER and Inbound Page with TRIP column', async ({ page }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 1. Verify Sidebar only has 3 items
     const sidebar = page.locator('[data-slot="sidebar"]');
@@ -71,7 +71,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
   test('Evidence 2: Inbound Create Mode with Free Text address and optional driver', async ({ page }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const newOrderBtn = page.getByRole('button', { name: /Tạo đơn nhập mới/i });
     await expect(newOrderBtn).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
   test('Evidence 3: Outbound Page with Vehicle Grouping, TRIP column, and Single Xuat Kho button', async ({ page }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 1. Verify single "Xuất kho" button in header (no internal transfer button)
     const exportBtn = page.getByRole('button', { name: /Xuất kho/i }).first();
@@ -118,7 +118,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
   test('Evidence 4: Warehouse Orders Page with TRIP Column and Detail Modal', async ({ page }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 1. Verify TRIP column in orders table
     const tripHeader = page.locator('th:has-text("CHUYẾN XE / TRIP")');
@@ -145,7 +145,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
   test('Evidence 5: Pallet Label A4 Modal with QR code and Blank Handwritten Fields', async ({ page }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const printLabelBtn = page.getByRole('button', { name: /In tem/i }).first();
     if (await printLabelBtn.isVisible()) {
@@ -161,7 +161,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
 
     // 1. Go to Inbound and save a DRAFT order
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const newOrderBtn = page.getByRole('button', { name: /Tạo đơn nhập mới/i });
     await expect(newOrderBtn).toBeVisible();
@@ -175,7 +175,7 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
 
     // 2. Go to Warehouse Orders table and click DRAFT tab
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const draftTab = page.locator('button:has-text("DRAFT")');
     await expect(draftTab).toBeVisible();

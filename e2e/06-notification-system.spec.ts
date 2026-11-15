@@ -10,14 +10,14 @@
 import { test, expect, request } from '@playwright/test';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_BASE = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001/api/v1').replace(/\/$/, '');
 const ADMIN = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
 const WAREHOUSE = TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER')!;
 
 // ── Helper: Lấy JWT Token qua API Login ─────────────────────────────────────
 async function getAdminToken(): Promise<{ token: string; userId: number }> {
   const ctx = await request.newContext();
-  const res = await ctx.post(`${API_BASE}/api/v1/auth/email/login`, {
+  const res = await ctx.post(`${API_BASE}/auth/email/login`, {
     data: { email: ADMIN.email, password: ADMIN.password }
   });
   expect(res.status(), 'Login API must return HTTP 200').toBe(200);
@@ -40,7 +40,7 @@ test.describe('[Flow 1] Authentication & Token Authorization', () => {
 
   test('1.2. Unauthenticated request to GET /api/v1/notifications is rejected with 401', async () => {
     const ctx = await request.newContext();
-    const res = await ctx.get(`${API_BASE}/api/v1/notifications`);
+    const res = await ctx.get(`${API_BASE}/notifications`);
     expect(res.status()).toBe(401);
     await ctx.dispose();
   });
@@ -51,7 +51,7 @@ test.describe('[Flow 1] Authentication & Token Authorization', () => {
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
-    const res = await ctx.get(`${API_BASE}/api/v1/notifications?page=1&limit=5`);
+    const res = await ctx.get(`${API_BASE}/notifications?page=1&limit=5`);
     expect(res.status()).toBe(200);
 
     const body = await res.json();
@@ -70,7 +70,7 @@ test.describe('[Flow 1] Authentication & Token Authorization', () => {
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
-    const res = await ctx.get(`${API_BASE}/api/v1/notifications/unread-count`);
+    const res = await ctx.get(`${API_BASE}/notifications/unread-count`);
     expect(res.status()).toBe(200);
     const body = await res.json();
     const count = typeof body.data === 'number' ? body.data : body;
@@ -94,7 +94,7 @@ test.describe('[Flow 2] WebSocket Real-time Notification Dispatch', () => {
     // Step A: Login Warehouse Manager on Chrome UI
     await loginAs(page, WAREHOUSE);
     await page.goto('/dashboard/overview');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Extract access token
     const cookies = await page.context().cookies();
@@ -106,7 +106,7 @@ test.describe('[Flow 2] WebSocket Real-time Notification Dispatch', () => {
     const apiCtx = await request.newContext({
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
-    const profileRes = await apiCtx.get(`${API_BASE}/api/v1/auth/me`);
+    const profileRes = await apiCtx.get(`${API_BASE}/auth/me`);
     const profileData = await profileRes.json();
     const targetUserId: number = profileData.id ?? profileData.data?.id;
 
@@ -117,7 +117,7 @@ test.describe('[Flow 2] WebSocket Real-time Notification Dispatch', () => {
     const uniqueTitle = `⚡ Live Socket Event ${Date.now().toString().slice(-4)}`;
     const uniqueMessage = 'Thông báo bắn trực tiếp qua WebSocket Socket.IO sang giao diện Web';
 
-    const sendRes = await apiCtx.post(`${API_BASE}/api/v1/notifications/send-test`, {
+    const sendRes = await apiCtx.post(`${API_BASE}/notifications/send-test`, {
       data: {
         userId: targetUserId,
         title: uniqueTitle,
@@ -189,7 +189,7 @@ test.describe('[Flow 3] UI Bell, Popover & Page Management', () => {
   test('3.2. Click Bell icon -> Notification Popover opens with content', async ({ page }) => {
     await loginAs(page, ADMIN);
     await page.waitForURL(/\/dashboard\/.+/);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const bellBtn = page
       .getByRole('button', { name: /notifications|thông báo/i })
@@ -213,7 +213,7 @@ test.describe('[Flow 3] UI Bell, Popover & Page Management', () => {
   }) => {
     await loginAs(page, ADMIN);
     await page.goto('/dashboard/notifications');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page).not.toHaveURL(/\/auth\/sign-in/);
 
@@ -227,7 +227,7 @@ test.describe('[Flow 3] UI Bell, Popover & Page Management', () => {
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
-    const res = await ctx.patch(`${API_BASE}/api/v1/notifications/read-all`);
+  const res = await ctx.patch(`${API_BASE}/notifications/read-all`);
     expect(res.status()).toBe(200);
     const body = await res.json();
     const result = body.data !== undefined ? body.data : body;

@@ -11,11 +11,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const DEV_BACKEND_URL =
-  process.env.API_URL ?? 'https://logistics-website-backend-1jho.onrender.com/api/v1';
+  process.env.API_URL ?? 'http://localhost:4001/api/v1';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000';
 
 const ADMIN_EMAIL = 'lyquangthai1993+1@gmail.com';
 const DAD_MANAGER_EMAIL = 'lyquangthai1993+5@gmail.com';

@@ -9,7 +9,7 @@ test.describe('[Warehouse Trip Detail] Empty Trip Lines Verification', () => {
 
     // Đi tới màn hình Xuất kho
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Tìm chuyến xe SD241 hoặc SD415 trong ô tìm kiếm
     const searchInput = page

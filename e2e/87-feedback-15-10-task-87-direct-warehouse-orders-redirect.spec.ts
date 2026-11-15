@@ -93,7 +93,7 @@ test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàn
 
     // 4. Cố tình truy cập trực tiếp vào /dashboard/overview
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/overview`, {
-      waitUntil: 'networkidle'
+      waitUntil: 'domcontentloaded'
     });
 
     // 5. Xác nhận hệ thống tự động redirect ngược lại về /dashboard/warehouse/orders

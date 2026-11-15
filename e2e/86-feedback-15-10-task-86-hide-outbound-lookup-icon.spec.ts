@@ -73,7 +73,7 @@ test.describe.serial('Feedback 15/10 (Task #86) — Ẩn Nút Kính Lúp Tra C�
 
     // 2. Điều hướng tới Quản lý Xuất kho (/dashboard/warehouse/outbound)
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`, {
-      waitUntil: 'networkidle'
+      waitUntil: 'domcontentloaded'
     });
 
     // 3. Bấm nút "Xuất kho" ở header chính để mở màn hình Tạo phiếu xuất kho (MODE1_CUSTOMER)

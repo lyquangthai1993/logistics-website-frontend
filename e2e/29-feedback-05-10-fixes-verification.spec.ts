@@ -5,7 +5,7 @@ import * as fs from 'fs';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000';
 
 const DAD_WAREHOUSE_EMAIL = 'lyquangthai1993+5@gmail.com'; // Quản lý Kho Đà Nẵng (Magellan Hub)
 const PASSWORD = 'secret';

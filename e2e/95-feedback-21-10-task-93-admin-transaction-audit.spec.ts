@@ -27,7 +27,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await loginAs(page, adminUser, BASE_URL);
 
     await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     console.log('--- STEP 1.1: Searching for order NDA2610-0213 ---');
     const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();
@@ -206,7 +206,7 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     try {
       await loginAs(wmPage, warehouseHcmUser, BASE_URL);
       await wmPage.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-      await wmPage.waitForLoadState('networkidle').catch(() => {});
+      await wmPage.waitForLoadState('domcontentloaded').catch(() => {});
 
       const wmSearch = wmPage.locator('input[placeholder*="Tìm kiếm"]').first();
       await wmSearch.waitFor({ state: 'visible', timeout: 15_000 });

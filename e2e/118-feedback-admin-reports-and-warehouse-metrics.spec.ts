@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { TEST_USERS, loginAs } from './helpers/auth';
 
-const normalizedApiV1 = 'http://localhost:4001/api/v1';
+const normalizedApiV1 = process.env.API_URL || 'http://localhost:4001/api/v1';
 
 async function getAuthToken(email: string, password = 'secret'): Promise<string> {
   const res = await fetch(`${normalizedApiV1}/auth/email/login`, {
@@ -43,9 +43,9 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
-    await loginAs(page, superAdmin, 'http://localhost:4000');
+    await loginAs(page, superAdmin, process.env.PLAYWRIGHT_BASE_URL);
 
-    await page.goto('http://localhost:4000/dashboard/admin/reports');
+    await page.goto('/dashboard/admin/reports');
     await page.waitForLoadState('domcontentloaded');
 
     // 1. Kiểm tra Banner quy chuẩn chốt sổ: 06:00 D-1 đến 05:59 D
@@ -132,9 +132,9 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
-    await loginAs(page, superAdmin, 'http://localhost:4000');
+    await loginAs(page, superAdmin, process.env.PLAYWRIGHT_BASE_URL);
 
-    await page.goto('http://localhost:4000/dashboard/warehouse/orders');
+    await page.goto('/dashboard/warehouse/orders');
     await page.waitForLoadState('domcontentloaded');
 
     // 1. Kiểm tra Hub Filter xuất hiện ngay ở Page Header
@@ -180,9 +180,9 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     page
   }) => {
     const managerUser = TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER')!;
-    await loginAs(page, managerUser, 'http://localhost:4000');
+    await loginAs(page, managerUser, process.env.PLAYWRIGHT_BASE_URL);
 
-    await page.goto('http://localhost:4000/dashboard/warehouse/orders');
+    await page.goto('/dashboard/warehouse/orders');
     await page.waitForLoadState('domcontentloaded');
 
     // Đảm bảo user thường không có 3 ô tính tổng riêng của Super Admin
