@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   IconAlertTriangle,
   IconDownload,
@@ -12,7 +12,6 @@ import {
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
-import { formatApiError } from '@/lib/api-error';
 import { formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -216,7 +215,6 @@ const REGION_CONFIGS: RegionRowConfig[] = [
 ];
 
 export function SuperAdminRegionalDispatchTable() {
-  const queryClient = useQueryClient();
   const globalFilter = useOptionalAdminOperationalReport();
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -249,23 +247,6 @@ export function SuperAdminRegionalDispatchTable() {
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
       >(`/api/v1/admin/reports/regional-dispatch?${params.toString()}`);
       return res.data;
-    }
-  });
-
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      return apiClient.post('/api/v1/admin/reports/regional-dispatch/sync', {
-        date: selectedDate
-      });
-    },
-    onSuccess: () => {
-      toast.success('Đã đồng bộ chốt sổ dữ liệu cân đối đội xe thành công!');
-      queryClient.invalidateQueries({
-        queryKey: ['admin-regional-dispatch-report-table']
-      });
-    },
-    onError: (err: unknown) => {
-      toast.error(formatApiError(err));
     }
   });
 
@@ -315,7 +296,7 @@ export function SuperAdminRegionalDispatchTable() {
     const stored = data?.regions[cfg.key];
     const draft = data?.draftRegions?.[cfg.key];
     return cfg.key === 'na'
-      ? data?.provinceAudit?.invalidOrderCount ?? 0
+      ? (data?.provinceAudit?.invalidOrderCount ?? 0)
       : (stored?.onhandOrderCount ?? 0) + (draft?.orderCount ?? 0);
   });
   const totalChartOrderCount = chartOrderCounts.reduce((sum, count) => sum + count, 0);
@@ -432,20 +413,6 @@ export function SuperAdminRegionalDispatchTable() {
           >
             <IconDownload className='h-3.5 w-3.5' />
             Xuất Excel
-          </Button>
-
-          <Button
-            size='sm'
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending || isLoading}
-            className='h-8 text-xs gap-1.5 bg-purple-600 hover:bg-purple-700 text-white'
-          >
-            {syncMutation.isPending ? (
-              <IconLoader2 className='h-3.5 w-3.5 animate-spin' />
-            ) : (
-              <IconRefresh className='h-3.5 w-3.5' />
-            )}
-            Đồng bộ số liệu
           </Button>
         </div>
       </div>
@@ -760,73 +727,73 @@ export function SuperAdminRegionalDispatchTable() {
                       </div>
                     </div>
                   }
-                {/* Chart 3: Order-code count, including the province audit list */}
-                <div
-                  data-testid='regional-order-count-chart'
-                  className='rounded-lg bg-white p-2 shadow-2xs border border-slate-200 dark:bg-slate-900 dark:border-slate-800 space-y-2'
-                >
-                  <div className='flex items-baseline justify-between border-b border-slate-100 pb-2 dark:border-slate-800'>
-                    <div className='flex items-center gap-1.5'>
-                      <span className='inline-block h-2.5 w-2.5 rounded-full bg-rose-500' />
-                      <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
-                        Số mã đơn theo miền
+                  {/* Chart 3: Order-code count, including the province audit list */}
+                  <div
+                    data-testid='regional-order-count-chart'
+                    className='rounded-lg bg-white p-2 shadow-2xs border border-slate-200 dark:bg-slate-900 dark:border-slate-800 space-y-2'
+                  >
+                    <div className='flex items-baseline justify-between border-b border-slate-100 pb-2 dark:border-slate-800'>
+                      <div className='flex items-center gap-1.5'>
+                        <span className='inline-block h-2.5 w-2.5 rounded-full bg-rose-500' />
+                        <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
+                          Số mã đơn theo miền
+                        </span>
+                      </div>
+                      <span className='text-xs font-mono font-bold text-rose-700 dark:text-rose-300'>
+                        Tổng: {formatNumber(totalChartOrderCount)} mã
                       </span>
                     </div>
-                    <span className='text-xs font-mono font-bold text-rose-700 dark:text-rose-300'>
-                      Tổng: {formatNumber(totalChartOrderCount)} mã
-                    </span>
-                  </div>
 
-                  <div className='space-y-2 pt-1'>
-                    {REGION_CONFIGS.map((cfg, index) => {
-                      const orderCount = chartOrderCounts[index] || 0;
-                      const orderPct =
-                        totalChartOrderCount > 0
-                          ? Math.round((orderCount / totalChartOrderCount) * 1000) / 10
-                          : 0;
-                      return (
-                        <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
-                          <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
-                            <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
-                              {cfg.name}
-                            </span>
-                          </div>
-                          <div className='flex-1 flex items-center min-w-0'>
-                            <div
-                              className={`h-6 sm:h-7 ${cfg.barColorVolume} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
-                              style={{
-                                width: `${Math.max(
-                                  orderPct > 0 ? orderPct : 0,
-                                  orderCount > 0 ? 3 : 0
-                                )}%`,
-                                maxWidth: 'calc(100% - 170px)'
-                              }}
-                            />
-                            <span
-                              className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                            >
-                              {formatNumber(orderCount)} mã
-                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
-                                ({orderPct}%)
+                    <div className='space-y-2 pt-1'>
+                      {REGION_CONFIGS.map((cfg, index) => {
+                        const orderCount = chartOrderCounts[index] || 0;
+                        const orderPct =
+                          totalChartOrderCount > 0
+                            ? Math.round((orderCount / totalChartOrderCount) * 1000) / 10
+                            : 0;
+                        return (
+                          <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
+                            <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
+                              <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
+                                {cfg.name}
                               </span>
-                            </span>
+                            </div>
+                            <div className='flex-1 flex items-center min-w-0'>
+                              <div
+                                className={`h-6 sm:h-7 ${cfg.barColorVolume} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
+                                style={{
+                                  width: `${Math.max(
+                                    orderPct > 0 ? orderPct : 0,
+                                    orderCount > 0 ? 3 : 0
+                                  )}%`,
+                                  maxWidth: 'calc(100% - 170px)'
+                                }}
+                              />
+                              <span
+                                className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
+                              >
+                                {formatNumber(orderCount)} mã
+                                <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
+                                  ({orderPct}%)
+                                </span>
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
 
-                    <div className='flex items-center gap-2.5 pt-1.5'>
-                      <div className='w-28 sm:w-36 shrink-0' />
-                      <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
-                        <span>0%</span>
-                        <span>25%</span>
-                        <span>50%</span>
-                        <span>75%</span>
-                        <span>100%</span>
+                      <div className='flex items-center gap-2.5 pt-1.5'>
+                        <div className='w-28 sm:w-36 shrink-0' />
+                        <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
+                          <span>0%</span>
+                          <span>25%</span>
+                          <span>50%</span>
+                          <span>75%</span>
+                          <span>100%</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
             )}

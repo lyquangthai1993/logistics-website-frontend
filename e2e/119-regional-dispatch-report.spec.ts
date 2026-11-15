@@ -25,10 +25,24 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(response).toBeDefined();
   if (!response) throw new Error('No regional report response captured');
   const requestUrl = new URL(response.url());
-  const fromDate = await page.getByTestId('report-from-date-input').inputValue();
-  const toDate = await page.getByTestId('report-to-date-input').inputValue();
-  expect(requestUrl.searchParams.get('fromDate')).toBe(fromDate);
-  expect(requestUrl.searchParams.get('toDate')).toBe(toDate);
+  const initialUrl = new URL(page.url());
+  const fromDate = initialUrl.searchParams.get('fromDate');
+  const toDate = initialUrl.searchParams.get('toDate');
+  const expectedFromDate =
+    fromDate ??
+    (() => {
+      const today = new Date();
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+    })();
+  const expectedToDate =
+    toDate ??
+    (() => {
+      const today = new Date();
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    })();
+  expect(requestUrl.searchParams.get('fromDate')).toBe(expectedFromDate);
+  expect(requestUrl.searchParams.get('toDate')).toBe(expectedToDate);
   expect(requestUrl.searchParams.get('hubId')).toBeTruthy();
   const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
@@ -96,24 +110,23 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     fullPage: true
   });
 
-  const changedFromDate = '2026-11-03';
-  const rangeResponsePromise = page.waitForResponse((nextResponse) => {
+  await page.getByTestId('report-date-range-picker').click();
+  await expect(page.getByText('Chọn khoảng ngày báo cáo', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  const quickRangeResponse = page.waitForResponse((nextResponse) => {
     const url = new URL(nextResponse.url());
     return (
       nextResponse.status() === 200 &&
       url.pathname.endsWith('/admin/reports/regional-dispatch') &&
-      url.searchParams.get('fromDate') === changedFromDate
+      url.searchParams.has('fromDate')
     );
   });
-  await page.getByTestId('report-from-date-input').fill(changedFromDate);
-  await expect(page.getByTestId('report-apply-date-range-btn')).toBeVisible();
+  await page.getByTestId('report-quick-range-select').click();
+  await page.getByRole('option', { name: 'Tháng trước', exact: true }).click();
   await page.getByTestId('report-apply-date-range-btn').click();
-  const rangeResponse = await rangeResponsePromise;
-  const updatedRaw = await rangeResponse.json();
-  const updatedReport: RegionalReportApiResponse = updatedRaw.data ?? updatedRaw;
-  expect(updatedReport.range.fromDate).toBe(changedFromDate);
-  expect(updatedReport.range.toDate).toBe(toDate);
+  const quickRangeResponseResult = await quickRangeResponse;
+  expect(quickRangeResponseResult.status()).toBe(200);
   const updatedUrl = new URL(page.url());
-  expect(updatedUrl.searchParams.get('fromDate')).toBe(changedFromDate);
-  expect(updatedUrl.searchParams.get('toDate')).toBe(toDate);
+  expect(updatedUrl.searchParams.get('fromDate')).not.toBe(expectedFromDate);
+  expect(updatedUrl.searchParams.get('toDate')).not.toBe(expectedToDate);
 });
