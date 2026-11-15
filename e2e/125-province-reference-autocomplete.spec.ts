@@ -24,6 +24,9 @@ async function assertProvinceCase(page: Page, inputValue: string, expectedValue:
   const provinceInput = await openProvinceInput(page);
   const datalistId = await provinceInput.getAttribute('list');
   expect(datalistId).toBeTruthy();
+  await expect(page.locator(`#${datalistId} option[value="Khánh Hòa"]`)).toHaveCount(1, {
+    timeout: 15_000,
+  });
   await provinceInput.fill(inputValue);
   await provinceInput.press('Tab');
   await expect(provinceInput).toHaveValue(expectedValue);
