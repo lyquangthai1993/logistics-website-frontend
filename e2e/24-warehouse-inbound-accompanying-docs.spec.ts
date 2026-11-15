@@ -69,7 +69,7 @@ test.describe('Phân Hệ Nhập Kho - Bổ Sung Cột Chứng Từ Đi Kèm (Op
     const addressInput1 = page.locator('table tbody tr').nth(0).locator('textarea[placeholder*="địa chỉ giao hàng"]');
     await addressInput1.fill('123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM');
 
-    const provinceInput1 = page.locator('table tbody tr').nth(0).locator('textarea[placeholder*="Hà Nội, TP.HCM"]');
+    const provinceInput1 = page.locator('table tbody tr').nth(0).locator('input[placeholder="Tìm tỉnh/thành..."]');
     await provinceInput1.fill('TP.HCM');
 
     // Nhập freetext "1 BCT" cho cột Chứng từ đi kèm dòng 1
@@ -102,7 +102,7 @@ test.describe('Phân Hệ Nhập Kho - Bổ Sung Cột Chứng Từ Đi Kèm (Op
     const addressInput2 = page.locator('table tbody tr').nth(1).locator('textarea[placeholder*="địa chỉ giao hàng"]');
     await addressInput2.fill('456 Đường Võ Văn Tần, Quận 3, TP.HCM');
 
-    const provinceInput2 = page.locator('table tbody tr').nth(1).locator('textarea[placeholder*="Hà Nội, TP.HCM"]');
+    const provinceInput2 = page.locator('table tbody tr').nth(1).locator('input[placeholder="Tìm tỉnh/thành..."]');
     await provinceInput2.fill('TP.HCM');
 
     // Nhập freetext "KHÔNG CÓ" cho cột Chứng từ đi kèm dòng 2

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   useReactTable,
   getCoreRowModel,
@@ -55,6 +56,8 @@ import {
   parseLocalizedQuantity
 } from '../lib/dispatch-excel-converter';
 import { extractVietnamProvince } from '../lib/vietnam-provinces';
+import { provinceReferencesQueryOptions, type ProvinceReference } from '@/features/provinces/api';
+import { ProvinceAutocomplete } from './province-autocomplete';
 
 export interface HubOption {
   id: number;
@@ -119,6 +122,7 @@ declare module '@tanstack/react-table' {
     allRows?: WarehouseRowItem[];
     isInboundTripMode?: boolean;
     isAdmin?: boolean;
+    provinceReferences?: ProvinceReference[];
     onInboundSingleOrder?: (rowIndex: number) => void;
     loadingRowIndex?: number | null;
   }
@@ -1725,25 +1729,22 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
     setValue(initialValue);
   }, [initialValue]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const nextVal = e.target.value;
-    setValue(nextVal);
-    table.options.meta?.updateData(row.index, column.id, nextVal);
-  };
-
   return (
-    <textarea
-      rows={2}
+    <ProvinceAutocomplete
       value={value}
-      onChange={handleChange}
+      references={table.options.meta?.provinceReferences ?? []}
+      onChange={(nextValue) => {
+        setValue(nextValue);
+        table.options.meta?.updateData(row.index, column.id, nextValue);
+      }}
       disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
       title={
         isLockedExistingWaybill
           ? 'Khóa cứng tỉnh/TP theo thông tin lần đầu nhập của mã vận đơn'
           : undefined
       }
-      placeholder=''
-      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+      placeholder='Tìm tỉnh/thành...'
+      className='w-full rounded-md border-slate-300 bg-white p-1 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
     />
   );
 }
@@ -1981,6 +1982,7 @@ export function WarehouseEditableGrid({
   const [lookupRowIndex, setLookupRowIndex] = useState<number | null>(null);
   const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
   const [hubs, setHubs] = useState<HubOption[]>([]);
+  const { data: provinceReferences = [] } = useQuery(provinceReferencesQueryOptions());
 
   // Fetch active hubs list for Level 1 & Level 2 dropdowns
   React.useEffect(() => {
@@ -2559,6 +2561,7 @@ export function WarehouseEditableGrid({
       allRows: rows,
       isInboundTripMode,
       isAdmin: resolvedIsAdmin,
+      provinceReferences,
       onInboundSingleOrder: (idx) => onInboundSingleOrder?.(rows[idx], idx),
       loadingRowIndex
     }

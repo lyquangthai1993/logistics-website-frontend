@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
 import { showApiErrorToast } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { provinceReferencesQueryOptions } from '@/features/provinces/api';
+import { ProvinceAutocomplete } from './province-autocomplete';
 
 export type AppendOrderModalMode = 'ROADSIDE_INBOUND' | 'HUB_OUTBOUND';
 
@@ -46,6 +49,7 @@ export function WarehouseAppendOrderModal({
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name || 'Kho hiện tại';
   const currentHubId = user?.hub?.id;
+  const { data: provinceReferences = [] } = useQuery(provinceReferencesQueryOptions());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -294,11 +298,12 @@ export function WarehouseAppendOrderModal({
               <Label className='text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5 block'>
                 Tỉnh / Thành phố
               </Label>
-              <Input
+              <ProvinceAutocomplete
                 value={province}
-                onChange={(e) => setProvince(e.target.value)}
+                onChange={setProvince}
+                references={provinceReferences}
                 placeholder='VD: Đà Nẵng, Khánh Hòa...'
-                className='h-8 text-xs'
+                className='h-8 text-[10px]'
                 disabled={isSubmitting}
               />
             </div>
