@@ -14,7 +14,9 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
     }
   });
 
-  test('Execute 3 End-to-End Cases: Inbound Logging -> Outbound Logging -> UI Waybill Modal Inspection', async ({ page }) => {
+  test('Execute 3 End-to-End Cases: Inbound Logging -> Outbound Logging -> UI Waybill Modal Inspection', async ({
+    page
+  }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -60,23 +62,30 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
     const createJson = await createRes.json();
     const createdOrder = createJson.data || createJson;
     const orderId = createdOrder.id;
-    console.log(`[Case 1] Created order ${createdOrder.orderCode || testOrderCode} (id: ${orderId})`);
+    console.log(
+      `[Case 1] Created order ${createdOrder.orderCode || testOrderCode} (id: ${orderId})`
+    );
 
     // Verify Activity Log for Inbound
-    const inboundLogRes = await page.request.get(`${API_URL}/orders/code/${encodeURIComponent(testOrderCode)}/activity-logs`, {
-      headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}
-    });
+    const inboundLogRes = await page.request.get(
+      `${API_URL}/orders/code/${encodeURIComponent(testOrderCode)}/activity-logs`,
+      {
+        headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}
+      }
+    );
 
     expect(inboundLogRes.ok()).toBeTruthy();
     const inboundLogJson = await inboundLogRes.json();
-    const inboundLogs = Array.isArray(inboundLogJson) ? inboundLogJson : (inboundLogJson.data || []);
+    const inboundLogs = Array.isArray(inboundLogJson) ? inboundLogJson : inboundLogJson.data || [];
     console.log(`[Case 1] Found ${inboundLogs.length} activity logs for ${testOrderCode}`);
 
     const inboundLog = inboundLogs.find((l: any) => l.action === 'INBOUND_CONFIRMED');
     expect(inboundLog).toBeDefined();
     expect(inboundLog.quantity).toBe(12);
     expect(inboundLog.reason).toContain('12 kiện');
-    console.log(`[Case 1 PASS] INBOUND_CONFIRMED: Qty=${inboundLog.quantity}, Reason: ${inboundLog.reason}`);
+    console.log(
+      `[Case 1 PASS] INBOUND_CONFIRMED: Qty=${inboundLog.quantity}, Reason: ${inboundLog.reason}`
+    );
 
     // =========================================================================
     // STEP 2 / CASE 2: Confirm Outbound & Verify Outbound Audit Log
@@ -111,13 +120,18 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
     console.log(`[Case 2] Confirmed outbound 5 packages on trip ${testOutboundTrip}`);
 
     // Verify Activity Log for Outbound
-    const outboundLogRes = await page.request.get(`${API_URL}/orders/code/${encodeURIComponent(testOrderCode)}/activity-logs`, {
-      headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}
-    });
+    const outboundLogRes = await page.request.get(
+      `${API_URL}/orders/code/${encodeURIComponent(testOrderCode)}/activity-logs`,
+      {
+        headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}
+      }
+    );
 
     expect(outboundLogRes.ok()).toBeTruthy();
     const outboundLogJson = await outboundLogRes.json();
-    const outboundLogs = Array.isArray(outboundLogJson) ? outboundLogJson : (outboundLogJson.data || []);
+    const outboundLogs = Array.isArray(outboundLogJson)
+      ? outboundLogJson
+      : outboundLogJson.data || [];
 
     const outboundLog = outboundLogs.find((l: any) => l.action === 'OUTBOUND_CONFIRMED');
     expect(outboundLog).toBeDefined();
@@ -126,14 +140,16 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
     if (outboundLog.tripCode) {
       expect(outboundLog.reason).toContain(outboundLog.tripCode);
     }
-    console.log(`[Case 2 PASS] OUTBOUND_CONFIRMED: Qty=${outboundLog.quantity}, Trip=${outboundLog.tripCode}, Reason: ${outboundLog.reason}`);
+    console.log(
+      `[Case 2 PASS] OUTBOUND_CONFIRMED: Qty=${outboundLog.quantity}, Trip=${outboundLog.tripCode}, Reason: ${outboundLog.reason}`
+    );
 
     // =========================================================================
     // STEP 3 / CASE 3: Inspect UI Waybill Detail Modal & Capture Visual Evidence
     // =========================================================================
     console.log(`--- CASE 3: Inspect UI Waybill Detail Modal for ${testOrderCode} ---`);
     await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     // Search for test order
     const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();
@@ -153,11 +169,21 @@ test.describe('Inbound & Outbound Enhanced Logging & Audit Trail Verification (3
     await page.waitForTimeout(1500);
 
     // Assert Audit Logs
-    await expect(detailDialog.locator('text=Nhật ký thao tác & Thay đổi dữ liệu')).toBeVisible({ timeout: 10_000 });
-    await expect(detailDialog.locator('[data-action="INBOUND_CONFIRMED"], text=Xác nhận nhập kho').first()).toBeVisible({ timeout: 10_000 });
-    await expect(detailDialog.locator('[data-action="OUTBOUND_CONFIRMED"], text=Xác nhận xuất kho').first()).toBeVisible({ timeout: 10_000 });
-    await expect(detailDialog.getByText('Tiếp nhận nhập kho 12 kiện').first()).toBeVisible({ timeout: 10_000 });
-    await expect(detailDialog.getByText('Xác nhận xuất kho 5 kiện').first()).toBeVisible({ timeout: 10_000 });
+    await expect(detailDialog.locator('text=Nhật ký thao tác & Thay đổi dữ liệu')).toBeVisible({
+      timeout: 10_000
+    });
+    await expect(
+      detailDialog.locator('[data-action="INBOUND_CONFIRMED"], text=Xác nhận nhập kho').first()
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      detailDialog.locator('[data-action="OUTBOUND_CONFIRMED"], text=Xác nhận xuất kho').first()
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(detailDialog.getByText('Tiếp nhận nhập kho 12 kiện').first()).toBeVisible({
+      timeout: 10_000
+    });
+    await expect(detailDialog.getByText('Xác nhận xuất kho 5 kiện').first()).toBeVisible({
+      timeout: 10_000
+    });
 
     // Capture visual screenshot proof
     const screenshotPath = path.join(EVIDENCE_DIR, 'step_03_waybill_enhanced_logs_verified.png');

@@ -8,7 +8,7 @@ test.describe('Challenger 1 Empirical Suite: Hubs Management Stress Tests', () =
     await clearSession(page);
     await loginAs(page, superAdmin);
     await page.goto('/dashboard/admin/hubs');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('Test 1: Vietnamese diacritics & search filters', async ({ page }) => {

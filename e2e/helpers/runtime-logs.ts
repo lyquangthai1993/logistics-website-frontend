@@ -38,7 +38,7 @@ export function captureRuntimeLogs(page: Page): RuntimeLogSession {
   page.on('request', (req) => {
     const url = req.url();
     // Only track API and page calls (skip fonts, images, static)
-    if (url.includes('/api/') || url.startsWith('http://localhost:3000/dashboard')) {
+    if (url.includes('/api/') || /\/dashboard(?:\/|$)/.test(url)) {
       requestTimings.push({ url, startMs: Date.now() });
     }
   });
@@ -132,17 +132,17 @@ export async function checkBackendHealth(
   backendUrl = process.env.BACKEND_URL ||
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    'http://localhost:3005'
+    'http://localhost:4001/api/v1'
 ): Promise<{ alive: boolean; statusCode: number; latencyMs: number }> {
   const start = Date.now();
   let statusCode = 0;
 
-  const candidateUrls = [backendUrl, 'http://localhost:3005', 'http://localhost:3001'];
+  const candidateUrls = [backendUrl].map((u) => u.replace(/\/$/, '').replace(/\/api\/v1$/, ''));
   const uniqueUrls = [...new Set(candidateUrls.map((u) => u.replace(/\/+$/, '')))];
 
   for (const baseUrl of uniqueUrls) {
     try {
-      const response = await page.request.get(`${baseUrl}/api/v1`, {
+      const response = await page.request.get(`${baseUrl}/api/v1/health`, {
         timeout: 3000,
         failOnStatusCode: false
       });

@@ -20,7 +20,7 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
   test('should display two-tier unloading vs stay breakdown and province correctly for Polaris Hub - Hưng Yên', async ({
     page
   }) => {
-    page.on('console', msg => {
+    page.on('console', (msg) => {
       if (msg.text().includes('DEBUG')) console.log('BROWSER LOG:', msg.text());
     });
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000';
@@ -29,8 +29,10 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
     await loginAs(page, USER_WAREHOUSE_HYN);
 
     // 2. Navigate directly to Inbound page with date range covering SD537 (26/10/2026) and search=537
-    await page.goto(`${baseUrl}/dashboard/warehouse/inbound?fromDate=2026-10-01&toDate=2026-11-05&search=537`);
-    await page.waitForLoadState('networkidle');
+    await page.goto(
+      `${baseUrl}/dashboard/warehouse/inbound?fromDate=2026-10-01&toDate=2026-11-05&search=537`
+    );
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
     // 3. Verify trip SD537 row in Inbound table
@@ -43,7 +45,10 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
     await expect(tripRow).toContainText('Lưu xe: 133');
 
     // 4. Open Trip Detail / Edit Modal by clicking "Tiếp tục" or trip code
-    const openBtn = tripRow.locator('button:has-text("Tiếp tục")').or(tripRow.locator('button:has-text("SD537")')).first();
+    const openBtn = tripRow
+      .locator('button:has-text("Tiếp tục")')
+      .or(tripRow.locator('button:has-text("SD537")'))
+      .first();
     await openBtn.click();
     await page.waitForTimeout(2000);
 
@@ -77,7 +82,10 @@ test.describe('Task 113 - Inbound Two-Tier Destination & Province Display', () =
     await page.waitForTimeout(2000);
 
     // Log the entire inner text of table in modal on 2nd open:
-    const tableText = await modal.locator('table').innerText().catch(() => 'NO TABLE FOUND');
+    const tableText = await modal
+      .locator('table')
+      .innerText()
+      .catch(() => 'NO TABLE FOUND');
     console.log('TABLE TEXT ON 2ND OPEN:\n', tableText);
 
     const greenBadges2 = modal.locator('text=Dỡ kho Polaris Hub - Hưng Yên (Luân chuyển)');

@@ -84,6 +84,11 @@ function WarehouseInboundContent() {
   const [activeView, setActiveView] = useState<'BOARD' | 'MODE1_CUSTOMER' | 'MODE2_TRANSFER'>(
     'BOARD'
   );
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Inbound Board State synchronized with URL query params (?search=&fromDate=&toDate=&status=&page=)
   const {
@@ -470,8 +475,7 @@ function WarehouseInboundContent() {
           operatorName: g.operatorName || g.operator?.name || null,
           createdAt: g.createdAt || g.orders?.[0]?.createdAt || null,
           updatedAt: g.updatedAt || g.processedAt || null,
-          confirmedAt:
-            g.confirmedAt || (isCompleted ? g.processedAt || g.updatedAt || null : null),
+          confirmedAt: g.confirmedAt || (isCompleted ? g.processedAt || g.updatedAt || null : null),
           deletedAt: g.deletedAt || null,
           invoiceCode: g.invoiceCode || null
         };
@@ -769,6 +773,10 @@ function WarehouseInboundContent() {
         toast.error(`Dòng ${rowNum}: Số khối m³ phải lớn hơn hoặc bằng 0`);
         return;
       }
+      if (!row.province || !row.province.trim()) {
+        toast.error(`Dòng ${rowNum}: Vui lòng nhập Tỉnh / TP`);
+        return;
+      }
       if (
         row.deliveryMode === 'DIRECT_CUSTOMER' &&
         (!row.deliveryAddress || !row.deliveryAddress.trim())
@@ -795,7 +803,7 @@ function WarehouseInboundContent() {
           totalVolume: Number(row.totalVolume) || 0,
           pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
           deliveryAddress: row.deliveryAddress?.trim() || '',
-          province: row.province?.trim() || undefined,
+          province: row.province?.trim() || '',
           accompanyingDocs: row.accompanyingDocs?.trim() || undefined,
           deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
           destinationHubId: row.destinationHubId || null,
@@ -911,6 +919,10 @@ function WarehouseInboundContent() {
         toast.error(`Dòng ${rowNum}: Vui lòng nhập Mã vận đơn (bắt buộc)`);
         return;
       }
+      if (!row.province || !row.province.trim()) {
+        toast.error(`Dòng ${rowNum}: Vui lòng nhập Tỉnh / TP`);
+        return;
+      }
     }
 
     isSavingDraftRef.current = true;
@@ -930,7 +942,7 @@ function WarehouseInboundContent() {
           totalVolume: Number(row.totalVolume) >= 0 ? Number(row.totalVolume) : 0,
           pickupAddress: row.pickupAddress?.trim() || user?.hub?.name || '',
           deliveryAddress: row.deliveryAddress?.trim() || '',
-          province: row.province?.trim() || undefined,
+          province: row.province?.trim() || '',
           accompanyingDocs: row.accompanyingDocs?.trim() || undefined,
           deliveryMode: row.deliveryMode || 'DIRECT_CUSTOMER',
           destinationHubId: row.destinationHubId || null,
@@ -991,6 +1003,7 @@ function WarehouseInboundContent() {
               {activeView === 'BOARD' && (
                 <>
                   <Button
+                    disabled={!isHydrated}
                     onClick={() => {
                       resetMode1Form();
                       setActiveView('MODE1_CUSTOMER');

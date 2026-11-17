@@ -5,7 +5,7 @@ test.describe('[RBAC] Users Management (/dashboard/users) Access Control', () =>
   test('🚫 BLOCKED: Unauthenticated user is redirected to /auth/sign-in', async ({ page }) => {
     await clearSession(page);
     await page.goto('/dashboard/users');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page).toHaveURL(/\/auth\/sign-in/);
   });
 
@@ -17,7 +17,7 @@ test.describe('[RBAC] Users Management (/dashboard/users) Access Control', () =>
     }) => {
       await loginAs(page, user);
       await page.goto('/dashboard/users');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       if (isSuperAdmin) {
         await expect(page).toHaveURL(/\/dashboard\/users/, { timeout: 8000 });

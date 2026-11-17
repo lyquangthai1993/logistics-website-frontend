@@ -31,7 +31,7 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     // ── 1. Đăng nhập với quyền Quản lý Kho ───────────────────────────────────
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Chờ tiêu đề trang xuất hiện
     await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 15_000 });
@@ -68,8 +68,8 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     const deliveryAddressInput = page.locator('textarea[placeholder*="địa chỉ giao"]').first();
     await deliveryAddressInput.fill('Số 45 Đường Lê Lợi, Phường Bến Nghé, Quận 1');
 
-    // Chọn Cột Tỉnh/TP từ danh sách tỉnh thành, bao gồm option ký gửi đặc biệt
-    const provinceInput = page.locator('table tbody tr:first-child input[list]').first();
+    // Chọn Cột Tỉnh/TP từ autocomplete, bao gồm option ký gửi đặc biệt
+    const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
     await expect(provinceInput).toBeVisible();
     const provinceListId = await provinceInput.getAttribute('list');
     expect(provinceListId).toBeTruthy();

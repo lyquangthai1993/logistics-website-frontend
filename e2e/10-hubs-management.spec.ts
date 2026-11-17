@@ -15,7 +15,7 @@ test.describe('Hubs Management & Vehicle Relation (Super Admin & Fleet Manager)'
 
     // 2. Navigate to /dashboard/admin/hubs
     await page.goto('/dashboard/admin/hubs');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 3. Check page header
     const heading = page.locator('h2', { hasText: 'Quản Lý Chi Nhánh Kho' });
@@ -100,7 +100,7 @@ test.describe('Hubs Management & Vehicle Relation (Super Admin & Fleet Manager)'
 
     // 3. Visit /dashboard/fleet
     await page.goto('/dashboard/fleet');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 4. Open Add Vehicle Modal
     const addVehicleBtn = page.locator('#btn-add-vehicle');

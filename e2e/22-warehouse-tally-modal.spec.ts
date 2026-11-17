@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 
-const ARTIFACT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-4861-9a69-65b90b6d5c21';
+const ARTIFACT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-4861-9a69-65b90b6d5c21';
 
 // Test against the Vercel dev branch deployment
 const TARGET_BASE_URL =
-  process.env.TARGET_URL ||
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  process.env.TARGET_URL || (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000');
 
 const USER = {
   email: 'lyquangthai1993+4@gmail.com',
-  password: 'secret',
+  password: 'secret'
 };
 
 test.describe('Kiểm tra Modal Kiểm Đếm Nhập Kho (Vercel Dev)', () => {
@@ -55,7 +55,9 @@ test.describe('Kiểm tra Modal Kiểm Đếm Nhập Kho (Vercel Dev)', () => {
     await expect(tallyDialog.locator('text=Kiểm đếm nhập kho').first()).toBeVisible();
 
     // Chờ bảng hàng hóa hiển thị
-    await expect(tallyDialog.locator('text=Danh sách các dòng hàng kiểm đếm tiếp nhận')).toBeVisible();
+    await expect(
+      tallyDialog.locator('text=Danh sách các dòng hàng kiểm đếm tiếp nhận')
+    ).toBeVisible();
 
     // Đo kích thước của modal dialog box
     const boundingBox = await tallyDialog.boundingBox();

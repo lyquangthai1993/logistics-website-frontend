@@ -30,12 +30,12 @@ test.describe('[Real-time Multi-Account] Multi-Context Notification E2E Test', (
       // Step A: Receiver logs in and navigates to Dashboard
       await loginAs(receiverPage, WAREHOUSE_CREDS);
       await receiverPage.goto('/dashboard/overview');
-      await receiverPage.waitForLoadState('networkidle');
+      await receiverPage.waitForLoadState('domcontentloaded');
 
       // Step B: Admin logs in on their separate browser window
       await loginAs(adminPage, ADMIN_CREDS);
       await adminPage.goto('/dashboard/overview');
-      await adminPage.waitForLoadState('networkidle');
+      await adminPage.waitForLoadState('domcontentloaded');
 
       // Verify both pages are independently authenticated
       await expect(receiverPage).toHaveURL(/\/dashboard\/.*/);

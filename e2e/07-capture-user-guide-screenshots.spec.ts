@@ -25,7 +25,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
 
     // ── 01. LOGIN PAGE & DEMO ACCOUNTS ──────────────────────────────────────
     await page.goto('/auth/sign-in');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '01_login_page.png'),
@@ -35,7 +35,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
     // ── 02. DISPATCHER: ORDERS LIST ─────────────────────────────────────────
     await loginAs(page, dispatcherUser);
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(600);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '02_dispatcher_orders_list.png')
@@ -79,7 +79,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
     await page.click('button[type="submit"]:has-text("Lưu & Tạo lệnh")');
     await createPromise;
     await page.waitForSelector('#order-code-input', { state: 'hidden' });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // ── 04. DISPATCHER: SUBMIT TO FLEET ────────────────────────────────────
     const row = page.locator('tr', { hasText: testOrderCode }).first();
@@ -99,7 +99,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
 
     // ── 05. ORDER DETAIL VIEW ──────────────────────────────────────────────
     await row.locator('a[href*="/dashboard/orders/"]').first().click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '06_order_detail_view.png')
@@ -110,7 +110,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
     // ── 06. FLEET MANAGER: PENDING ORDERS & CAPACITY GAUGE MODAL ───────────
     await loginAs(page, fleetUser);
     await page.goto('/dashboard/trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -158,7 +158,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
 
     // ── 08. FLEET MANAGER: CONFIRM TRIP ────────────────────────────────────
     await page.click('button:has-text("Danh Sách Chuyến Xe")');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const confirmTripBtn = page
       .locator(`tr:has-text("${testOrderCode}") button:has-text("Xác nhận Trip")`)
@@ -182,7 +182,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
 
     // ── 09. FLEET VEHICLE MANAGEMENT ───────────────────────────────────────
     await page.goto('/dashboard/fleet');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '11_fleet_vehicles_management.png')
@@ -193,7 +193,7 @@ test.describe('Capture User Guide Documentation Screenshots', () => {
     // ── 10. WAREHOUSE MANAGER: INBOUND RECEIVING BOARD ─────────────────────
     await loginAs(page, warehouseUser);
     await page.goto('/dashboard/warehouse');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
 
     await page.screenshot({

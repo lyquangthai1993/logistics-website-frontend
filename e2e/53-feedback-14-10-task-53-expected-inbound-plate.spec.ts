@@ -107,7 +107,7 @@ test.describe
 
     // 2. Navigate to Warehouse Outbound page
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/warehouse/outbound`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     // Wait for the outbound table to render
     const tableContainer = page.locator('table');

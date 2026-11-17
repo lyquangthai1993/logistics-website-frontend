@@ -10,12 +10,12 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const DEV_BACKEND_URL =
-  process.env.API_URL ?? 'https://logistics-website-backend-1jho.onrender.com/api/v1';
+const DEV_BACKEND_URL = process.env.API_URL ?? 'http://localhost:4001/api/v1';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  process.env.PLAYWRIGHT_BASE_URL ??
+  'http://localhost:4000';
 
 const DAD_MANAGER_EMAIL = 'lyquangthai1993+5@gmail.com';
 const ADMIN_EMAIL = 'lyquangthai1993+1@gmail.com';
@@ -41,12 +41,13 @@ function saveEvidenceScreenshot(filename: string, buffer: Buffer) {
 let dadToken = '';
 let activeTripCode = 'SD64';
 
-test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound Append & Modal UI Optimization', () => {
+test.describe
+  .serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound Append & Modal UI Optimization', () => {
   test.beforeAll(async ({ request }) => {
     // 1. Authenticate against Backend as Da Nang Warehouse Manager
     for (const pwd of PASSWORDS) {
       const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-        data: { email: DAD_MANAGER_EMAIL, password: pwd },
+        data: { email: DAD_MANAGER_EMAIL, password: pwd }
       });
       if (loginRes.ok()) {
         const loginJson = await loginRes.json();
@@ -59,7 +60,7 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
       // Fallback to Admin email if manager login fails
       for (const pwd of PASSWORDS) {
         const adminRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-          data: { email: ADMIN_EMAIL, password: pwd },
+          data: { email: ADMIN_EMAIL, password: pwd }
         });
         if (adminRes.ok()) {
           const adminJson = await adminRes.json();
@@ -73,7 +74,7 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
 
     // 2. Verify SD64 is present or get first inbound trip
     const tripsRes = await request.get(`${DEV_BACKEND_URL}/warehouse/inbound-trips`, {
-      headers: { Authorization: `Bearer ${dadToken}` },
+      headers: { Authorization: `Bearer ${dadToken}` }
     });
     if (tripsRes.ok()) {
       const tripsJson = await tripsRes.json();
@@ -90,12 +91,12 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
 
   // ── TEST 1: API - AVAILABLE OUTBOUND ORDERS WITH HUB_ID QUERY PARAM (TASK 21) ──
   test('API: GET /warehouse/trips/:tripCode/available-outbound-orders with hubId=2 returns stored orders', async ({
-    request,
+    request
   }) => {
     const res = await request.get(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(activeTripCode)}/available-outbound-orders?hubId=2`,
       {
-        headers: { Authorization: `Bearer ${dadToken}` },
+        headers: { Authorization: `Bearer ${dadToken}` }
       }
     );
 
@@ -126,7 +127,7 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
 
   // ── TEST 2: BROWSER UI - MODAL SIZING, 10 COLUMNS, COMPACT DENSITY & ACTIONS (TASKS 21 & 22) ──
   test('Browser UI: Step 2 outbound modal expands wide, displays 10 columns and executes batch append', async ({
-    page,
+    page
   }) => {
     test.setTimeout(90000);
 
@@ -173,7 +174,9 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for trip cards or trip list
-    await page.waitForSelector('[data-slot="card"], button[title*="chi tiết"], tr', { timeout: 25000 });
+    await page.waitForSelector('[data-slot="card"], button[title*="chi tiết"], tr', {
+      timeout: 25000
+    });
 
     // 3. Locate and open the trip detail modal
     const tripDetailBtn = page.locator('button[title*="chi tiết chuyến xe"]').first();
@@ -185,13 +188,19 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
     await dialogContent.waitFor({ state: 'visible', timeout: 15000 });
 
     // Find tab or button for Step 2
-    const step2Tab = page.locator('button:has-text("2. Xe xuất kho"), button:has-text("Xuất hàng"), button:has-text("Bước 2")').first();
+    const step2Tab = page
+      .locator(
+        'button:has-text("2. Xe xuất kho"), button:has-text("Xuất hàng"), button:has-text("Bước 2")'
+      )
+      .first();
     if (await step2Tab.isVisible()) {
       await step2Tab.click();
     }
 
     // 5. Click "+ Thêm đơn xuất từ kho lên xe"
-    const addStoredBtn = page.locator('button:has-text("Thêm đơn xuất từ kho lên xe"), button:has-text("đơn lưu kho")').first();
+    const addStoredBtn = page
+      .locator('button:has-text("Thêm đơn xuất từ kho lên xe"), button:has-text("đơn lưu kho")')
+      .first();
     await addStoredBtn.waitFor({ state: 'visible', timeout: 15000 });
 
     // Set up request listener to assert hubId param is passed to API
@@ -234,7 +243,9 @@ test.describe.serial('Feedback 07/10 Task 21 & Task 22: Stored Orders Outbound A
     await rows.first().locator('td').nth(2).click();
 
     // Sticky footer should update to "Đã chọn: 1 đơn hàng"
-    const footer = selectStoredModal.locator('[data-slot="dialog-footer"], footer, .sticky.bottom-0').first();
+    const footer = selectStoredModal
+      .locator('[data-slot="dialog-footer"], footer, .sticky.bottom-0')
+      .first();
     await expect(footer).toContainText('Đã chọn:');
     await expect(footer).toContainText('1 đơn hàng');
 

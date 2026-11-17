@@ -506,7 +506,7 @@ test.describe.serial('Vòng đời chuyến xe (SD), luân chuyển liên Hub & 
     });
 
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Chờ bảng dữ liệu tải
     await expect(page.locator('h1')).toContainText('Nhập kho');
@@ -526,7 +526,7 @@ test.describe.serial('Vòng đời chuyến xe (SD), luân chuyển liên Hub & 
 
     // 2. Chuyển sang trang Xuất kho của HCM
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('h1')).toContainText('Xuất kho');
 
     // Ở trang Xuất kho, xe luân chuyển 51H-99999 PHẢI XUẤT HIỆN
@@ -543,7 +543,7 @@ test.describe.serial('Vòng đời chuyến xe (SD), luân chuyển liên Hub & 
     });
 
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('h1')).toContainText('Nhập kho');
 
     // Kiểm tra tab "Đã nhập kho" của Hưng Yên: phải có xe luân chuyển vừa tiếp nhận

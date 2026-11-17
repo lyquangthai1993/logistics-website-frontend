@@ -16,7 +16,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     // 1.1 Dispatcher creates a test order with high weight
     await loginAs(page, dispatcherUser);
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.click('button:has-text("Tạo lệnh điều vận mới")');
     await page.fill('#order-code-input', testOrderCode);
@@ -40,7 +40,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     // 1.2 Fleet Manager opens Assign Vehicle modal to inspect Capacity Gauge
     await loginAs(page, fleetUser);
     await page.goto('/dashboard/trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const assignBtn = page.locator(`[data-testid="btn-assign-order-${testOrderCode}"]`);
     await expect(assignBtn).toBeVisible({ timeout: 15000 });
@@ -77,7 +77,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     // Create large order
     await loginAs(page, dispatcherUser);
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.click('button:has-text("Tạo lệnh điều vận mới")');
     await page.fill('#order-code-input', testOrderCode);
@@ -101,7 +101,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     // Fleet Manager tests Split Shipment boundaries
     await loginAs(page, fleetUser);
     await page.goto('/dashboard/trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const assignBtn = page.locator(`[data-testid="btn-assign-order-${testOrderCode}"]`);
     await expect(assignBtn).toBeVisible({ timeout: 15000 });
@@ -160,7 +160,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     // Create order
     await loginAs(page, dispatcherUser);
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.click('button:has-text("Tạo lệnh điều vận mới")');
     await page.fill('#order-code-input', testOrderCode);
@@ -184,7 +184,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     // Fleet Manager declares No Vehicle
     await loginAs(page, fleetUser);
     await page.goto('/dashboard/trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find the specific order button in pending orders tab
     const noVehicleBtn = page
@@ -242,22 +242,22 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
 
     // 4.1 Direct URL navigation to pending-orders
     await page.goto('/dashboard/trips?tab=pending-orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('#tab-pending-orders')).toHaveAttribute('data-active', '');
 
     // 4.2 Direct URL navigation to all-trips
     await page.goto('/dashboard/trips?tab=all-trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('#tab-all-trips')).toHaveAttribute('data-active', '');
     await expect(page.locator('table')).toBeVisible();
 
     // 4.3 URL backward compatibility with legacy tab names ('pending', 'all')
     await page.goto('/dashboard/trips?tab=pending');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('#tab-pending-orders')).toHaveAttribute('data-active', '');
 
     await page.goto('/dashboard/trips?tab=all');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('#tab-all-trips')).toHaveAttribute('data-active', '');
 
     // 4.4 Tab switching updates URL
@@ -285,7 +285,7 @@ test.describe('Challenger 2 Empirical Suite: Trips & Vehicle Capacity Standardiz
     await page.goto(
       '/dashboard/trips?page=-99&perPage=99999&search=%3Cscript%3E&status=INVALID&tab=corrupted_tab'
     );
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Page must remain responsive and render without fatal crash
     await expect(

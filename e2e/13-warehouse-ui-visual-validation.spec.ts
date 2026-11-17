@@ -6,16 +6,17 @@ import * as fs from 'fs';
 const WAREHOUSE_HYN = {
   email: 'lyquangthai1993+4@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 const WAREHOUSE_DAD = {
   email: 'lyquangthai1993+5@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
-const ARTIFACT_SCREENSHOT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/8c1cdb2a-5228-45f9-a6ff-0c9d427e1f1a/screenshots';
+const ARTIFACT_SCREENSHOT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/8c1cdb2a-5228-45f9-a6ff-0c9d427e1f1a/screenshots';
 
 test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => {
   test.beforeAll(async () => {
@@ -29,10 +30,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Screenshot 01: WH_INBOUND_BOARD (Node ID sq2P6 - Màn hình chính Danh sách nhập kho)', async ({ page }) => {
+  test('Screenshot 01: WH_INBOUND_BOARD (Node ID sq2P6 - Màn hình chính Danh sách nhập kho)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('CHỜ NHẬP KHO', { exact: true })).toBeVisible();
@@ -47,10 +50,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 02: WH_INBOUND_MODE1 (Mode 1 - Nhập kho khách hàng & Bảng 10 cột)', async ({ page }) => {
+  test('Screenshot 02: WH_INBOUND_MODE1 (Mode 1 - Nhập kho khách hàng & Bảng 10 cột)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
     await expect(page.locator('text=1. Ngày tiếp nhận')).toBeVisible();
@@ -63,14 +68,18 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 03: Mode 2 - Inbound Luân chuyển nội bộ 3 Bước (WH_CASE_02B_TRIP_MODAL, WH_CASE_03_MODAL, dd8X5 Loaded)', async ({ page }) => {
+  test('Screenshot 03: Mode 2 - Inbound Luân chuyển nội bộ 3 Bước (WH_CASE_02B_TRIP_MODAL, WH_CASE_03_MODAL, dd8X5 Loaded)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click to enter Mode 2: Step 1 (WH_CASE_02B_TRIP_MODAL popup)
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
-    await expect(page.locator('text=BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB')).toBeVisible({
+      timeout: 10_000
+    });
 
     await page.waitForTimeout(1000);
     const screenshotPath03A = path.join(ARTIFACT_SCREENSHOT_DIR, '03_A_WH_CASE_02B_TRIP_MODAL.png');
@@ -85,7 +94,9 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     const selectTripBtn = page.locator('.fixed.inset-0 button:has-text("Chọn chuyến")').first();
     if (await selectTripBtn.isVisible()) {
       await selectTripBtn.click();
-      await expect(page.locator('text=BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('text=BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({
+        timeout: 10_000
+      });
 
       await page.waitForTimeout(1000);
       const screenshotPath03B = path.join(ARTIFACT_SCREENSHOT_DIR, '03_B_WH_CASE_03_MODAL.png');
@@ -96,11 +107,16 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
       const confirmOrdersBtn = page.getByRole('button', { name: /Xác nhận dỡ hàng/ });
       await confirmOrdersBtn.scrollIntoViewIfNeeded();
       await confirmOrdersBtn.click();
-      await expect(page.locator('button:has-text("Chọn lại đơn")')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('button:has-text("Chọn lại đơn")')).toBeVisible({
+        timeout: 10_000
+      });
       await expect(page.locator('th:has-text("MÃ ĐƠN HÀNG")')).toBeVisible();
 
       await page.waitForTimeout(1000);
-      const screenshotPath03C = path.join(ARTIFACT_SCREENSHOT_DIR, '03_C_WH_INBOUND_TRANSFER_LOADED.png');
+      const screenshotPath03C = path.join(
+        ARTIFACT_SCREENSHOT_DIR,
+        '03_C_WH_INBOUND_TRANSFER_LOADED.png'
+      );
       await page.screenshot({ path: screenshotPath03C, fullPage: true });
       console.log(`Saved screenshot: ${screenshotPath03C}`);
     }
@@ -109,7 +125,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
   test('Screenshot 04: WH_PALLET_LABEL_A4 (Tem Nhận Diện Hàng Hóa Khổ A4)', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const printBtn = page.locator('button[title="In tem nhận diện A4"]').first();
     if (!(await printBtn.isVisible())) {
@@ -117,7 +133,9 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
       await page.waitForTimeout(500);
     }
     await printBtn.click();
-    await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })
+    ).toBeVisible();
 
     await page.waitForTimeout(1000);
 
@@ -126,10 +144,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 04B: WH_PALLET_LABEL_MULTI_PACKAGE (Tạo đơn hàng nhiều kiện 80 & 125 kiện và kiểm tra định dạng .../80, .../125, Giao đến để trống)', async ({ page }) => {
+  test('Screenshot 04B: WH_PALLET_LABEL_MULTI_PACKAGE (Tạo đơn hàng nhiều kiện 80 & 125 kiện và kiểm tra định dạng .../80, .../125, Giao đến để trống)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 1. Mở Mode 1 Tạo đơn nhập mới
     const newInboundBtn = page.getByRole('button', { name: 'Tạo đơn nhập mới' });
@@ -148,7 +168,9 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     // 3. Mở Tem Nhận Diện A4 cho Dòng 1 (80 kiện)
     const printBtn1 = row1.locator('button[title="In tem nhận diện A4"]');
     await printBtn1.click();
-    await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })
+    ).toBeVisible();
 
     // 4. Xác nhận hiển thị chính xác định dạng "... / 80" và các ô để trống ghi tay
     await expect(page.locator('text=... / 80')).toBeVisible();
@@ -178,13 +200,18 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     // 6. Mở Tem Nhận Diện A4 cho Dòng 2 (125 kiện)
     const printBtn2 = row2.locator('button[title="In tem nhận diện A4"]');
     await printBtn2.click();
-    await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })
+    ).toBeVisible();
 
     // 7. Xác nhận hiển thị chính xác định dạng "... / 125"
     await expect(page.locator('text=... / 125')).toBeVisible();
 
     await page.waitForTimeout(800);
-    const screenshotPath125 = path.join(ARTIFACT_SCREENSHOT_DIR, '04C_WH_PALLET_LABEL_MULTI_125.png');
+    const screenshotPath125 = path.join(
+      ARTIFACT_SCREENSHOT_DIR,
+      '04C_WH_PALLET_LABEL_MULTI_125.png'
+    );
     await page.screenshot({ path: screenshotPath125 });
     console.log(`Saved screenshot: ${screenshotPath125}`);
 
@@ -195,7 +222,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
   test('Screenshot 05: WH_OUTBOUND_BOARD (Màn hình chính Danh sách xuất kho)', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: /Xuất kho/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
@@ -213,7 +240,7 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
   test('Screenshot 06: WH_OUTBOUND_CUSTOMER (Mode 1 - Xuất cho khách hàng)', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
     await expect(page.locator('text=Tạo Phiếu Xuất Kho · Giao Cho Khách Hàng')).toBeVisible();
@@ -226,10 +253,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 07: Mode 2 - Xuất luân chuyển nội bộ 3 Bước (WH_OUTBOUND_CREATE_TRIP, WH_OUTBOUND_SELECT_MODAL, WH_OUTBOUND_LOADED)', async ({ page }) => {
+  test('Screenshot 07: Mode 2 - Xuất luân chuyển nội bộ 3 Bước (WH_OUTBOUND_CREATE_TRIP, WH_OUTBOUND_SELECT_MODAL, WH_OUTBOUND_LOADED)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Enter Mode 2: Step 1 (WH_OUTBOUND_CREATE_TRIP)
     await page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' }).click();
@@ -280,10 +309,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${step3Path}`);
   });
 
-  test('Screenshot 08: WH_ORDERS_SUMMARY (Tổng Hợp Đơn Hàng Tại Kho & Bộ Lọc Trạng Thái)', async ({ page }) => {
+  test('Screenshot 08: WH_ORDERS_SUMMARY (Tổng Hợp Đơn Hàng Tại Kho & Bộ Lọc Trạng Thái)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.locator('text=Tổng Hợp Đơn Hàng Tại Kho')).toBeVisible();
     await expect(page.locator('button:has-text("Tất cả")')).toBeVisible();
@@ -295,10 +326,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 09: WH_XE_BO_SEARCHABLE_DROPDOWN (Kiểm tra Dropdown Xe bo tìm kiếm live & hiển thị đầy đủ danh sách từ DB)', async ({ page }) => {
+  test('Screenshot 09: WH_XE_BO_SEARCHABLE_DROPDOWN (Kiểm tra Dropdown Xe bo tìm kiếm live & hiển thị đầy đủ danh sách từ DB)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
     await expect(page.locator('text=1. Ngày tiếp nhận')).toBeVisible();
@@ -325,15 +358,20 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     // Verify filtered result shows Hà Nội
     await expect(page.locator('button:has-text("Xe bo Tuyến Hà Nội")')).toBeVisible();
 
-    const screenshotPath = path.join(ARTIFACT_SCREENSHOT_DIR, '09_WH_XE_BO_SEARCHABLE_DROPDOWN.png');
+    const screenshotPath = path.join(
+      ARTIFACT_SCREENSHOT_DIR,
+      '09_WH_XE_BO_SEARCHABLE_DROPDOWN.png'
+    );
     await page.screenshot({ path: screenshotPath });
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 10: WH_OUTBOUND_LOOKUP_MODAL (Modal Tra Cứu & Chọn Hàng Trong Kho theo chuẩn Design Pen)', async ({ page }) => {
+  test('Screenshot 10: WH_OUTBOUND_LOOKUP_MODAL (Modal Tra Cứu & Chọn Hàng Trong Kho theo chuẩn Design Pen)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_DAD);
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click 'Xuất cho khách hàng' to enter editable grid mode
     await page.getByRole('button', { name: 'Xuất cho khách hàng' }).click();
@@ -362,16 +400,20 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     console.log(`Saved screenshot: ${screenshotPath}`);
   });
 
-  test('Screenshot 11: WH_WAYBILL_DETAIL_MODAL (Xem chi tiết mã vận đơn & danh mục hàng hóa theo NO-SKU rule)', async ({ page }) => {
+  test('Screenshot 11: WH_WAYBILL_DETAIL_MODAL (Xem chi tiết mã vận đơn & danh mục hàng hóa theo NO-SKU rule)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on the first order code in the table
     const orderCodeBtn = page.locator('tbody tr button[title="Xem chi tiết mã vận đơn"]').first();
     if (await orderCodeBtn.isVisible()) {
       await orderCodeBtn.click();
-      await expect(page.locator('text=Chi tiết Mã vận đơn tiếp nhận')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('text=Chi tiết Mã vận đơn tiếp nhận')).toBeVisible({
+        timeout: 10_000
+      });
       await expect(page.locator('text=Danh mục hàng hóa theo kiện vận tải')).toBeVisible();
       await expect(page.locator('th:has-text("TÊN HÀNG HÓA")')).toBeVisible();
 
@@ -382,10 +424,12 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     }
   });
 
-  test('Screenshot 12: WH_TALLY_INSPECTION_MODAL (Quy trình kiểm đếm thực tế Frame SkFD5 và Xác nhận nhập kho)', async ({ page }) => {
+  test('Screenshot 12: WH_TALLY_INSPECTION_MODAL (Quy trình kiểm đếm thực tế Frame SkFD5 và Xác nhận nhập kho)', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click tab 'Chờ nhập kho'
     const waitingTab = page.locator('button:has-text("Chờ nhập kho")');
@@ -409,4 +453,3 @@ test.describe('Phân Hệ Quản Lý Kho - Visual Screenshot Validation', () => 
     }
   });
 });
-

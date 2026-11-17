@@ -4,25 +4,25 @@ import { loginAs, clearSession } from './helpers/auth';
 const WAREHOUSE_HYN = {
   email: 'lyquangthai1993+4@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 const WAREHOUSE_DAD = {
   email: 'lyquangthai1993+5@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 const WAREHOUSE_HCM = {
   email: 'lyquangthai1993+6@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 const SUPER_ADMIN = {
   email: 'lyquangthai1993+1@gmail.com',
   password: 'secret',
-  role: 'SUPER_ADMIN' as const,
+  role: 'SUPER_ADMIN' as const
 };
 
 test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub E2E', () => {
@@ -30,15 +30,19 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await clearSession(page);
   });
 
-  test('TC-WH-01: Thủ kho Hưng Yên (warehouse_hyn) - Nhập kho Mode 1, Bảng 10 cột & In Tem A4', async ({ page }) => {
+  test('TC-WH-01: Thủ kho Hưng Yên (warehouse_hyn) - Nhập kho Mode 1, Bảng 10 cột & In Tem A4', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
 
     // 1. Điều hướng đến trang Nhập kho
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra Header hiển thị Hub hiện tại và mở Mode 1
-    await expect(page.getByRole('heading', { name: /Nhập kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('heading', { name: /Nhập kho.*Polaris Hub - Hưng Yên/ })
+    ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Tạo đơn nhập mới' })).toBeVisible();
     await page.getByRole('button', { name: 'Tạo đơn nhập mới' }).click();
 
@@ -67,7 +71,9 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     const printBtn = row1.locator('button[title="In tem nhận diện A4"]');
     await printBtn.click();
 
-    await expect(page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'TEM NHẬN DIỆN HÀNG HÓA', exact: true })
+    ).toBeVisible();
     await expect(page.locator('text=KHO :')).toBeVisible();
     await expect(page.locator('text=TÊN HÀNG:')).toBeVisible();
     await expect(page.locator('text=MÃ ĐƠN HÀNG :')).toBeVisible();
@@ -91,15 +97,19 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     await page.waitForTimeout(1000);
   });
 
-  test('TC-WH-02: Xuất kho (warehouse_hyn) - Bảng danh sách, Nút Cập nhật thông số & Mode 1 Xuất Khách', async ({ page }) => {
+  test('TC-WH-02: Xuất kho (warehouse_hyn) - Bảng danh sách, Nút Cập nhật thông số & Mode 1 Xuất Khách', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
 
     // 1. Điều hướng đến trang Xuất kho
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra Header & 4 Stat Cards
-    await expect(page.getByRole('heading', { name: /Xuất kho.*Polaris Hub - Hưng Yên/ })).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('heading', { name: /Xuất kho.*Polaris Hub - Hưng Yên/ })
+    ).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Chờ xuất kho')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất cho khách hàng' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xuất luân chuyển nội bộ' })).toBeVisible();
@@ -124,15 +134,19 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
     }
   });
 
-  test('TC-WH-03: Thủ kho Đà Nẵng (warehouse_dad) - Nhận luân chuyển Mode 2 Stepper 3 bước', async ({ page }) => {
+  test('TC-WH-03: Thủ kho Đà Nẵng (warehouse_dad) - Nhận luân chuyển Mode 2 Stepper 3 bước', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_DAD);
 
     // 1. Vào trang Nhập kho
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra Header hiển thị đúng Hub Đà Nẵng
-    await expect(page.getByRole('heading', { name: /Nhập kho.*Magellan Hub - Đà Nẵng/ })).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('heading', { name: /Nhập kho.*Magellan Hub - Đà Nẵng/ })
+    ).toBeVisible({ timeout: 10_000 });
 
     // 3. Chuyển sang Mode 2: Luân chuyển nội bộ
     await page.getByRole('button', { name: 'Nhận luân chuyển nội bộ' }).click();
@@ -151,24 +165,30 @@ test.describe('Phân Hệ Quản Lý Kho (Warehouse Hub Operations) - Multi-Hub 
 
     // 1. Vào trang Đơn hàng kho
     await page.goto('/dashboard/warehouse/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. Kiểm tra giao diện và bộ lọc trạng thái và Hub HCM
-    await expect(page.getByRole('heading', { name: /Tổng Hợp Đơn Hàng Tại Kho.*Andromeda Hub - HCM/ })).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('heading', { name: /Tổng Hợp Đơn Hàng Tại Kho.*Andromeda Hub - HCM/ })
+    ).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('button:has-text("Tất cả")')).toBeVisible();
     await expect(page.locator('button:has-text("LƯU KHO")')).toBeVisible();
     await expect(page.locator('button:has-text("DRAFT")')).toBeVisible();
     await expect(page.locator('button:has-text("ĐÃ XUẤT KHO")')).toBeVisible();
   });
 
-  test('TC-WH-05: Super Admin - Truy cập toàn diện và xác thực Navigation 3 Menu Kho', async ({ page }) => {
+  test('TC-WH-05: Super Admin - Truy cập toàn diện và xác thực Navigation 3 Menu Kho', async ({
+    page
+  }) => {
     await loginAs(page, SUPER_ADMIN);
 
     // 1. Kiểm tra Sidebar Navigation hiển thị đủ 3 menu kho
     await page.goto('/dashboard/overview');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.locator('a[href="/dashboard/warehouse/inbound"]')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('a[href="/dashboard/warehouse/inbound"]')).toBeVisible({
+      timeout: 10_000
+    });
     await expect(page.locator('a[href="/dashboard/warehouse/outbound"]')).toBeVisible();
     await expect(page.locator('a[href="/dashboard/warehouse/orders"]')).toBeVisible();
 

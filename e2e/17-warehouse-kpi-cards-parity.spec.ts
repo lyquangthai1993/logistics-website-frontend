@@ -8,7 +8,7 @@ const SCREENSHOT_DIR = path.resolve(__dirname, 'screenshots/kpi-cards');
 const WAREHOUSE_DAD = {
   email: 'lyquangthai1993+5@gmail.com', // Quan ly Kho B (Magellan Hub - Da Nang)
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
@@ -18,7 +18,9 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
     }
   });
 
-  test('Hub B (Da Nang): Verify Inbound & Outbound Stat Cards Casing, Subtitles & Counters', async ({ page }) => {
+  test('Hub B (Da Nang): Verify Inbound & Outbound Stat Cards Casing, Subtitles & Counters', async ({
+    page
+  }) => {
     page.on('console', (msg) => console.log('[BROWSER CONSOLE]', msg.type(), msg.text()));
     page.on('response', async (res) => {
       if (res.url().includes('warehouse/kpi')) {
@@ -31,7 +33,7 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
 
     // 2. Navigate to Inbound
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Check Inbound Stat Cards
@@ -46,19 +48,23 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
     await expect(inboundCard4).toBeVisible();
 
     // Verify Inbound Stored Count is > 0 (should be 6)
-    const storedInboundText = await page.locator('span:text-is("ĐÃ NHẬP KHO")').locator('..').locator('div.text-xl').innerText();
+    const storedInboundText = await page
+      .locator('span:text-is("ĐÃ NHẬP KHO")')
+      .locator('..')
+      .locator('div.text-xl')
+      .innerText();
     console.log('[Inbound] ĐÃ NHẬP KHO:', storedInboundText);
     expect(storedInboundText).not.toContain('0 đơn');
 
     // Take screenshot of Inbound
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '01-inbound-kpi-cards.png'),
-      fullPage: false,
+      fullPage: false
     });
 
     // 3. Navigate to Outbound
     await page.goto('/dashboard/warehouse/outbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Check Outbound Stat Cards (Card 4 is now ĐÃ XUẤT KHO, removing "HÔM NAY")
@@ -76,12 +82,20 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
     await expect(page.locator('span:text-is("ĐÃ XUẤT KHO HÔM NAY")')).toHaveCount(0);
 
     // Verify Outbound Waiting Count is > 0
-    const waitingOutboundText = await page.locator('span:text-is("CHỜ XUẤT KHO")').locator('..').locator('div.text-xl').innerText();
+    const waitingOutboundText = await page
+      .locator('span:text-is("CHỜ XUẤT KHO")')
+      .locator('..')
+      .locator('div.text-xl')
+      .innerText();
     console.log('[Outbound] CHỜ XUẤT KHO:', waitingOutboundText);
     expect(parseInt(waitingOutboundText)).toBeGreaterThan(0);
 
     // Verify Outbound Dispatched Count is > 0
-    const completedOutboundText = await page.locator('span:text-is("ĐÃ XUẤT KHO")').locator('..').locator('div.text-xl').innerText();
+    const completedOutboundText = await page
+      .locator('span:text-is("ĐÃ XUẤT KHO")')
+      .locator('..')
+      .locator('div.text-xl')
+      .innerText();
     console.log('[Outbound] ĐÃ XUẤT KHO:', completedOutboundText);
     expect(parseInt(completedOutboundText)).toBeGreaterThan(0);
 
@@ -99,7 +113,9 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
 
     const fromVal = await fromDateInput.inputValue();
     const toVal = await toDateInput.inputValue();
-    console.log(`[Date Filter Check] Từ ngày: ${fromVal} (Expected: ${expectedFromDate}), Đến ngày: ${toVal} (Expected: ${expectedToDate})`);
+    console.log(
+      `[Date Filter Check] Từ ngày: ${fromVal} (Expected: ${expectedFromDate}), Đến ngày: ${toVal} (Expected: ${expectedToDate})`
+    );
     expect(fromVal).toBe(expectedFromDate);
     expect(toVal).toBe(expectedToDate);
 
@@ -110,7 +126,7 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
     // Take screenshot of Outbound with Date Filter & Stat Cards
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '02-outbound-kpi-cards-with-date-filter.png'),
-      fullPage: false,
+      fullPage: false
     });
 
     // 5. Test changing date filter to a single day and verify reactive re-fetch
@@ -133,9 +149,11 @@ test.describe('Warehouse KPI Stat Cards & Counters Verification', () => {
     // Take screenshot of Outbound with Pagination Bar & Page Size Selector
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, '03-outbound-table-pagination.png'),
-      fullPage: true,
+      fullPage: true
     });
 
-    console.log('[Test Passed] ĐÃ XUẤT KHO card, Date Range Search, and Pagination with Page Size limit verified successfully!');
+    console.log(
+      '[Test Passed] ĐÃ XUẤT KHO card, Date Range Search, and Pagination with Page Size limit verified successfully!'
+    );
   });
 });

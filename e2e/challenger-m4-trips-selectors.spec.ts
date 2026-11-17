@@ -11,7 +11,7 @@ test.describe('Milestone 4: Critical DOM Selectors & Dispatch Flow Verification'
 
   test('Verify all Milestone 4 required DOM selectors and dispatch workflows', async ({ page }) => {
     await page.goto('/dashboard/trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 1. Verify Tab Headers
     const pendingTab = page.locator('button:has-text("Đơn Cần Phân Xe")');
@@ -70,7 +70,7 @@ test.describe('Milestone 4: Critical DOM Selectors & Dispatch Flow Verification'
 
     // 6. Verify All Trips tab & Table structure
     await allTripsTab.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
 
     // Verify search and filter inputs on table

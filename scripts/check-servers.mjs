@@ -22,14 +22,14 @@ async function checkUrl(url, timeoutMs = 3000) {
 async function main() {
   console.log('🔍 [Pre-Flight Check] Verifying dev servers before running E2E tests...');
   
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
-  const backendUrl = process.env.API_URL || 'http://localhost:4001';
+  const frontendUrl = (process.env.FRONTEND_URL || process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const backendUrl = (process.env.API_URL || 'http://localhost:4001').replace(/\/api\/v1\/?$/, '');
   
   const frontend = await checkUrl(frontendUrl);
   // Try backend root first, fallback to /api/v1 if root returned 404
   let backend = await checkUrl(backendUrl);
   if (!backend.ok && backend.status === 404) {
-    backend = await checkUrl(`${backendUrl}/api/v1`);
+    backend = await checkUrl(`${backendUrl}/api/v1/health`);
   }
   if (!backend.ok) {
     // Also try 3005 fallback

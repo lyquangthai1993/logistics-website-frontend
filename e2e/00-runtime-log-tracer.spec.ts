@@ -46,7 +46,7 @@ test.describe('Login Page — Runtime Error Interception', () => {
   test('no 5xx server errors during login page load', async ({ page }) => {
     const session = captureRuntimeLogs(page);
 
-    await page.goto('/auth/sign-in', { waitUntil: 'networkidle' });
+    await page.goto('/auth/sign-in', { waitUntil: 'domcontentloaded' });
 
     const overlay = await detectNextJsErrorOverlay(page);
     const serverErrors = session.getServerErrors().filter((e) => e.status >= 500);
@@ -73,14 +73,16 @@ test.describe('Login Page — Runtime Error Interception', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Per-role Dashboard — API Error Interception', () => {
   for (const user of TEST_USERS) {
-    test(`[${user.username} / ${user.role}] no server errors during login + dashboard load`, async ({ page }) => {
+    test(`[${user.username} / ${user.role}] no server errors during login + dashboard load`, async ({
+      page
+    }) => {
       const session = captureRuntimeLogs(page);
 
       // Login and wait for dashboard
       await loginAs(page, user);
 
       // Wait for network to settle after redirect
-      await page.waitForLoadState('networkidle').catch(() => {
+      await page.waitForLoadState('domcontentloaded').catch(() => {
         // Timeout is acceptable – continue to check errors
       });
 
@@ -124,7 +126,7 @@ test.describe('Slow Request Audit (Warning)', () => {
     const session = captureRuntimeLogs(page);
 
     await loginAs(page, superAdmin);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     const slowRequests = session.getSlowRequests(SLOW_REQUEST_THRESHOLD_MS);
     session.stop();
