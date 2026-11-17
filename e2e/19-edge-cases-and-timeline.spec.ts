@@ -3,21 +3,23 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { loginAs, clearSession } from './helpers/auth';
 
-const SCREENSHOT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/3710b55d-f3f5-4c7e-8148-ec8b1cb3395f/screenshots';
-const ARTIFACT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/3710b55d-f3f5-4c7e-8148-ec8b1cb3395f';
+const SCREENSHOT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/3710b55d-f3f5-4c7e-8148-ec8b1cb3395f/screenshots';
+const ARTIFACT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/3710b55d-f3f5-4c7e-8148-ec8b1cb3395f';
 const FEEDBACK_DIR = 'd:/Projects/logistics-website/feedback_17_8/test-screenshots';
 
 const WAREHOUSE_USER = {
   email: 'lyquangthai1993+4@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 async function captureEvidence(pageOrLocator: any, filename: string, options?: any) {
   const p1 = path.join(SCREENSHOT_DIR, filename);
   const p2 = path.join(FEEDBACK_DIR, filename);
   const p3 = path.join(ARTIFACT_DIR, filename);
-  
+
   [SCREENSHOT_DIR, FEEDBACK_DIR, ARTIFACT_DIR].forEach((dir) => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   });
@@ -34,31 +36,37 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Edge Case 1 & 2: Over-export blocking (422) and Partial Outbound Lifecycle', async ({ page, request }) => {
+  test('Edge Case 1 & 2: Over-export blocking (422) and Partial Outbound Lifecycle', async ({
+    page,
+    request
+  }) => {
     // 1. Obtain JWT token for warehouse manager
     const loginRes = await request.post('http://localhost:4001/api/v1/auth/email/login', {
       data: {
         email: WAREHOUSE_USER.email,
-        password: WAREHOUSE_USER.password,
-      },
+        password: WAREHOUSE_USER.password
+      }
     });
     expect(loginRes.ok()).toBeTruthy();
     const loginData = await loginRes.json();
     const token = loginData.token || loginData.data?.token || loginData.accessToken;
 
     // EDGE CASE 1: Thử xuất 60 kiện khi tồn kho chỉ có 50 kiện -> Phải chặn 422
-    const overExportRes = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        orderIds: [101],
-        items: [{ orderId: 101, quantityToExport: 60 }],
-        licensePlate: '29C-FAIL.01',
-        mode: 'CUSTOMER',
-      },
-    });
+    const overExportRes = await request.post(
+      'http://localhost:4001/api/v1/warehouse/outbound/confirm',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          orderIds: [101],
+          items: [{ orderId: 101, quantityToExport: 60 }],
+          licensePlate: '29C-FAIL.01',
+          mode: 'CUSTOMER'
+        }
+      }
+    );
 
     console.log('[EDGE CASE 1: Over-export status]:', overExportRes.status());
     expect(overExportRes.status()).toBe(422);
@@ -67,26 +75,30 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     expect(errBody.message).toContain('vượt quá tồn kho khả dụng');
 
     // EDGE CASE 2: Xuất nhỏ giọt đợt 1 (Partial Export: 20 kiện / 50 kiện)
-    const partialExportRes = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        orderIds: [101],
-        items: [{ orderId: 101, quantityToExport: 20 }],
-        licensePlate: '29C-999.01',
-        driverName: 'Lê Văn Xuất',
-        mode: 'TRANSFER',
-        destinationHubId: 1,
-      },
-    });
+    const partialExportRes = await request.post(
+      'http://localhost:4001/api/v1/warehouse/outbound/confirm',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          orderIds: [101],
+          items: [{ orderId: 101, quantityToExport: 20 }],
+          licensePlate: '29C-999.01',
+          driverName: 'Lê Văn Xuất',
+          mode: 'TRANSFER',
+          destinationHubId: 1
+        }
+      }
+    );
 
     console.log('[EDGE CASE 2: Partial export status]:', partialExportRes.status());
     expect(partialExportRes.ok()).toBeTruthy();
     const partialData = await partialExportRes.json();
-    const updatedOrder = partialData.orders?.find((o: any) => o.id === 101) || partialData.data?.orders?.[0];
-    
+    const updatedOrder =
+      partialData.orders?.find((o: any) => o.id === 101) || partialData.data?.orders?.[0];
+
     expect(updatedOrder.inboundQuantity).toBe(50);
     expect(updatedOrder.outboundQuantity).toBe(20);
     expect(updatedOrder.remainingQuantity).toBe(30);
@@ -95,11 +107,13 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
       inbound: updatedOrder.inboundQuantity,
       outbound: updatedOrder.outboundQuantity,
       remaining: updatedOrder.remainingQuantity,
-      status: updatedOrder.status,
+      status: updatedOrder.status
     });
   });
 
-  test('Edge Case UI: Open Detail Modal & Capture Inventory Tracking & 3-Leg Timeline', async ({ page }) => {
+  test('Edge Case UI: Open Detail Modal & Capture Inventory Tracking & 3-Leg Timeline', async ({
+    page
+  }) => {
     // Đăng nhập vào giao diện
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders');
@@ -141,12 +155,14 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     await captureEvidence(page, '05_waybill_detail_timeline_modal.png');
   });
 
-  test('Edge Case 3 & 4: Full Outbound Drain (Remaining 0) and Zero-Stock Rejection', async ({ request }) => {
+  test('Edge Case 3 & 4: Full Outbound Drain (Remaining 0) and Zero-Stock Rejection', async ({
+    request
+  }) => {
     const loginRes = await request.post('http://localhost:4001/api/v1/auth/email/login', {
       data: {
         email: WAREHOUSE_USER.email,
-        password: WAREHOUSE_USER.password,
-      },
+        password: WAREHOUSE_USER.password
+      }
     });
     const loginData = await loginRes.json();
     const token = loginData.token || loginData.data?.token || loginData.accessToken;
@@ -155,19 +171,20 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
     const drainRes = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       data: {
         orderIds: [101],
         items: [{ orderId: 101, quantityToExport: 30 }],
         licensePlate: '51D-888.88',
         driverName: 'Đặng Tuấn Vũ',
-        mode: 'CUSTOMER',
-      },
+        mode: 'CUSTOMER'
+      }
     });
     expect(drainRes.ok()).toBeTruthy();
     const drainData = await drainRes.json();
-    const orderDrained = drainData.orders?.find((o: any) => o.id === 101) || drainData.data?.orders?.[0];
+    const orderDrained =
+      drainData.orders?.find((o: any) => o.id === 101) || drainData.data?.orders?.[0];
 
     expect(orderDrained.inboundQuantity).toBe(50);
     expect(orderDrained.outboundQuantity).toBe(50);
@@ -177,22 +194,25 @@ test.describe('Edge Cases & Inventory Tracking Timeline Test Suite', () => {
       inbound: orderDrained.inboundQuantity,
       outbound: orderDrained.outboundQuantity,
       remaining: orderDrained.remainingQuantity,
-      status: orderDrained.status,
+      status: orderDrained.status
     });
 
     // EDGE CASE 4: Thử xuất tiếp khi tồn kho đã bằng 0 -> Phải bị chặn 422!
-    const emptyExportRes = await request.post('http://localhost:4001/api/v1/warehouse/outbound/confirm', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        orderIds: [101],
-        items: [{ orderId: 101, quantityToExport: 1 }],
-        licensePlate: '51D-FAIL.02',
-        mode: 'CUSTOMER',
-      },
-    });
+    const emptyExportRes = await request.post(
+      'http://localhost:4001/api/v1/warehouse/outbound/confirm',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          orderIds: [101],
+          items: [{ orderId: 101, quantityToExport: 1 }],
+          licensePlate: '51D-FAIL.02',
+          mode: 'CUSTOMER'
+        }
+      }
+    );
     console.log('[EDGE CASE 4: Zero-stock rejection status]:', emptyExportRes.status());
     expect(emptyExportRes.status()).toBe(422);
     const emptyErr = await emptyExportRes.json();

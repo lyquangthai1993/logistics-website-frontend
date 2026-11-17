@@ -415,7 +415,7 @@ function isNumericTsvCell(val: string | undefined): boolean {
 function isDateLikeTsvCell(val: string | undefined): boolean {
   const s = (val || '').trim();
   if (!s) return false;
-  return /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(s);
+  return /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(s) || /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(s);
 }
 
 /**
@@ -1421,7 +1421,11 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
         <div
           className={cn(
             'text-[9px] text-right font-semibold leading-tight',
-            isExceeded ? 'text-red-600 font-bold' : isPartialExport ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500'
+            isExceeded
+              ? 'text-red-600 font-bold'
+              : isPartialExport
+                ? 'text-amber-600 dark:text-amber-400 font-bold'
+                : 'text-slate-500'
           )}
         >
           {isExceeded ? `Vượt tồn!` : `Tồn: ${availStock}`}

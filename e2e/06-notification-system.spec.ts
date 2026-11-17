@@ -10,7 +10,11 @@
 import { test, expect, request } from '@playwright/test';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
-const API_BASE = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001/api/v1').replace(/\/$/, '');
+const API_BASE = (
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:4001/api/v1'
+).replace(/\/$/, '');
 const ADMIN = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
 const WAREHOUSE = TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER')!;
 
@@ -227,7 +231,7 @@ test.describe('[Flow 3] UI Bell, Popover & Page Management', () => {
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
 
-  const res = await ctx.patch(`${API_BASE}/notifications/read-all`);
+    const res = await ctx.patch(`${API_BASE}/notifications/read-all`);
     expect(res.status()).toBe(200);
     const body = await res.json();
     const result = body.data !== undefined ? body.data : body;

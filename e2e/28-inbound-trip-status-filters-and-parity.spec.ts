@@ -16,12 +16,12 @@
 
 import { test, expect } from '@playwright/test';
 
-const DEV_BACKEND_URL =
-  process.env.API_URL ?? 'http://localhost:4001/api/v1';
+const DEV_BACKEND_URL = process.env.API_URL ?? 'http://localhost:4001/api/v1';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000';
+  process.env.PLAYWRIGHT_BASE_URL ??
+  'http://localhost:4000';
 
 const ADMIN_EMAIL = 'lyquangthai1993+1@gmail.com';
 const PASSWORD = 'secret';
@@ -97,7 +97,9 @@ test.describe.serial('Suite 28: Inbound Trip Status Filters & 1:1 Counter Parity
     );
     expect(completedRes.ok()).toBeTruthy();
     const completedJson = await completedRes.json();
-    const completedPayload = completedJson?.meta ? completedJson : (completedJson?.data ?? completedJson);
+    const completedPayload = completedJson?.meta
+      ? completedJson
+      : (completedJson?.data ?? completedJson);
     const completedRows = completedPayload?.data || [];
     for (const r of completedRows) {
       expect(r.status).toBe('COMPLETED');
@@ -110,7 +112,9 @@ test.describe.serial('Suite 28: Inbound Trip Status Filters & 1:1 Counter Parity
     );
     expect(customerRes.ok()).toBeTruthy();
     const customerJson = await customerRes.json();
-    const customerPayload = customerJson?.meta ? customerJson : (customerJson?.data ?? customerJson);
+    const customerPayload = customerJson?.meta
+      ? customerJson
+      : (customerJson?.data ?? customerJson);
     const customerRows = customerPayload?.data || [];
     for (const r of customerRows) {
       expect(r.isTransfer).toBe(false);
@@ -123,7 +127,9 @@ test.describe.serial('Suite 28: Inbound Trip Status Filters & 1:1 Counter Parity
     );
     expect(transferRes.ok()).toBeTruthy();
     const transferJson = await transferRes.json();
-    const transferPayload = transferJson?.meta ? transferJson : (transferJson?.data ?? transferJson);
+    const transferPayload = transferJson?.meta
+      ? transferJson
+      : (transferJson?.data ?? transferJson);
     const transferRows = transferPayload?.data || [];
     for (const r of transferRows) {
       expect(r.isTransfer).toBe(true);

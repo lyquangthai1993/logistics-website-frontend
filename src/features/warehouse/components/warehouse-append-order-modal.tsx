@@ -7,17 +7,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  IconTruck,
-  IconLoader2,
-  IconArrowRight,
-  IconMapPin,
-} from '@tabler/icons-react';
+import { IconTruck, IconLoader2, IconArrowRight, IconMapPin } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
 import { showApiErrorToast } from '@/lib/api-error';
@@ -44,7 +39,7 @@ export function WarehouseAppendOrderModal({
   tripCode,
   licensePlate,
   disabled = false,
-  onSuccess,
+  onSuccess
 }: WarehouseAppendOrderModalProps) {
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name || 'Kho hiện tại';
@@ -119,7 +114,7 @@ export function WarehouseAppendOrderModal({
         deliveryAddress: deliveryAddress.trim() || undefined,
         province: province.trim() || undefined,
         accompanyingDocs: accompanyingDocs.trim() || undefined,
-        notes: notes.trim() || undefined,
+        notes: notes.trim() || undefined
       };
 
       const res = await apiClient.post(
@@ -151,7 +146,10 @@ export function WarehouseAppendOrderModal({
           </DialogTitle>
           <div className='flex items-center gap-2 text-[10px] text-slate-500 mt-0.5'>
             <span>
-              Xe: <strong className='text-slate-700 dark:text-slate-300 font-bold'>{licensePlate}</strong>
+              Xe:{' '}
+              <strong className='text-slate-700 dark:text-slate-300 font-bold'>
+                {licensePlate}
+              </strong>
             </span>
             <span>•</span>
             <span>
@@ -170,7 +168,8 @@ export function WarehouseAppendOrderModal({
         <form onSubmit={handleSubmit} className='space-y-2 text-xs py-0.5'>
           {disabled && (
             <div className='p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded text-amber-800 dark:text-amber-200 text-xs'>
-              🔒 Chuyến xe đã ở trạng thái <strong>Đã xử lý</strong> tại kho này. Bạn không có quyền bốc thêm đơn hàng.
+              🔒 Chuyến xe đã ở trạng thái <strong>Đã xử lý</strong> tại kho này. Bạn không có quyền
+              bốc thêm đơn hàng.
             </div>
           )}
           {/* Lộ trình bốc hàng */}

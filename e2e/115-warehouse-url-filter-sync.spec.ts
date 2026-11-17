@@ -73,7 +73,9 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
     expect(page.url()).toContain('toDate=2026-11-02');
 
     // 6. Test direct URL hydration
-    await page.goto(`${baseUrl}/dashboard/warehouse/inbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`);
+    await page.goto(
+      `${baseUrl}/dashboard/warehouse/inbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`
+    );
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
@@ -148,7 +150,9 @@ test.describe('Task 115 - Warehouse Inbound & Outbound URL Query Filter Sync', (
     expect(page.url()).toContain('toDate=2026-11-02');
 
     // 6. Test direct URL hydration
-    await page.goto(`${baseUrl}/dashboard/warehouse/outbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`);
+    await page.goto(
+      `${baseUrl}/dashboard/warehouse/outbound?search=SD537&fromDate=2026-10-20&toDate=2026-10-31`
+    );
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 

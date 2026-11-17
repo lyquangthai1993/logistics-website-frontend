@@ -4,12 +4,13 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 const SCREENSHOT_DIR = path.resolve(__dirname, '../playwright-report/evidence');
-const ARTIFACT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-4861-9a69-65b90b6d5c21';
+const ARTIFACT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-4861-9a69-65b90b6d5c21';
 
 const WAREHOUSE_USER = {
   email: 'lyquangthai1993+4@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột Tỉnh/TP E2E Test Suite', () => {
@@ -24,7 +25,9 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Kiểm thử giao diện Tem A4 & Cột Tỉnh/TP khi tạo đơn nhập kho thành công', async ({ page }) => {
+  test('Kiểm thử giao diện Tem A4 & Cột Tỉnh/TP khi tạo đơn nhập kho thành công', async ({
+    page
+  }) => {
     // ── 1. Đăng nhập với quyền Quản lý Kho ───────────────────────────────────
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
@@ -43,7 +46,7 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     await expect(page.locator('text=2. Biển số xe')).toBeVisible();
 
     // ── 3. Kiểm tra sự hiện diện của Cột TỈNH / TP ngay sau ĐỊA CHỈ GIAO HÀNG ──
-    const addressHeader = page.locator('th:has-text("ĐỊA CHỈ GIAO HÀNG")');
+    const addressHeader = page.locator('th:has-text("ĐỊA CHỈ GIAO")');
     await expect(addressHeader).toBeVisible();
 
     const provinceHeader = page.locator('th:has-text("TỈNH / TP")');
@@ -54,7 +57,7 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     await licensePlateInput.fill('51D-999.88');
 
     // Nhập Tên hàng
-    const goodsInput = page.locator('input[placeholder="Tên loại hàng..."]').first();
+    const goodsInput = page.locator('table tbody tr:first-child td:nth-child(4) input').first();
     await goodsInput.fill('Thùng carton linh kiện máy móc E2E');
 
     // Nhập Số kiện
@@ -65,9 +68,14 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     const deliveryAddressInput = page.locator('textarea[placeholder*="địa chỉ giao"]').first();
     await deliveryAddressInput.fill('Số 45 Đường Lê Lợi, Phường Bến Nghé, Quận 1');
 
-    // Nhập Cột Tỉnh/TP (Nhập tay tự do)
+    // Chọn Cột Tỉnh/TP từ autocomplete, bao gồm option ký gửi đặc biệt
     const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
     await expect(provinceInput).toBeVisible();
+    const provinceListId = await provinceInput.getAttribute('list');
+    expect(provinceListId).toBeTruthy();
+    await expect(page.locator(`datalist#${provinceListId} option[value="Ký Gửi Kho"]`)).toHaveCount(
+      1
+    );
     await provinceInput.fill('TP. Hồ Chí Minh');
 
     // Chụp ảnh bằng chứng Form Nhập Kho có Cột Tỉnh/TP
@@ -81,16 +89,23 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
     await previewBtn.click();
 
     // Xác nhận Modal In Tem A4 mở ra
-    await expect(page.locator('text=Xem & In Tem Nhận Diện Hàng Hóa A4')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('text=Xem & In Tem Nhận Diện Hàng Hóa A4')).toBeVisible({
+      timeout: 5_000
+    });
     await expect(page.locator('#pallet-label-print-area')).toBeVisible();
 
     // Kiểm tra cấu trúc layout đã được làm gọn & mở rộng
     // Ô Mã đơn hàng phải gọn gàng, ô Số lượng phải cao thoáng
-    await expect(page.locator('#pallet-label-print-area td:has-text("MÃ ĐƠN HÀNG :")')).toBeVisible();
+    await expect(
+      page.locator('#pallet-label-print-area td:has-text("MÃ ĐƠN HÀNG :")')
+    ).toBeVisible();
     await expect(page.locator('#pallet-label-print-area td:has-text("SỐ LƯỢNG :")')).toBeVisible();
 
     // Chụp ảnh bằng chứng Layout Tem In Nhận Diện Hàng Hóa A4
-    const labelScreenshot = path.join(ARTIFACT_DIR, '02_PALLET_LABEL_A4_COMPACT_ORDER_EXPANDED_QTY.png');
+    const labelScreenshot = path.join(
+      ARTIFACT_DIR,
+      '02_PALLET_LABEL_A4_COMPACT_ORDER_EXPANDED_QTY.png'
+    );
     await page.screenshot({ path: labelScreenshot });
     console.log('Saved screenshot 2:', labelScreenshot);
 
@@ -109,15 +124,21 @@ test.describe('Phân Hệ Nhập Kho - Cải Tiến Tem Nhận Diện A4 & Cột
 
     // ── 7. Kiểm tra đơn hàng mới trong Bảng & Mở Modal Chi Tiết Vận Đơn ────────
     // Tìm dòng hàng vừa tạo theo tên hàng
-    const createdRow = page.locator('tbody tr:has-text("Thùng carton linh kiện máy móc E2E")').first();
+    const createdRow = page
+      .locator('tbody tr:has-text("Thùng carton linh kiện máy móc E2E")')
+      .first();
     await expect(createdRow).toBeVisible({ timeout: 10_000 });
 
     // Bấm xem chi tiết mã vận đơn
-    const detailBtn = createdRow.locator('button[title*="Xem chi tiết"], button:has-text("Chi tiết")').first();
+    const detailBtn = createdRow
+      .locator('button[title*="Xem chi tiết"], button:has-text("Chi tiết")')
+      .first();
     await detailBtn.click();
 
     // Kiểm tra Modal Chi Tiết Mã Vận Đơn
-    await expect(page.locator('text=Tiến trình vận chuyển & Tồn kho')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=Tiến trình vận chuyển & Tồn kho')).toBeVisible({
+      timeout: 10_000
+    });
     await expect(page.locator('text=Danh mục hàng hóa vận đơn')).toBeVisible();
 
     // Kiểm tra cột TỈNH / TP trong modal chi tiết hiển thị đúng 'TP. Hồ Chí Minh'

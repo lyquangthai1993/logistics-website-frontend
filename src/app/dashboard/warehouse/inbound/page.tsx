@@ -475,8 +475,7 @@ function WarehouseInboundContent() {
           operatorName: g.operatorName || g.operator?.name || null,
           createdAt: g.createdAt || g.orders?.[0]?.createdAt || null,
           updatedAt: g.updatedAt || g.processedAt || null,
-          confirmedAt:
-            g.confirmedAt || (isCompleted ? g.processedAt || g.updatedAt || null : null),
+          confirmedAt: g.confirmedAt || (isCompleted ? g.processedAt || g.updatedAt || null : null),
           deletedAt: g.deletedAt || null,
           invoiceCode: g.invoiceCode || null
         };

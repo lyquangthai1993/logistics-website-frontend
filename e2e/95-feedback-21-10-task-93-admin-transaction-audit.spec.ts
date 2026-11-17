@@ -13,12 +13,15 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     }
   });
 
-  test('Complete E2E workflow: Happy cases, Edge cases (Negative stock check & RBAC), Step-by-step visual evidence', async ({ page }) => {
+  test('Complete E2E workflow: Happy cases, Edge cases (Negative stock check & RBAC), Step-by-step visual evidence', async ({
+    page
+  }) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 1440, height: 900 });
 
     const adminUser = TEST_USERS[0]; // Super Admin (admin / lyquangthai1993+1@gmail.com)
-    const warehouseHcmUser = TEST_USERS.find(u => u.username === 'warehouse_hcm') || TEST_USERS[5];
+    const warehouseHcmUser =
+      TEST_USERS.find((u) => u.username === 'warehouse_hcm') || TEST_USERS[5];
 
     // =========================================================================
     // STEP 1: Super Admin Login & Order Navigation
@@ -49,7 +52,10 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     console.log('--- STEP 2: Opening Waybill Detail Modal ---');
     await orderRow.click();
 
-    const detailDialog = page.locator('[role="dialog"]').filter({ hasText: 'NDA2610-0213' }).first();
+    const detailDialog = page
+      .locator('[role="dialog"]')
+      .filter({ hasText: 'NDA2610-0213' })
+      .first();
     await detailDialog.waitFor({ state: 'visible', timeout: 15_000 });
     await page.waitForTimeout(1500);
 
@@ -64,16 +70,28 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     // STEP 3: EDGE CASE 1 - Negative Stock Prevention Guard
     // Attempting to delete a large transaction (55 kiện) when remaining is only <= 20
     // =========================================================================
-    console.log('--- STEP 3: Testing Edge Case - Negative Stock Invariant (213 kiện > tồn khả dụng) ---');
-    const largeRow = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+213 kiện' }).first();
+    console.log(
+      '--- STEP 3: Testing Edge Case - Negative Stock Invariant (213 kiện > tồn khả dụng) ---'
+    );
+    const largeRow = detailDialog
+      .locator('.relative.flex.items-stretch')
+      .filter({ hasText: '+213 kiện' })
+      .first();
     const largeTxDeleteBtn = largeRow.locator('button', { hasText: 'Xóa bớt dòng' }).first();
     await largeTxDeleteBtn.scrollIntoViewIfNeeded();
     await largeTxDeleteBtn.click();
 
-    const deleteConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
+    const deleteConfirmModal = page
+      .locator('[role="dialog"]')
+      .filter({ hasText: 'Xác nhận xóa dòng giao dịch' })
+      .first();
     await deleteConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-    const reasonInput = deleteConfirmModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    const reasonInput = deleteConfirmModal
+      .locator(
+        'textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]'
+      )
+      .first();
     await reasonInput.waitFor({ state: 'visible', timeout: 5_000 });
     await reasonInput.fill('[E2E-EDGE-CASE] Thử xóa giao dịch lớn vượt quá tồn khả dụng');
 
@@ -85,7 +103,10 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await confirmDeleteBtn.click();
 
     // Expect toast error with Vietnamese message
-    const toastError = page.locator('[data-sonner-toast]').filter({ hasText: /âm kho/i }).first();
+    const toastError = page
+      .locator('[data-sonner-toast]')
+      .filter({ hasText: /âm kho/i })
+      .first();
     await expect(toastError).toBeVisible({ timeout: 8_000 });
 
     const sc3_toast = path.join(EVIDENCE_DIR, 'step_03_edge_case_negative_stock_blocked.png');
@@ -103,15 +124,24 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     // =========================================================================
     const existingRestoreBtns = detailDialog.locator('button', { hasText: 'Hoàn tác dòng xóa' });
     if ((await existingRestoreBtns.count()) > 0) {
-      console.log('--- Restoring existing soft-deleted line to bring inventory to fresh baseline ---');
+      console.log(
+        '--- Restoring existing soft-deleted line to bring inventory to fresh baseline ---'
+      );
       const firstRestoreBtn = existingRestoreBtns.first();
       await firstRestoreBtn.scrollIntoViewIfNeeded();
       await firstRestoreBtn.click();
 
-      const rModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
+      const rModal = page
+        .locator('[role="dialog"]')
+        .filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' })
+        .first();
       await rModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-      const rReason = rModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
+      const rReason = rModal
+        .locator(
+          'textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]'
+        )
+        .first();
       await rReason.waitFor({ state: 'visible', timeout: 5_000 });
       await rReason.fill('[E2E-SETUP] Khôi phục dòng giao dịch về trạng thái ban đầu');
 
@@ -125,17 +155,29 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     // STEP 5: HAPPY CASE 1 - Super Admin Soft-Deletes a Valid Small Transaction (5 kiện)
     // =========================================================================
     console.log('--- STEP 5: Executing Valid Soft-Delete on Transaction Line (5 kiện) ---');
-    const row5Kien = detailDialog.locator('.relative.flex.items-stretch').filter({ hasText: '+5 kiện' }).first();
+    const row5Kien = detailDialog
+      .locator('.relative.flex.items-stretch')
+      .filter({ hasText: '+5 kiện' })
+      .first();
     const btnDeleteSmall = row5Kien.locator('button', { hasText: 'Xóa bớt dòng' }).first();
     await btnDeleteSmall.scrollIntoViewIfNeeded();
     await btnDeleteSmall.click();
 
-    const deleteModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận xóa dòng giao dịch' }).first();
+    const deleteModal = page
+      .locator('[role="dialog"]')
+      .filter({ hasText: 'Xác nhận xóa dòng giao dịch' })
+      .first();
     await deleteModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-    const validReasonInput = deleteModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    const validReasonInput = deleteModal
+      .locator(
+        'textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]'
+      )
+      .first();
     await validReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
-    await validReasonInput.fill('[E2E-TEST] Điều chỉnh số lượng nhập kiểm toán kho hợp lệ ngày 21/10');
+    await validReasonInput.fill(
+      '[E2E-TEST] Điều chỉnh số lượng nhập kiểm toán kho hợp lệ ngày 21/10'
+    );
 
     const sc4_dialog = path.join(EVIDENCE_DIR, 'step_04_delete_confirmation_modal.png');
     await page.screenshot({ path: sc4_dialog, fullPage: false });
@@ -162,33 +204,49 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
     await restoreBtn.scrollIntoViewIfNeeded();
     await restoreBtn.click();
 
-    const restoreConfirmModal = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' }).first();
+    const restoreConfirmModal = page
+      .locator('[role="dialog"]')
+      .filter({ hasText: 'Xác nhận hoàn tác dòng giao dịch' })
+      .first();
     await restoreConfirmModal.waitFor({ state: 'visible', timeout: 8_000 });
 
-    const restoreReasonInput = restoreConfirmModal.locator('textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]').first();
+    const restoreReasonInput = restoreConfirmModal
+      .locator(
+        'textarea[placeholder*="Nhập lý do điều chỉnh"], input[placeholder*="Nhập lý do điều chỉnh"]'
+      )
+      .first();
     await restoreReasonInput.waitFor({ state: 'visible', timeout: 5_000 });
-    await restoreReasonInput.fill('[E2E-TEST] Khôi phục lại dòng giao dịch sau khi đối soát thành công');
+    await restoreReasonInput.fill(
+      '[E2E-TEST] Khôi phục lại dòng giao dịch sau khi đối soát thành công'
+    );
 
     const sc6_dialog = path.join(EVIDENCE_DIR, 'step_06_restore_confirmation_modal.png');
     await page.screenshot({ path: sc6_dialog, fullPage: false });
     console.log(`[Evidence] Saved: ${sc6_dialog}`);
 
     // Confirm restore
-    const confirmRestoreBtn = restoreConfirmModal.locator('button', { hasText: 'Xác nhận hoàn tác dòng' });
+    const confirmRestoreBtn = restoreConfirmModal.locator('button', {
+      hasText: 'Xác nhận hoàn tác dòng'
+    });
     await confirmRestoreBtn.click();
 
     await restoreConfirmModal.waitFor({ state: 'hidden', timeout: 15_000 });
     await page.waitForTimeout(2000);
 
     // Verify row no longer shows deleted badge and restore button is gone
-    await expect(row5Kien.locator('button', { hasText: 'Hoàn tác dòng xóa' })).toHaveCount(0, { timeout: 10_000 });
+    await expect(row5Kien.locator('button', { hasText: 'Hoàn tác dòng xóa' })).toHaveCount(0, {
+      timeout: 10_000
+    });
 
     const sc7 = path.join(EVIDENCE_DIR, 'step_07_transaction_restored_success.png');
     await page.screenshot({ path: sc7, fullPage: false });
     console.log(`[Evidence] Saved: ${sc7}`);
 
     // Close detail modal
-    const closeBtn = detailDialog.locator('button').filter({ has: page.locator('svg.lucide-x') }).first();
+    const closeBtn = detailDialog
+      .locator('button')
+      .filter({ has: page.locator('svg.lucide-x') })
+      .first();
     if (await closeBtn.isVisible()) {
       await closeBtn.click();
     } else {
@@ -216,7 +274,10 @@ test.describe('Admin Inventory Transaction Audit & ACID Management (Task #93)', 
       const wmOrderRow = wmPage.locator('tr').filter({ hasText: 'NDA2610-0213' }).first();
       if (await wmOrderRow.isVisible()) {
         await wmOrderRow.click();
-        const wmModal = wmPage.locator('[role="dialog"]').filter({ hasText: 'NDA2610-0213' }).first();
+        const wmModal = wmPage
+          .locator('[role="dialog"]')
+          .filter({ hasText: 'NDA2610-0213' })
+          .first();
         await wmModal.waitFor({ state: 'visible', timeout: 10_000 });
 
         // Assert that NEITHER "Xóa bớt dòng" NOR "Hoàn tác dòng xóa" is visible for Warehouse Manager

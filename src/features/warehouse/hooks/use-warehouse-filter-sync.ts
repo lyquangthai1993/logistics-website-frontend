@@ -313,11 +313,7 @@ export function useWarehouseBoardFilterSync(options?: UseWarehouseBoardFilterSyn
       shouldUpdate = true;
     }
     if (shouldUpdate) {
-      window.history.replaceState(
-        window.history.state,
-        '',
-        `${pathname}?${currentSp.toString()}`
-      );
+      window.history.replaceState(window.history.state, '', `${pathname}?${currentSp.toString()}`);
     }
   }, [pathname, router, appliedFromDate, appliedToDate, appliedSearch]);
 

@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   IconAlertTriangle,
+  IconChevronDown,
   IconDownload,
   IconLoader2,
   IconRefresh,
@@ -16,6 +17,14 @@ import { formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger
+} from '@/components/ui/drawer';
 import { useOptionalAdminOperationalReport } from './super-admin-operational-report';
 
 export interface RegionalMetricItem {
@@ -192,14 +201,14 @@ const REGION_CONFIGS: RegionRowConfig[] = [
   },
   {
     key: 'storage',
-    name: 'LƯU KHO',
-    subtitle: 'Hàng khách gửi lưu tại kho chờ lấy ra',
-    badgeBg: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
-    badgeText: 'text-cyan-700 dark:text-cyan-300',
-    badgeBorder: 'border-cyan-500/30',
-    barColorWeight: 'bg-cyan-600 dark:bg-cyan-500',
-    barColorVolume: 'bg-cyan-500/80 dark:bg-cyan-400/80',
-    dotColor: 'bg-cyan-600'
+    name: 'KÝ GỬI KHO',
+    subtitle: 'Hàng khách ký gửi tại kho chờ lấy ra',
+    badgeBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    badgeText: 'text-emerald-700 dark:text-emerald-300',
+    badgeBorder: 'border-emerald-500/30',
+    barColorWeight: 'bg-emerald-600 dark:bg-emerald-500',
+    barColorVolume: 'bg-emerald-500/80 dark:bg-emerald-400/80',
+    dotColor: 'bg-emerald-600'
   },
   {
     key: 'na',
@@ -214,6 +223,10 @@ const REGION_CONFIGS: RegionRowConfig[] = [
   }
 ];
 
+// Ký Gửi Kho is a special province bucket, not a delivery region. It is
+// rendered only when the dedicated toolbar tab is selected.
+const CHART_REGION_CONFIGS = REGION_CONFIGS.filter((config) => config.key !== 'storage');
+
 export function SuperAdminRegionalDispatchTable() {
   const globalFilter = useOptionalAdminOperationalReport();
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -222,7 +235,8 @@ export function SuperAdminRegionalDispatchTable() {
   const selectedFromDate = globalFilter?.fromDate || todayStr;
   const selectedDate = globalFilter?.toDate || todayStr;
   const selectedHubId = globalFilter?.selectedHubId || 'ALL';
-  const [chartStatus, setChartStatus] = useState<'onhand' | 'draft' | 'total'>('total');
+  const [chartStatus, setChartStatus] = useState<'onhand' | 'draft' | 'consignment'>('onhand');
+  const [isNaWarningOpen, setIsNaWarningOpen] = useState(false);
 
   const {
     data: raw,
@@ -264,9 +278,24 @@ export function SuperAdminRegionalDispatchTable() {
     incomingTripCount: 0
   };
 
-  const chartRegions = REGION_CONFIGS.map((cfg) => {
+  // Normal tabs show delivery regions only. The consignment tab intentionally
+  // switches to the special province bucket instead of mixing it into totals.
+  const chartConfigs =
+    chartStatus === 'consignment'
+      ? REGION_CONFIGS.filter((config) => config.key === 'storage')
+      : CHART_REGION_CONFIGS;
+
+  const chartRegions = chartConfigs.map((cfg) => {
     const stored = data?.regions[cfg.key];
     const draft = data?.draftRegions?.[cfg.key];
+    if (chartStatus === 'consignment') {
+      const weightKg = stored?.onhandWeightKg ?? 0;
+      return {
+        totalWeightKg: weightKg,
+        totalWeightTons: weightKg / 1000,
+        totalVolumeCbm: stored?.onhandVolumeCbm ?? 0
+      };
+    }
     const weightKg =
       (chartStatus === 'draft' ? 0 : (stored?.onhandWeightKg ?? 0)) +
       (chartStatus === 'onhand' ? 0 : (draft?.weightKg ?? 0));
@@ -292,9 +321,12 @@ export function SuperAdminRegionalDispatchTable() {
   // contribute cargo to the weight/volume snapshot. Keep the audit count in a
   // separate count chart so the 55 unresolved order codes remain visible
   // without mixing order counts with kg or m³.
-  const chartOrderCounts = REGION_CONFIGS.map((cfg) => {
+  const chartOrderCounts = chartConfigs.map((cfg) => {
     const stored = data?.regions[cfg.key];
     const draft = data?.draftRegions?.[cfg.key];
+    if (chartStatus === 'consignment') {
+      return stored?.onhandOrderCount ?? stored?.onhandOrderCodes?.length ?? 0;
+    }
     return cfg.key === 'na'
       ? (data?.provinceAudit?.invalidOrderCount ?? 0)
       : (stored?.onhandOrderCount ?? 0) + (draft?.orderCount ?? 0);
@@ -375,21 +407,38 @@ export function SuperAdminRegionalDispatchTable() {
             </div>
             <h3 className='text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
               Tình hình hàng hóa
-              <Badge
-                variant='outline'
-                className='text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40'
-              >
-                Thời gian thực (Live)
-              </Badge>
-              {data?.cronInfo?.cronTime && (
-                <Badge
-                  variant='outline'
-                  className='text-[10px] py-0 px-1.5 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-mono'
-                >
-                  Lịch Cronjob: {data.cronInfo.cronTime}
-                </Badge>
-              )}
             </h3>
+
+            {/* Chart Toolbar */}
+            <div className='flex items-center justify-between flex-wrap gap-2'>
+              <div
+                role='group'
+                aria-label='Trạng thái đơn hàng'
+                className='flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs'
+              >
+                {(
+                  [
+                    ['onhand', 'Lưu kho'],
+                    ['draft', 'Đơn nháp'],
+                    ['consignment', 'Ký Gửi Kho']
+                  ] as const
+                ).map(([status, label]) => (
+                  <button
+                    key={status}
+                    type='button'
+                    aria-pressed={chartStatus === status}
+                    onClick={() => setChartStatus(status)}
+                    className={`h-8 px-2.5 rounded text-xs font-medium cursor-pointer ${
+                      chartStatus === status
+                        ? 'bg-purple-600 text-white font-semibold'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -426,175 +475,158 @@ export function SuperAdminRegionalDispatchTable() {
             data.regions.na.onhandOrderCount > 0 ||
             data.regions.na.incomingTripCount > 0 ||
             (data.provinceAudit?.invalidOrderCount ?? 0) > 0) && (
-            <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
-              <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
-              <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
-                <div>
-                  <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN: </span>
-                  Có{' '}
-                  {data.regions.na.onhandOrderCount > 0
-                    ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
-                    : ''}
-                  {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0
-                    ? ' và '
-                    : ''}
-                  {data.regions.na.incomingTripCount > 0
-                    ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
-                    : ''}{' '}
-                  ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{' '}
-                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do nhập
-                  sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+            <Drawer open={isNaWarningOpen} onOpenChange={setIsNaWarningOpen}>
+              <DrawerTrigger className='mx-3 mt-3 flex min-h-10 w-[calc(100%-1.5rem)] items-center gap-2.5 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2.5 text-left text-xs font-semibold text-amber-800 shadow-xs transition-colors hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/70'>
+                <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0' />
+                <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN</span>
+                <IconChevronDown className='ml-auto h-4 w-4' />
+              </DrawerTrigger>
+              <DrawerContent>
+                <DrawerHeader>
+                  <DrawerTitle>Cảnh báo dữ liệu chưa phân miền</DrawerTitle>
+                  <DrawerDescription>
+                    Danh sách đơn hàng và chuyến xe cần bổ sung hoặc chỉnh lại tỉnh/thành.
+                  </DrawerDescription>
+                </DrawerHeader>
+                <div className='max-h-[85vh] overflow-y-auto p-2.5'>
+                  <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2'>
+                    <div>
+                      Có{' '}
+                      {data.regions.na.onhandOrderCount > 0
+                        ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
+                        : ''}
+                      {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0
+                        ? ' và '
+                        : ''}
+                      {data.regions.na.incomingTripCount > 0
+                        ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
+                        : ''}{' '}
+                      ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{' '}
+                      {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do
+                      nhập sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+                    </div>
+
+                    {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
+                    {data.provinceAudit && data.provinceAudit.invalidOrderCount > 0 && (
+                      <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                        <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                          Quét đơn thiếu hoặc sai tỉnh/thành:{' '}
+                          {formatNumber(data.provinceAudit.invalidOrderCount)} mã
+                        </div>
+                        <div className='text-[10px] text-amber-800 dark:text-amber-300'>
+                          Đã quét {formatNumber(data.provinceAudit.scannedOrderCount)} đơn theo Hub
+                          · Thiếu tỉnh: {formatNumber(data.provinceAudit.missingProvinceCount)} ·
+                          Không nhận diện:{' '}
+                          {formatNumber(data.provinceAudit.unrecognizedProvinceCount)}
+                          {data.provinceAudit.isTruncated ? ' · Hiển thị tối đa 500 mã' : ''}
+                        </div>
+                        <div className='max-h-28 overflow-y-auto flex flex-wrap gap-1 rounded border border-amber-200 bg-white/70 p-1 dark:border-amber-900/40 dark:bg-slate-900/50'>
+                          {data.provinceAudit.orders.map((order) => (
+                            <a
+                              key={`province-audit-${order.id}`}
+                              href={`/dashboard/warehouse/orders?search=${encodeURIComponent(order.orderCode)}`}
+                              target='_blank'
+                              rel='noreferrer'
+                              title={order.province || 'Chưa nhập tỉnh/thành'}
+                              className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
+                            >
+                              {order.orderCode}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {naOrders.length > 0 && (
+                      <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                        <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                          Danh sách đơn hàng cụ thể cần rà soát:
+                        </div>
+                        <div className='flex flex-wrap gap-1.5'>
+                          {naOrders.map((ord) => (
+                            <span
+                              key={ord.id}
+                              className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
+                            >
+                              <strong className='text-purple-700 dark:text-purple-300'>
+                                {ord.orderCode}
+                              </strong>
+                              <span className='text-slate-600 dark:text-slate-300 font-sans'>
+                                (Tỉnh nhập:{' '}
+                                <strong className='text-rose-600 dark:text-rose-400'>
+                                  {ord.province || 'Chưa nhập'}
+                                </strong>{' '}
+                                • {formatNumber(ord.remainingQuantity)} kiện •{' '}
+                                {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {naSnapshotOrderCodes.length > 0 && (
+                      <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                        <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                          Mã đơn ghi nhận trong snapshot N/A:
+                        </div>
+                        <div className='flex flex-wrap gap-1.5'>
+                          {naSnapshotOrderCodes.map((orderCode) => (
+                            <a
+                              key={`snapshot-na-${orderCode}`}
+                              href={`/dashboard/warehouse/orders?search=${encodeURIComponent(orderCode)}`}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
+                            >
+                              {orderCode}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Danh sách các chuyến xe N/A nếu có */}
+                    {naTrips.length > 0 && (
+                      <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
+                        <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
+                          Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
+                        </div>
+                        <div className='flex flex-wrap gap-1.5'>
+                          {naTrips.map((tr) => (
+                            <span
+                              key={tr.id}
+                              className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
+                            >
+                              <strong className='text-blue-700 dark:text-blue-300'>
+                                {tr.tripCode}
+                              </strong>
+                              <span className='text-slate-600 dark:text-slate-300 font-sans'>
+                                (BS: {tr.licensePlate || '—'} • {tr.originHubName} →{' '}
+                                {tr.destinationHubName})
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
-                {data.provinceAudit && data.provinceAudit.invalidOrderCount > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Quét đơn thiếu hoặc sai tỉnh/thành:{' '}
-                      {formatNumber(data.provinceAudit.invalidOrderCount)} mã
-                    </div>
-                    <div className='text-[10px] text-amber-800 dark:text-amber-300'>
-                      Đã quét {formatNumber(data.provinceAudit.scannedOrderCount)} đơn theo Hub ·
-                      Thiếu tỉnh: {formatNumber(data.provinceAudit.missingProvinceCount)} · Không
-                      nhận diện: {formatNumber(data.provinceAudit.unrecognizedProvinceCount)}
-                      {data.provinceAudit.isTruncated ? ' · Hiển thị tối đa 500 mã' : ''}
-                    </div>
-                    <div className='max-h-28 overflow-y-auto flex flex-wrap gap-1 rounded border border-amber-200 bg-white/70 p-1 dark:border-amber-900/40 dark:bg-slate-900/50'>
-                      {data.provinceAudit.orders.map((order) => (
-                        <a
-                          key={`province-audit-${order.id}`}
-                          href={`/dashboard/warehouse/orders?search=${encodeURIComponent(order.orderCode)}`}
-                          target='_blank'
-                          rel='noreferrer'
-                          title={order.province || 'Chưa nhập tỉnh/thành'}
-                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
-                        >
-                          {order.orderCode}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {naOrders.length > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Danh sách đơn hàng cụ thể cần rà soát:
-                    </div>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {naOrders.map((ord) => (
-                        <span
-                          key={ord.id}
-                          className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
-                        >
-                          <strong className='text-purple-700 dark:text-purple-300'>
-                            {ord.orderCode}
-                          </strong>
-                          <span className='text-slate-600 dark:text-slate-300 font-sans'>
-                            (Tỉnh nhập:{' '}
-                            <strong className='text-rose-600 dark:text-rose-400'>
-                              {ord.province || 'Chưa nhập'}
-                            </strong>{' '}
-                            • {formatNumber(ord.remainingQuantity)} kiện •{' '}
-                            {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {naSnapshotOrderCodes.length > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Mã đơn ghi nhận trong snapshot N/A:
-                    </div>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {naSnapshotOrderCodes.map((orderCode) => (
-                        <a
-                          key={`snapshot-na-${orderCode}`}
-                          href={`/dashboard/warehouse/orders?search=${encodeURIComponent(orderCode)}`}
-                          target='_blank'
-                          rel='noreferrer'
-                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
-                        >
-                          {orderCode}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Danh sách các chuyến xe N/A nếu có */}
-                {naTrips.length > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
-                    </div>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {naTrips.map((tr) => (
-                        <span
-                          key={tr.id}
-                          className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
-                        >
-                          <strong className='text-blue-700 dark:text-blue-300'>
-                            {tr.tripCode}
-                          </strong>
-                          <span className='text-slate-600 dark:text-slate-300 font-sans'>
-                            (BS: {tr.licensePlate || '—'} • {tr.originHubName} →{' '}
-                            {tr.destinationHubName})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+              </DrawerContent>
+            </Drawer>
           )}
 
         {/* Loading Skeleton */}
         {isLoading ? (
           <div className='py-12 flex flex-col items-center justify-center gap-2 text-slate-400'>
             <IconLoader2 className='h-7 w-7 animate-spin text-purple-600' />
-            <span className='text-xs'>Đang tải dữ liệu cân đối đội xe...</span>
+            <span className='text-xs'>Đang tải dữ liệu...</span>
           </div>
         ) : (
           <>
             {/* Visual Horizontal Bar Chart Section (Styled exactly like user reference image) */}
             {data?.regions && (
               <div className='p-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-2'>
-                {/* Chart Toolbar */}
-                <div className='flex items-center justify-between flex-wrap gap-2'>
-                  <div
-                    role='group'
-                    aria-label='Trạng thái đơn hàng'
-                    className='flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs'
-                  >
-                    {(
-                      [
-                        ['onhand', 'Lưu kho'],
-                        ['draft', 'Đơn nháp'],
-                        ['total', 'Tổng hợp']
-                      ] as const
-                    ).map(([status, label]) => (
-                      <button
-                        key={status}
-                        type='button'
-                        aria-pressed={chartStatus === status}
-                        onClick={() => setChartStatus(status)}
-                        className={`h-8 px-2.5 rounded text-xs font-medium cursor-pointer ${
-                          chartStatus === status
-                            ? 'bg-purple-600 text-white font-semibold'
-                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Visual Charts Grid */}
                 <div className='grid gap-2 grid-cols-1 lg:grid-cols-3'>
                   {/* Chart 1: Weight (Tấn • Kg) */}
@@ -617,7 +649,7 @@ export function SuperAdminRegionalDispatchTable() {
 
                       {/* Horizontal Bars */}
                       <div className='space-y-2 pt-1'>
-                        {REGION_CONFIGS.map((cfg, index) => {
+                        {chartConfigs.map((cfg, index) => {
                           const metric = chartRegions[index];
                           const weightPct =
                             chartTotals.totalWeightKg > 0 && metric?.totalWeightKg
@@ -694,7 +726,7 @@ export function SuperAdminRegionalDispatchTable() {
 
                       {/* Horizontal Bars */}
                       <div className='space-y-2 pt-1'>
-                        {REGION_CONFIGS.map((cfg, index) => {
+                        {chartConfigs.map((cfg, index) => {
                           const metric = chartRegions[index];
                           const volumePct =
                             chartTotals.totalVolumeCbm > 0 && metric?.totalVolumeCbm
@@ -768,8 +800,8 @@ export function SuperAdminRegionalDispatchTable() {
                     </div>
 
                     <div className='space-y-2 pt-1'>
-                      {REGION_CONFIGS.map((cfg, index) => {
-                        const orderCount = chartOrderCounts[index] || 0;
+                      {chartConfigs.map((cfg, index) => {
+                        const orderCount = chartOrderCounts[index] ?? 0;
                         const orderPct =
                           totalChartOrderCount > 0
                             ? Math.round((orderCount / totalChartOrderCount) * 1000) / 10
@@ -832,12 +864,12 @@ export function SuperAdminRegionalDispatchTable() {
                     className='rounded border border-slate-200 px-2 py-1 dark:border-slate-700'
                   >
                     <summary className='cursor-pointer text-[10px] font-semibold text-slate-700 dark:text-slate-200'>
-                      {region.name}: Lưu kho {formatNumber(metrics?.onhandOrderCount ?? 0)} mã · Đơn
-                      nháp {formatNumber(draft?.orderCount ?? 0)} mã
+                      {region.name}: Ký Gửi Kho {formatNumber(metrics?.onhandOrderCount ?? 0)} mã ·
+                      Đơn nháp {formatNumber(draft?.orderCount ?? 0)} mã
                     </summary>
                     <div className='space-y-1.5 pt-1.5'>
                       <div className='flex flex-wrap gap-1'>
-                        <span className='w-full text-[10px] font-semibold'>Mã vận đơn lưu kho</span>
+                        <span className='w-full text-[10px] font-semibold'>Mã vận đơn ký gửi</span>
                         {storedCodes.length ? (
                           storedCodes.map((code) => (
                             <a
@@ -852,7 +884,7 @@ export function SuperAdminRegionalDispatchTable() {
                           ))
                         ) : (
                           <span className='text-[10px] text-slate-500'>
-                            Chưa có mã lưu kho trong snapshot.
+                            Chưa có mã ký gửi trong snapshot.
                           </span>
                         )}
                       </div>

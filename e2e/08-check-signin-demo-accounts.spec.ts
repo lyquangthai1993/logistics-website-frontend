@@ -14,6 +14,9 @@ test.describe('Check Sign-in UI — Demo Accounts Removed', () => {
 
     const popoverContent = page.locator('[data-slot="popover-content"], [role="dialog"]');
     await expect(popoverContent).toHaveCount(0);
-    await page.screenshot({ path: 'e2e/screenshots/signin_demo_accounts_absent.png', fullPage: true });
+    await page.screenshot({
+      path: 'e2e/screenshots/signin_demo_accounts_absent.png',
+      fullPage: true
+    });
   });
 });

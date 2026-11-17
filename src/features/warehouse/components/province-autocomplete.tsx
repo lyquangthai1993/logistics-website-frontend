@@ -16,7 +16,7 @@ interface ProvinceAutocompleteProps {
   placeholder?: string;
 }
 
-const SPECIAL_PROVINCE_OPTIONS = [{ value: 'Lưu Kho', label: 'Ngoại lệ vận hành' }];
+const SPECIAL_PROVINCE_OPTIONS = [{ value: 'Ký Gửi Kho', label: 'Ngoại lệ vận hành' }];
 
 function normalizeLookupValue(value: string): string {
   return value
@@ -62,11 +62,11 @@ export function ProvinceAutocomplete({
   const options = [
     ...SPECIAL_PROVINCE_OPTIONS,
     ...references.flatMap((reference) => [
-    { value: reference.name, label: reference.region },
-    ...reference.aliases.map((alias) => ({
-      value: alias,
-      label: `${reference.name} • ${reference.region}`
-    }))
+      { value: reference.name, label: reference.region },
+      ...reference.aliases.map((alias) => ({
+        value: alias,
+        label: `${reference.name} • ${reference.region}`
+      }))
     ])
   ];
 
