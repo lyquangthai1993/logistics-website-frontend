@@ -54,7 +54,7 @@ import {
   parseLocalizedNumber,
   parseLocalizedQuantity
 } from '../lib/dispatch-excel-converter';
-import { extractVietnamProvince } from '../lib/vietnam-provinces';
+import { extractVietnamProvince, VIETNAM_PROVINCES } from '../lib/vietnam-provinces';
 
 export interface HubOption {
   id: number;
@@ -411,7 +411,9 @@ function isNumericTsvCell(val: string | undefined): boolean {
 function isDateLikeTsvCell(val: string | undefined): boolean {
   const s = (val || '').trim();
   if (!s) return false;
-  return /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(s);
+  return (
+    /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(s) || /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(s)
+  );
 }
 
 /**
@@ -1417,7 +1419,11 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
         <div
           className={cn(
             'text-[9px] text-right font-semibold leading-tight',
-            isExceeded ? 'text-red-600 font-bold' : isPartialExport ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500'
+            isExceeded
+              ? 'text-red-600 font-bold'
+              : isPartialExport
+                ? 'text-amber-600 dark:text-amber-400 font-bold'
+                : 'text-slate-500'
           )}
         >
           {isExceeded ? `Vượt tồn!` : `Tồn: ${availStock}`}
@@ -1725,26 +1731,39 @@ function ProvinceCell({ getValue, row, column, table }: CellContext<WarehouseRow
     setValue(initialValue);
   }, [initialValue]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.value;
     setValue(nextVal);
     table.options.meta?.updateData(row.index, column.id, nextVal);
   };
 
   return (
-    <textarea
-      rows={2}
-      value={value}
-      onChange={handleChange}
-      disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
-      title={
-        isLockedExistingWaybill
-          ? 'Khóa cứng tỉnh/TP theo thông tin lần đầu nhập của mã vận đơn'
-          : undefined
-      }
-      placeholder=''
-      className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 resize-none text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal min-h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
-    />
+    <>
+      <input
+        list={`province-options-${row.index}`}
+        value={value}
+        onChange={handleChange}
+        disabled={isRowInbound || isLockedExistingWaybill || isSelectedOutbound}
+        title={
+          isLockedExistingWaybill
+            ? 'Khóa cứng tỉnh/TP theo thông tin lần đầu nhập của mã vận đơn'
+            : undefined
+        }
+        placeholder='Chọn hoặc nhập Tỉnh / TP'
+        className='w-full text-[10px] rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-normal h-11.5 disabled:bg-slate-100 dark:disabled:bg-slate-800/70 disabled:opacity-75 disabled:cursor-not-allowed'
+      />
+      <datalist id={`province-options-${row.index}`}>
+        <option value='Ký Gửi Kho' />
+        {value &&
+          value !== 'Ký Gửi Kho' &&
+          !VIETNAM_PROVINCES.some((province) => province.name === value) && (
+            <option value={value} />
+          )}
+        {VIETNAM_PROVINCES.map((province) => (
+          <option key={province.code} value={province.name} />
+        ))}
+      </datalist>
+    </>
   );
 }
 

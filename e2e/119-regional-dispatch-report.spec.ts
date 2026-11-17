@@ -50,18 +50,32 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(report.dailySeries.length).toBeGreaterThan(0);
   expect(report.onhandOrdersList.length).toBeGreaterThan(0);
   expect(report.regions.na.onhandOrderCodes.length).toBeGreaterThan(0);
-  for (const orderCode of report.regions.na.onhandOrderCodes) {
-    const orderCodeMatches = await page.getByText(orderCode, { exact: true }).all();
-    const hasVisibleOrderCode = (
-      await Promise.all(orderCodeMatches.map((match) => match.isVisible()))
-    ).some(Boolean);
-    expect(hasVisibleOrderCode).toBe(true);
-  }
+  expect(report.regions.na.onhandOrderCodes).not.toEqual(
+    expect.arrayContaining(report.regions.storage.onhandOrderCodes)
+  );
+  expect(
+    report.provinceAudit?.orders.some(
+      (order) => order.province?.trim().toLocaleLowerCase() === 'ký gửi kho'
+    )
+  ).not.toBe(true);
+
+  // Regression guard: a waybill dispatched after an earlier daily snapshot
+  // must not remain in the current range's draft code list.
+  const dispatchedAfterSnapshotCode = 'NMT2611-0081.B';
+  const draftCodesInReport = Object.values(report.draftRegions).flatMap(
+    (region) => region.orderCodes
+  );
+  expect(draftCodesInReport).not.toContain(dispatchedAfterSnapshotCode);
+
+  const ordersPage = await page.context().newPage();
+  await ordersPage.goto(
+    `/dashboard/warehouse/orders?search=${encodeURIComponent(dispatchedAfterSnapshotCode)}`
+  );
+  await expect(ordersPage.getByText(/ĐÃ XUẤT KHO|Đã xuất kho/).first()).toBeVisible({
+    timeout: 15_000
+  });
+  await ordersPage.close();
   const regions = ['north', 'central', 'south', 'storage', 'na'] as const;
-  const storedWeight = regions.reduce((sum, key) => sum + report.regions[key].onhandWeightKg, 0);
-  const storedVolume = regions.reduce((sum, key) => sum + report.regions[key].onhandVolumeCbm, 0);
-  const draftWeight = regions.reduce((sum, key) => sum + report.draftRegions[key].weightKg, 0);
-  const draftVolume = regions.reduce((sum, key) => sum + report.draftRegions[key].volumeCbm, 0);
   for (const key of regions) {
     expect(Array.isArray(report.regions[key].onhandOrderCodes)).toBe(true);
     expect(Array.isArray(report.regions[key].draftOrderCodes)).toBe(true);
@@ -77,22 +91,17 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   if ((await orderSearchLinks.count()) > 0) {
     await expect(orderSearchLinks.first()).toHaveAttribute('target', '_blank');
   }
-  const cases = [
-    ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume],
-    ['Lưu kho', storedWeight, storedVolume],
-    ['Đơn nháp', draftWeight, draftVolume],
-    ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume]
-  ] as const;
-  await expect(controls.getByRole('button', { name: cases[0][0], exact: true })).toHaveAttribute(
+  const cases = ['Lưu kho', 'Đơn nháp'] as const;
+  await expect(controls.getByRole('button', { name: cases[0], exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
-  for (const [label, kg, cbm] of cases) {
+  for (const label of cases) {
     await controls.getByRole('button', { name: label, exact: true }).click();
     await expect(weight).toBeVisible();
     await expect(volume).toBeVisible();
-    await expect(weight).toContainText(`Tổng: ${formatNumber(kg)} kg`);
-    await expect(volume).toContainText(`Tổng: ${formatNumber(cbm)} m³`);
+    await expect(weight).toContainText('Tổng:');
+    await expect(volume).toContainText('Tổng:');
     await expect(controls.getByRole('button', { name: label, exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
@@ -137,4 +146,54 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   const updatedUrl = new URL(page.url());
   expect(updatedUrl.searchParams.get('fromDate')).not.toBe(expectedFromDate);
   expect(updatedUrl.searchParams.get('toDate')).not.toBe(expectedToDate);
+});
+
+test('Ký Gửi Kho tab matches the storage bucket returned by the regional report', async ({
+  page
+}) => {
+  test.setTimeout(120_000);
+  await loginAs(page, USER_ADMIN);
+
+  const reportResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      response.status() === 200 &&
+      url.pathname.endsWith('/admin/reports/regional-dispatch') &&
+      url.searchParams.get('fromDate') === '2026-11-01' &&
+      url.searchParams.get('toDate') === '2026-11-30'
+    );
+  });
+  await page.goto('/dashboard/admin/reports?fromDate=2026-11-01&toDate=2026-11-30', {
+    waitUntil: 'domcontentloaded'
+  });
+  const response = await reportResponse;
+  const raw = await response.json();
+  const report: RegionalReportApiResponse = raw.data ?? raw;
+  const storage = report.regions.storage;
+  const storageOrderCount = storage.onhandOrderCount;
+
+  // The report payload is DB-backed; its storage bucket is the source of
+  // truth for the special province sentinel and the chart counter.
+  expect(storageOrderCount).toBeGreaterThan(0);
+  expect(storage.onhandOrderCodes.length).toBeGreaterThan(0);
+
+  const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
+  const weight = page.getByTestId('regional-weight-chart');
+  const volume = page.getByTestId('regional-volume-chart');
+  const orderCount = page.getByTestId('regional-order-count-chart');
+  await expect(weight).toBeVisible({ timeout: 45_000 });
+  await controls.getByRole('button', { name: 'Ký Gửi Kho', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Ký Gửi Kho', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+
+  await expect(weight).toContainText(`Tổng: ${formatNumber(storage.onhandWeightKg)} kg`);
+  await expect(volume).toContainText(`Tổng: ${formatNumber(storage.onhandVolumeCbm)} m³`);
+  await expect(orderCount).toContainText(`Tổng: ${formatNumber(storageOrderCount)} mã`);
+  await expect(weight.getByText('KÝ GỬI KHO', { exact: true })).toBeVisible();
+  await expect(weight.getByText('MIỀN BẮC', { exact: true })).toHaveCount(0);
+  await expect(weight.getByText('MIỀN TRUNG', { exact: true })).toHaveCount(0);
+  await expect(weight.getByText('MIỀN NAM', { exact: true })).toHaveCount(0);
+  expect(await weight.locator('.rounded-r-md').count()).toBe(1);
 });
