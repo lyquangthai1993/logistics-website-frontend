@@ -53,7 +53,8 @@ export function LoginForm() {
         1: 'SUPER_ADMIN',
         2: 'DISPATCHER',
         3: 'FLEET_MANAGER',
-        4: 'WAREHOUSE_MANAGER'
+        4: 'WAREHOUSE_MANAGER',
+        5: 'REPORT_VIEWER'
       };
 
       const roleCode =
@@ -87,6 +88,8 @@ export function LoginForm() {
       const roleUpper = roleStr.toUpperCase();
       if (roleUpper.includes('WAREHOUSE')) {
         targetUrl = '/dashboard/warehouse/orders';
+      } else if (roleUpper.includes('REPORT_VIEWER')) {
+        targetUrl = '/dashboard/admin/reports';
       } else if (roleUpper.includes('FLEET')) {
         targetUrl = '/dashboard/trips';
       } else if (roleUpper.includes('DISPATCHER')) {

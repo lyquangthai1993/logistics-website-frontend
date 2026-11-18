@@ -4,19 +4,24 @@ import type { NextRequest } from 'next/server';
 const publicRoutes = ['/auth/sign-in', '/auth/forgot-password', '/auth/reset-password', '/auth'];
 
 const roleRouteMap: Record<string, string[]> = {
+  '/dashboard/admin/cronjobs': ['SUPER_ADMIN'],
+  '/dashboard/admin/hubs': ['SUPER_ADMIN'],
+  '/dashboard/admin/reports': ['SUPER_ADMIN', 'REPORT_VIEWER'],
   '/dashboard/admin': ['SUPER_ADMIN'],
   '/dashboard/users': ['SUPER_ADMIN'],
   '/dashboard/orders': ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER'],
   '/dashboard/trips': ['SUPER_ADMIN', 'FLEET_MANAGER'],
   '/dashboard/fleet': ['SUPER_ADMIN', 'FLEET_MANAGER'],
-  '/dashboard/warehouse': ['SUPER_ADMIN', 'WAREHOUSE_MANAGER']
+  '/dashboard/warehouse': ['SUPER_ADMIN', 'WAREHOUSE_MANAGER'],
+  '/dashboard': ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER']
 };
 
 const roleMap: Record<number | string, string> = {
   1: 'SUPER_ADMIN',
   2: 'DISPATCHER',
   3: 'FLEET_MANAGER',
-  4: 'WAREHOUSE_MANAGER'
+  4: 'WAREHOUSE_MANAGER',
+  5: 'REPORT_VIEWER'
 };
 
 function getRoleDefaultPath(userRole?: string): string {
@@ -27,6 +32,8 @@ function getRoleDefaultPath(userRole?: string): string {
       return '/dashboard/trips';
     case 'DISPATCHER':
       return '/dashboard/warehouse/orders';
+    case 'REPORT_VIEWER':
+      return '/dashboard/admin/reports';
     case 'SUPER_ADMIN':
     default:
       return '/dashboard/warehouse/orders';
@@ -305,27 +312,29 @@ export async function proxy(request: NextRequest) {
         ? roleMap[payload.role.id]
         : roleMap[payload.role] || payload.role;
 
-    for (const [route, roles] of Object.entries(roleRouteMap)) {
-      if (pathname.startsWith(route) && !roles.includes(userRole)) {
-        const defaultTarget = getRoleDefaultPath(userRole);
-        const redirectUrl = new URL(defaultTarget, request.url);
-        const response = NextResponse.redirect(redirectUrl);
-        if (isRefreshed && token) {
-          response.cookies.set('access_token', token, {
+    const matchingRoute = Object.entries(roleRouteMap)
+      .filter(([route]) => pathname.startsWith(route))
+      .sort(([left], [right]) => right.length - left.length)[0];
+
+    if (matchingRoute && !matchingRoute[1].includes(userRole)) {
+      const defaultTarget = getRoleDefaultPath(userRole);
+      const redirectUrl = new URL(defaultTarget, request.url);
+      const response = NextResponse.redirect(redirectUrl);
+      if (isRefreshed && token) {
+        response.cookies.set('access_token', token, {
+          path: '/',
+          maxAge: 24 * 60 * 60,
+          sameSite: 'lax'
+        });
+        if (newRefreshToken) {
+          response.cookies.set('refreshToken', newRefreshToken, {
             path: '/',
-            maxAge: 24 * 60 * 60,
+            maxAge: 30 * 24 * 60 * 60,
             sameSite: 'lax'
           });
-          if (newRefreshToken) {
-            response.cookies.set('refreshToken', newRefreshToken, {
-              path: '/',
-              maxAge: 30 * 24 * 60 * 60,
-              sameSite: 'lax'
-            });
-          }
         }
-        return response;
       }
+      return response;
     }
   }
 

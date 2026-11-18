@@ -58,16 +58,19 @@ export function getRoleDefaultPath(role?: string | number | { id: number; name?:
     else if (role.id === 2) roleStr = 'DISPATCHER';
     else if (role.id === 3) roleStr = 'FLEET_MANAGER';
     else if (role.id === 4) roleStr = 'WAREHOUSE_MANAGER';
+    else if (role.id === 5) roleStr = 'REPORT_VIEWER';
     else roleStr = role.name || '';
   } else if (typeof role === 'number') {
     if (role === 1) roleStr = 'SUPER_ADMIN';
     else if (role === 2) roleStr = 'DISPATCHER';
     else if (role === 3) roleStr = 'FLEET_MANAGER';
     else if (role === 4) roleStr = 'WAREHOUSE_MANAGER';
+    else if (role === 5) roleStr = 'REPORT_VIEWER';
   } else if (typeof role === 'string') {
     roleStr = role;
   }
   const upper = roleStr.toUpperCase();
+  if (upper.includes('REPORT_VIEWER')) return '/dashboard/admin/reports';
   if (upper.includes('WAREHOUSE')) return '/dashboard/warehouse/orders';
   if (upper.includes('FLEET')) return '/dashboard/trips';
   if (upper.includes('DISPATCHER')) return '/dashboard/warehouse/orders';

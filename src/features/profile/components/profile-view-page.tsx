@@ -25,7 +25,8 @@ const roleLabels: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
   DISPATCHER: 'Điều phối viên',
   FLEET_MANAGER: 'Quản lý Đội xe',
-  WAREHOUSE_MANAGER: 'Quản lý Kho'
+  WAREHOUSE_MANAGER: 'Quản lý Kho',
+  REPORT_VIEWER: 'Chỉ xem báo cáo'
 };
 
 export default function ProfileViewPage() {
@@ -55,7 +56,8 @@ export default function ProfileViewPage() {
             1: 'SUPER_ADMIN',
             2: 'DISPATCHER',
             3: 'FLEET_MANAGER',
-            4: 'WAREHOUSE_MANAGER'
+            4: 'WAREHOUSE_MANAGER',
+            5: 'REPORT_VIEWER'
           };
           const roleCode =
             typeof meData.role === 'object' && meData.role?.id

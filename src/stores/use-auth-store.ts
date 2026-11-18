@@ -3,7 +3,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-export type UserRole = 'SUPER_ADMIN' | 'DISPATCHER' | 'FLEET_MANAGER' | 'WAREHOUSE_MANAGER';
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'DISPATCHER'
+  | 'FLEET_MANAGER'
+  | 'WAREHOUSE_MANAGER'
+  | 'REPORT_VIEWER';
 
 export interface User {
   id: string | number;

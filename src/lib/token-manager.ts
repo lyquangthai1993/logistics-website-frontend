@@ -22,14 +22,17 @@ const ROLE_MAP: Record<number | string, UserRole> = {
   2: 'DISPATCHER',
   3: 'FLEET_MANAGER',
   4: 'WAREHOUSE_MANAGER',
+  5: 'REPORT_VIEWER',
   SUPER_ADMIN: 'SUPER_ADMIN',
   DISPATCHER: 'DISPATCHER',
   FLEET_MANAGER: 'FLEET_MANAGER',
   WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER',
+  REPORT_VIEWER: 'REPORT_VIEWER',
   'Super Admin': 'SUPER_ADMIN',
   Dispatcher: 'DISPATCHER',
   'Fleet Manager': 'FLEET_MANAGER',
-  'Warehouse Manager': 'WAREHOUSE_MANAGER'
+  'Warehouse Manager': 'WAREHOUSE_MANAGER',
+  'Report Viewer': 'REPORT_VIEWER'
 };
 
 export function normalizeAuthUser(rawUser: any): User {
@@ -57,6 +60,7 @@ export function normalizeAuthUser(rawUser: any): User {
 export function getDefaultPathForRole(role?: string | null): string {
   const upper = String(role || '').toUpperCase();
   if (upper.includes('WAREHOUSE')) return '/dashboard/warehouse/orders';
+  if (upper.includes('REPORT_VIEWER')) return '/dashboard/admin/reports';
   if (upper.includes('FLEET')) return '/dashboard/trips';
   if (upper.includes('DISPATCHER')) return '/dashboard/orders';
   return '/dashboard/orders';
