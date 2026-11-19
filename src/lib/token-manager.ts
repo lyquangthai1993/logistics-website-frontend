@@ -1,4 +1,5 @@
-import { useAuthStore, type User, type UserRole } from '@/stores/use-auth-store';
+import { useAuthStore, type User } from '@/stores/use-auth-store';
+import { normalizeRole } from '@/lib/role-utils';
 import axios from 'axios';
 
 export const API_BASE_URL = (
@@ -17,29 +18,11 @@ if (process.env.NODE_ENV === 'production' && !API_BASE_URL) {
 
 const AUTH_CHANNEL_NAME = 'tms_auth_sync_channel';
 
-const ROLE_MAP: Record<number | string, UserRole> = {
-  1: 'SUPER_ADMIN',
-  2: 'DISPATCHER',
-  3: 'FLEET_MANAGER',
-  4: 'WAREHOUSE_MANAGER',
-  5: 'REPORT_VIEWER',
-  SUPER_ADMIN: 'SUPER_ADMIN',
-  DISPATCHER: 'DISPATCHER',
-  FLEET_MANAGER: 'FLEET_MANAGER',
-  WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER',
-  REPORT_VIEWER: 'REPORT_VIEWER',
-  'Super Admin': 'SUPER_ADMIN',
-  Dispatcher: 'DISPATCHER',
-  'Fleet Manager': 'FLEET_MANAGER',
-  'Warehouse Manager': 'WAREHOUSE_MANAGER',
-  'Report Viewer': 'REPORT_VIEWER'
-};
-
 export function normalizeAuthUser(rawUser: any): User {
-  const roleCode: UserRole =
-    typeof rawUser?.role === 'object' && rawUser?.role?.id
-      ? ROLE_MAP[rawUser.role.id] || ROLE_MAP[rawUser.role.name] || 'SUPER_ADMIN'
-      : ROLE_MAP[rawUser?.role] || 'SUPER_ADMIN';
+  const roleCode = normalizeRole(rawUser?.role);
+  if (!roleCode) {
+    throw new Error('Authenticated user has an unsupported role');
+  }
 
   return {
     ...rawUser,

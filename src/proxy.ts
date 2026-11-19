@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { normalizeRole } from '@/lib/role-utils';
 
 const publicRoutes = ['/auth/sign-in', '/auth/forgot-password', '/auth/reset-password', '/auth'];
 
@@ -16,14 +17,6 @@ const roleRouteMap: Record<string, string[]> = {
   '/dashboard': ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER']
 };
 
-const roleMap: Record<number | string, string> = {
-  1: 'SUPER_ADMIN',
-  2: 'DISPATCHER',
-  3: 'FLEET_MANAGER',
-  4: 'WAREHOUSE_MANAGER',
-  5: 'REPORT_VIEWER'
-};
-
 function getRoleDefaultPath(userRole?: string): string {
   switch (userRole) {
     case 'WAREHOUSE_MANAGER':
@@ -35,8 +28,9 @@ function getRoleDefaultPath(userRole?: string): string {
     case 'REPORT_VIEWER':
       return '/dashboard/admin/reports';
     case 'SUPER_ADMIN':
-    default:
       return '/dashboard/warehouse/orders';
+    default:
+      return '/auth/sign-in?error=unsupported-role';
   }
 }
 
@@ -171,17 +165,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const userRole = payload
-    ? typeof payload.role === 'object' && payload.role?.id
-      ? roleMap[payload.role.id]
-      : roleMap[payload.role] ||
-        (typeof payload.role === 'object' ? payload.role?.name : payload.role)
-    : undefined;
+  const userRole = normalizeRole(payload?.role);
 
   const isAuthenticated =
     !!token && !!payload && (!payload.exp || payload.exp * 1000 >= Date.now());
 
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
+    if (isAuthenticated && !userRole) {
+      const response = NextResponse.next();
+      response.cookies.delete('access_token');
+      response.cookies.delete('refreshToken');
+      response.cookies.delete('refresh_token');
+      return response;
+    }
+
     if (isAuthenticated) {
       const redirectParam =
         request.nextUrl.searchParams.get('redirect') ||
@@ -306,15 +303,20 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (payload) {
-    const userRole =
-      typeof payload.role === 'object' && payload.role?.id
-        ? roleMap[payload.role.id]
-        : roleMap[payload.role] || payload.role;
+  if (!userRole) {
+    const response = NextResponse.redirect(
+      new URL('/auth/sign-in?error=unsupported-role', request.url)
+    );
+    response.cookies.delete('access_token');
+    response.cookies.delete('refreshToken');
+    response.cookies.delete('refresh_token');
+    return response;
+  }
 
+  if (payload) {
     const matchingRoute = Object.entries(roleRouteMap)
       .filter(([route]) => pathname.startsWith(route))
-      .sort(([left], [right]) => right.length - left.length)[0];
+      .toSorted(([left], [right]) => right.length - left.length)[0];
 
     if (matchingRoute && !matchingRoute[1].includes(userRole)) {
       const defaultTarget = getRoleDefaultPath(userRole);

@@ -9,6 +9,7 @@ import { Icons } from '@/components/icons';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { formatApiError } from '@/lib/api-error';
 import { apiClient } from '@/lib/api-client';
+import { normalizeRole } from '@/lib/role-utils';
 import { tokenManager } from '@/lib/token-manager';
 
 export function LoginForm() {
@@ -48,19 +49,10 @@ export function LoginForm() {
         throw new Error('Máy chủ không trả về mã xác thực hợp lệ. Vui lòng thử lại.');
       }
 
-      // Map numerical or object role to string role enum used in frontend
-      const roleMap: Record<number | string, string> = {
-        1: 'SUPER_ADMIN',
-        2: 'DISPATCHER',
-        3: 'FLEET_MANAGER',
-        4: 'WAREHOUSE_MANAGER',
-        5: 'REPORT_VIEWER'
-      };
-
-      const roleCode =
-        typeof rawUser.role === 'object' && rawUser.role?.id
-          ? roleMap[rawUser.role.id] || 'SUPER_ADMIN'
-          : roleMap[rawUser.role] || rawUser.role || 'SUPER_ADMIN';
+      const roleCode = normalizeRole(rawUser.role);
+      if (!roleCode) {
+        throw new Error('Tài khoản chưa được gán vai trò hợp lệ. Vui lòng liên hệ quản trị viên.');
+      }
 
       const user = {
         ...rawUser,
@@ -78,21 +70,17 @@ export function LoginForm() {
       // Determine redirect destination from URL query params or user role
       const searchParams = new URLSearchParams(window.location.search);
       const redirectParam =
-        searchParams.get('redirect') ||
-        searchParams.get('callbackUrl') ||
-        searchParams.get('from');
+        searchParams.get('redirect') || searchParams.get('callbackUrl') || searchParams.get('from');
 
       let targetUrl = '/dashboard/warehouse/orders';
-      const roleVal = user?.role;
-      const roleStr = typeof roleVal === 'object' ? (roleVal?.name || '') : String(roleVal || '');
-      const roleUpper = roleStr.toUpperCase();
-      if (roleUpper.includes('WAREHOUSE')) {
+      const role = normalizeRole(user.role);
+      if (role === 'WAREHOUSE_MANAGER') {
         targetUrl = '/dashboard/warehouse/orders';
-      } else if (roleUpper.includes('REPORT_VIEWER')) {
+      } else if (role === 'REPORT_VIEWER') {
         targetUrl = '/dashboard/admin/reports';
-      } else if (roleUpper.includes('FLEET')) {
+      } else if (role === 'FLEET_MANAGER') {
         targetUrl = '/dashboard/trips';
-      } else if (roleUpper.includes('DISPATCHER')) {
+      } else if (role === 'DISPATCHER') {
         targetUrl = '/dashboard/warehouse/orders';
       }
 
