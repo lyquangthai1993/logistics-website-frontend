@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('[RBAC] REPORT_VIEWER navigation role normalization', () => {
-  test('shows report links only when persisted role uses its display name', async ({ page }) => {
+  test('shows only the main report menu when persisted role uses its display name', async ({
+    page
+  }) => {
     await page.route('**/api/v1/**', (route) =>
       route.fulfill({
         status: 200,
@@ -98,12 +100,13 @@ test.describe('[RBAC] REPORT_VIEWER navigation role normalization', () => {
       },
       { accessToken: token }
     );
+    await page.reload();
 
     await page.goto('/dashboard/admin/reports');
     await page.getByRole('button', { name: 'Toggle Sidebar' }).first().click();
 
     await expect(page.locator('a[href="/dashboard/admin/reports"]').first()).toBeVisible();
-    await expect(page.locator('a[href="/dashboard/admin/reports/trips"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/dashboard/admin/reports/trips"]')).toHaveCount(0);
 
     for (const href of [
       '/dashboard/admin/cronjobs',

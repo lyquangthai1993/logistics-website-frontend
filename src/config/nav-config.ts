@@ -106,7 +106,7 @@ export const navGroups: NavGroup[] = [
         shortcut: ['r', 't'],
         isActive: false,
         items: [],
-        access: { role: 'SUPER_ADMIN,REPORT_VIEWER' }
+        access: { role: 'SUPER_ADMIN' }
       },
       {
         title: 'Quản trị Cronjob',
