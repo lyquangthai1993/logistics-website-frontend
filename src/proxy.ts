@@ -1,22 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { normalizeRole } from '@/lib/role-utils';
 
 const publicRoutes = ['/auth/sign-in', '/auth/forgot-password', '/auth/reset-password', '/auth'];
 
 const roleRouteMap: Record<string, string[]> = {
+  '/dashboard/admin/cronjobs': ['SUPER_ADMIN'],
+  '/dashboard/admin/hubs': ['SUPER_ADMIN'],
+  '/dashboard/admin/reports': ['SUPER_ADMIN', 'REPORT_VIEWER'],
   '/dashboard/admin': ['SUPER_ADMIN'],
   '/dashboard/users': ['SUPER_ADMIN'],
   '/dashboard/orders': ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER'],
   '/dashboard/trips': ['SUPER_ADMIN', 'FLEET_MANAGER'],
   '/dashboard/fleet': ['SUPER_ADMIN', 'FLEET_MANAGER'],
-  '/dashboard/warehouse': ['SUPER_ADMIN', 'WAREHOUSE_MANAGER']
-};
-
-const roleMap: Record<number | string, string> = {
-  1: 'SUPER_ADMIN',
-  2: 'DISPATCHER',
-  3: 'FLEET_MANAGER',
-  4: 'WAREHOUSE_MANAGER'
+  '/dashboard/warehouse': ['SUPER_ADMIN', 'WAREHOUSE_MANAGER'],
+  '/dashboard': ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER']
 };
 
 function getRoleDefaultPath(userRole?: string): string {
@@ -27,9 +25,12 @@ function getRoleDefaultPath(userRole?: string): string {
       return '/dashboard/trips';
     case 'DISPATCHER':
       return '/dashboard/warehouse/orders';
+    case 'REPORT_VIEWER':
+      return '/dashboard/admin/reports';
     case 'SUPER_ADMIN':
-    default:
       return '/dashboard/warehouse/orders';
+    default:
+      return '/auth/sign-in?error=unsupported-role';
   }
 }
 
@@ -164,17 +165,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const userRole = payload
-    ? typeof payload.role === 'object' && payload.role?.id
-      ? roleMap[payload.role.id]
-      : roleMap[payload.role] ||
-        (typeof payload.role === 'object' ? payload.role?.name : payload.role)
-    : undefined;
+  const userRole = normalizeRole(payload?.role);
 
   const isAuthenticated =
     !!token && !!payload && (!payload.exp || payload.exp * 1000 >= Date.now());
 
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
+    if (isAuthenticated && !userRole) {
+      const response = NextResponse.next();
+      response.cookies.delete('access_token');
+      response.cookies.delete('refreshToken');
+      response.cookies.delete('refresh_token');
+      return response;
+    }
+
     if (isAuthenticated) {
       const redirectParam =
         request.nextUrl.searchParams.get('redirect') ||
@@ -299,33 +303,40 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (payload) {
-    const userRole =
-      typeof payload.role === 'object' && payload.role?.id
-        ? roleMap[payload.role.id]
-        : roleMap[payload.role] || payload.role;
+  if (!userRole) {
+    const response = NextResponse.redirect(
+      new URL('/auth/sign-in?error=unsupported-role', request.url)
+    );
+    response.cookies.delete('access_token');
+    response.cookies.delete('refreshToken');
+    response.cookies.delete('refresh_token');
+    return response;
+  }
 
-    for (const [route, roles] of Object.entries(roleRouteMap)) {
-      if (pathname.startsWith(route) && !roles.includes(userRole)) {
-        const defaultTarget = getRoleDefaultPath(userRole);
-        const redirectUrl = new URL(defaultTarget, request.url);
-        const response = NextResponse.redirect(redirectUrl);
-        if (isRefreshed && token) {
-          response.cookies.set('access_token', token, {
+  if (payload) {
+    const matchingRoute = Object.entries(roleRouteMap)
+      .filter(([route]) => pathname.startsWith(route))
+      .toSorted(([left], [right]) => right.length - left.length)[0];
+
+    if (matchingRoute && !matchingRoute[1].includes(userRole)) {
+      const defaultTarget = getRoleDefaultPath(userRole);
+      const redirectUrl = new URL(defaultTarget, request.url);
+      const response = NextResponse.redirect(redirectUrl);
+      if (isRefreshed && token) {
+        response.cookies.set('access_token', token, {
+          path: '/',
+          maxAge: 24 * 60 * 60,
+          sameSite: 'lax'
+        });
+        if (newRefreshToken) {
+          response.cookies.set('refreshToken', newRefreshToken, {
             path: '/',
-            maxAge: 24 * 60 * 60,
+            maxAge: 30 * 24 * 60 * 60,
             sameSite: 'lax'
           });
-          if (newRefreshToken) {
-            response.cookies.set('refreshToken', newRefreshToken, {
-              path: '/',
-              maxAge: 30 * 24 * 60 * 60,
-              sameSite: 'lax'
-            });
-          }
         }
-        return response;
       }
+      return response;
     }
   }
 

@@ -70,7 +70,9 @@ export const columns: ColumnDef<User>[] = [
               ? 'Quản lý đội xe'
               : roleId === 4
                 ? 'Quản lý kho'
-                : 'Chưa phân quyền');
+                : roleId === 5
+                  ? 'Chỉ xem báo cáo'
+                  : 'Chưa phân quyền');
 
       let badgeClass = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/20';
       if (roleId === 1 || role?.name === 'SUPER_ADMIN' || role?.name === 'Super Admin') {

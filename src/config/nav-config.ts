@@ -15,6 +15,7 @@ import { NavGroup } from '@/types';
  * - DISPATCHER: Order & trip management
  * - FLEET_MANAGER: Vehicle & fleet management
  * - WAREHOUSE_MANAGER: Warehouse operations
+ * - REPORT_VIEWER: Read-only operational reports
  */
 export const navGroups: NavGroup[] = [
   {
@@ -96,7 +97,7 @@ export const navGroups: NavGroup[] = [
         shortcut: ['r', 'p'],
         isActive: false,
         items: [],
-        access: { role: 'SUPER_ADMIN' }
+        access: { role: 'SUPER_ADMIN,REPORT_VIEWER' }
       },
       {
         title: 'Theo dõi TRIP theo ngày',
@@ -105,7 +106,7 @@ export const navGroups: NavGroup[] = [
         shortcut: ['r', 't'],
         isActive: false,
         items: [],
-        access: { role: 'SUPER_ADMIN' }
+        access: { role: 'SUPER_ADMIN,REPORT_VIEWER' }
       },
       {
         title: 'Quản trị Cronjob',

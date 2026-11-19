@@ -30,6 +30,16 @@ export function useFilteredNavItems(items: NavItem[]) {
 
   // Filter items synchronously (all client-side)
   const filteredItems = useMemo(() => {
+    // REPORT_VIEWER sees report pages only, even when another nav item has no
+    // explicit access field in nav-config.
+    if (accessContext.role === 'REPORT_VIEWER') {
+      return items.filter(
+        (item) =>
+          item.url === '/dashboard/admin/reports' ||
+          item.url.startsWith('/dashboard/admin/reports/')
+      );
+    }
+
     // Role WAREHOUSE_MANAGER is strictly restricted to only 3 warehouse pages
     if (accessContext.role === 'WAREHOUSE_MANAGER') {
       const allowedUrls = new Set([
