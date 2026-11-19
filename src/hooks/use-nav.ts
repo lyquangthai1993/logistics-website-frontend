@@ -4,12 +4,13 @@
  * Client-side hook for filtering navigation items based on RBAC.
  *
  * Uses the Zustand auth store to check user roles for navigation visibility.
- * This is for UI filtering only — actual security is enforced by backend guards
+ * This is for UI filtering only - actual security is enforced by backend guards
  * and the Next.js middleware.
  */
 
 import { useMemo } from 'react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { normalizeRole } from '@/lib/role-utils';
 import type { NavItem, NavGroup } from '@/types';
 
 /**
@@ -23,7 +24,7 @@ export function useFilteredNavItems(items: NavItem[]) {
 
   const accessContext = useMemo(() => {
     return {
-      role: user?.role ?? undefined,
+      role: normalizeRole(user?.role),
       hasUser: !!user
     };
   }, [user]);
@@ -109,7 +110,7 @@ export function useFilteredNavItems(items: NavItem[]) {
 /**
  * Hook to filter navigation groups based on RBAC (fully client-side)
  *
- * @param groups - Array of navigation groups to filter
+ * @param groups - Array of navigation groups (empty groups are removed)
  * @returns Filtered groups (empty groups are removed)
  */
 export function useFilteredNavGroups(groups: NavGroup[]) {
