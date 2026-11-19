@@ -10,6 +10,7 @@
 
 import { useMemo } from 'react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { normalizeRole } from '@/lib/role-utils';
 import type { NavItem, NavGroup } from '@/types';
 
 /**
@@ -23,7 +24,7 @@ export function useFilteredNavItems(items: NavItem[]) {
 
   const accessContext = useMemo(() => {
     return {
-      role: user?.role ?? undefined,
+      role: normalizeRole(user?.role),
       hasUser: !!user
     };
   }, [user]);
