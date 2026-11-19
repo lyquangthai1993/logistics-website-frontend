@@ -31,14 +31,10 @@ export function useFilteredNavItems(items: NavItem[]) {
 
   // Filter items synchronously (all client-side)
   const filteredItems = useMemo(() => {
-    // REPORT_VIEWER sees report pages only, even when another nav item has no
-    // explicit access field in nav-config.
+    // REPORT_VIEWER sees the main operational report only. The daily-trip
+    // detail page is intentionally hidden from this account's navigation.
     if (accessContext.role === 'REPORT_VIEWER') {
-      return items.filter(
-        (item) =>
-          item.url === '/dashboard/admin/reports' ||
-          item.url.startsWith('/dashboard/admin/reports/')
-      );
+      return items.filter((item) => item.url === '/dashboard/admin/reports');
     }
 
     // Role WAREHOUSE_MANAGER is strictly restricted to only 3 warehouse pages
