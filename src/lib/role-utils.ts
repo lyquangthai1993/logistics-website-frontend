@@ -42,7 +42,7 @@ export function normalizeRole(role: unknown): CanonicalRole | undefined {
 
   if (role && typeof role === 'object') {
     const value = role as Record<string, unknown>;
-    for (const candidate of [value.id, value.code, value.name, value.displayName]) {
+    for (const candidate of [value.roleCode, value.code, value.id, value.name, value.displayName]) {
       const normalized = normalizeRole(candidate);
       if (normalized) return normalized;
     }
