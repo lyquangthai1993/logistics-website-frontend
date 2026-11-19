@@ -14,30 +14,20 @@ import {
   useInfobar
 } from '@/components/ui/infobar';
 
-// Default/fallback data when no content is set
-const defaultData = {
-  title: 'Documentation',
-  sections: [
-    {
-      title: 'Getting Started',
-      description: 'Learn how to get started with this application.',
-      links: [
-        {
-          title: 'Installation Guide',
-          url: '#'
-        }
-      ]
-    }
-  ]
-};
-
 export function InfoSidebar({ ...props }: React.ComponentProps<typeof Infobar>) {
   const { content } = useInfobar();
-  const data = content || defaultData;
+
+  // Operational screens should not render the starter documentation panel
+  // unless they explicitly provide contextual help content.
+  if (!content) {
+    return null;
+  }
+
+  const data = content;
 
   return (
     <Infobar {...props}>
-      <InfobarHeader className='bg-sidebar sticky top-0 z-10 flex flex-row items-center justify-between gap-2 border-b px-4 py-3'>
+      <InfobarHeader className='bg-sidebar sticky top-0 z-10 flex flex-row items-center justify-between gap-2 border-b px-2 py-1.5'>
         <div className='min-w-0 flex-1'>
           <h2 className='text-lg font-semibold wrap-break-word'>{data.title}</h2>
         </div>
@@ -48,10 +38,10 @@ export function InfoSidebar({ ...props }: React.ComponentProps<typeof Infobar>) 
       <InfobarContent>
         <InfobarGroup>
           <InfobarGroupContent>
-            <div className='flex flex-col gap-6 px-4 py-4'>
+            <div className='flex flex-col gap-2 px-2 py-2'>
               {data.sections && data.sections.length > 0 ? (
                 data.sections.map((section) => (
-                  <div key={section.title} className='flex flex-col gap-3'>
+                  <div key={section.title} className='flex flex-col gap-2'>
                     {section.title && (
                       <h3 className='text-foreground text-sm font-semibold'>{section.title}</h3>
                     )}
@@ -85,7 +75,7 @@ export function InfoSidebar({ ...props }: React.ComponentProps<typeof Infobar>) 
                   </div>
                 ))
               ) : (
-                <div className='text-muted-foreground px-2 py-4 text-center text-sm'>
+                <div className='text-muted-foreground px-2 py-2 text-center text-sm'>
                   No content available
                 </div>
               )}
