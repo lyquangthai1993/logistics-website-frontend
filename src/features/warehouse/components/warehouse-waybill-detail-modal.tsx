@@ -38,6 +38,8 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { formatWeight, formatVolume } from '@/lib/format';
+import { OrderAdminOverrideDialog } from '@/features/orders/components/order-admin-override-dialog';
+import type { Order } from '@/features/orders/api/types';
 
 export interface OrderInventoryTransaction {
   id: number;
@@ -91,6 +93,7 @@ export interface WaybillDetailData {
   totalVolume?: number;
   notes?: string;
   externalNote?: string;
+  isExternalVehicleNeeded?: boolean;
   status: string;
   inboundType?: 'CUSTOMER' | 'TRANSFER' | string;
   createdAt?: string | Date;
@@ -118,6 +121,7 @@ interface WarehouseWaybillDetailModalProps {
   onStartTally?: (waybill: WaybillDetailData) => void;
   onPrintLabel?: (waybill: WaybillDetailData) => void;
   onSuccess?: () => void;
+  warehouseHubId?: number | null;
 }
 
 const TRIP_CODE_PATTERN = /\bSD\d+\b/gi;
@@ -259,12 +263,14 @@ export function WarehouseWaybillDetailModal({
   onClose,
   waybill,
   onPrintLabel,
-  onSuccess
+  onSuccess,
+  warehouseHubId = null
 }: WarehouseWaybillDetailModalProps) {
   const user = useAuthStore((state) => state.user);
   const [copied, setCopied] = useState(false);
   const [previewLabelData, setPreviewLabelData] = useState<PalletLabelData | null>(null);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [isAdminOverrideOpen, setIsAdminOverrideOpen] = useState(false);
 
   // Server state containing all transactions (including soft-deleted) & reactive order balance
   const [serverData, setServerData] = useState<{
@@ -299,6 +305,20 @@ export function WarehouseWaybillDetailModal({
     String((user?.role as any)?.name || user?.role || '').toUpperCase() === 'ADMIN' ||
     serverData?.userRole === 'SUPER_ADMIN'
   );
+  const isStoredOrder = ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(
+    String(serverData?.order?.status ?? waybill?.status ?? '').toUpperCase(),
+  );
+  const adminOverrideOrder = waybill
+    ? ({
+        ...waybill,
+        totalQuantity: waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 0,
+        totalWeight: waybill.totalWeight ?? serverData?.order?.totalWeight ?? 0,
+        totalVolume: waybill.totalVolume ?? serverData?.order?.totalVolume ?? 0,
+        isExternalVehicleNeeded: Boolean(waybill.isExternalVehicleNeeded),
+        createdAt: String(waybill.createdAt ?? new Date().toISOString()),
+        updatedAt: String(waybill.updatedAt ?? new Date().toISOString()),
+      } as Order)
+    : null;
 
   // Inline quantity edit state for Super Admin (click pencil icon on transaction line)
   const [editingTx, setEditingTx] = useState<{
@@ -1692,13 +1712,28 @@ export function WarehouseWaybillDetailModal({
               </div>
             )}
 
-            {/* ── Bảng Danh Mục Hàng Hóa Vận Đơn (Read-only Table) ── */}
+            {/* ── Bảng Danh Mục Hàng Hóa Vận Đơn ── */}
             <div className='bg-white dark:bg-slate-900 shadow-xs border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3'>
               <div className='flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5'>
                 <h4 className='text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5'>
                   <IconPackage className='h-4 w-4 text-[#0F3D62] dark:text-blue-400' />
                   <span>Danh mục hàng hóa vận đơn</span>
                 </h4>
+                <div className='flex items-center gap-2'>
+                {isSuperAdmin && isStoredOrder && warehouseHubId && adminOverrideOrder && (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    data-testid='btn-admin-edit-waybill'
+                    className='h-7 px-2 text-[11px] font-bold text-blue-700 border-blue-200 hover:bg-blue-50'
+                    onClick={() => setIsAdminOverrideOpen(true)}
+                    title='Điều chỉnh thông tin đơn hàng, mã vận đơn không thay đổi'
+                  >
+                    <IconPencil className='h-3.5 w-3.5 mr-1' />
+                    Điều chỉnh
+                  </Button>
+                )}
                 <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
                   Tổng số lượng:{' '}
                   <span className='font-bold text-[#0F3D62] dark:text-blue-400 font-mono'>
@@ -1710,6 +1745,7 @@ export function WarehouseWaybillDetailModal({
                   </span>{' '}
                   kg · <span className='font-bold font-mono'>{waybill.totalVolume ?? 0}</span> CBM
                 </span>
+                </div>
               </div>
 
               <div className='overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg'>
@@ -1993,6 +2029,19 @@ export function WarehouseWaybillDetailModal({
           isOpen={Boolean(previewLabelData)}
           onClose={() => setPreviewLabelData(null)}
           data={previewLabelData}
+        />
+      )}
+      {adminOverrideOrder && (
+        <OrderAdminOverrideDialog
+          order={adminOverrideOrder}
+          open={isAdminOverrideOpen}
+          onOpenChange={setIsAdminOverrideOpen}
+          warehouseHubId={warehouseHubId}
+          onSuccess={() => {
+            setIsAdminOverrideOpen(false);
+            void reloadData();
+            onSuccess?.();
+          }}
         />
       )}
     </>

@@ -72,10 +72,17 @@ export interface OrderLedgerEntry {
 
 export interface AdminOverrideOrderPayload {
   auditReason: string;
+  warehouseHubId: number;
   totalQuantity?: number;
   totalWeight?: number;
   totalVolume?: number;
   goodsDescription?: string;
+  route?: string;
+  province?: string;
+  notes?: string;
+  accompanyingDocs?: string;
+  externalNote?: string;
+  isExternalVehicleNeeded?: boolean;
   originHubId?: number;
   destinationHubId?: number;
 }

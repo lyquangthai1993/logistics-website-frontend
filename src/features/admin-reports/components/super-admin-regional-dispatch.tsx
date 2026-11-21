@@ -128,12 +128,12 @@ export function SuperAdminRegionalDispatch() {
 
   // Fetch dữ liệu báo cáo
   const { data, isLoading, isError, refetch } = useQuery<RegionalReportApiResponse>({
-    queryKey: ['admin-regional-dispatch-report', selectedHubId, selectedDate],
+    queryKey: ['admin-regional-dispatch-report', selectedHubId],
     queryFn: async () => {
       const res = await apiClient.get<
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
       >(
-        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&date=${selectedDate}&mode=live`
+        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&mode=live`
       );
       const raw = res.data as { data?: RegionalReportApiResponse } &
         RegionalReportApiResponse;

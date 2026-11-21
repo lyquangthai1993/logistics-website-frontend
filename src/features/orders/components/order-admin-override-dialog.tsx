@@ -24,6 +24,7 @@ interface OrderAdminOverrideDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (order: Order) => void;
+  warehouseHubId?: number | null;
 }
 
 const MIN_REASON_LENGTH = 5;
@@ -36,12 +37,19 @@ export function OrderAdminOverrideDialog({
   order,
   open,
   onOpenChange,
-  onSuccess
+  onSuccess,
+  warehouseHubId = null
 }: OrderAdminOverrideDialogProps) {
   const [quantity, setQuantity] = useState<number | ''>('');
   const [weight, setWeight] = useState<number | ''>('');
   const [volume, setVolume] = useState<number | ''>('');
   const [goodsDescription, setGoodsDescription] = useState('');
+  const [route, setRoute] = useState('');
+  const [province, setProvince] = useState('');
+  const [notes, setNotes] = useState('');
+  const [accompanyingDocs, setAccompanyingDocs] = useState('');
+  const [externalNote, setExternalNote] = useState('');
+  const [isExternalVehicleNeeded, setIsExternalVehicleNeeded] = useState(false);
   const [originHubId, setOriginHubId] = useState<number | ''>('');
   const [destinationHubId, setDestinationHubId] = useState<number | ''>('');
   const [auditReason, setAuditReason] = useState('');
@@ -55,13 +63,22 @@ export function OrderAdminOverrideDialog({
     setWeight(order.totalWeight ?? '');
     setVolume(order.totalVolume ?? '');
     setGoodsDescription(order.goodsDescription ?? '');
+    setRoute(order.route ?? '');
+    setProvince(order.province ?? '');
+    setNotes(order.notes ?? '');
+    setAccompanyingDocs(order.accompanyingDocs ?? '');
+    setExternalNote(order.externalNote ?? '');
+    setIsExternalVehicleNeeded(Boolean(order.isExternalVehicleNeeded));
     setOriginHubId(order.originHubId ?? '');
     setDestinationHubId(order.destinationHubId ?? '');
     setAuditReason('');
   }, [open, order]);
 
   const buildPayload = (): AdminOverrideOrderPayload => {
-    const payload: AdminOverrideOrderPayload = { auditReason: auditReason.trim() };
+    const payload: AdminOverrideOrderPayload = {
+      auditReason: auditReason.trim(),
+      warehouseHubId: Number(warehouseHubId),
+    };
     if (quantity !== '' && Number(quantity) !== Number(order.totalQuantity ?? NaN)) {
       payload.totalQuantity = Number(quantity);
     }
@@ -74,6 +91,16 @@ export function OrderAdminOverrideDialog({
     if (goodsDescription.trim() && goodsDescription.trim() !== (order.goodsDescription ?? '')) {
       payload.goodsDescription = goodsDescription.trim();
     }
+    if (route.trim() !== (order.route ?? '')) payload.route = route.trim();
+    if (province.trim() !== (order.province ?? '')) payload.province = province.trim();
+    if (notes.trim() !== (order.notes ?? '')) payload.notes = notes.trim();
+    if (accompanyingDocs.trim() !== (order.accompanyingDocs ?? '')) {
+      payload.accompanyingDocs = accompanyingDocs.trim();
+    }
+    if (externalNote.trim() !== (order.externalNote ?? '')) payload.externalNote = externalNote.trim();
+    if (isExternalVehicleNeeded !== Boolean(order.isExternalVehicleNeeded)) {
+      payload.isExternalVehicleNeeded = isExternalVehicleNeeded;
+    }
     if (originHubId !== '' && originHubId !== order.originHubId) {
       payload.originHubId = Number(originHubId);
     }
@@ -84,12 +111,14 @@ export function OrderAdminOverrideDialog({
   };
 
   const payload = buildPayload();
-  const changedCount = Object.keys(payload).length - 1;
+  const changedCount = Object.keys(payload).filter(
+    (key) => key !== 'auditReason' && key !== 'warehouseHubId',
+  ).length;
   const reasonValid = auditReason.trim().length >= MIN_REASON_LENGTH;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reasonValid || changedCount === 0) return;
+    if (!warehouseHubId || !reasonValid || changedCount === 0) return;
     try {
       const updated = await mutation.mutateAsync({ id: order.id, payload });
       showApiSuccessToast('Đã điều chỉnh hợp đồng gốc và ghi nhận vào lịch sử đơn hàng.');
@@ -179,6 +208,38 @@ export function OrderAdminOverrideDialog({
               />
             </div>
 
+            <div>
+              <label htmlFor='ovRoute' className={labelCls}>Tuyến / địa chỉ giao nhận</label>
+              <Input id='ovRoute' className='h-8 text-xs' value={route} onChange={(e) => setRoute(e.target.value)} />
+            </div>
+
+            <div className='grid grid-cols-2 gap-1.5'>
+              <div>
+                <label htmlFor='ovProvince' className={labelCls}>Tỉnh / TP</label>
+                <Input id='ovProvince' className='h-8 text-xs' value={province} onChange={(e) => setProvince(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor='ovDocs' className={labelCls}>Chứng từ</label>
+                <Input id='ovDocs' className='h-8 text-xs' value={accompanyingDocs} onChange={(e) => setAccompanyingDocs(e.target.value)} />
+              </div>
+            </div>
+
+            <div className='grid grid-cols-2 gap-1.5'>
+              <div>
+                <label htmlFor='ovNotes' className={labelCls}>Ghi chú</label>
+                <Textarea id='ovNotes' rows={2} className='text-xs' value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor='ovExternalNote' className={labelCls}>Ghi chú xe ngoài</label>
+                <Textarea id='ovExternalNote' rows={2} className='text-xs' value={externalNote} onChange={(e) => setExternalNote(e.target.value)} />
+              </div>
+            </div>
+
+            <label className='inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200'>
+              <input type='checkbox' checked={isExternalVehicleNeeded} onChange={(e) => setIsExternalVehicleNeeded(e.target.checked)} />
+              Có nhu cầu xe ngoài
+            </label>
+
             <div className='grid grid-cols-2 gap-1.5'>
               <div>
                 <label htmlFor='ovOrigin' className={labelCls}>
@@ -262,7 +323,7 @@ export function OrderAdminOverrideDialog({
                 type='submit'
                 size='sm'
                 className='h-8 bg-rose-600 hover:bg-rose-700 text-white'
-                disabled={mutation.isPending || !reasonValid || changedCount === 0}
+                disabled={mutation.isPending || !warehouseHubId || !reasonValid || changedCount === 0}
               >
                 {mutation.isPending ? 'Đang lưu...' : 'Xác nhận điều chỉnh'}
               </Button>
