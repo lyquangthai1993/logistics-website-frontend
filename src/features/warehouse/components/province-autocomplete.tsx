@@ -16,7 +16,7 @@ interface ProvinceAutocompleteProps {
   placeholder?: string;
 }
 
-const SPECIAL_PROVINCE_OPTIONS = [{ value: 'Lưu Kho', label: 'Ngoại lệ vận hành' }];
+const SPECIAL_PROVINCE_OPTIONS = [{ value: 'Gửi kho', label: 'Gửi kho' }];
 
 function normalizeLookupValue(value: string): string {
   return value

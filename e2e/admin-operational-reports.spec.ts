@@ -139,31 +139,29 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(
       page.getByTestId('super-admin-operational-report')
     ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Số mã đơn theo miền')).toHaveCount(0);
 
     // Kiểm tra duy nhất 1 Bộ lọc chung Global trên cùng và 3 Parallel Route Slots
     await expect(page.getByTestId('global-report-filter-bar')).toBeVisible();
     await expect(page.getByTestId('slide2-metric-cbm')).toHaveCount(0);
     await expect(page.getByTestId('report-trip-search-input')).toHaveCount(0);
     await expect(page.getByTestId('parallel-slot-daily-stats')).toBeVisible();
-    await expect(page.getByTestId('parallel-slot-monthly-trends')).toBeVisible();
-    await expect(page.getByTestId('parallel-slot-drilldown-table')).toBeVisible();
 
-    // Kiểm tra banner quy chuẩn Cronjob 18:00 D-1 -> 18:00 D
+    // Kiểm tra banner quy chuẩn hiện tại 06:00 D -> 05:59 D+1
     const banner = page.getByTestId('cron-cutoff-rule-banner');
     await expect(banner).toBeVisible();
-    await expect(banner).toContainText('18:00 (6:00 PM) ngày D-1 đến 18:00 (6:00 PM) ngày D');
-    await expect(banner).toContainText('02/11/2026');
+    await expect(banner).toContainText('06:00 (6:00 AM) ngày D đến 05:59 (5:59 AM) ngày D+1');
+    await expect(banner).toContainText('Báo cáo ngày D');
 
     // Kiểm tra 4 thẻ KPI
     await expect(page.getByTestId('kpi-total-cbm')).toBeVisible();
     await expect(page.getByTestId('kpi-total-tons')).toBeVisible();
     await expect(page.getByTestId('kpi-total-trips')).toBeVisible();
-    await expect(page.getByTestId('kpi-total-packages')).toBeVisible();
 
     // Kiểm tra Slide 2 (Biểu đồ cột CBM / SỐ TẤN theo ngày, không lặp lại dòng footer trùng thông tin)
     const slide2Card = page.getByTestId('slide-2-daily-chart-card');
     await expect(slide2Card).toBeVisible();
-    await expect(slide2Card).toContainText('1. Tình hình hoạt động của Hub');
+    await expect(slide2Card).toContainText('BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH');
     await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);
     await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('CBM');
     await page.getByTestId('kpi-card-tons').click();
@@ -171,20 +169,12 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await page.getByTestId('kpi-card-cbm').click();
     await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('CBM');
 
-    // Kiểm tra Slide 3 (2 Biểu đồ đường SỐ KHỐI & SỐ TẤN theo tháng)
-    const slide3Card = page.getByTestId('slide-3-monthly-charts-card');
-    await expect(slide3Card).toBeVisible();
-    await expect(page.getByTestId('slide-3-cbm-line-chart')).toContainText('SỐ KHỐI');
-    await expect(page.getByTestId('slide-3-tons-line-chart')).toContainText('SỐ TẤN');
-
     // Thử chuyển đổi bộ lọc chiều vận hành
     await page.getByTestId('direction-inbound-btn').click();
     await page.getByTestId('direction-outbound-btn').click();
+    await page.getByTestId('direction-storage-btn').click();
+    await expect(page.getByTestId('direction-storage-btn')).toContainText('Gửi kho');
     await page.getByTestId('direction-inbound-btn').click();
-
-    await page.getByTestId('tab-confirmed-trips').click();
-    await expect(page.getByTestId('tab-hub-breakdown')).toHaveCount(0);
-    await page.getByTestId('tab-daily-breakdown').click();
 
     await expect(
       page.getByTestId('slide-2-bar-chart-container')
@@ -194,6 +184,28 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
       path: 'screenshot_super_admin_operational_report_verified.png',
       fullPage: true
     });
+  });
+
+  test('2b. Mobile báo cáo vận hành hiển thị vùng cuộn ngang và ẩn tooltip hover', async ({ page }) => {
+    const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
+    await clearSession(page);
+    await loginAs(page, superAdmin);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/dashboard/admin/reports');
+
+    const chart = page.getByTestId('slide-2-bar-chart-container');
+    await expect(chart).toBeVisible({ timeout: 15000 });
+    const dimensions = await chart.evaluate((element) => {
+      const inner = element.firstElementChild as HTMLElement | null;
+      return {
+        contentWidth: inner?.scrollWidth ?? 0,
+        visibleTooltipCount: [...element.querySelectorAll('.recharts-tooltip-wrapper')].filter(
+          (tooltip) => getComputedStyle(tooltip).display !== 'none',
+        ).length,
+      };
+    });
+    expect(dimensions.contentWidth).toBeGreaterThanOrEqual(364);
+    expect(dimensions.visibleTooltipCount).toBe(0);
   });
 
   test('3. Trang Quản trị Cronjob (/dashboard/admin/cronjobs) & Trang Detail (/dashboard/admin/cronjobs/[jobKey]): Chọn khoảng ngày Từ ngày -> Đến ngày, Cấu hình lịch chạy & Nhật ký', async ({

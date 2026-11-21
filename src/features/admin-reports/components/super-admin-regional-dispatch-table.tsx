@@ -173,7 +173,8 @@ export function SuperAdminRegionalDispatchTable() {
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   // Lấy theo bộ filter tổng đang có sẵn trên trang (toDate & selectedHubId)
-  const selectedDate = globalFilter?.toDate || todayStr;
+  // Tình hình hàng hóa là số liệu lũy kế đến hiện tại; không phụ thuộc bộ lọc ngày của report vận hành.
+  const selectedDate = todayStr;
   const selectedHubId = globalFilter?.selectedHubId || "ALL";
   const [chartStatus, setChartStatus] = useState<"onhand" | "draft" | "total">(
     "total",
@@ -194,7 +195,7 @@ export function SuperAdminRegionalDispatchTable() {
       const res = await apiClient.get<
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
       >(
-        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&date=${selectedDate}&mode=live`,
+        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&mode=live`,
       );
       return res.data;
     },
@@ -537,11 +538,11 @@ export function SuperAdminRegionalDispatchTable() {
                         <div className="flex items-center gap-1.5">
                           <span className="inline-block w-2.5 h-2.5 rounded-full bg-purple-600" />
                           <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                            Khối Lượng Vận Tải Theo Miền (kg)
+                            Khối lượng hàng hóa theo Khu vực (Tấn)
                           </span>
                         </div>
                         <span className="text-xs font-mono font-bold text-purple-700 dark:text-purple-300">
-                          Tổng: {formatNumber(chartTotals.totalWeightKg)} kg
+                          Tổng: {formatNumber(chartTotals.totalWeightKg / 1000)} Tấn
                         </span>
                       </div>
 
@@ -570,27 +571,22 @@ export function SuperAdminRegionalDispatchTable() {
                                 </span>
                               </div>
 
-                              {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
-                              <div className="flex-1 flex items-center min-w-0">
-                                <div
-                                  className={`h-6 sm:h-7 ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
-                                  style={{
-                                    width: `${Math.max(
-                                      weightPct > 0 ? weightPct : 0,
-                                      (metric?.totalWeightKg || 0) > 0 ? 3 : 0,
-                                    )}%`,
-                                    maxWidth: "calc(100% - 170px)",
-                                  }}
-                                />
-                                <span
-                                  className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                                >
-                                  {formatNumber(metric?.totalWeightKg ?? 0)} kg
+                              <div className="flex-1 min-w-0">
+                                <div className="h-6 sm:h-7 w-full rounded-r-md bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                  <div
+                                    className={`h-full ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs`}
+                                    style={{ width: `${weightPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span
+                                className={`w-36 sm:w-44 text-right font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
+                              >
+                                  {formatNumber((metric?.totalWeightKg ?? 0) / 1000)} Tấn
                                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1">
                                     ({weightPct}%)
                                   </span>
-                                </span>
-                              </div>
+                              </span>
                             </div>
                           );
                         })}
@@ -620,7 +616,7 @@ export function SuperAdminRegionalDispatchTable() {
                         <div className="flex items-center gap-1.5">
                           <span className="inline-block w-2.5 h-2.5 rounded-full bg-purple-600" />
                           <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                            Thể Tích Hàng Hóa Theo Miền (m³)
+                            Thể tích hàng hóa theo Khu vực (m³)
                           </span>
                         </div>
                         <span className="text-xs font-mono font-bold text-purple-700 dark:text-purple-300">
@@ -653,27 +649,22 @@ export function SuperAdminRegionalDispatchTable() {
                                 </span>
                               </div>
 
-                              {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
-                              <div className="flex-1 flex items-center min-w-0">
-                                <div
-                                  className={`h-6 sm:h-7 ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
-                                  style={{
-                                    width: `${Math.max(
-                                      volumePct > 0 ? volumePct : 0,
-                                      (metric?.totalVolumeCbm || 0) > 0 ? 3 : 0,
-                                    )}%`,
-                                    maxWidth: "calc(100% - 170px)",
-                                  }}
-                                />
-                                <span
-                                  className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                                >
+                              <div className="flex-1 min-w-0">
+                                <div className="h-6 sm:h-7 w-full rounded-r-md bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                  <div
+                                    className={`h-full ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs`}
+                                    style={{ width: `${volumePct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span
+                                className={`w-36 sm:w-44 text-right font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
+                              >
                                   {formatNumber(metric?.totalVolumeCbm || 0)} m³
                                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1">
                                     ({volumePct}%)
                                   </span>
-                                </span>
-                              </div>
+                              </span>
                             </div>
                           );
                         })}

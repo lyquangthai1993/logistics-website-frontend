@@ -40,7 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WarehouseHubFilterSelect } from "@/features/warehouse/components/warehouse-hub-filter-select";
 
-export type ReportDirection = "INBOUND" | "OUTBOUND" | "ALL";
+export type ReportDirection = "INBOUND" | "OUTBOUND" | "STORAGE" | "ALL";
 export type ReportChartMetric = "CBM" | "TONS";
 
 export interface DirectionMetrics {
@@ -65,6 +65,7 @@ export interface DailyReportPoint extends DirectionMetrics {
   triggeredBy: string;
   inbound: DirectionMetrics;
   outbound: DirectionMetrics;
+  storage: DirectionMetrics;
 }
 
 export interface MonthlyReportPoint extends DirectionMetrics {
@@ -74,6 +75,7 @@ export interface MonthlyReportPoint extends DirectionMetrics {
   monthLabel: string;
   inbound: DirectionMetrics;
   outbound: DirectionMetrics;
+  storage: DirectionMetrics;
 }
 
 export interface HubBreakdownPoint extends DirectionMetrics {
@@ -84,6 +86,7 @@ export interface HubBreakdownPoint extends DirectionMetrics {
   level: number;
   inbound: DirectionMetrics;
   outbound: DirectionMetrics;
+  storage: DirectionMetrics;
 }
 
 export interface ConfirmedTripReportItem {
@@ -563,7 +566,9 @@ export function AdminOperationalReportProvider({
       ? "Chiều Nhập kho (Xe nhập xác nhận)"
       : direction === "OUTBOUND"
         ? "Chiều Xuất kho (Xe xuất xác nhận)"
-        : "Tổng lưu thông (Nhập kho + Xuất kho)";
+        : direction === "STORAGE"
+          ? "Gửi kho"
+          : "Tổng lưu thông (Nhập kho + Xuất kho)";
 
   const ctxValue: AdminOperationalReportContextValue = {
     fromDate,
@@ -739,6 +744,19 @@ export function AdminReportHeaderAndKpis() {
                 >
                   <IconArrowUpRight className="h-3.5 w-3.5" />
                   <span>Báo cáo Xuất kho</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDirection("STORAGE")}
+                  data-testid="direction-storage-btn"
+                  className={`h-8 px-3 rounded-md text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
+                    direction === "STORAGE"
+                      ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-600 shadow-sm ring-2 ring-purple-400/30"
+                      : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-purple-500 hover:text-purple-600"
+                  }`}
+                >
+                  <IconBuildingWarehouse className="h-3.5 w-3.5" />
+                  <span>Gửi kho</span>
                 </button>
               </div>
             </div>
@@ -1039,9 +1057,15 @@ export function DailyOperationalBarSlot() {
           </div>
         ) : (
           <div
-            className="h-72 w-full"
+            className="mobile-chart-no-tooltip w-full overflow-x-auto"
             data-testid="slide-2-bar-chart-container"
           >
+            <div
+              className="h-72 w-full md:min-w-0"
+              style={{
+                ['--mobile-chart-width' as string]: `${Math.max(364, dailySeries.length * 52)}px`,
+              }}
+            >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={dailySeries}
@@ -1120,6 +1144,7 @@ export function DailyOperationalBarSlot() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
       </CardContent>
@@ -1160,7 +1185,7 @@ export function MonthlyOperationalTrendsSlot() {
 
         {/* Biểu đồ trên (Slide 3 Top): SỐ KHỐI (CBM) */}
         <div
-          className="rounded-md border border-slate-300 dark:border-slate-700 bg-linear-to-b from-slate-100 via-slate-200/70 to-slate-200/90 dark:from-slate-800 dark:to-slate-900 p-2"
+          className="mobile-chart-no-tooltip rounded-md border border-slate-300 dark:border-slate-700 bg-linear-to-b from-slate-100 via-slate-200/70 to-slate-200/90 dark:from-slate-800 dark:to-slate-900 p-2"
           data-testid="slide-3-cbm-line-chart"
         >
           <div className="text-center text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-100 mb-1">
@@ -1237,7 +1262,7 @@ export function MonthlyOperationalTrendsSlot() {
 
         {/* Biểu đồ dưới (Slide 3 Bottom): SỐ TẤN */}
         <div
-          className="rounded-md border border-[#0b4660] bg-[#0F5C7E] text-white p-2"
+          className="mobile-chart-no-tooltip rounded-md border border-[#0b4660] bg-[#0F5C7E] text-white p-2"
           data-testid="slide-3-tons-line-chart"
         >
           <div className="text-center text-sm font-extrabold uppercase tracking-wider text-white mb-1">
@@ -1678,7 +1703,7 @@ export function AdminOperationalReportLayoutShell({
   return (
     <PageContainer
       pageTitle="Báo Cáo Kết Quả Hoạt Động Vận Hành"
-      pageDescription="Tổng hợp sản lượng hoạt động của Hub theo ngày và xu hướng tháng (Cronjob chốt sổ 06:00 ngày D → 05:59 ngày D+1 theo thời điểm xác nhận chuyến xe)"
+      pageDescription="Theo dõi sản lượng hàng hóa theo ngày và xu hướng tháng"
     >
       <AdminOperationalReportProvider>
         <AdminReportHeaderAndKpis />

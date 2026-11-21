@@ -142,6 +142,11 @@ export default function OrderDetailPage() {
 
   // Master Contract override (SUPER_ADMIN only)
   const [isOverrideOpen, setIsOverrideOpen] = useState(false);
+  const canOverrideStoredOrder =
+    Boolean(order?.currentHubId) &&
+    ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(
+      String(order?.status ?? '').toUpperCase(),
+    );
 
   // Modal External Vehicle state
   const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
@@ -363,7 +368,7 @@ export default function OrderDetailPage() {
 
         <div className='flex items-center flex-wrap gap-2'>
           {/* Master Contract override: SUPER_ADMIN only, once the contract is locked */}
-          {isSuperAdmin && isContractLocked(order.status) && (
+          {isSuperAdmin && isContractLocked(order.status) && canOverrideStoredOrder && (
             <Button
               onClick={() => setIsOverrideOpen(true)}
               variant='outline'
@@ -1056,6 +1061,7 @@ export default function OrderDetailPage() {
           order={order}
           open={isOverrideOpen}
           onOpenChange={setIsOverrideOpen}
+          warehouseHubId={order.currentHubId ?? null}
           onSuccess={() => loadOrder()}
         />
       )}

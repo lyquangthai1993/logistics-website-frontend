@@ -1372,6 +1372,7 @@ export default function WarehouseOrdersPage() {
           onClose={() => setIsDetailModalOpen(false)}
           waybill={selectedWaybill}
           onSuccess={fetchOrders}
+          warehouseHubId={hubId !== 'ALL' ? Number(hubId) : null}
           onPrintLabel={(w) => {
             setIsDetailModalOpen(false);
             setPrintData({

@@ -415,7 +415,7 @@ function isNumericTsvCell(val: string | undefined): boolean {
 function isDateLikeTsvCell(val: string | undefined): boolean {
   const s = (val || '').trim();
   if (!s) return false;
-  return /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(s);
+  return /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(s) || /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(s);
 }
 
 /**
