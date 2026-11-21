@@ -10,12 +10,12 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const DEV_BACKEND_URL =
-  process.env.API_URL ?? 'http://localhost:4001/api/v1';
+const DEV_BACKEND_URL = process.env.API_URL ?? 'http://localhost:4001/api/v1';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000';
+  process.env.PLAYWRIGHT_BASE_URL ??
+  'http://localhost:4000';
 
 const ADMIN_EMAIL = 'lyquangthai1993+1@gmail.com';
 const DAD_MANAGER_EMAIL = 'lyquangthai1993+5@gmail.com'; // Quản lý Magellan Hub - Đà Nẵng (Hub 2)
@@ -38,13 +38,14 @@ function saveEvidenceScreenshot(filename: string, buffer: Buffer) {
 let userToken = '';
 const activeTripCode = 'SD73';
 
-test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at Transit Hub', () => {
+test.describe
+  .serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at Transit Hub', () => {
   test.beforeAll(async ({ request }) => {
     // 1. Authenticate against Backend (Đà Nẵng warehouse manager or Admin)
     for (const email of [DAD_MANAGER_EMAIL, ADMIN_EMAIL]) {
       for (const pwd of PASSWORDS) {
         const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-          data: { email, password: pwd },
+          data: { email, password: pwd }
         });
         if (loginRes.ok()) {
           const loginJson = await loginRes.json();
@@ -80,8 +81,8 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
             deliveryMode: 'HUB_L1',
             destinationHubId: 2,
             deliveryAddress: 'Magellan Hub - Đà Nẵng',
-            notes: 'Đơn dỡ nhập kho Đà Nẵng',
-          },
+            notes: 'Đơn dỡ nhập kho Đà Nẵng'
+          }
         }
       );
     }
@@ -95,8 +96,8 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
             deliveryMode: 'DIRECT_CUSTOMER',
             destinationHubId: null,
             deliveryAddress: 'Quận Bình Thạnh, TP. Hồ Chí Minh',
-            notes: 'Hàng giao khách tận nơi Bình Thạnh',
-          },
+            notes: 'Hàng giao khách tận nơi Bình Thạnh'
+          }
         }
       );
     }
@@ -110,8 +111,8 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
             deliveryMode: 'DIRECT_CUSTOMER',
             destinationHubId: null,
             deliveryAddress: 'Huyện Thanh Trì, TP. Hà Nội',
-            notes: 'Hàng giao khách tận nơi Thanh Trì',
-          },
+            notes: 'Hàng giao khách tận nơi Thanh Trì'
+          }
         }
       );
     }
@@ -119,7 +120,7 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
 
   // ── TEST 1: API TRIP MANIFEST AUDIT ──
   test('API: Verify getTripManifest isolates DIRECT_CUSTOMER orders from current hub', async ({
-    request,
+    request
   }) => {
     const manifestRes = await request.get(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(activeTripCode)}/manifest`,
@@ -158,7 +159,7 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
 
   // ── TEST 2: BROWSER UI - TALLY TABLE AND ISOLATION VERIFICATION ──
   test('Browser UI: Tally modal displays cargo breakdown, direct customer badges, unchecked boxes, and hide switch', async ({
-    page,
+    page
   }) => {
     // 1. Sign in to Frontend with Da Nang Warehouse Manager account
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
@@ -210,7 +211,10 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
     // Save screenshot proof of Step 1 with direct customer cargo marked
     await page.waitForTimeout(1000);
     const screenshot1 = await tripModal.screenshot();
-    saveEvidenceScreenshot('screenshot_01_tally_direct_customer_isolation_verified.png', screenshot1);
+    saveEvidenceScreenshot(
+      'screenshot_01_tally_direct_customer_isolation_verified.png',
+      screenshot1
+    );
     saveEvidenceScreenshot('screenshot_verified.png', screenshot1);
 
     // 6. Test Switch "Ẩn các dòng không thuộc kho này"
@@ -223,11 +227,21 @@ test.describe.serial('Feedback 07/10 Task 27: Direct Customer Cargo Isolation at
     await page.waitForTimeout(1000);
 
     // Verify T19 is visible, while T20 and T3 are hidden
-    const t19Visible = await tripModal.locator('text=T19').isVisible().catch(() => false);
-    const t20Visible = await tripModal.locator('text=T20').isVisible().catch(() => false);
+    const t19Visible = await tripModal
+      .locator('text=T19')
+      .isVisible()
+      .catch(() => false);
+    const t20Visible = await tripModal
+      .locator('text=T20')
+      .isVisible()
+      .catch(() => false);
 
-    expect(t19Visible, 'Order T19 (for Da Nang) must remain visible when hiding other hubs').toBe(true);
-    expect(t20Visible, 'Order T20 (direct customer) must be hidden when hiding other hubs').toBe(false);
+    expect(t19Visible, 'Order T19 (for Da Nang) must remain visible when hiding other hubs').toBe(
+      true
+    );
+    expect(t20Visible, 'Order T20 (direct customer) must be hidden when hiding other hubs').toBe(
+      false
+    );
 
     // Save screenshot proof with switch active
     const screenshot2 = await tripModal.screenshot();

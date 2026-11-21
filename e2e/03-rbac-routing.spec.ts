@@ -21,9 +21,21 @@ const ROUTE_MATRIX = [
     expectedPath: '/dashboard/(orders|warehouse/orders)',
     allowedRoles: ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER']
   },
-  { route: '/dashboard/trips', expectedPath: undefined, allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER'] },
-  { route: '/dashboard/fleet', expectedPath: undefined, allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER'] },
-  { route: '/dashboard/warehouse', expectedPath: undefined, allowedRoles: ['SUPER_ADMIN', 'WAREHOUSE_MANAGER'] }
+  {
+    route: '/dashboard/trips',
+    expectedPath: undefined,
+    allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER']
+  },
+  {
+    route: '/dashboard/fleet',
+    expectedPath: undefined,
+    allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER']
+  },
+  {
+    route: '/dashboard/warehouse',
+    expectedPath: undefined,
+    allowedRoles: ['SUPER_ADMIN', 'WAREHOUSE_MANAGER']
+  }
 ];
 
 const CORE_ROLE_USERS = Array.from(new Map(TEST_USERS.map((u) => [u.role, u])).values());
@@ -47,17 +59,18 @@ for (const user of CORE_ROLE_USERS) {
 
         if (isAllowed) {
           // Legacy orders URL is redirected to the current warehouse orders route.
-          await expect(page).toHaveURL(
-            new RegExp((expectedPath ?? route).replaceAll('/', '\\/')),
-            { timeout: 10000 }
-          );
+          await expect(page).toHaveURL(new RegExp((expectedPath ?? route).replaceAll('/', '\\/')), {
+            timeout: 10000
+          });
         } else {
           // Should redirect away from unauthorized route
           await expect(page).not.toHaveURL(new RegExp(route.replace('/', '\\/')), {
             timeout: 10000
           });
           // Should land on default permitted landing page (not sign-in, since user IS authenticated)
-          await expect(page).toHaveURL(/\/dashboard\/(orders|trips|warehouse\/orders)/, { timeout: 10000 });
+          await expect(page).toHaveURL(/\/dashboard\/(orders|trips|warehouse\/orders)/, {
+            timeout: 10000
+          });
         }
       });
     }

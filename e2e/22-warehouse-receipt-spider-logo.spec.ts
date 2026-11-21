@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const ARTIFACT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/16ad9eb0-4445-46f5-9e82-eb2afbb34420';
+const ARTIFACT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/16ad9eb0-4445-46f5-9e82-eb2afbb34420';
 
 // Ensure artifact directory exists
 if (!fs.existsSync(ARTIFACT_DIR)) {
@@ -10,12 +11,11 @@ if (!fs.existsSync(ARTIFACT_DIR)) {
 }
 
 const TARGET_BASE_URL =
-  process.env.TARGET_URL ||
-  (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000');
+  process.env.TARGET_URL || (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000');
 
 const USER = {
   email: 'lyquangthai1993+4@gmail.com',
-  password: 'secret',
+  password: 'secret'
 };
 
 test.describe('Kiểm tra Phiếu Nhập & Xuất Kho với Logo Spider Express (Vercel Dev)', () => {
@@ -25,7 +25,9 @@ test.describe('Kiểm tra Phiếu Nhập & Xuất Kho với Logo Spider Express 
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Xác nhận Logo Spider Express và giao diện mới của Phiếu Nhập Kho & Phiếu Xuất Kho', async ({ page }) => {
+  test('Xác nhận Logo Spider Express và giao diện mới của Phiếu Nhập Kho & Phiếu Xuất Kho', async ({
+    page
+  }) => {
     // ── 1. Đăng nhập ──────────────────────────────────────────────────────────
     console.log(`Navigating to ${TARGET_BASE_URL}/auth/sign-in...`);
     await page.goto(`${TARGET_BASE_URL}/auth/sign-in`);
@@ -123,7 +125,10 @@ test.describe('Kiểm tra Phiếu Nhập & Xuất Kho với Logo Spider Express 
       await page.locator('input[placeholder="Số điện thoại..."]').fill('0912345678');
       await page.locator('input[placeholder="Địa chỉ giao hàng..."]').fill('Hà Nội');
 
-      await page.locator('input[placeholder="Tên loại hàng..."]').first().fill('Hàng kiểm tra in phiếu xuất Spider Express');
+      await page
+        .locator('input[placeholder="Tên loại hàng..."]')
+        .first()
+        .fill('Hàng kiểm tra in phiếu xuất Spider Express');
       await page.locator('table tbody tr:first-child td:nth-child(5) input').first().fill('10');
 
       const confirmExportBtn = page.getByRole('button', { name: /Xác nhận xuất kho/ });

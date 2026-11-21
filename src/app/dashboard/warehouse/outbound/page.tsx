@@ -959,13 +959,9 @@ function WarehouseOutboundContent() {
       const liveWeight = availableOutboundWeight(o, liveStock);
       const liveVolume = availableOutboundVolume(o, liveStock);
       const effectiveBaseWeight =
-        liveStock >= draftQty
-          ? liveWeight
-          : Math.round((liveWeight + draftWeight) * 1000) / 1000;
+        liveStock >= draftQty ? liveWeight : Math.round((liveWeight + draftWeight) * 1000) / 1000;
       const effectiveBaseVolume =
-        liveStock >= draftQty
-          ? liveVolume
-          : Math.round((liveVolume + draftVolume) * 1000) / 1000;
+        liveStock >= draftQty ? liveVolume : Math.round((liveVolume + draftVolume) * 1000) / 1000;
 
       return {
         id: o.id,

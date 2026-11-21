@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -215,16 +215,12 @@ function formatTimeOnlyVn(iso?: string | null): string {
   });
 }
 
-function renderHubLevelBadge(
-  level?: number | null,
-  code?: string | null,
-  name?: string | null
-) {
+function renderHubLevelBadge(level?: number | null, code?: string | null, name?: string | null) {
   const isSatellite = Boolean(
     (level && level > 1) ||
-      code?.startsWith('XB-') ||
-      code?.startsWith('HUB-BO-') ||
-      name?.toLowerCase().includes('xe bo')
+    code?.startsWith('XB-') ||
+    code?.startsWith('HUB-BO-') ||
+    name?.toLowerCase().includes('xe bo')
   );
   if (isSatellite) {
     return (
@@ -250,9 +246,7 @@ export function SuperAdminDailyTripsTracker() {
   const searchParams = useSearchParams();
   const initialDateParam = searchParams.get('date') || '';
   const initialHubParam = searchParams.get('hubId') || 'ALL';
-  const initialDirectionParam = (
-    searchParams.get('direction') || 'ALL'
-  ).toUpperCase();
+  const initialDirectionParam = (searchParams.get('direction') || 'ALL').toUpperCase();
 
   const [reportDate, setReportDate] = useState<string>(initialDateParam);
   const [selectedHubId, setSelectedHubId] = useState<string>(initialHubParam);
@@ -262,41 +256,42 @@ export function SuperAdminDailyTripsTracker() {
       : 'ALL'
   );
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [expandedTripKeys, setExpandedTripKeys] = useState<
-    Record<string, boolean>
-  >({});
+  const [mobileTripDirection, setMobileTripDirection] = useState<'INBOUND' | 'OUTBOUND'>('INBOUND');
+  const [showAllGlanceCodes, setShowAllGlanceCodes] = useState({
+    INBOUND: false,
+    OUTBOUND: false
+  });
+  const [canScrollRecentDays, setCanScrollRecentDays] = useState({
+    left: false,
+    right: false
+  });
+  const recentDaysScrollerRef = useRef<HTMLDivElement>(null);
+  const [expandedTripKeys, setExpandedTripKeys] = useState<Record<string, boolean>>({});
 
-  const { data, isLoading, isFetching, refetch } =
-    useQuery<DailyTripsDetailResponse>({
-      queryKey: [
-        'admin-daily-trips-detail',
-        reportDate,
-        selectedHubId,
+  const { data, isLoading, isFetching, refetch } = useQuery<DailyTripsDetailResponse>({
+    queryKey: ['admin-daily-trips-detail', reportDate, selectedHubId, direction],
+    queryFn: async () => {
+      const params: Record<string, string> = {
         direction
-      ],
-      queryFn: async () => {
-        const params: Record<string, string> = {
-          direction
-        };
-        if (reportDate && /^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
-          params.reportDate = reportDate;
-        }
-        if (selectedHubId && selectedHubId !== 'ALL') {
-          params.hubId = selectedHubId;
-        }
-        const res = await apiClient.get<
-          DailyTripsDetailResponse | { data: DailyTripsDetailResponse }
-        >('/api/v1/admin/reports/operational/daily-trips', { params });
-        const raw = res.data as { data?: DailyTripsDetailResponse } &
-          DailyTripsDetailResponse;
-        const resolved = raw?.data ?? raw;
-        if (!reportDate && resolved?.filter?.reportDate) {
-          setReportDate(resolved.filter.reportDate);
-        }
-        return resolved;
-      },
-      staleTime: 15 * 1000
-    });
+      };
+      if (reportDate && /^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
+        params.reportDate = reportDate;
+      }
+      if (selectedHubId && selectedHubId !== 'ALL') {
+        params.hubId = selectedHubId;
+      }
+      const res = await apiClient.get<
+        DailyTripsDetailResponse | { data: DailyTripsDetailResponse }
+      >('/api/v1/admin/reports/operational/daily-trips', { params });
+      const raw = res.data as { data?: DailyTripsDetailResponse } & DailyTripsDetailResponse;
+      const resolved = raw?.data ?? raw;
+      if (!reportDate && resolved?.filter?.reportDate) {
+        setReportDate(resolved.filter.reportDate);
+      }
+      return resolved;
+    },
+    staleTime: 15 * 1000
+  });
 
   const activeDate = data?.filter?.reportDate || reportDate;
   const daySummary = data?.daySummary;
@@ -331,6 +326,7 @@ export function SuperAdminDailyTripsTracker() {
     () => filteredTrips.filter((t) => !t.isInbound),
     [filteredTrips]
   );
+  const visibleTripDirection = direction === 'ALL' ? mobileTripDirection : direction;
 
   // Full day inbound & outbound trip lists for the top glance summary table
   const allDayInboundTrips = useMemo(() => {
@@ -342,6 +338,37 @@ export function SuperAdminDailyTripsTracker() {
     if (data?.outboundTripsList) return data.outboundTripsList;
     return (data?.trips ?? []).filter((t) => !t.isInbound);
   }, [data?.outboundTripsList, data?.trips]);
+
+  useEffect(() => {
+    const scroller = recentDaysScrollerRef.current;
+    if (!scroller) return;
+
+    const updateScrollState = () => {
+      setCanScrollRecentDays({
+        left: scroller.scrollLeft > 0,
+        right: scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1
+      });
+    };
+
+    updateScrollState();
+    scroller.addEventListener('scroll', updateScrollState, { passive: true });
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(scroller);
+
+    return () => {
+      scroller.removeEventListener('scroll', updateScrollState);
+      resizeObserver.disconnect();
+    };
+  }, [recentDaysStrip.length]);
+
+  const scrollRecentDays = (direction: -1 | 1) => {
+    const scroller = recentDaysScrollerRef.current;
+    if (!scroller) return;
+    scroller.scrollBy({
+      left: direction * (scroller.clientWidth * 0.8),
+      behavior: 'smooth'
+    });
+  };
 
   const toggleExpandTrip = (tripKey: string) => {
     setExpandedTripKeys((prev) => ({
@@ -355,9 +382,7 @@ export function SuperAdminDailyTripsTracker() {
       ...prev,
       [trip.tripKey]: true
     }));
-    const el = document.querySelector(
-      `[data-testid="trip-item-${trip.tripCode}"]`
-    );
+    const el = document.querySelector(`[data-testid="trip-item-${trip.tripCode}"]`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -376,16 +401,12 @@ export function SuperAdminDailyTripsTracker() {
           'Ngày báo cáo': data.filter?.fullDateLabel || activeDate,
           'Khung giờ chốt': data.filter?.windowLabel || '—',
           'Số chuyến Nhập kho': daySummary?.inboundTrips ?? 0,
-          'Các mã TRIP Nhập': allDayInboundTrips
-            .map((t) => t.tripCode)
-            .join(', '),
+          'Các mã TRIP Nhập': allDayInboundTrips.map((t) => t.tripCode).join(', '),
           'Sản lượng Nhập (CBM)': daySummary?.inboundCbm ?? 0,
           'Sản lượng Nhập (Tấn)': daySummary?.inboundTons ?? 0,
           'Số kiện Nhập': daySummary?.inboundPackages ?? 0,
           'Số chuyến Xuất kho': daySummary?.outboundTrips ?? 0,
-          'Các mã TRIP Xuất': allDayOutboundTrips
-            .map((t) => t.tripCode)
-            .join(', '),
+          'Các mã TRIP Xuất': allDayOutboundTrips.map((t) => t.tripCode).join(', '),
           'Sản lượng Xuất (CBM)': daySummary?.outboundCbm ?? 0,
           'Sản lượng Xuất (Tấn)': daySummary?.outboundTons ?? 0,
           'Số kiện Xuất': daySummary?.outboundPackages ?? 0,
@@ -411,8 +432,7 @@ export function SuperAdminDailyTripsTracker() {
               : 'Xe xuất kho',
         'Chi nhánh Kho': t.hubName,
         'Mã Hub': t.hubCode || '—',
-        'Phân cấp Hub':
-          t.hubLevel > 1 ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính',
+        'Phân cấp Hub': t.hubLevel > 1 ? 'Cấp 2 • Trạm Xe Bo' : 'Cấp 1 • Hub Chính',
         'Biển số xe': t.licensePlate || '—',
         'Tài xế': t.driverName || '—',
         'Số đơn hàng': t.orderCount,
@@ -448,11 +468,7 @@ export function SuperAdminDailyTripsTracker() {
         }))
       );
 
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(summarySheetRows),
-        'Tong_Hop_Ngay'
-      );
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summarySheetRows), 'Tong_Hop_Ngay');
       XLSX.utils.book_append_sheet(
         wb,
         XLSX.utils.json_to_sheet(
@@ -465,17 +481,12 @@ export function SuperAdminDailyTripsTracker() {
       XLSX.utils.book_append_sheet(
         wb,
         XLSX.utils.json_to_sheet(
-          orderRows.length > 0
-            ? orderRows
-            : [{ 'Thông báo': 'Không có đơn hàng trong ngày chọn' }]
+          orderRows.length > 0 ? orderRows : [{ 'Thông báo': 'Không có đơn hàng trong ngày chọn' }]
         ),
         'Chi_Tiet_Don_Hang_TRIP'
       );
 
-      XLSX.writeFile(
-        wb,
-        `Bang_Ke_Chuyen_Xe_TRIP_${activeDate || 'Hom_Nay'}.xlsx`
-      );
+      XLSX.writeFile(wb, `Bang_Ke_Chuyen_Xe_TRIP_${activeDate || 'Hom_Nay'}.xlsx`);
       toast.success(
         `Đã xuất file Excel bảng kê TRIP ngày ${data.filter?.fullDateLabel || activeDate}`
       );
@@ -497,15 +508,9 @@ export function SuperAdminDailyTripsTracker() {
     return (
       <Card
         className={`p-2 shadow-2xs border-slate-200 dark:border-slate-800 ${
-          isInbound
-            ? 'border-t-4 border-t-blue-600'
-            : 'border-t-4 border-t-emerald-600'
+          isInbound ? 'border-t-4 border-t-blue-600' : 'border-t-4 border-t-emerald-600'
         }`}
-        data-testid={
-          isInbound
-            ? 'inbound-trips-table-section'
-            : 'outbound-trips-table-section'
-        }
+        data-testid={isInbound ? 'inbound-trips-table-section' : 'outbound-trips-table-section'}
       >
         <CardContent className='p-0 space-y-1.5'>
           {/* Header tổng hợp nhanh của bảng Nhập hoặc bảng Xuất */}
@@ -541,21 +546,18 @@ export function SuperAdminDailyTripsTracker() {
               </Badge>
               <Badge
                 className={`text-[10px] font-mono font-bold px-1.5 py-0 h-5 ${
-                  isInbound
-                    ? 'bg-blue-700 text-white'
-                    : 'bg-emerald-700 text-white'
+                  isInbound ? 'bg-blue-700 text-white' : 'bg-emerald-700 text-white'
                 }`}
               >
-                Tổng: {formatNumberVn(totalWeightKg, 1)} kg •{' '}
-                {formatNumberVn(totalCbm, 1)} m³
+                Tổng: {formatNumberVn(totalWeightKg, 1)} kg • {formatNumberVn(totalCbm, 1)} m³
               </Badge>
             </div>
           </div>
 
           {tripsList.length === 0 ? (
-            <div className='py-4 text-center text-[11px] text-muted-foreground border rounded bg-slate-50/40 dark:bg-slate-900/20'>
-              Không có {isInbound ? 'chuyến nhập kho' : 'chuyến xuất kho'} xác nhận
-              trong ngày {data?.filter?.fullDateLabel || activeDate}.
+            <div className='py-2 text-center text-[11px] text-muted-foreground border rounded bg-slate-50/40 dark:bg-slate-900/20'>
+              Không có {isInbound ? 'chuyến nhập kho' : 'chuyến xuất kho'} xác nhận trong ngày{' '}
+              {data?.filter?.fullDateLabel || activeDate}.
             </div>
           ) : (
             <div className='overflow-x-auto rounded border'>
@@ -565,12 +567,8 @@ export function SuperAdminDailyTripsTracker() {
                     <th className='py-1 px-1.5 w-8 text-center'>STT</th>
                     <th className='py-1 px-1.5'>Mã TRIP / Phiếu</th>
                     <th className='py-1 px-1.5'>Kho / Biển số / Tài xế</th>
-                    <th className='py-1 px-1.5 text-right'>
-                      Số mã đơn (SL)
-                    </th>
-                    <th className='py-1 px-1.5 text-right'>
-                      Khối lượng (kg) &amp; Thể tích (m³)
-                    </th>
+                    <th className='py-1 px-1.5 text-right'>Số mã đơn (SL)</th>
+                    <th className='py-1 px-1.5 text-right'>Khối lượng (kg) &amp; Thể tích (m³)</th>
                     <th className='py-1 px-1.5 text-right'>Giờ xác nhận</th>
                     <th className='py-1 px-1.5 text-right'>Vận đơn</th>
                   </tr>
@@ -605,12 +603,11 @@ export function SuperAdminDailyTripsTracker() {
                               >
                                 {trip.tripCode}
                               </span>
-                              {trip.invoiceCode &&
-                                trip.invoiceCode !== trip.tripCode && (
-                                  <span className='font-mono text-[9px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-1 rounded'>
-                                    {trip.invoiceCode}
-                                  </span>
-                                )}
+                              {trip.invoiceCode && trip.invoiceCode !== trip.tripCode && (
+                                <span className='font-mono text-[9px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-1 rounded'>
+                                  {trip.invoiceCode}
+                                </span>
+                              )}
                               {trip.direction === 'TRANSFER' && (
                                 <Badge className='bg-purple-500/15 text-purple-700 border-purple-500/25 dark:text-purple-300 text-[9px] px-1 py-0 h-3.5'>
                                   Trung chuyển
@@ -620,24 +617,19 @@ export function SuperAdminDailyTripsTracker() {
                           </td>
                           <td className='py-1 px-1.5'>
                             <div className='flex flex-wrap items-center gap-1'>
-                              <span className='font-semibold text-foreground'>
-                                {trip.hubName}
-                              </span>
+                              <span className='font-semibold text-foreground'>{trip.hubName}</span>
                               {trip.licensePlate && (
                                 <span className='font-mono font-bold text-slate-700 dark:text-slate-200'>
                                   • {trip.licensePlate}
                                 </span>
                               )}
                               {trip.driverName && (
-                                <span className='text-muted-foreground'>
-                                  ({trip.driverName})
-                                </span>
+                                <span className='text-muted-foreground'>({trip.driverName})</span>
                               )}
                             </div>
                           </td>
                           <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
-                            <span className='font-bold'>{trip.orderCount}</span>{' '}
-                            mã đơn{' '}
+                            <span className='font-bold'>{trip.orderCount}</span> mã đơn{' '}
                             <span className='text-muted-foreground'>
                               ({trip.packageCount} kiện)
                             </span>
@@ -672,13 +664,11 @@ export function SuperAdminDailyTripsTracker() {
                             >
                               {isExpanded ? (
                                 <>
-                                  Ẩn ({trip.orders.length}){' '}
-                                  <IconChevronUp className='h-3 w-3' />
+                                  Ẩn ({trip.orders.length}) <IconChevronUp className='h-3 w-3' />
                                 </>
                               ) : (
                                 <>
-                                  Xem ({trip.orders.length}){' '}
-                                  <IconChevronDown className='h-3 w-3' />
+                                  Xem ({trip.orders.length}) <IconChevronDown className='h-3 w-3' />
                                 </>
                               )}
                             </button>
@@ -695,29 +685,18 @@ export function SuperAdminDailyTripsTracker() {
                                     <tr className='text-[10px] font-bold uppercase text-slate-500 border-b'>
                                       <th className='py-1 px-1.5'>STT</th>
                                       <th className='py-1 px-1.5'>Mã vận đơn</th>
-                                      <th className='py-1 px-1.5'>
-                                        Mô tả hàng hóa
-                                      </th>
-                                      <th className='py-1 px-1.5'>
-                                        Hành trình (Kho đi → Kho đến)
-                                      </th>
+                                      <th className='py-1 px-1.5'>Mô tả hàng hóa</th>
+                                      <th className='py-1 px-1.5'>Hành trình (Kho đi → Kho đến)</th>
                                       <th className='py-1 px-1.5 text-right'>
                                         Kiện xác nhận / Tổng kiện
                                       </th>
-                                      <th className='py-1 px-1.5 text-right'>
-                                        Trọng lượng (kg)
-                                      </th>
-                                      <th className='py-1 px-1.5 text-right'>
-                                        Thể tích (m³)
-                                      </th>
+                                      <th className='py-1 px-1.5 text-right'>Trọng lượng (kg)</th>
+                                      <th className='py-1 px-1.5 text-right'>Thể tích (m³)</th>
                                     </tr>
                                   </thead>
                                   <tbody className='divide-y divide-border/50 text-[10px]'>
                                     {trip.orders.map((ord, oIdx) => (
-                                      <tr
-                                        key={`${ord.txId}-${oIdx}`}
-                                        className='hover:bg-muted/40'
-                                      >
+                                      <tr key={`${ord.txId}-${oIdx}`} className='hover:bg-muted/40'>
                                         <td className='py-1 px-1.5 font-mono text-muted-foreground'>
                                           {oIdx + 1}
                                         </td>
@@ -725,18 +704,14 @@ export function SuperAdminDailyTripsTracker() {
                                           {ord.orderCode}
                                         </td>
                                         <td className='py-1 px-1.5'>
-                                          {ord.goodsDescription ||
-                                            'Hàng vận chuyển'}
+                                          {ord.goodsDescription || 'Hàng vận chuyển'}
                                         </td>
                                         <td className='py-1 px-1.5'>
                                           {ord.originHub || '—'} →{' '}
-                                          {ord.destinationHub ||
-                                            ord.route ||
-                                            '—'}
+                                          {ord.destinationHub || ord.route || '—'}
                                         </td>
                                         <td className='py-1 px-1.5 text-right font-mono font-bold'>
-                                          {ord.quantity} /{' '}
-                                          {ord.totalOrderQuantity} kiện
+                                          {ord.quantity} / {ord.totalOrderQuantity} kiện
                                         </td>
                                         <td className='py-1 px-1.5 text-right font-mono'>
                                           {formatNumberVn(ord.weightKg, 1)} kg
@@ -759,8 +734,8 @@ export function SuperAdminDailyTripsTracker() {
                 <tfoot className='bg-slate-100/90 dark:bg-slate-900 border-t-2 font-mono text-[10px] font-extrabold'>
                   <tr>
                     <td colSpan={3} className='py-1.5 px-1.5 uppercase'>
-                      TỔNG CỘNG {isInbound ? 'CHUYẾN NHẬP' : 'CHUYẾN XUẤT'} (
-                      {tripsList.length} chuyến):
+                      TỔNG CỘNG {isInbound ? 'CHUYẾN NHẬP' : 'CHUYẾN XUẤT'} ({tripsList.length}{' '}
+                      chuyến):
                     </td>
                     <td className='py-1.5 px-1.5 text-right whitespace-nowrap'>
                       {totalOrders} mã đơn ({totalPackages} kiện)
@@ -772,8 +747,7 @@ export function SuperAdminDailyTripsTracker() {
                           : 'text-emerald-700 dark:text-emerald-300'
                       }`}
                     >
-                      {formatNumberVn(totalWeightKg, 1)} kg •{' '}
-                      {formatNumberVn(totalCbm, 1)} m³
+                      {formatNumberVn(totalWeightKg, 1)} kg • {formatNumberVn(totalCbm, 1)} m³
                     </td>
                     <td colSpan={2} className='py-1.5 px-1.5' />
                   </tr>
@@ -787,18 +761,15 @@ export function SuperAdminDailyTripsTracker() {
   };
 
   return (
-    <div
-      className='space-y-2 pb-2'
-      data-testid='super-admin-daily-trips-page'
-    >
+    <div className='min-w-0 space-y-2 pb-2' data-testid='super-admin-daily-trips-page'>
       {/* 1. Thanh điều khiển & Bộ lọc Ngày cụ thể (Single-Day Global Filter Bar) */}
       <Card
         className='p-2 border-slate-200 dark:border-slate-800 shadow-2xs'
         data-testid='daily-trips-filter-bar'
       >
         <CardContent className='p-0 space-y-1.5'>
-          <div className='flex flex-wrap items-center justify-between gap-1.5'>
-            <div className='flex flex-wrap items-center gap-1.5'>
+          <div className='flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between'>
+            <div className='flex min-w-0 w-full flex-wrap items-center gap-1.5 xl:w-auto'>
               <Link href='/dashboard/admin/reports'>
                 <Button
                   type='button'
@@ -902,8 +873,8 @@ export function SuperAdminDailyTripsTracker() {
               </div>
             </div>
 
-            <div className='flex items-center gap-1.5'>
-              <div className='relative w-56'>
+            <div className='flex w-full flex-wrap items-center justify-end gap-1.5 xl:w-auto'>
+              <div className='relative w-full sm:w-56'>
                 <IconSearch className='h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2' />
                 <Input
                   value={searchQuery}
@@ -945,53 +916,79 @@ export function SuperAdminDailyTripsTracker() {
                 data-testid='btn-refresh-daily-trips'
                 className='h-8 px-2.5 text-xs font-semibold cursor-pointer'
               >
-                <IconRefresh
-                  className={`h-3.5 w-3.5 mr-1 ${isFetching ? 'animate-spin' : ''}`}
-                />
+                <IconRefresh className={`h-3.5 w-3.5 mr-1 ${isFetching ? 'animate-spin' : ''}`} />
                 Làm mới
               </Button>
             </div>
           </div>
 
           {/* Dải 14 ngày chọn nhanh (Quick Day Strip): Xem nhanh mỗi ngày có bao nhiêu chuyến nhập / xuất & tổng sản lượng */}
-          <div
-            className='flex items-center gap-1 overflow-x-auto py-1 border-t border-slate-200/80 dark:border-slate-800'
-            data-testid='recent-days-strip'
-          >
-            <span className='text-[10px] font-bold uppercase text-muted-foreground shrink-0 mr-1'>
-              Chọn nhanh ngày:
-            </span>
-            {recentDaysStrip.map((d) => {
-              const isSelected = d.reportDate === activeDate;
-              return (
-                <button
-                  key={d.reportDate}
-                  type='button'
-                  onClick={() => setReportDate(d.reportDate)}
-                  data-testid={`strip-day-${d.reportDate}`}
-                  className={`shrink-0 rounded border px-2 py-1 text-left transition-colors cursor-pointer ${
-                    isSelected
-                      ? 'border-[#0F3D62] bg-[#0F3D62] text-white shadow-2xs'
-                      : d.totalTrips > 0
-                        ? 'border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/60'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-muted-foreground hover:bg-slate-100'
-                  }`}
-                >
-                  <div className='flex items-center justify-between gap-1.5 text-[10px] font-mono font-bold'>
-                    <span>{d.dayLabel}</span>
-                    <span>({d.totalTrips} chuyến)</span>
-                  </div>
-                  <div
-                    className={`text-[9px] font-mono ${
-                      isSelected ? 'text-sky-100' : 'text-muted-foreground'
+          <div className='relative min-w-0 border-t border-slate-200/80 dark:border-slate-800'>
+            {canScrollRecentDays.left && (
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                aria-label='Cuộn ngày trước'
+                onClick={() => scrollRecentDays(-1)}
+                className='absolute left-0 top-1/2 z-10 hidden h-7 w-7 -translate-y-1/2 bg-background shadow-sm [@media(any-pointer:fine)]:inline-flex'
+              >
+                <IconChevronLeft className='h-4 w-4' />
+              </Button>
+            )}
+            <div
+              ref={recentDaysScrollerRef}
+              className='flex min-w-0 items-center gap-1 overflow-x-auto py-1 scrollbar-thin'
+              data-testid='recent-days-strip'
+              aria-label='Chọn nhanh ngày báo cáo'
+            >
+              <span className='text-[10px] font-bold uppercase text-muted-foreground shrink-0 mr-1'>
+                Chọn nhanh ngày:
+              </span>
+              {recentDaysStrip.map((d) => {
+                const isSelected = d.reportDate === activeDate;
+                return (
+                  <button
+                    key={d.reportDate}
+                    type='button'
+                    onClick={() => setReportDate(d.reportDate)}
+                    data-testid={`strip-day-${d.reportDate}`}
+                    className={`shrink-0 rounded border px-2 py-1 text-left transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'border-[#0F3D62] bg-[#0F3D62] text-white shadow-2xs'
+                        : d.totalTrips > 0
+                          ? 'border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/60'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-muted-foreground hover:bg-slate-100'
                     }`}
                   >
-                    Nhập:{d.inboundTrips} • Xuất:{d.outboundTrips} |{' '}
-                    {formatNumberVn(d.totalCbm, 1)} CBM
-                  </div>
-                </button>
-              );
-            })}
+                    <div className='flex items-center justify-between gap-1.5 text-[10px] font-mono font-bold'>
+                      <span>{d.dayLabel}</span>
+                      <span>({d.totalTrips} chuyến)</span>
+                    </div>
+                    <div
+                      className={`text-[9px] font-mono ${
+                        isSelected ? 'text-sky-100' : 'text-muted-foreground'
+                      }`}
+                    >
+                      Nhập:{d.inboundTrips} • Xuất:{d.outboundTrips} |{' '}
+                      {formatNumberVn(d.totalCbm, 1)} CBM
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {canScrollRecentDays.right && (
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                aria-label='Cuộn ngày tiếp theo'
+                onClick={() => scrollRecentDays(1)}
+                className='absolute right-0 top-1/2 z-10 hidden h-7 w-7 -translate-y-1/2 bg-background shadow-sm [@media(any-pointer:fine)]:inline-flex'
+              >
+                <IconChevronRight className='h-4 w-4' />
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1033,7 +1030,7 @@ export function SuperAdminDailyTripsTracker() {
           </div>
 
           {/* 4 Thẻ KPI Tóm tắt 1 ánh nhìn */}
-          <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2'>
+          <div className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4'>
             <div className='rounded border border-l-4 border-l-[#0F3D62] p-2 bg-slate-50/50 dark:bg-slate-900/40 space-y-0.5'>
               <div className='flex items-center justify-between'>
                 <span className='text-[10px] font-bold uppercase text-muted-foreground'>
@@ -1055,10 +1052,7 @@ export function SuperAdminDailyTripsTracker() {
                 <strong className='text-emerald-700 dark:text-emerald-300'>
                   {daySummary?.outboundTrips ?? 0} chuyến xuất
                 </strong>{' '}
-                •{' '}
-                <strong className='text-foreground'>
-                  {daySummary?.totalOrders ?? 0} mã đơn
-                </strong>
+                • <strong className='text-foreground'>{daySummary?.totalOrders ?? 0} mã đơn</strong>
               </div>
             </div>
 
@@ -1102,15 +1096,15 @@ export function SuperAdminDailyTripsTracker() {
               </div>
             </div>
 
-            <div className='rounded border border-l-4 border-l-purple-600 p-2 bg-purple-50/30 dark:bg-purple-950/20 space-y-0.5'>
+            <div className='rounded border border-l-4 border-l-[#0F3D62] p-2 bg-slate-50/50 dark:bg-slate-900/40 space-y-0.5'>
               <div className='flex items-center justify-between'>
-                <span className='text-[10px] font-bold uppercase text-purple-700 dark:text-purple-300'>
+                <span className='text-[10px] font-bold uppercase text-[#0F3D62] dark:text-blue-300'>
                   4. Tổng Sản Lượng Trong Ngày
                 </span>
-                <IconPackage className='h-3.5 w-3.5 text-purple-600 dark:text-purple-400' />
+                <IconPackage className='h-3.5 w-3.5 text-[#0F3D62] dark:text-blue-400' />
               </div>
               <div
-                className='text-base font-extrabold font-mono text-purple-700 dark:text-purple-300'
+                className='text-base font-extrabold font-mono text-[#0F3D62] dark:text-blue-300'
                 data-testid='daily-kpi-total-volume'
               >
                 {formatNumberVn(daySummary?.totalWeightKg ?? 0, 1)} kg •{' '}
@@ -1118,237 +1112,284 @@ export function SuperAdminDailyTripsTracker() {
               </div>
               <div className='text-[10px] font-mono text-muted-foreground'>
                 Tổng:{' '}
-                <strong className='text-foreground'>
-                  {daySummary?.totalOrders ?? 0} mã đơn
-                </strong>{' '}
-                •{' '}
-                <strong className='text-foreground'>
-                  {daySummary?.totalPackages ?? 0} kiện
-                </strong>
+                <strong className='text-foreground'>{daySummary?.totalOrders ?? 0} mã đơn</strong> •{' '}
+                <strong className='text-foreground'>{daySummary?.totalPackages ?? 0} kiện</strong>
               </div>
             </div>
           </div>
 
-          {/* BẢNG TÓM TẮT 1 ÁNH NHÌN: SỐ CHUYẾN NHẬP / XUẤT + TẤT CẢ CÁC MÃ TRIP (SỐ LƯỢNG MÃ ĐƠN, KG, M³) + TỔNG SẢN LƯỢNG */}
-          <div className='overflow-x-auto rounded border'>
-            <table
-              className='w-full border-collapse text-left'
-              data-testid='daily-glance-summary-table'
-            >
-              <thead className='bg-slate-100 dark:bg-slate-900 border-b'>
-                <tr className='text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300'>
-                  <th className='py-1.5 px-2 w-44'>Phân loại chuyến xe</th>
-                  <th className='py-1.5 px-2 w-32 text-right'>
-                    Số lượng chuyến
-                  </th>
-                  <th className='py-1.5 px-2'>
-                    Danh sách các Mã TRIP trong ngày{' '}
-                    <span className='font-normal text-muted-foreground normal-case'>
-                      (Mã TRIP: số lượng mã đơn • kg • m³ — bấm để xem đơn)
-                    </span>
-                  </th>
-                  <th className='py-1.5 px-2 w-40 text-right'>
-                    Số lượng Mã đơn
-                  </th>
-                  <th className='py-1.5 px-2 w-56 text-right'>
-                    Tổng Sản Lượng (kg &amp; m³)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className='divide-y divide-border/60 text-[10px]'>
-                {/* Dòng 1: Chuyến Nhập Kho */}
-                <tr
-                  className='bg-blue-50/25 dark:bg-blue-950/15'
-                  data-testid='glance-row-inbound'
-                >
-                  <td className='py-1.5 px-2 font-extrabold text-blue-700 dark:text-blue-300'>
-                    <div className='flex items-center gap-1.5'>
-                      <IconBuildingWarehouse className='h-3.5 w-3.5 shrink-0' />
-                      <span>CHUYẾN NHẬP KHO</span>
-                    </div>
-                  </td>
-                  <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-blue-700 dark:text-blue-300 whitespace-nowrap'>
-                    {daySummary?.inboundTrips ?? 0} chuyến nhập
-                  </td>
-                  <td
-                    className='py-1.5 px-2'
-                    data-testid='glance-inbound-trip-codes'
-                  >
-                    {allDayInboundTrips.length === 0 ? (
-                      <span className='text-muted-foreground italic'>
-                        Không có chuyến nhập kho trong ngày
+          <details className='group rounded border'>
+            <summary className='flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-xs font-semibold text-muted-foreground'>
+              <span>Xem bảng tổng hợp Nhập / Xuất</span>
+              <IconChevronDown className='h-3.5 w-3.5 transition-transform group-open:rotate-180' />
+            </summary>
+            {/* Bảng tổng hợp chi tiết để thu gọn mặc định; KPI phía trên là phần tổng quan chính. */}
+            <div className='overflow-x-auto rounded-b border-t'>
+              <table
+                className='w-full border-collapse text-left'
+                data-testid='daily-glance-summary-table'
+              >
+                <thead className='bg-slate-100 dark:bg-slate-900 border-b'>
+                  <tr className='text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300'>
+                    <th className='py-1.5 px-2 w-44'>Phân loại chuyến xe</th>
+                    <th className='py-1.5 px-2 w-32 text-right'>Số lượng chuyến</th>
+                    <th className='py-1.5 px-2'>
+                      Danh sách các Mã TRIP trong ngày{' '}
+                      <span className='font-normal text-muted-foreground normal-case'>
+                        (Mã TRIP: số lượng mã đơn • kg • m³ — bấm để xem đơn)
                       </span>
-                    ) : (
-                      <div className='flex flex-wrap items-center gap-1'>
-                        {allDayInboundTrips.map((t) => (
-                          <button
-                            key={t.tripKey}
-                            type='button'
-                            onClick={() => handleFocusAndExpandTrip(t)}
-                            title={`${t.tripCode} • ${t.hubName} • ${t.licensePlate || '—'} • ${t.orderCount} mã đơn • ${formatNumberVn(t.weightKg, 1)} kg • ${formatNumberVn(t.volumeCbm, 1)} m³`}
-                            className='inline-flex items-center gap-1 rounded border border-blue-300 dark:border-blue-800 bg-blue-100/80 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-blue-900 dark:text-blue-200 cursor-pointer transition-colors'
-                          >
-                            <span>{t.tripCode}</span>
-                            <span className='text-[9px] font-normal text-blue-700 dark:text-blue-300'>
-                              ({t.orderCount} mã đơn •{' '}
-                              {formatNumberVn(t.weightKg, 1)} kg •{' '}
-                              {formatNumberVn(t.volumeCbm, 1)} m³)
-                            </span>
-                          </button>
-                        ))}
+                    </th>
+                    <th className='py-1.5 px-2 w-40 text-right'>Số lượng Mã đơn</th>
+                    <th className='py-1.5 px-2 w-56 text-right'>Tổng Sản Lượng (kg &amp; m³)</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-border/60 text-[10px]'>
+                  {/* Dòng 1: Chuyến Nhập Kho */}
+                  <tr
+                    className='bg-blue-50/25 dark:bg-blue-950/15'
+                    data-testid='glance-row-inbound'
+                  >
+                    <td className='py-1.5 px-2 font-extrabold text-blue-700 dark:text-blue-300'>
+                      <div className='flex items-center gap-1.5'>
+                        <IconBuildingWarehouse className='h-3.5 w-3.5 shrink-0' />
+                        <span>CHUYẾN NHẬP KHO</span>
                       </div>
-                    )}
-                  </td>
-                  <td className='py-1.5 px-2 text-right font-mono font-semibold whitespace-nowrap'>
-                    <span className='font-extrabold text-foreground'>
-                      {daySummary?.inboundOrders ?? 0} mã đơn
-                    </span>{' '}
-                    <span className='text-muted-foreground'>
-                      ({daySummary?.inboundPackages ?? 0} kiện)
-                    </span>
-                  </td>
-                  <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-blue-700 dark:text-blue-300 whitespace-nowrap'>
-                    {formatNumberVn(daySummary?.inboundWeightKg ?? 0, 1)} kg •{' '}
-                    {formatNumberVn(daySummary?.inboundCbm ?? 0, 1)} m³
-                  </td>
-                </tr>
+                    </td>
+                    <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-blue-700 dark:text-blue-300 whitespace-nowrap'>
+                      {daySummary?.inboundTrips ?? 0} chuyến nhập
+                    </td>
+                    <td className='py-1.5 px-2' data-testid='glance-inbound-trip-codes'>
+                      {allDayInboundTrips.length === 0 ? (
+                        <span className='text-muted-foreground italic'>
+                          Không có chuyến nhập kho trong ngày
+                        </span>
+                      ) : (
+                        <details className='group'>
+                          <summary className='inline-flex cursor-pointer list-none items-center gap-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200'>
+                            {allDayInboundTrips.length} mã TRIP
+                            <IconChevronDown className='h-3 w-3 transition-transform group-open:rotate-180' />
+                          </summary>
+                          <div className='mt-1 flex flex-wrap items-center gap-1'>
+                            {allDayInboundTrips
+                              .slice(0, showAllGlanceCodes.INBOUND ? undefined : 6)
+                              .map((t) => (
+                                <button
+                                  key={t.tripKey}
+                                  type='button'
+                                  onClick={() => handleFocusAndExpandTrip(t)}
+                                  title={`${t.tripCode} • ${t.hubName} • ${t.licensePlate || '—'} • ${t.orderCount} mã đơn • ${formatNumberVn(t.weightKg, 1)} kg • ${formatNumberVn(t.volumeCbm, 1)} m³`}
+                                  className='inline-flex items-center gap-1 rounded border border-blue-300 dark:border-blue-800 bg-blue-100/80 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-blue-900 dark:text-blue-200 cursor-pointer transition-colors'
+                                >
+                                  <span>{t.tripCode}</span>
+                                  <span className='text-[9px] font-normal text-blue-700 dark:text-blue-300'>
+                                    ({t.orderCount} mã đơn)
+                                  </span>
+                                </button>
+                              ))}
+                            {allDayInboundTrips.length > 6 && (
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setShowAllGlanceCodes((current) => ({
+                                    ...current,
+                                    INBOUND: !current.INBOUND
+                                  }))
+                                }
+                                className='rounded px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 underline dark:text-blue-300'
+                              >
+                                {showAllGlanceCodes.INBOUND
+                                  ? 'Thu gọn'
+                                  : `+${allDayInboundTrips.length - 6} mã nữa`}
+                              </button>
+                            )}
+                          </div>
+                        </details>
+                      )}
+                    </td>
+                    <td className='py-1.5 px-2 text-right font-mono font-semibold whitespace-nowrap'>
+                      <span className='font-extrabold text-foreground'>
+                        {daySummary?.inboundOrders ?? 0} mã đơn
+                      </span>{' '}
+                      <span className='text-muted-foreground'>
+                        ({daySummary?.inboundPackages ?? 0} kiện)
+                      </span>
+                    </td>
+                    <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-blue-700 dark:text-blue-300 whitespace-nowrap'>
+                      {formatNumberVn(daySummary?.inboundWeightKg ?? 0, 1)} kg •{' '}
+                      {formatNumberVn(daySummary?.inboundCbm ?? 0, 1)} m³
+                    </td>
+                  </tr>
 
-                {/* Dòng 2: Chuyến Xuất Kho */}
-                <tr
-                  className='bg-emerald-50/25 dark:bg-emerald-950/15'
-                  data-testid='glance-row-outbound'
-                >
-                  <td className='py-1.5 px-2 font-extrabold text-emerald-700 dark:text-emerald-300'>
-                    <div className='flex items-center gap-1.5'>
-                      <IconTruck className='h-3.5 w-3.5 shrink-0' />
-                      <span>CHUYẾN XUẤT KHO</span>
-                    </div>
-                  </td>
-                  <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-emerald-700 dark:text-emerald-300 whitespace-nowrap'>
-                    {daySummary?.outboundTrips ?? 0} chuyến xuất
-                  </td>
-                  <td
-                    className='py-1.5 px-2'
-                    data-testid='glance-outbound-trip-codes'
+                  {/* Dòng 2: Chuyến Xuất Kho */}
+                  <tr
+                    className='bg-emerald-50/25 dark:bg-emerald-950/15'
+                    data-testid='glance-row-outbound'
                   >
-                    {allDayOutboundTrips.length === 0 ? (
-                      <span className='text-muted-foreground italic'>
-                        Không có chuyến xuất kho trong ngày
-                      </span>
-                    ) : (
-                      <div className='flex flex-wrap items-center gap-1'>
-                        {allDayOutboundTrips.map((t) => (
-                          <button
-                            key={t.tripKey}
-                            type='button'
-                            onClick={() => handleFocusAndExpandTrip(t)}
-                            title={`${t.tripCode} • ${t.hubName} • ${t.licensePlate || '—'} • ${t.orderCount} mã đơn • ${formatNumberVn(t.weightKg, 1)} kg • ${formatNumberVn(t.volumeCbm, 1)} m³`}
-                            className='inline-flex items-center gap-1 rounded border border-emerald-300 dark:border-emerald-800 bg-emerald-100/80 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-900 dark:text-emerald-200 cursor-pointer transition-colors'
-                          >
-                            <span>{t.tripCode}</span>
-                            <span className='text-[9px] font-normal text-emerald-700 dark:text-emerald-300'>
-                              ({t.orderCount} mã đơn •{' '}
-                              {formatNumberVn(t.weightKg, 1)} kg •{' '}
-                              {formatNumberVn(t.volumeCbm, 1)} m³)
-                            </span>
-                          </button>
-                        ))}
+                    <td className='py-1.5 px-2 font-extrabold text-emerald-700 dark:text-emerald-300'>
+                      <div className='flex items-center gap-1.5'>
+                        <IconTruck className='h-3.5 w-3.5 shrink-0' />
+                        <span>CHUYẾN XUẤT KHO</span>
                       </div>
-                    )}
-                  </td>
-                  <td className='py-1.5 px-2 text-right font-mono font-semibold whitespace-nowrap'>
-                    <span className='font-extrabold text-foreground'>
-                      {daySummary?.outboundOrders ?? 0} mã đơn
-                    </span>{' '}
-                    <span className='text-muted-foreground'>
-                      ({daySummary?.outboundPackages ?? 0} kiện)
-                    </span>
-                  </td>
-                  <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-emerald-700 dark:text-emerald-300 whitespace-nowrap'>
-                    {formatNumberVn(daySummary?.outboundWeightKg ?? 0, 1)} kg •{' '}
-                    {formatNumberVn(daySummary?.outboundCbm ?? 0, 1)} m³
-                  </td>
-                </tr>
-              </tbody>
-              {/* Dòng 3: TỔNG CỘNG TRONG NGÀY */}
-              <tfoot className='bg-[#0F3D62] text-white font-mono text-[11px] font-extrabold'>
-                <tr data-testid='glance-row-total'>
-                  <td className='py-1.5 px-2 uppercase'>
-                    TỔNG CỘNG NGÀY {data?.filter?.fullDateLabel || activeDate}
-                  </td>
-                  <td className='py-1.5 px-2 text-right whitespace-nowrap'>
-                    {daySummary?.totalTrips ?? 0} chuyến (
-                    {daySummary?.inboundTrips ?? 0}N /{' '}
-                    {daySummary?.outboundTrips ?? 0}X)
-                  </td>
-                  <td className='py-1.5 px-2 text-sky-100 font-sans text-[10px] font-semibold'>
-                    {`Tổng cộng ${daySummary?.inboundTrips ?? 0} mã TRIP Nhập kho & ${daySummary?.outboundTrips ?? 0} mã TRIP Xuất kho đã xác nhận`}
-                  </td>
-                  <td className='py-1.5 px-2 text-right whitespace-nowrap'>
-                    {daySummary?.totalOrders ?? 0} mã đơn (
-                    {daySummary?.totalPackages ?? 0} kiện)
-                  </td>
-                  <td className='py-1.5 px-2 text-right text-amber-300 whitespace-nowrap'>
-                    {formatNumberVn(daySummary?.totalWeightKg ?? 0, 1)} kg •{' '}
-                    {formatNumberVn(daySummary?.totalCbm ?? 0, 1)} m³
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                    </td>
+                    <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-emerald-700 dark:text-emerald-300 whitespace-nowrap'>
+                      {daySummary?.outboundTrips ?? 0} chuyến xuất
+                    </td>
+                    <td className='py-1.5 px-2' data-testid='glance-outbound-trip-codes'>
+                      {allDayOutboundTrips.length === 0 ? (
+                        <span className='text-muted-foreground italic'>
+                          Không có chuyến xuất kho trong ngày
+                        </span>
+                      ) : (
+                        <details className='group'>
+                          <summary className='inline-flex cursor-pointer list-none items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'>
+                            {allDayOutboundTrips.length} mã TRIP
+                            <IconChevronDown className='h-3 w-3 transition-transform group-open:rotate-180' />
+                          </summary>
+                          <div className='mt-1 flex flex-wrap items-center gap-1'>
+                            {allDayOutboundTrips
+                              .slice(0, showAllGlanceCodes.OUTBOUND ? undefined : 6)
+                              .map((t) => (
+                                <button
+                                  key={t.tripKey}
+                                  type='button'
+                                  onClick={() => handleFocusAndExpandTrip(t)}
+                                  title={`${t.tripCode} • ${t.hubName} • ${t.licensePlate || '—'} • ${t.orderCount} mã đơn • ${formatNumberVn(t.weightKg, 1)} kg • ${formatNumberVn(t.volumeCbm, 1)} m³`}
+                                  className='inline-flex items-center gap-1 rounded border border-emerald-300 dark:border-emerald-800 bg-emerald-100/80 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-900 dark:text-emerald-200 cursor-pointer transition-colors'
+                                >
+                                  <span>{t.tripCode}</span>
+                                  <span className='text-[9px] font-normal text-emerald-700 dark:text-emerald-300'>
+                                    ({t.orderCount} mã đơn)
+                                  </span>
+                                </button>
+                              ))}
+                            {allDayOutboundTrips.length > 6 && (
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setShowAllGlanceCodes((current) => ({
+                                    ...current,
+                                    OUTBOUND: !current.OUTBOUND
+                                  }))
+                                }
+                                className='rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 underline dark:text-emerald-300'
+                              >
+                                {showAllGlanceCodes.OUTBOUND
+                                  ? 'Thu gọn'
+                                  : `+${allDayOutboundTrips.length - 6} mã nữa`}
+                              </button>
+                            )}
+                          </div>
+                        </details>
+                      )}
+                    </td>
+                    <td className='py-1.5 px-2 text-right font-mono font-semibold whitespace-nowrap'>
+                      <span className='font-extrabold text-foreground'>
+                        {daySummary?.outboundOrders ?? 0} mã đơn
+                      </span>{' '}
+                      <span className='text-muted-foreground'>
+                        ({daySummary?.outboundPackages ?? 0} kiện)
+                      </span>
+                    </td>
+                    <td className='py-1.5 px-2 text-right font-mono font-extrabold text-xs text-emerald-700 dark:text-emerald-300 whitespace-nowrap'>
+                      {formatNumberVn(daySummary?.outboundWeightKg ?? 0, 1)} kg •{' '}
+                      {formatNumberVn(daySummary?.outboundCbm ?? 0, 1)} m³
+                    </td>
+                  </tr>
+                </tbody>
+                {/* Dòng 3: TỔNG CỘNG TRONG NGÀY */}
+                <tfoot className='bg-[#0F3D62] text-white font-mono text-[11px] font-extrabold'>
+                  <tr data-testid='glance-row-total'>
+                    <td className='py-1.5 px-2 uppercase'>
+                      TỔNG CỘNG NGÀY {data?.filter?.fullDateLabel || activeDate}
+                    </td>
+                    <td className='py-1.5 px-2 text-right whitespace-nowrap'>
+                      {daySummary?.totalTrips ?? 0} chuyến ({daySummary?.inboundTrips ?? 0}N /{' '}
+                      {daySummary?.outboundTrips ?? 0}X)
+                    </td>
+                    <td className='py-1.5 px-2 text-sky-100 font-sans text-[10px] font-semibold'>
+                      {`Tổng cộng ${daySummary?.inboundTrips ?? 0} mã TRIP Nhập kho & ${daySummary?.outboundTrips ?? 0} mã TRIP Xuất kho đã xác nhận`}
+                    </td>
+                    <td className='py-1.5 px-2 text-right whitespace-nowrap'>
+                      {daySummary?.totalOrders ?? 0} mã đơn ({daySummary?.totalPackages ?? 0} kiện)
+                    </td>
+                    <td className='py-1.5 px-2 text-right text-amber-300 whitespace-nowrap'>
+                      {formatNumberVn(daySummary?.totalWeightKg ?? 0, 1)} kg •{' '}
+                      {formatNumberVn(daySummary?.totalCbm ?? 0, 1)} m³
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </details>
         </CardContent>
       </Card>
 
       {/* 3. DANH SÁCH CHI TIẾT MÃ TRIP TRONG NGÀY — TÁCH RÕ 2 BẢNG SONG SONG (BẢNG CHUYẾN NHẬP KHO vs BẢNG CHUYẾN XUẤT KHO) */}
-      <div
-        className='space-y-1.5'
-        data-testid='daily-trips-detail-card'
-      >
+      <div className='space-y-1.5' data-testid='daily-trips-detail-card'>
         {isLoading ? (
           <Card className='p-2 border-slate-200 dark:border-slate-800'>
             <CardContent className='p-0'>
-              <div className='flex items-center justify-center py-8 text-xs text-muted-foreground gap-1.5'>
+              <div className='flex items-center justify-center py-2 text-xs text-muted-foreground gap-1.5'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 <span>Đang tải danh sách mã TRIP trong ngày...</span>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div
-            className={
-              direction === 'ALL'
-                ? 'grid grid-cols-1 xl:grid-cols-2 gap-2'
-                : 'grid grid-cols-1 gap-2'
-            }
-            data-testid='daily-trips-list'
-          >
-            {(direction === 'ALL' || direction === 'INBOUND') &&
-              renderTripSectionTable(
-                '1. DANH SÁCH CHUYẾN NHẬP KHO',
-                'INBOUND',
-                inboundFilteredTrips,
-                inboundFilteredTrips.reduce((s, t) => s + t.volumeCbm, 0),
-                Math.round(
-                  inboundFilteredTrips.reduce((s, t) => s + t.weightKg, 0) * 100
-                ) / 100,
-                inboundFilteredTrips.reduce((s, t) => s + t.packageCount, 0),
-                inboundFilteredTrips.reduce((s, t) => s + t.orderCount, 0)
-              )}
+          <>
+            {direction === 'ALL' && (
+              <div
+                className='grid grid-cols-2 gap-1.5 rounded border bg-muted/40 p-0.5'
+                role='tablist'
+                aria-label='Loại chuyến cần xem'
+                data-testid='mobile-trip-direction-tabs'
+              >
+                {(['INBOUND', 'OUTBOUND'] as const).map((tripDirection) => (
+                  <button
+                    key={tripDirection}
+                    type='button'
+                    role='tab'
+                    aria-selected={visibleTripDirection === tripDirection}
+                    onClick={() => setMobileTripDirection(tripDirection)}
+                    className={`h-8 rounded px-2 text-xs font-semibold ${
+                      visibleTripDirection === tripDirection
+                        ? tripDirection === 'INBOUND'
+                          ? 'bg-background text-blue-800 shadow-sm dark:text-blue-200'
+                          : 'bg-background text-emerald-800 shadow-sm dark:text-emerald-200'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {tripDirection === 'INBOUND'
+                      ? `Chuyến nhập (${inboundFilteredTrips.length})`
+                      : `Chuyến xuất (${outboundFilteredTrips.length})`}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className='grid grid-cols-1 gap-2' data-testid='daily-trips-list'>
+              {visibleTripDirection === 'INBOUND' &&
+                renderTripSectionTable(
+                  '1. DANH SÁCH CHUYẾN NHẬP KHO',
+                  'INBOUND',
+                  inboundFilteredTrips,
+                  inboundFilteredTrips.reduce((s, t) => s + t.volumeCbm, 0),
+                  Math.round(inboundFilteredTrips.reduce((s, t) => s + t.weightKg, 0) * 100) / 100,
+                  inboundFilteredTrips.reduce((s, t) => s + t.packageCount, 0),
+                  inboundFilteredTrips.reduce((s, t) => s + t.orderCount, 0)
+                )}
 
-            {(direction === 'ALL' || direction === 'OUTBOUND') &&
-              renderTripSectionTable(
-                '2. DANH SÁCH CHUYẾN XUẤT KHO',
-                'OUTBOUND',
-                outboundFilteredTrips,
-                outboundFilteredTrips.reduce((s, t) => s + t.volumeCbm, 0),
-                Math.round(
-                  outboundFilteredTrips.reduce((s, t) => s + t.weightKg, 0) *
-                    100
-                ) / 100,
-                outboundFilteredTrips.reduce((s, t) => s + t.packageCount, 0),
-                outboundFilteredTrips.reduce((s, t) => s + t.orderCount, 0)
-              )}
-          </div>
+              {visibleTripDirection === 'OUTBOUND' &&
+                renderTripSectionTable(
+                  '2. DANH SÁCH CHUYẾN XUẤT KHO',
+                  'OUTBOUND',
+                  outboundFilteredTrips,
+                  outboundFilteredTrips.reduce((s, t) => s + t.volumeCbm, 0),
+                  Math.round(outboundFilteredTrips.reduce((s, t) => s + t.weightKg, 0) * 100) / 100,
+                  outboundFilteredTrips.reduce((s, t) => s + t.packageCount, 0),
+                  outboundFilteredTrips.reduce((s, t) => s + t.orderCount, 0)
+                )}
+            </div>
+          </>
         )}
       </div>
 
@@ -1357,138 +1398,138 @@ export function SuperAdminDailyTripsTracker() {
         className='p-2 border-slate-200 dark:border-slate-800 shadow-2xs'
         data-testid='daily-trips-by-date-summary-card'
       >
-        <CardContent className='p-0 space-y-1.5'>
-          <div className='flex flex-wrap items-center justify-between gap-1.5 border-b pb-1'>
-            <span className='text-xs font-extrabold uppercase text-slate-800 dark:text-slate-200'>
-              BẢNG TỔNG HỢP CHUYẾN NHẬP / CHUYẾN XUẤT, MÃ TRIP &amp; SẢN LƯỢNG
-              THEO TỪNG NGÀY (14 NGÀY GẦN NHẤT)
-            </span>
-            <span className='text-[10px] text-muted-foreground'>
-              Bấm vào dòng ngày bất kỳ để xem chi tiết toàn bộ chuyến xe &amp;
-              vận đơn của ngày đó
-            </span>
-          </div>
-          <div className='max-h-72 overflow-auto rounded border'>
-            <table
-              className='w-full border-collapse text-left'
-              data-testid='daily-trips-by-date-summary-table'
-            >
-              <thead className='sticky top-0 bg-slate-100 dark:bg-slate-900 border-b z-10'>
-                <tr className='text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300'>
-                  <th className='py-1 px-1.5 w-28'>Ngày báo cáo</th>
-                  <th className='py-1 px-1.5 w-52 text-right'>
-                    Chuyến Nhập (Mã đơn • kg • m³)
-                  </th>
-                  <th className='py-1 px-1.5'>Các Mã TRIP Nhập trong ngày</th>
-                  <th className='py-1 px-1.5 w-52 text-right'>
-                    Chuyến Xuất (Mã đơn • kg • m³)
-                  </th>
-                  <th className='py-1 px-1.5'>Các Mã TRIP Xuất trong ngày</th>
-                  <th className='py-1 px-1.5 w-56 text-right'>
-                    Tổng Ngày (Mã đơn • kg • m³)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className='divide-y divide-border/60 text-[10px]'>
-                {recentDaysStrip.toReversed().map((d) => {
-                  const isSelected = d.reportDate === activeDate;
-                  const inCodes = d.inboundTripCodes ?? [];
-                  const outCodes = d.outboundTripCodes ?? [];
-                  return (
-                    <tr
-                      key={d.reportDate}
-                      onClick={() => setReportDate(d.reportDate)}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-l-[#0F3D62]'
-                          : 'hover:bg-muted/60'
-                      }`}
-                    >
-                      <td className='py-1 px-1.5 font-mono font-bold whitespace-nowrap'>
-                        <div className='text-[11px] text-[#0F3D62] dark:text-blue-300'>
-                          {d.fullDateLabel}
-                        </div>
-                        <div className='text-[9px] text-muted-foreground font-normal'>
-                          06:00 D → 05:59 D+1
-                        </div>
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
-                        <div className='font-extrabold text-blue-700 dark:text-blue-300'>
-                          {d.inboundTrips} chuyến nhập •{' '}
-                          {d.inboundOrders ?? 0} mã đơn
-                        </div>
-                        <div className='text-[9px] text-muted-foreground'>
-                          {formatNumberVn(d.inboundWeightKg ?? 0, 1)} kg •{' '}
-                          {formatNumberVn(d.inboundCbm, 1)} m³
-                        </div>
-                      </td>
-                      <td className='py-1 px-1.5'>
-                        {inCodes.length === 0 ? (
-                          <span className='text-muted-foreground'>—</span>
-                        ) : (
-                          <div className='flex flex-wrap gap-1'>
-                            {inCodes.slice(0, 8).map((code) => (
-                              <span
-                                key={code}
-                                className='rounded bg-blue-100/80 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 px-1 py-0 font-mono text-[9px] font-bold text-blue-800 dark:text-blue-200'
-                              >
-                                {code}
-                              </span>
-                            ))}
-                            {inCodes.length > 8 && (
-                              <span className='rounded bg-blue-600 text-white px-1 py-0 font-mono text-[9px] font-bold'>
-                                +{inCodes.length - 8} TRIP
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
-                        <div className='font-extrabold text-emerald-700 dark:text-emerald-300'>
-                          {d.outboundTrips} chuyến xuất •{' '}
-                          {d.outboundOrders ?? 0} mã đơn
-                        </div>
-                        <div className='text-[9px] text-muted-foreground'>
-                          {formatNumberVn(d.outboundWeightKg ?? 0, 1)} kg •{' '}
-                          {formatNumberVn(d.outboundCbm, 1)} m³
-                        </div>
-                      </td>
-                      <td className='py-1 px-1.5'>
-                        {outCodes.length === 0 ? (
-                          <span className='text-muted-foreground'>—</span>
-                        ) : (
-                          <div className='flex flex-wrap gap-1'>
-                            {outCodes.slice(0, 8).map((code) => (
-                              <span
-                                key={code}
-                                className='rounded bg-emerald-100/80 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 px-1 py-0 font-mono text-[9px] font-bold text-emerald-800 dark:text-emerald-200'
-                              >
-                                {code}
-                              </span>
-                            ))}
-                            {outCodes.length > 8 && (
-                              <span className='rounded bg-emerald-600 text-white px-1 py-0 font-mono text-[9px] font-bold'>
-                                +{outCodes.length - 8} TRIP
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
-                        <div className='font-extrabold text-[#0F3D62] dark:text-blue-300'>
-                          {d.totalTrips} chuyến • {d.totalOrders ?? 0} mã đơn
-                        </div>
-                        <div className='font-bold text-purple-700 dark:text-purple-300'>
-                          {formatNumberVn(d.totalWeightKg ?? 0, 1)} kg •{' '}
-                          {formatNumberVn(d.totalCbm, 1)} m³
-                        </div>
-                      </td>
+        <CardContent className='p-0'>
+          <details className='group'>
+            <summary className='flex cursor-pointer list-none items-center justify-between gap-1.5 border-b pb-1 text-xs font-extrabold uppercase text-slate-800 dark:text-slate-200'>
+              <span>Lịch sử sản lượng 14 ngày gần nhất</span>
+              <span className='flex shrink-0 items-center gap-1 text-[10px] font-normal normal-case text-muted-foreground'>
+                <span className='hidden sm:inline'>Mở để xem chi tiết từng ngày</span>
+                <IconChevronDown className='h-3.5 w-3.5 transition-transform group-open:rotate-180' />
+              </span>
+            </summary>
+            <div className='space-y-1.5 pt-1.5'>
+              <p className='text-[10px] text-muted-foreground'>
+                Bấm vào dòng ngày bất kỳ để xem chi tiết toàn bộ chuyến xe và vận đơn.
+              </p>
+              <div className='max-h-72 overflow-auto rounded border'>
+                <table
+                  className='w-full border-collapse text-left'
+                  data-testid='daily-trips-by-date-summary-table'
+                >
+                  <thead className='sticky top-0 bg-slate-100 dark:bg-slate-900 border-b z-10'>
+                    <tr className='text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300'>
+                      <th className='py-1 px-1.5 w-28'>Ngày báo cáo</th>
+                      <th className='py-1 px-1.5 w-52 text-right'>
+                        Chuyến Nhập (Mã đơn • kg • m³)
+                      </th>
+                      <th className='py-1 px-1.5'>Các Mã TRIP Nhập trong ngày</th>
+                      <th className='py-1 px-1.5 w-52 text-right'>
+                        Chuyến Xuất (Mã đơn • kg • m³)
+                      </th>
+                      <th className='py-1 px-1.5'>Các Mã TRIP Xuất trong ngày</th>
+                      <th className='py-1 px-1.5 w-56 text-right'>Tổng Ngày (Mã đơn • kg • m³)</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className='divide-y divide-border/60 text-[10px]'>
+                    {recentDaysStrip.toReversed().map((d) => {
+                      const isSelected = d.reportDate === activeDate;
+                      const inCodes = d.inboundTripCodes ?? [];
+                      const outCodes = d.outboundTripCodes ?? [];
+                      return (
+                        <tr
+                          key={d.reportDate}
+                          onClick={() => setReportDate(d.reportDate)}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-l-[#0F3D62]'
+                              : 'hover:bg-muted/60'
+                          }`}
+                        >
+                          <td className='py-1 px-1.5 font-mono font-bold whitespace-nowrap'>
+                            <div className='text-[11px] text-[#0F3D62] dark:text-blue-300'>
+                              {d.fullDateLabel}
+                            </div>
+                            <div className='text-[9px] text-muted-foreground font-normal'>
+                              06:00 D → 05:59 D+1
+                            </div>
+                          </td>
+                          <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
+                            <div className='font-extrabold text-blue-700 dark:text-blue-300'>
+                              {d.inboundTrips} chuyến nhập • {d.inboundOrders ?? 0} mã đơn
+                            </div>
+                            <div className='text-[9px] text-muted-foreground'>
+                              {formatNumberVn(d.inboundWeightKg ?? 0, 1)} kg •{' '}
+                              {formatNumberVn(d.inboundCbm, 1)} m³
+                            </div>
+                          </td>
+                          <td className='py-1 px-1.5'>
+                            {inCodes.length === 0 ? (
+                              <span className='text-muted-foreground'>—</span>
+                            ) : (
+                              <div className='flex flex-wrap gap-1'>
+                                {inCodes.slice(0, 8).map((code) => (
+                                  <span
+                                    key={code}
+                                    className='rounded bg-blue-100/80 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 px-1 py-0 font-mono text-[9px] font-bold text-blue-800 dark:text-blue-200'
+                                  >
+                                    {code}
+                                  </span>
+                                ))}
+                                {inCodes.length > 8 && (
+                                  <span className='rounded bg-blue-600 text-white px-1 py-0 font-mono text-[9px] font-bold'>
+                                    +{inCodes.length - 8} TRIP
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
+                            <div className='font-extrabold text-emerald-700 dark:text-emerald-300'>
+                              {d.outboundTrips} chuyến xuất • {d.outboundOrders ?? 0} mã đơn
+                            </div>
+                            <div className='text-[9px] text-muted-foreground'>
+                              {formatNumberVn(d.outboundWeightKg ?? 0, 1)} kg •{' '}
+                              {formatNumberVn(d.outboundCbm, 1)} m³
+                            </div>
+                          </td>
+                          <td className='py-1 px-1.5'>
+                            {outCodes.length === 0 ? (
+                              <span className='text-muted-foreground'>—</span>
+                            ) : (
+                              <div className='flex flex-wrap gap-1'>
+                                {outCodes.slice(0, 8).map((code) => (
+                                  <span
+                                    key={code}
+                                    className='rounded bg-emerald-100/80 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 px-1 py-0 font-mono text-[9px] font-bold text-emerald-800 dark:text-emerald-200'
+                                  >
+                                    {code}
+                                  </span>
+                                ))}
+                                {outCodes.length > 8 && (
+                                  <span className='rounded bg-emerald-600 text-white px-1 py-0 font-mono text-[9px] font-bold'>
+                                    +{outCodes.length - 8} TRIP
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className='py-1 px-1.5 text-right font-mono whitespace-nowrap'>
+                            <div className='font-extrabold text-[#0F3D62] dark:text-blue-300'>
+                              {d.totalTrips} chuyến • {d.totalOrders ?? 0} mã đơn
+                            </div>
+                            <div className='font-bold text-[#0F3D62] dark:text-blue-300'>
+                              {formatNumberVn(d.totalWeightKg ?? 0, 1)} kg •{' '}
+                              {formatNumberVn(d.totalCbm, 1)} m³
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
         </CardContent>
       </Card>
 
@@ -1530,71 +1571,72 @@ export function SuperAdminDailyTripsTracker() {
           </div>
 
           {pendingTrips.length > 0 && (
-            <div className='max-h-36 overflow-auto rounded border bg-white dark:bg-slate-950'>
-              <table
-                className='w-full border-collapse text-left'
-                data-testid='pending-trips-table'
-              >
-                <thead className='sticky top-0 bg-amber-100/70 dark:bg-slate-900 border-b z-10'>
-                  <tr className='text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300'>
-                    <th className='py-1 px-1.5'>Mã TRIP Nháp</th>
-                    <th className='py-1 px-1.5'>Chiều vận hành</th>
-                    <th className='py-1 px-1.5'>Chi nhánh Kho</th>
-                    <th className='py-1 px-1.5'>Phân cấp Hub</th>
-                    <th className='py-1 px-1.5'>Biển số / Tài xế</th>
-                    <th className='py-1 px-1.5 text-right'>Đơn / Kiện</th>
-                    <th className='py-1 px-1.5 text-right'>Dự kiến CBM / Tấn</th>
-                    <th className='py-1 px-1.5'>Thời điểm tạo</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-border/60 text-[10px]'>
-                  {pendingTrips.map((pt) => (
-                    <tr key={pt.tripCode} className='hover:bg-muted/50'>
-                      <td className='py-1 px-1.5 font-mono font-bold text-[11px] text-amber-800 dark:text-amber-300'>
-                        {pt.tripCode}
-                      </td>
-                      <td className='py-1 px-1.5'>
-                        {pt.direction === 'INBOUND' ? (
-                          <Badge className='bg-blue-500/15 text-blue-700 border-blue-500/25 dark:text-blue-300 text-[10px] px-1.5 py-0'>
-                            Xe nhập kho
-                          </Badge>
-                        ) : pt.direction === 'TRANSFER' ? (
-                          <Badge className='bg-purple-500/15 text-purple-700 border-purple-500/25 dark:text-purple-300 text-[10px] px-1.5 py-0'>
-                            Trung chuyển liên Hub
-                          </Badge>
-                        ) : (
-                          <Badge className='bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300 text-[10px] px-1.5 py-0'>
-                            Xe xuất kho
-                          </Badge>
-                        )}
-                      </td>
-                      <td className='py-1 px-1.5 font-semibold'>{pt.hubName}</td>
-                      <td className='py-1 px-1.5'>
-                        {renderHubLevelBadge(
-                          pt.hubLevel,
-                          pt.hubCode,
-                          pt.hubName
-                        )}
-                      </td>
-                      <td className='py-1 px-1.5 font-mono'>
-                        {pt.licensePlate || 'Chưa gán xe'} •{' '}
-                        {pt.driverName || 'Chưa gán tài xế'}
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono'>
-                        {pt.orderCount} đơn • {pt.packageCount} kiện
-                      </td>
-                      <td className='py-1 px-1.5 text-right font-mono font-semibold'>
-                        {formatNumberVn(pt.volumeCbm, 1)} CBM •{' '}
-                        {formatNumberVn(pt.weightTons, 2)} Tấn
-                      </td>
-                      <td className='py-1 px-1.5 font-mono text-muted-foreground'>
-                        {formatDateTimeVn(pt.createdAt)}
-                      </td>
+            <details className='group rounded border bg-white dark:bg-slate-950'>
+              <summary className='flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-[11px] font-semibold text-amber-900 dark:text-amber-200'>
+                <span>Xem danh sách {pendingTrips.length} chuyến nháp</span>
+                <IconChevronDown className='h-3.5 w-3.5 transition-transform group-open:rotate-180' />
+              </summary>
+              <div className='max-h-36 overflow-auto rounded border bg-white dark:bg-slate-950'>
+                <table
+                  className='w-full border-collapse text-left'
+                  data-testid='pending-trips-table'
+                >
+                  <thead className='sticky top-0 bg-amber-100/70 dark:bg-slate-900 border-b z-10'>
+                    <tr className='text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300'>
+                      <th className='py-1 px-1.5'>Mã TRIP Nháp</th>
+                      <th className='py-1 px-1.5'>Chiều vận hành</th>
+                      <th className='py-1 px-1.5'>Chi nhánh Kho</th>
+                      <th className='py-1 px-1.5'>Phân cấp Hub</th>
+                      <th className='py-1 px-1.5'>Biển số / Tài xế</th>
+                      <th className='py-1 px-1.5 text-right'>Đơn / Kiện</th>
+                      <th className='py-1 px-1.5 text-right'>Dự kiến CBM / Tấn</th>
+                      <th className='py-1 px-1.5'>Thời điểm tạo</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className='divide-y divide-border/60 text-[10px]'>
+                    {pendingTrips.map((pt) => (
+                      <tr key={pt.tripCode} className='hover:bg-muted/50'>
+                        <td className='py-1 px-1.5 font-mono font-bold text-[11px] text-amber-800 dark:text-amber-300'>
+                          {pt.tripCode}
+                        </td>
+                        <td className='py-1 px-1.5'>
+                          {pt.direction === 'INBOUND' ? (
+                            <Badge className='bg-blue-500/15 text-blue-700 border-blue-500/25 dark:text-blue-300 text-[10px] px-1.5 py-0'>
+                              Xe nhập kho
+                            </Badge>
+                          ) : pt.direction === 'TRANSFER' ? (
+                            <Badge className='bg-purple-500/15 text-purple-700 border-purple-500/25 dark:text-purple-300 text-[10px] px-1.5 py-0'>
+                              Trung chuyển liên Hub
+                            </Badge>
+                          ) : (
+                            <Badge className='bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300 text-[10px] px-1.5 py-0'>
+                              Xe xuất kho
+                            </Badge>
+                          )}
+                        </td>
+                        <td className='py-1 px-1.5 font-semibold'>{pt.hubName}</td>
+                        <td className='py-1 px-1.5'>
+                          {renderHubLevelBadge(pt.hubLevel, pt.hubCode, pt.hubName)}
+                        </td>
+                        <td className='py-1 px-1.5 font-mono'>
+                          {pt.licensePlate || 'Chưa gán xe'} • {pt.driverName || 'Chưa gán tài xế'}
+                        </td>
+                        <td className='py-1 px-1.5 text-right font-mono'>
+                          {pt.orderCount} đơn • {pt.packageCount} kiện
+                        </td>
+                        <td className='py-1 px-1.5 text-right font-mono font-semibold'>
+                          {formatNumberVn(pt.volumeCbm, 1)} CBM • {formatNumberVn(pt.weightTons, 2)}{' '}
+                          Tấn
+                        </td>
+                        <td className='py-1 px-1.5 font-mono text-muted-foreground'>
+                          {formatDateTimeVn(pt.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           )}
         </CardContent>
       </Card>

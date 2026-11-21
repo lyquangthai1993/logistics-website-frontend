@@ -10,7 +10,11 @@
 import { test, expect, request } from '@playwright/test';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
-const API_BASE = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001/api/v1').replace(/\/$/, '');
+const API_BASE = (
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:4001/api/v1'
+).replace(/\/$/, '');
 const WAREHOUSE = TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER')!;
 
 // ═══════════════════════════════════════════════════════════════════════════

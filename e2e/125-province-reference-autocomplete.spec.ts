@@ -13,7 +13,7 @@ async function openProvinceInput(page: Page) {
   const pageUrlBeforeCreate = page.url();
   const createButton = page.getByRole('button', { name: /Tạo đơn nhập mới/ });
   await expect(createButton).toBeEnabled({ timeout: 15_000 });
-    await createButton.click();
+  await createButton.click();
   expect(new URL(page.url()).pathname).toBe(new URL(pageUrlBeforeCreate).pathname);
   const provinceInput = page.locator('input[placeholder="Tìm tỉnh/thành..."]').first();
   await expect(provinceInput).toBeVisible();
@@ -25,7 +25,7 @@ async function assertProvinceCase(page: Page, inputValue: string, expectedValue:
   const datalistId = await provinceInput.getAttribute('list');
   expect(datalistId).toBeTruthy();
   await expect(page.locator(`#${datalistId} option[value="Khánh Hòa"]`)).toHaveCount(1, {
-    timeout: 15_000,
+    timeout: 15_000
   });
   await provinceInput.fill(inputValue);
   await provinceInput.press('Tab');
@@ -45,7 +45,7 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
       const persisted = JSON.parse(window.localStorage.getItem('auth-storage') ?? '{}');
       const token = persisted?.state?.accessToken;
       const response = await fetch(`${url}/province-references`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
       });
       return { status: response.status, payload: await response.json() };
     }, apiUrl);
@@ -69,7 +69,7 @@ test.describe('Province reference autocomplete in warehouse inbound', () => {
     fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
     await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'province-reference-autocomplete-5-cases-verified.png'),
-      fullPage: true,
+      fullPage: true
     });
   });
 

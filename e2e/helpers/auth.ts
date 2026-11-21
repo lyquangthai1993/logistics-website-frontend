@@ -8,7 +8,12 @@ export interface LoginCredentials {
   username?: string;
   email: string;
   password: string;
-  role: 'SUPER_ADMIN' | 'DISPATCHER' | 'FLEET_MANAGER' | 'WAREHOUSE_MANAGER';
+  role:
+    | 'SUPER_ADMIN'
+    | 'DISPATCHER'
+    | 'FLEET_MANAGER'
+    | 'WAREHOUSE_MANAGER'
+    | 'REPORT_VIEWER';
   expectedLandingPath?: string;
   hubName?: string;
 }

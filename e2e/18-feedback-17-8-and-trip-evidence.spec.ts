@@ -3,13 +3,14 @@ import { loginAs, clearSession } from './helpers/auth';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const SCREENSHOT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/3710b55d-f3f5-4c7e-8148-ec8b1cb3395f/screenshots';
+const SCREENSHOT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/3710b55d-f3f5-4c7e-8148-ec8b1cb3395f/screenshots';
 const FEEDBACK_DIR = 'd:/Projects/logistics-website/feedback_17_8/test-screenshots';
 
 const WAREHOUSE_USER = {
   email: 'lyquangthai1993+4@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 async function captureEvidence(pageOrLocator: any, filename: string, options?: any) {
@@ -35,7 +36,9 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Evidence 1: Sidebar 3 items for WAREHOUSE_MANAGER and Inbound Page with TRIP column', async ({ page }) => {
+  test('Evidence 1: Sidebar 3 items for WAREHOUSE_MANAGER and Inbound Page with TRIP column', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('domcontentloaded');
@@ -68,7 +71,9 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
     await captureEvidence(page, '01_inbound_sidebar_3_items_and_trip_col.png', { fullPage: true });
   });
 
-  test('Evidence 2: Inbound Create Mode with Free Text address and optional driver', async ({ page }) => {
+  test('Evidence 2: Inbound Create Mode with Free Text address and optional driver', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/inbound');
     await page.waitForLoadState('domcontentloaded');
@@ -83,7 +88,9 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
     await captureEvidence(page, '02_inbound_create_form_free_text.png', { fullPage: true });
   });
 
-  test('Evidence 3: Outbound Page with Vehicle Grouping, TRIP column, and Single Xuat Kho button', async ({ page }) => {
+  test('Evidence 3: Outbound Page with Vehicle Grouping, TRIP column, and Single Xuat Kho button', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/outbound');
     await page.waitForLoadState('domcontentloaded');
@@ -135,14 +142,20 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
 
       const modal = page.locator('[role="dialog"]');
       if (await modal.isVisible()) {
-        await modal.locator('table').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+        await modal
+          .locator('table')
+          .first()
+          .waitFor({ state: 'visible', timeout: 5000 })
+          .catch(() => {});
         await page.waitForTimeout(500);
         await captureEvidence(page, '05_waybill_detail_timeline_modal.png');
       }
     }
   });
 
-  test('Evidence 5: Pallet Label A4 Modal with QR code and Blank Handwritten Fields', async ({ page }) => {
+  test('Evidence 5: Pallet Label A4 Modal with QR code and Blank Handwritten Fields', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_USER);
     await page.goto('/dashboard/warehouse/orders');
     await page.waitForLoadState('domcontentloaded');
@@ -156,7 +169,9 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
     }
   });
 
-  test('Evidence 6: DRAFT Order with Red Trash Delete Button in Warehouse Orders Table', async ({ page }) => {
+  test('Evidence 6: DRAFT Order with Red Trash Delete Button in Warehouse Orders Table', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_USER);
 
     // 1. Go to Inbound and save a DRAFT order
@@ -190,4 +205,3 @@ test.describe('Feedback 17/8 & TRIP Column E2E Evidence Test Suite', () => {
     await captureEvidence(page, '08_draft_order_delete_button.png');
   });
 });
-

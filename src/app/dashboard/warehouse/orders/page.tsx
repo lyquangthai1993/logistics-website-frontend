@@ -39,6 +39,28 @@ import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
 import { formatNumber } from '@/lib/utils';
 
+function getInitialOrderSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return (new URLSearchParams(window.location.search).get('search') || '').trim();
+}
+
+function getInitialDateFilter(key: 'fromDate' | 'toDate'): string {
+  if (typeof window === 'undefined') return '';
+  const value = new URLSearchParams(window.location.search).get(key) || '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+}
+
+function getCurrentMonthRange(): { fromDate: string; toDate: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  return {
+    fromDate: `${year}-${month}-01`,
+    toDate: `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+  };
+}
+
 export default function WarehouseOrdersPage() {
   const user = useAuthStore((state) => state.user);
   const currentHubName = user?.hub?.name;
@@ -47,12 +69,36 @@ export default function WarehouseOrdersPage() {
     (user?.role as any)?.id === 1 ||
     (user?.role as any)?.name === 'SUPER_ADMIN';
 
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [search, setSearch] = useState(getInitialOrderSearch);
+  const [appliedSearch, setAppliedSearch] = useState(getInitialOrderSearch);
+  const [fromDate, setFromDate] = useState(getInitialDateFilter('fromDate'));
+  const [toDate, setToDate] = useState(getInitialDateFilter('toDate'));
+  const [datePreset, setDatePreset] = useState('');
+
+  const syncSearchToUrl = useCallback((value: string) => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const clean = value.trim();
+    if (clean) {
+      sp.set('search', clean);
+    } else {
+      sp.delete('search');
+      sp.delete('q');
+    }
+    sp.delete('page');
+    const qs = sp.toString();
+    window.history.replaceState(
+      null,
+      '',
+      qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    );
+  }, []);
 
   const handleSearchSubmit = () => {
     setPage(1);
-    setAppliedSearch(search.trim());
+    const clean = search.trim();
+    setAppliedSearch(clean);
+    syncSearchToUrl(clean);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -66,6 +112,47 @@ export default function WarehouseOrdersPage() {
     setSearch('');
     setAppliedSearch('');
     setPage(1);
+    syncSearchToUrl('');
+  };
+
+  const syncDateFilterToUrl = useCallback((nextFromDate: string, nextToDate: string) => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    if (nextFromDate) sp.set('fromDate', nextFromDate);
+    else sp.delete('fromDate');
+    if (nextToDate) sp.set('toDate', nextToDate);
+    else sp.delete('toDate');
+    sp.delete('page');
+    const qs = sp.toString();
+    window.history.replaceState(
+      null,
+      '',
+      qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    );
+  }, []);
+
+  const applyDateFilter = useCallback(
+    (nextFromDate: string, nextToDate: string, preset = '') => {
+      if (nextFromDate && nextToDate && nextFromDate > nextToDate) {
+        toast.error('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+        return;
+      }
+      setFromDate(nextFromDate);
+      setToDate(nextToDate);
+      setDatePreset(preset);
+      setPage(1);
+      syncDateFilterToUrl(nextFromDate, nextToDate);
+    },
+    [syncDateFilterToUrl]
+  );
+
+  const handleDatePresetChange = (preset: string) => {
+    if (preset === 'THIS_MONTH') {
+      const range = getCurrentMonthRange();
+      applyDateFilter(range.fromDate, range.toDate, preset);
+      return;
+    }
+    setDatePreset('');
   };
 
   const effectiveSearch = appliedSearch.trim();
@@ -204,6 +291,8 @@ export default function WarehouseOrdersPage() {
         limit: '5000',
         ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
         ...(effectiveSearch ? { search: effectiveSearch } : {}),
+        ...(isAdmin && fromDate ? { fromDate } : {}),
+        ...(isAdmin && toDate ? { toDate } : {}),
         ...(hubId && hubId !== 'ALL' ? { hubId } : {})
       });
 
@@ -535,7 +624,7 @@ export default function WarehouseOrdersPage() {
         bucket.totalVolumeCbm += Number(r[8]) || 0;
       }
 
-      const sortedDaily = Array.from(dailyMap.values()).sort((a, b) =>
+      const sortedDaily = Array.from(dailyMap.values()).toSorted((a, b) =>
         a.sortKey.localeCompare(b.sortKey)
       );
 
@@ -741,6 +830,8 @@ export default function WarehouseOrdersPage() {
       // One row per order code; lines sharing a code are returned in `items`
       groupBy: 'orderCode',
       ...(effectiveSearch ? { search: effectiveSearch } : {}),
+      ...(isAdmin && fromDate ? { fromDate } : {}),
+      ...(isAdmin && toDate ? { toDate } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
       ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     });
@@ -777,7 +868,7 @@ export default function WarehouseOrdersPage() {
           setIsLoading(false);
         }
       });
-  }, [page, pageSize, effectiveSearch, statusFilter, hubId]);
+  }, [page, pageSize, effectiveSearch, statusFilter, hubId, isAdmin, fromDate, toDate]);
 
   useEffect(() => {
     fetchOrders();
@@ -796,6 +887,8 @@ export default function WarehouseOrdersPage() {
     const query = new URLSearchParams({
       isExport: 'true',
       ...(effectiveSearch ? { search: effectiveSearch } : {}),
+      ...(fromDate ? { fromDate } : {}),
+      ...(toDate ? { toDate } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
       ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     });
@@ -849,7 +942,7 @@ export default function WarehouseOrdersPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isAdmin, statusFilter, hubId, effectiveSearch]);
+  }, [isAdmin, statusFilter, hubId, effectiveSearch, fromDate, toDate]);
 
   const COLUMN_COUNT = 11;
 
@@ -1053,7 +1146,10 @@ export default function WarehouseOrdersPage() {
             <div className='flex flex-wrap items-center gap-2.5'>
               <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
                 <IconBuildingWarehouse className='h-6 w-6' />
-                <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName && !isAdmin ? ` · ${currentHubName}` : ''}</span>
+                <span>
+                  Tổng Hợp Đơn Hàng Tại Kho
+                  {currentHubName && !isAdmin ? ` · ${currentHubName}` : ''}
+                </span>
               </h1>
               {isAdmin && (
                 <div className='inline-flex items-center' data-testid='admin-header-hub-filter'>
@@ -1162,6 +1258,48 @@ export default function WarehouseOrdersPage() {
                   </button>
                 )}
               </div>
+
+              {isAdmin && (
+                <div
+                  className='flex flex-wrap items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800/60'
+                  data-testid='admin-orders-date-filter'
+                >
+                  <span className='px-1 text-[10px] font-semibold text-slate-500'>Ngày</span>
+                  <input
+                    type='date'
+                    value={fromDate}
+                    onChange={(event) => applyDateFilter(event.target.value, toDate)}
+                    aria-label='Từ ngày'
+                    className='h-7 rounded border border-slate-300 bg-white px-1 text-[10px] dark:border-slate-600 dark:bg-slate-900'
+                  />
+                  <span className='text-[10px] text-slate-400'>đến</span>
+                  <input
+                    type='date'
+                    value={toDate}
+                    onChange={(event) => applyDateFilter(fromDate, event.target.value)}
+                    aria-label='Đến ngày'
+                    className='h-7 rounded border border-slate-300 bg-white px-1 text-[10px] dark:border-slate-600 dark:bg-slate-900'
+                  />
+                  <select
+                    value={datePreset}
+                    onChange={(event) => handleDatePresetChange(event.target.value)}
+                    aria-label='Lọc nhanh theo thời gian'
+                    className='h-7 rounded border border-slate-300 bg-white px-1 text-[10px] font-semibold dark:border-slate-600 dark:bg-slate-900'
+                  >
+                    <option value=''>Lọc nhanh</option>
+                    <option value='THIS_MONTH'>Tháng này</option>
+                  </select>
+                  {(fromDate || toDate) && (
+                    <button
+                      type='button'
+                      onClick={() => applyDateFilter('', '', '')}
+                      className='h-7 rounded px-1.5 text-[10px] font-semibold text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700'
+                    >
+                      Xóa ngày
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Nếu không phải Super Admin thì vẫn giữ WarehouseHubFilterSelect ở toolbar (hoặc ẩn nếu role không có quyền) */}
               {!isAdmin && <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />}

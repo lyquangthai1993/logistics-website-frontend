@@ -37,7 +37,10 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled & Way
 
     // 3. Find the order code input in the first row
     const firstRow = page.locator('table tbody tr').first();
-    const orderCodeInput = firstRow.locator('input[placeholder*="Mã vận đơn"]').or(firstRow.locator('td:nth-child(2) input')).first();
+    const orderCodeInput = firstRow
+      .locator('input[placeholder*="Mã vận đơn"]')
+      .or(firstRow.locator('td:nth-child(2) input'))
+      .first();
     await expect(orderCodeInput).toBeVisible({ timeout: 15_000 });
 
     // 4. Type NDA2611-0128 and press Enter to search
@@ -71,12 +74,17 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled & Way
     // - Địa chỉ giao (col 8): ENABLED (cho phép sửa hoặc đổi Hub điều chuyển)
     const deliveryTextarea = firstRow.locator('td:nth-child(8) textarea').first();
     await expect(deliveryTextarea).toBeEnabled();
-    const changeDestBtn = firstRow.locator('button:has-text("Thay đổi địa chỉ (Điều chuyển)")').first();
+    const changeDestBtn = firstRow
+      .locator('button:has-text("Thay đổi địa chỉ (Điều chuyển)")')
+      .first();
     if (await changeDestBtn.isVisible()) {
       await expect(changeDestBtn).toBeEnabled();
     }
     // - Nút Xóa dòng / Thùng rác (col 11): ENABLED
-    const trashBtn = firstRow.locator('button[title*="Xóa dòng"]').or(firstRow.locator('button:has(svg.lucide-trash)')).first();
+    const trashBtn = firstRow
+      .locator('button[title*="Xóa dòng"]')
+      .or(firstRow.locator('button:has(svg.lucide-trash)'))
+      .first();
     await expect(trashBtn).toBeEnabled();
 
     // 8. Add a second row
@@ -99,7 +107,10 @@ test.describe('Task 113 - Outbound Grid Trash and Delivery Address Enabled & Way
     await expect(secondOrderInput).toBeDisabled();
 
     // Verify second row trash button is enabled
-    const secondTrashBtn = secondRow.locator('button[title*="Xóa dòng"]').or(secondRow.locator('button:has(svg.lucide-trash)')).first();
+    const secondTrashBtn = secondRow
+      .locator('button[title*="Xóa dòng"]')
+      .or(secondRow.locator('button:has(svg.lucide-trash)'))
+      .first();
     await expect(secondTrashBtn).toBeEnabled();
 
     // Capture screenshot showing BOTH rows with properly locked identity and enabled trash/delivery address

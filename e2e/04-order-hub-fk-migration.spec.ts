@@ -14,7 +14,8 @@ import { test, expect } from '@playwright/test';
 import { loginAs, TEST_USERS } from './helpers/auth';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000';
-const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+const API_URL =
+  process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
 
 test.describe('Order Hub FK Migration — Phase 1', () => {
   // Only DISPATCHER can create orders

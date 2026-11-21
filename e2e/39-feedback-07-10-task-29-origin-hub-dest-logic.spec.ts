@@ -10,12 +10,12 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const DEV_BACKEND_URL =
-  process.env.API_URL ?? 'http://localhost:4001/api/v1';
+const DEV_BACKEND_URL = process.env.API_URL ?? 'http://localhost:4001/api/v1';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000';
+  process.env.PLAYWRIGHT_BASE_URL ??
+  'http://localhost:4000';
 
 const ADMIN_EMAIL = 'lyquangthai1993+1@gmail.com';
 const DAD_MANAGER_EMAIL = 'lyquangthai1993+5@gmail.com'; // Magellan Hub - Đà Nẵng (Hub 2)
@@ -38,13 +38,14 @@ function saveEvidenceScreenshot(filename: string, buffer: Buffer) {
 let userToken = '';
 const activeTripCode = 'SD73';
 
-test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Customer Address Preservation', () => {
+test.describe
+  .serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Customer Address Preservation', () => {
   test.beforeAll(async ({ request }) => {
     // 1. Authenticate against Backend (Đà Nẵng warehouse manager or Admin)
     for (const email of [DAD_MANAGER_EMAIL, ADMIN_EMAIL]) {
       for (const pwd of PASSWORDS) {
         const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-          data: { email, password: pwd },
+          data: { email, password: pwd }
         });
         if (loginRes.ok()) {
           const loginJson = await loginRes.json();
@@ -82,8 +83,8 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
             deliveryMode: 'HUB_L1',
             destinationHubId: 2,
             deliveryAddress: 'Magellan Hub - Đà Nẵng',
-            notes: 'Đơn dỡ nhập kho Đà Nẵng',
-          },
+            notes: 'Đơn dỡ nhập kho Đà Nẵng'
+          }
         }
       );
     }
@@ -98,8 +99,8 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
             deliveryMode: 'HUB_L1',
             destinationHubId: 3,
             deliveryAddress: 'Polaris Hub - Hưng Yên',
-            notes: 'Đơn luân chuyển đi Hưng Yên',
-          },
+            notes: 'Đơn luân chuyển đi Hưng Yên'
+          }
         }
       );
     }
@@ -114,8 +115,8 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
             deliveryMode: 'DIRECT_CUSTOMER',
             destinationHubId: null,
             deliveryAddress: 'Huyện Thanh Trì, TP. Hà Nội',
-            notes: 'Hàng giao khách tận nơi Thanh Trì',
-          },
+            notes: 'Hàng giao khách tận nơi Thanh Trì'
+          }
         }
       );
     }
@@ -130,8 +131,8 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
             deliveryMode: 'DIRECT_CUSTOMER',
             destinationHubId: null,
             deliveryAddress: 'Quận Bình Thạnh, TP. Hồ Chí Minh',
-            notes: 'Hàng giao khách tận nơi Bình Thạnh',
-          },
+            notes: 'Hàng giao khách tận nơi Bình Thạnh'
+          }
         }
       );
     }
@@ -139,7 +140,7 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
 
   // ── TEST 1: API MANIFEST AUDIT AT TRANSIT HUB (ĐÀ NẴNG, viewerHubId = 2) ──
   test('API: Verify Da Nang hub view isolates Hub L1 Da Nang vs Direct Customer & Other Hubs', async ({
-    request,
+    request
   }) => {
     const manifestRes = await request.get(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(activeTripCode)}/manifest`,
@@ -174,7 +175,8 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
       expect(lineT3.deliveryMode).toBe('DIRECT_CUSTOMER');
       expect(lineT3.isForCurrentHub).toBe(false);
       expect(lineT3.destinationHubId).toBeNull();
-      const addr = lineT3.deliveryAddress || lineT3.originalDeliveryAddress || lineT3.destinationHub;
+      const addr =
+        lineT3.deliveryAddress || lineT3.originalDeliveryAddress || lineT3.destinationHub;
       expect(addr).not.toContain('Magellan Hub - Đà Nẵng');
     }
 
@@ -183,14 +185,15 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
       expect(lineT20.deliveryMode).toBe('DIRECT_CUSTOMER');
       expect(lineT20.isForCurrentHub).toBe(false);
       expect(lineT20.destinationHubId).toBeNull();
-      const addr = lineT20.deliveryAddress || lineT20.originalDeliveryAddress || lineT20.destinationHub;
+      const addr =
+        lineT20.deliveryAddress || lineT20.originalDeliveryAddress || lineT20.destinationHub;
       expect(addr).not.toContain('Magellan Hub - Đà Nẵng');
     }
   });
 
   // ── TEST 2: BROWSER UI AUDIT - INBOUND TALLY & PRESERVED ADDRESSES ──
   test('Browser UI: Inbound Tally preserves initial customer address, applies correct defaults, and filters correctly', async ({
-    page,
+    page
   }) => {
     // 1. Sign in to Frontend with Da Nang Warehouse Manager account
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
@@ -247,11 +250,17 @@ test.describe.serial('Feedback 07/10 Task 29: Origin Hub Destination Logic & Cus
     await page.waitForTimeout(1000);
 
     // Order for Da Nang (T19) remains visible
-    const t19Visible = await tripModal.locator('text=T19').isVisible().catch(() => false);
+    const t19Visible = await tripModal
+      .locator('text=T19')
+      .isVisible()
+      .catch(() => false);
     expect(t19Visible, 'Order T19 (for Da Nang) must remain visible').toBe(true);
 
     // Direct customer order (T20) must be hidden
-    const t20Visible = await tripModal.locator('text=T20').isVisible().catch(() => false);
+    const t20Visible = await tripModal
+      .locator('text=T20')
+      .isVisible()
+      .catch(() => false);
     expect(t20Visible, 'Direct customer order T20 must be hidden when switch is on').toBe(false);
 
     // Save screenshot proof with switch active

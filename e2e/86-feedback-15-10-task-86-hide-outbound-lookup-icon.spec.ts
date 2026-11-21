@@ -31,7 +31,8 @@ const DEV_FRONTEND_URL =
 const EVIDENCE_DIR = path.resolve(__dirname, '../../feedbacks/feedback_15_10_task_86');
 const SCREENSHOT_PATH = path.join(EVIDENCE_DIR, 'screenshot_01_verified.png');
 
-test.describe.serial('Feedback 15/10 (Task #86) — Ẩn Nút Kính Lúp Tra Cứu Đơn Hàng Xuất Kho', () => {
+test.describe
+  .serial('Feedback 15/10 (Task #86) — Ẩn Nút Kính Lúp Tra Cứu Đơn Hàng Xuất Kho', () => {
   test.beforeAll(() => {
     if (!fs.existsSync(EVIDENCE_DIR)) {
       fs.mkdirSync(EVIDENCE_DIR, { recursive: true });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   IconBuildingWarehouse,
@@ -31,6 +31,7 @@ export interface WarehouseHubFilterSelectProps {
   onChange: (hubId: string) => void;
   hubs?: WarehouseHubOption[];
   className?: string;
+  reportScope?: boolean;
 }
 
 function isSatelliteHub(h?: WarehouseHubOption): boolean {
@@ -73,7 +74,8 @@ export function WarehouseHubFilterSelect({
   value,
   onChange,
   hubs: externalHubs,
-  className = ''
+  className = '',
+  reportScope = false
 }: WarehouseHubFilterSelectProps) {
   const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
@@ -102,13 +104,14 @@ export function WarehouseHubFilterSelect({
 
   const allHubs = useMemo(() => {
     const raw = externalHubs && externalHubs.length > 0 ? externalHubs : fetchedHubs;
-    return [...raw].sort((a, b) => {
+    const scoped = reportScope ? raw.filter((hub) => (hub.level ?? 1) === 1) : raw;
+    return scoped.toSorted((a, b) => {
       const levelA = a.level || 1;
       const levelB = b.level || 1;
       if (levelA !== levelB) return levelA - levelB;
       return (a.name || '').localeCompare(b.name || '', 'vi');
     });
-  }, [externalHubs, fetchedHubs]);
+  }, [externalHubs, fetchedHubs, reportScope]);
 
   const filteredHubs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -122,10 +125,6 @@ export function WarehouseHubFilterSelect({
     });
   }, [allHubs, search]);
 
-  if (!isSuperAdmin) {
-    return null;
-  }
-
   const normalizedValue = value && value !== 'ALL' ? String(value) : 'ALL';
   const isFiltered = normalizedValue !== 'ALL';
   const selectedHub = isFiltered
@@ -133,7 +132,24 @@ export function WarehouseHubFilterSelect({
     : undefined;
   const isSelectedSatellite = isSatelliteHub(selectedHub);
 
+  useEffect(() => {
+    if (!reportScope || normalizedValue !== 'ALL') return;
+    const hcmHub = allHubs.find((hub) => hub.code === 'HUB-HCM-01');
+    if (hcmHub) onChange(String(hcmHub.id));
+  }, [allHubs, normalizedValue, onChange, reportScope]);
+
+  if (!isSuperAdmin) {
+    return null;
+  }
+
   const handleSelectHub = (nextValue: string) => {
+    if (
+      reportScope &&
+      nextValue !== 'ALL' &&
+      allHubs.find((hub) => String(hub.id) === nextValue)?.code !== 'HUB-HCM-01'
+    ) {
+      return;
+    }
     onChange(nextValue);
     setOpen(false);
     setSearch('');
@@ -189,7 +205,7 @@ export function WarehouseHubFilterSelect({
                   : 'Chuyển nhanh góc nhìn theo Cấp 1 • Hub Chính / Cấp 2 • Trạm Xe Bo'}
               </span>
             </div>
-            {isFiltered && (
+            {isFiltered && !reportScope && (
               <Button
                 type='button'
                 variant='default'
@@ -227,7 +243,7 @@ export function WarehouseHubFilterSelect({
           {/* Danh sách kho cuộn dọc */}
           <div className='max-h-64 overflow-y-auto divide-y divide-border/60 rounded border bg-white dark:bg-slate-950'>
             {/* Tùy chọn Tất cả kho */}
-            {(!search.trim() ||
+            {!reportScope && (!search.trim() ||
               'tất cả kho toàn hệ thống all'.includes(search.trim().toLowerCase())) && (
               <button
                 type='button'
@@ -288,9 +304,13 @@ export function WarehouseHubFilterSelect({
                     key={h.id}
                     type='button'
                     onClick={() => handleSelectHub(String(h.id))}
+                    disabled={reportScope && h.code !== 'HUB-HCM-01'}
                     data-testid={`warehouse-hub-filter-item-${h.id}`}
-                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/70 transition-colors cursor-pointer ${
-                      isSelected
+                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left transition-colors ${
+                      reportScope && h.code !== 'HUB-HCM-01'
+                        ? 'cursor-not-allowed opacity-40 grayscale'
+                        : 'hover:bg-muted/70 cursor-pointer'
+                    } ${isSelected
                         ? isSatellite
                           ? 'bg-purple-50/70 dark:bg-purple-950/40'
                           : 'bg-blue-50/70 dark:bg-blue-950/40'
