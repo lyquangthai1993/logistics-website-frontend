@@ -1344,7 +1344,7 @@ export default function WarehouseOrdersPage() {
                       SỐ KG
                     </th>
                     <th className='py-1 px-1.5 w-20 text-right border-b border-slate-200 dark:border-slate-700'>
-                      CBM
+                      CBM (m³)
                     </th>
                     <th className='py-1 px-1.5 min-w-35 border-b border-slate-200 dark:border-slate-700'>
                       ĐÍCH ĐẾN
