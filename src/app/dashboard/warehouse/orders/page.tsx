@@ -62,45 +62,6 @@ function getCurrentMonthRange(): { fromDate: string; toDate: string } {
   };
 }
 
-const REGION_PROVINCES = {
-  north: [
-    'ha noi', 'hai phong', 'bac ninh', 'hung yen', 'hai duong', 'ha nam', 'nam dinh',
-    'ninh binh', 'thai binh', 'vinh phuc', 'quang ninh', 'bac giang', 'phu tho',
-    'thai nguyen', 'lang son', 'tuyen quang', 'yen bai', 'lao cai', 'cao bang',
-    'bac kan', 'ha giang', 'hoa binh', 'son la', 'dien bien', 'lai chau'
-  ],
-  central: [
-    'thanh hoa', 'nghe an', 'ha tinh', 'quang binh', 'quang tri', 'thua thien hue',
-    'hue', 'da nang', 'quang nam', 'quang ngai', 'binh dinh', 'phu yen', 'khanh hoa',
-    'ninh thuan', 'binh thuan', 'kon tum', 'gia lai', 'dak lak', 'dak nong', 'lam dong'
-  ],
-  south: [
-    'ho chi minh', 'hcm', 'sai gon', 'can tho', 'binh duong', 'dong nai', 'ba ria',
-    'vung tau', 'tay ninh', 'binh phuoc', 'long an', 'tien giang', 'ben tre',
-    'tra vinh', 'vinh long', 'dong thap', 'an giang', 'kien giang', 'hau giang',
-    'soc trang', 'bac lieu', 'ca mau'
-  ]
-} as const;
-
-function normalizeRegionText(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function inferRegionFromProvince(province: string): string {
-  const normalized = normalizeRegionText(province);
-  if (!normalized) return 'CHƯA PHÂN MIỀN (N/A)';
-  if (REGION_PROVINCES.north.some((item) => normalized.includes(item))) return 'MIỀN BẮC';
-  if (REGION_PROVINCES.central.some((item) => normalized.includes(item))) return 'MIỀN TRUNG';
-  if (REGION_PROVINCES.south.some((item) => normalized.includes(item))) return 'MIỀN NAM';
-  return 'CHƯA PHÂN MIỀN (N/A)';
-}
-
 function resolveOrderProvince(order: any): string {
   const directProvince =
     order.province || order.destinationHubEntity?.city || order.destinationProvince;
@@ -436,7 +397,11 @@ export default function WarehouseOrdersPage() {
             order.deliveryAddress ||
             '—';
           const provinceStr = resolveOrderProvince(item) || resolveOrderProvince(order) || '—';
-          const regionStr = inferRegionFromProvince(provinceStr);
+          const apiRegion = item.destinationRegion || order.destinationRegion;
+          const regionStr =
+            apiRegion === 'N/A'
+              ? 'CHƯA PHÂN MIỀN (N/A)'
+              : apiRegion || 'CHƯA PHÂN MIỀN (N/A)';
 
           const resolvedStatus = (
             resolveDisplayStatus(item) ||
