@@ -16,7 +16,16 @@ import { formatApiError } from "@/lib/api-error";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useOptionalAdminOperationalReport } from "./super-admin-operational-report";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 export interface RegionalMetricItem {
   region: string;
@@ -180,13 +189,12 @@ const REGION_CONFIGS: RegionRowConfig[] = [
 
 export function SuperAdminRegionalDispatchTable() {
   const queryClient = useQueryClient();
-  const globalFilter = useOptionalAdminOperationalReport();
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-  // Lấy theo bộ filter tổng đang có sẵn trên trang (toDate & selectedHubId)
-  // Tình hình hàng hóa là số liệu lũy kế đến hiện tại; không phụ thuộc bộ lọc ngày của report vận hành.
+  // Báo cáo cân đối đội xe là báo cáo toàn hệ thống; hubId chỉ giữ lại để tương thích API.
+  // Không để bộ lọc Hub của báo cáo vận hành làm thay đổi hoặc refetch số liệu này.
   const selectedDate = todayStr;
-  const selectedHubId = globalFilter?.selectedHubId || "ALL";
+  const selectedHubId = "ALL";
   const [chartStatus, setChartStatus] = useState<"onhand" | "draft" | "total">(
     "total",
   );
@@ -199,14 +207,13 @@ export function SuperAdminRegionalDispatchTable() {
   } = useQuery({
     queryKey: [
       "admin-regional-dispatch-report-table",
-      selectedHubId,
       selectedDate,
     ],
     queryFn: async () => {
       const res = await apiClient.get<
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
       >(
-        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&mode=live`,
+        `/api/v1/admin/reports/regional-dispatch?hubId=ALL&mode=live`,
       );
       return res.data;
     },
@@ -246,16 +253,25 @@ export function SuperAdminRegionalDispatchTable() {
   const chartRegions = REGION_CONFIGS.map((cfg) => {
     const stored = data?.regions[cfg.key];
     const draft = data?.draftRegions?.[cfg.key];
-    const weightKg =
-      (chartStatus === "draft" ? 0 : (stored?.onhandWeightKg ?? 0)) +
-      (chartStatus === "onhand" ? 0 : (draft?.weightKg ?? 0));
-    const volumeCbm =
-      (chartStatus === "draft" ? 0 : (stored?.onhandVolumeCbm ?? 0)) +
-      (chartStatus === "onhand" ? 0 : (draft?.volumeCbm ?? 0));
+    const onhandWeightKg =
+      chartStatus === "draft" ? 0 : (stored?.onhandWeightKg ?? 0);
+    const draftWeightKg =
+      chartStatus === "onhand" ? 0 : (draft?.weightKg ?? 0);
+    const onhandVolumeCbm =
+      chartStatus === "draft" ? 0 : (stored?.onhandVolumeCbm ?? 0);
+    const draftVolumeCbm =
+      chartStatus === "onhand" ? 0 : (draft?.volumeCbm ?? 0);
     return {
-      totalWeightKg: weightKg,
-      totalWeightTons: weightKg / 1000,
-      totalVolumeCbm: volumeCbm,
+      region: cfg.name,
+      onhandWeightKg,
+      draftWeightKg,
+      onhandWeightTons: onhandWeightKg / 1000,
+      draftWeightTons: draftWeightKg / 1000,
+      onhandVolumeCbm,
+      draftVolumeCbm,
+      totalWeightKg: onhandWeightKg + draftWeightKg,
+      totalWeightTons: (onhandWeightKg + draftWeightKg) / 1000,
+      totalVolumeCbm: onhandVolumeCbm + draftVolumeCbm,
     };
   });
   const chartTotals = chartRegions.reduce(
@@ -454,64 +470,24 @@ export function SuperAdminRegionalDispatchTable() {
                           Tổng: {formatNumber(chartTotals.totalWeightKg / 1000)} Tấn
                         </span>
                       </div>
-
-                      {/* Horizontal Bars */}
-                      <div className="space-y-2 pt-1">
-                        {REGION_CONFIGS.map((cfg, index) => {
-                          const metric = chartRegions[index];
-                          const weightPct =
-                            chartTotals.totalWeightKg > 0 &&
-                            metric?.totalWeightKg
-                              ? Math.round(
-                                  (metric.totalWeightKg /
-                                    chartTotals.totalWeightKg) *
-                                    1000,
-                                ) / 10
-                              : 0;
-                          return (
-                            <div
-                              key={cfg.key}
-                              className="flex items-center gap-2.5 py-1"
-                            >
-                              {/* Label on left (right-aligned, clean font like reference image) */}
-                              <div className="w-28 sm:w-36 text-right shrink-0 pr-1">
-                                <span className="font-bold text-xs text-slate-700 dark:text-slate-300 block truncate">
-                                  {cfg.name}
-                                </span>
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="h-6 sm:h-7 w-full rounded-r-md bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                  <div
-                                    className={`h-full ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs`}
-                                    style={{ width: `${weightPct}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <span
-                                className={`w-36 sm:w-44 text-right font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                              >
-                                  {formatNumber((metric?.totalWeightKg ?? 0) / 1000)} Tấn
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1">
-                                    ({weightPct}%)
-                                  </span>
-                              </span>
-                            </div>
-                          );
-                        })}
-
-                        {/* Bottom axis line with ticks & scale (0 ... 100) */}
-                        <div className="flex items-center gap-2.5 pt-1.5">
-                          <div className="w-28 sm:w-36 shrink-0" />
-                          <div className="flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                            <span>0%</span>
-                            <span>25%</span>
-                            <span>50%</span>
-                            <span>75%</span>
-                            <span>100%</span>
-                          </div>
-                          <div className="w-36 sm:w-44 shrink-0" />
-                        </div>
+                      <div className="h-56 pt-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartRegions} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} axisLine={{ stroke: "#CBD5E1" }} tickLine={false} />
+                            <YAxis type="category" dataKey="region" width={112} tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} />
+                            <Tooltip
+                              formatter={(value, name) => [
+                                `${formatNumber(Number(value))} Tấn`,
+                                String(name),
+                              ]}
+                              contentStyle={{ fontSize: 10, borderRadius: 6 }}
+                            />
+                            {chartStatus !== "draft" && <Bar dataKey="onhandWeightTons" name="Lưu kho" stackId="weight" fill="#2563EB" radius={0} />}
+                            {chartStatus !== "onhand" && <Bar dataKey="draftWeightTons" name="Dự kiến về kho" stackId="weight" fill="#93C5FD" radius={0} />}
+                            {chartStatus === "total" && <Legend wrapperStyle={{ fontSize: 10 }} />}
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
                   }
@@ -533,64 +509,24 @@ export function SuperAdminRegionalDispatchTable() {
                           Tổng: {formatNumber(chartTotals.totalVolumeCbm)} m³
                         </span>
                       </div>
-
-                      {/* Horizontal Bars */}
-                      <div className="space-y-2 pt-1">
-                        {REGION_CONFIGS.map((cfg, index) => {
-                          const metric = chartRegions[index];
-                          const volumePct =
-                            chartTotals.totalVolumeCbm > 0 &&
-                            metric?.totalVolumeCbm
-                              ? Math.round(
-                                  (metric.totalVolumeCbm /
-                                    chartTotals.totalVolumeCbm) *
-                                    1000,
-                                ) / 10
-                              : 0;
-                          return (
-                            <div
-                              key={cfg.key}
-                              className="flex items-center gap-2.5 py-1"
-                            >
-                              {/* Label on left (right-aligned, clean font like reference image) */}
-                              <div className="w-28 sm:w-36 text-right shrink-0 pr-1">
-                                <span className="font-bold text-xs text-slate-700 dark:text-slate-300 block truncate">
-                                  {cfg.name}
-                                </span>
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="h-6 sm:h-7 w-full rounded-r-md bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                  <div
-                                    className={`h-full ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs`}
-                                    style={{ width: `${volumePct}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <span
-                                className={`w-36 sm:w-44 text-right font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                              >
-                                  {formatNumber(metric?.totalVolumeCbm ?? 0)} m³
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1">
-                                    ({volumePct}%)
-                                  </span>
-                              </span>
-                            </div>
-                          );
-                        })}
-
-                        {/* Bottom axis line with ticks & scale (0 ... 100) */}
-                        <div className="flex items-center gap-2.5 pt-1.5">
-                          <div className="w-28 sm:w-36 shrink-0" />
-                          <div className="flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                            <span>0%</span>
-                            <span>25%</span>
-                            <span>50%</span>
-                            <span>75%</span>
-                            <span>100%</span>
-                          </div>
-                          <div className="w-36 sm:w-44 shrink-0" />
-                        </div>
+                      <div className="h-56 pt-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartRegions} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} axisLine={{ stroke: "#CBD5E1" }} tickLine={false} />
+                            <YAxis type="category" dataKey="region" width={112} tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} />
+                            <Tooltip
+                              formatter={(value, name) => [
+                                `${formatNumber(Number(value))} m³`,
+                                String(name),
+                              ]}
+                              contentStyle={{ fontSize: 10, borderRadius: 6 }}
+                            />
+                            {chartStatus !== "draft" && <Bar dataKey="onhandVolumeCbm" name="Lưu kho" stackId="volume" fill="#7C3AED" radius={0} />}
+                            {chartStatus !== "onhand" && <Bar dataKey="draftVolumeCbm" name="Dự kiến về kho" stackId="volume" fill="#C4B5FD" radius={0} />}
+                            {chartStatus === "total" && <Legend wrapperStyle={{ fontSize: 10 }} />}
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
                   }

@@ -77,8 +77,14 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await expect(page.getByTestId('warehouse-hub-filter-select')).toBeVisible();
 
     await expect(page.getByTestId('kpi-total-trips')).toContainText('chuyến');
-    await expect(page.getByText(/Xe nhập:/).first()).toBeVisible();
-    await expect(page.getByText(/Xe xuất:/).first()).toBeVisible();
+    await expect(page.getByText(/Xe nhập kho/i).first()).toBeVisible();
+    await expect(page.getByText(/Xe xuất kho/i).first()).toBeVisible();
+    const tripBox = await page.getByTestId('trip-overview-card').boundingBox();
+    const productionKpiBox = await page.getByTestId('kpi-card-cbm').boundingBox();
+    const tripBeforeProductionKpis = Boolean(
+      tripBox && productionKpiBox && tripBox.y < productionKpiBox.y,
+    );
+    expect(tripBeforeProductionKpis).toBe(true);
 
     // 4. Kiểm tra dòng TỔNG SẢN LƯỢNG / TRUNG BÌNH trùng lặp bên dưới biểu đồ cột đã được gỡ bỏ
     await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);
@@ -165,7 +171,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     });
   });
 
-  test('4. RBAC Safety: Regular user (Dispatcher / Warehouse Manager) does NOT see admin quick boxes or header hub select', async ({
+  test('4. RBAC Safety: Warehouse Manager sees scoped totals but not the admin Hub selector', async ({
     page
   }) => {
     const managerUser = TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER')!;
@@ -174,8 +180,8 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await page.goto('/dashboard/warehouse/orders');
     await page.waitForLoadState('domcontentloaded');
 
-    // Đảm bảo user thường không có 3 ô tính tổng riêng của Super Admin
-    await expect(page.getByTestId('admin-orders-metrics-boxes')).toHaveCount(0);
+    // Tổng snapshot là quyền đọc được cấp cho thủ kho; bộ chọn Hub vẫn chỉ dành cho Super Admin.
+    await expect(page.getByTestId('admin-orders-metrics-boxes')).toHaveCount(1);
     await expect(page.getByTestId('admin-header-hub-filter')).toHaveCount(0);
   });
 });
