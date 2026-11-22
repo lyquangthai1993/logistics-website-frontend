@@ -12,6 +12,7 @@ export interface Hub {
   orderCodePrefix?: string | null;
   name: string;
   city: string;
+  region?: 'MIỀN BẮC' | 'MIỀN TRUNG' | 'MIỀN NAM' | null;
   address?: string | null;
   contactPhone?: string | null;
   managerName?: string | null;
@@ -53,6 +54,7 @@ export interface CreateHubPayload {
   orderCodePrefix?: string;
   name: string;
   city: string;
+  region?: 'MIỀN BẮC' | 'MIỀN TRUNG' | 'MIỀN NAM';
   address?: string;
   contactPhone?: string;
   managerName?: string;

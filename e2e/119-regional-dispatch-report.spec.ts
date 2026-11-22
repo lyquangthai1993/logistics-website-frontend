@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Response as PlaywrightResponse } from '@playwright/test';
 import { loginAs, USER_ADMIN } from './helpers/auth';
-import { formatNumber } from '../src/lib/utils';
 import type { RegionalReportApiResponse } from '../src/features/admin-reports/components/super-admin-regional-dispatch-table';
 
 test.use({ viewport: { width: 1920, height: 1080 } });
@@ -50,9 +49,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(report.dailySeries.length).toBeGreaterThan(0);
   expect(report.onhandOrdersList.length).toBeGreaterThan(0);
   expect(report.regions.na.onhandOrderCodes.length).toBeGreaterThan(0);
-  expect(report.regions.na.onhandOrderCodes).not.toEqual(
-    expect.arrayContaining(report.regions.storage.onhandOrderCodes)
-  );
+  expect(report.regions.na.onhandOrderCodes).toBeDefined();
   expect(
     report.provinceAudit?.orders.some(
       (order) => order.province?.trim().toLocaleLowerCase() === 'ký gửi kho'
@@ -75,7 +72,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     timeout: 15_000
   });
   await ordersPage.close();
-  const regions = ['north', 'central', 'south', 'storage', 'na'] as const;
+  const regions = ['north', 'central', 'south', 'na'] as const;
   for (const key of regions) {
     expect(Array.isArray(report.regions[key].onhandOrderCodes)).toBe(true);
     expect(Array.isArray(report.regions[key].draftOrderCodes)).toBe(true);
@@ -148,7 +145,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(updatedUrl.searchParams.get('toDate')).not.toBe(expectedToDate);
 });
 
-test('Ký Gửi Kho tab matches the storage bucket returned by the regional report', async ({
+test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', async ({
   page
 }) => {
   test.setTimeout(120_000);
@@ -169,31 +166,28 @@ test('Ký Gửi Kho tab matches the storage bucket returned by the regional repo
   const response = await reportResponse;
   const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
-  const storage = report.regions.storage;
-  const storageOrderCount = storage.onhandOrderCount;
-
-  // The report payload is DB-backed; its storage bucket is the source of
-  // truth for the special province sentinel and the chart counter.
-  expect(storageOrderCount).toBeGreaterThan(0);
-  expect(storage.onhandOrderCodes.length).toBeGreaterThan(0);
+  const storageOrders = report.onhandOrdersList.filter((order) =>
+    /^(gửi kho|lưu kho)$/i.test(order.province.trim()),
+  );
+  expect(storageOrders.length).toBeGreaterThan(0);
+  expect(storageOrders.every((order) =>
+    ['MIỀN BẮC', 'MIỀN TRUNG', 'MIỀN NAM'].includes(order.region),
+  )).toBe(true);
 
   const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
   const weight = page.getByTestId('regional-weight-chart');
   const volume = page.getByTestId('regional-volume-chart');
   const orderCount = page.getByTestId('regional-order-count-chart');
   await expect(weight).toBeVisible({ timeout: 45_000 });
-  await controls.getByRole('button', { name: 'Ký Gửi Kho', exact: true }).click();
-  await expect(controls.getByRole('button', { name: 'Ký Gửi Kho', exact: true })).toHaveAttribute(
+  await controls.getByRole('button', { name: 'Lưu kho', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Lưu kho', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'true'
+    'true',
   );
-
-  await expect(weight).toContainText(`Tổng: ${formatNumber(storage.onhandWeightKg)} kg`);
-  await expect(volume).toContainText(`Tổng: ${formatNumber(storage.onhandVolumeCbm)} m³`);
-  await expect(orderCount).toContainText(`Tổng: ${formatNumber(storageOrderCount)} mã`);
-  await expect(weight.getByText('KÝ GỬI KHO', { exact: true })).toBeVisible();
-  await expect(weight.getByText('MIỀN BẮC', { exact: true })).toHaveCount(0);
-  await expect(weight.getByText('MIỀN TRUNG', { exact: true })).toHaveCount(0);
-  await expect(weight.getByText('MIỀN NAM', { exact: true })).toHaveCount(0);
-  expect(await weight.locator('.rounded-r-md').count()).toBe(1);
+  await expect(weight.getByText('GỬI KHO', { exact: true })).toHaveCount(0);
+  await expect(weight.getByText('LƯU KHO', { exact: true })).toHaveCount(0);
+  await expect(weight.getByText('MIỀN BẮC', { exact: true })).toBeVisible();
+  await expect(weight.getByText('MIỀN TRUNG', { exact: true })).toBeVisible();
+  await expect(weight.getByText('MIỀN NAM', { exact: true })).toBeVisible();
+  expect(await weight.locator('.rounded-r-md').count()).toBe(4);
 });
