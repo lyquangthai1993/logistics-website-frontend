@@ -898,7 +898,9 @@ export default function WarehouseOrdersPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         if (isCancelled) return;
-        const summary = resData?.data ?? {};
+        // The local Next proxy may wrap the Nest response one extra time:
+        // { data: { data: { quantity, weightKg, volumeCbm } } }.
+        const summary = resData?.data?.data ?? resData?.data ?? {};
         setAdminTotals({
           quantity: Number(summary.quantity ?? 0),
           weightKg: Number(summary.weightKg ?? 0),
