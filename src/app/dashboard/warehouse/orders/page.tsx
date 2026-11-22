@@ -167,7 +167,7 @@ export default function WarehouseOrdersPage() {
     return 'ALL';
   });
 
-  // State lưu trữ tổng số lượng, số kg, số khối cho Super Admin
+  // State lưu trữ tổng số lượng, số kg, số khối theo Hub hiện tại.
   const [adminTotals, setAdminTotals] = useState<{
     quantity: number;
     weightKg: number;
@@ -880,7 +880,6 @@ export default function WarehouseOrdersPage() {
 
   // Đọc 3 ô tổng (Số lượng, Số kg, CBM) từ snapshot cron theo từng Hub.
   useEffect(() => {
-    if (!isAdmin) return;
     let isCancelled = false;
     setIsLoadingAdminTotals(true);
     setAdminTotalsUpdatedAt(null);
@@ -899,7 +898,9 @@ export default function WarehouseOrdersPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         if (isCancelled) return;
-        const summary = resData?.data ?? {};
+        // The local Next proxy may wrap the Nest response one extra time:
+        // { data: { data: { quantity, weightKg, volumeCbm } } }.
+        const summary = resData?.data?.data ?? resData?.data ?? {};
         setAdminTotals({
           quantity: Number(summary.quantity ?? 0),
           weightKg: Number(summary.weightKg ?? 0),
@@ -1343,7 +1344,7 @@ export default function WarehouseOrdersPage() {
                       SỐ KG
                     </th>
                     <th className='py-1 px-1.5 w-20 text-right border-b border-slate-200 dark:border-slate-700'>
-                      CBM
+                      CBM (m³)
                     </th>
                     <th className='py-1 px-1.5 min-w-35 border-b border-slate-200 dark:border-slate-700'>
                       ĐÍCH ĐẾN
@@ -1360,15 +1361,13 @@ export default function WarehouseOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
-                  {isAdmin && (
-                    <AdminOrdersMetricsSummaryRow
-                      quantity={adminTotals.quantity}
-                      weightKg={adminTotals.weightKg}
-                      volumeCbm={adminTotals.volumeCbm}
-                      isLoading={isLoadingAdminTotals}
-                      updatedAt={adminTotalsUpdatedAt}
-                    />
-                  )}
+                  <AdminOrdersMetricsSummaryRow
+                    quantity={adminTotals.quantity}
+                    weightKg={adminTotals.weightKg}
+                    volumeCbm={adminTotals.volumeCbm}
+                    isLoading={isLoadingAdminTotals}
+                    updatedAt={adminTotalsUpdatedAt}
+                  />
                   {isLoading ? (
                     <tr>
                       <td colSpan={COLUMN_COUNT} className='p-2 text-center text-gray-500'>

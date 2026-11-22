@@ -19,6 +19,16 @@ type WarehouseResponse = {
   meta?: { total?: number; totalQuantity?: number; totalWeight?: number; totalVolume?: number };
 };
 
+type WarehouseSummaryResponse = {
+  data?: {
+    hubId?: number | null;
+    quantity?: number;
+    weightKg?: number;
+    volumeCbm?: number;
+    orderCount?: number;
+  };
+};
+
 type Hub = { id: number; name: string };
 
 const API_BASE = (process.env.API_URL ?? 'http://localhost:4001/api/v1').replace(/\/$/, '');
@@ -41,6 +51,13 @@ function round(value: number, decimals: number): number {
 function displayNumber(value: unknown, decimals: number): string {
   const rounded = round(numberOf(value), decimals);
   return String(rounded);
+}
+
+function displayMetric(value: unknown, decimals: number): string {
+  return round(numberOf(value), decimals).toLocaleString('vi-VN', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
 }
 
 async function loginToken(request: APIRequestContext, identifier: string, password: string) {
@@ -79,6 +96,14 @@ async function queryAllOrders(
   });
   expect(response.ok(), `Query Đơn hàng kho thất bại: ${response.status()}`).toBeTruthy();
   return (await response.json()) as WarehouseResponse;
+}
+
+async function querySummary(request: APIRequestContext, token: string): Promise<WarehouseSummaryResponse> {
+  const response = await request.get(`${API_BASE}/warehouse/orders/summary`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  expect(response.ok(), `API tổng hợp Đơn hàng kho thất bại: ${response.status()}`).toBeTruthy();
+  return (await response.json()) as WarehouseSummaryResponse;
 }
 
 function aggregate(rows: WarehouseOrder[]) {
@@ -124,6 +149,8 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
       await loginAs(page, testCase.user);
       const screenResponse = await reloadAndCaptureOrders(page);
       const screenRows = screenResponse.data ?? [];
+      const summaryRow = page.getByTestId('admin-orders-metrics-boxes');
+      await expect(summaryRow).toBeVisible();
       const screenCodes = new Set(screenRows.map((row) => row.orderCode).filter(Boolean));
       const referenceByCode = new Map(
         (adminReference.data ?? []).map((row) => [row.orderCode, row])
@@ -153,7 +180,9 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
         testCase.user.password
       );
       const warehouseAllOrders = await queryAllOrders(request, warehouseToken);
+      const warehouseSummary = await querySummary(request, warehouseToken);
       const actual = aggregate(warehouseAllOrders.data ?? []);
+      const summary = warehouseSummary.data ?? {};
 
       expect(actual).toEqual(expected);
       expect(screenCodes.size).toBe(screenRows.length);
@@ -161,6 +190,14 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
       expect(warehouseAllOrders.meta?.totalQuantity).toBe(expected.quantity);
       expect(round(numberOf(warehouseAllOrders.meta?.totalWeight), 2)).toBe(expected.weightKg);
       expect(round(numberOf(warehouseAllOrders.meta?.totalVolume), 3)).toBe(expected.volumeCbm);
+      expect(summary.hubId).toBe(hub.id);
+      expect(summary.quantity).toBe(expected.quantity);
+      expect(round(numberOf(summary.weightKg), 2)).toBe(expected.weightKg);
+      expect(round(numberOf(summary.volumeCbm), 3)).toBe(expected.volumeCbm);
+      expect(summary.orderCount).toBe(expected.orderCount);
+      await expect(page.getByTestId('admin-metric-quantity')).toHaveText(displayMetric(expected.quantity, 0));
+      await expect(page.getByTestId('admin-metric-weight')).toHaveText(displayMetric(expected.weightKg, 2));
+      await expect(page.getByTestId('admin-metric-volume')).toHaveText(displayMetric(expected.volumeCbm, 2));
     });
   }
 });
