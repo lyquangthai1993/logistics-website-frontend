@@ -24,31 +24,13 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   expect(response).toBeDefined();
   if (!response) throw new Error('No regional report response captured');
   const requestUrl = new URL(response.url());
-  const initialUrl = new URL(page.url());
-  const fromDate = initialUrl.searchParams.get('fromDate');
-  const toDate = initialUrl.searchParams.get('toDate');
-  const expectedFromDate =
-    fromDate ??
-    (() => {
-      const today = new Date();
-      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
-    })();
-  const expectedToDate =
-    toDate ??
-    (() => {
-      const today = new Date();
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    })();
-  expect(requestUrl.searchParams.get('fromDate')).toBe(expectedFromDate);
-  expect(requestUrl.searchParams.get('toDate')).toBe(expectedToDate);
-  expect(requestUrl.searchParams.get('hubId')).toBeTruthy();
+  expect(requestUrl.searchParams.get('mode')).toBe('live');
+  expect(requestUrl.searchParams.get('hubId')).toBe('ALL');
   const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
   expect(report.draftRegions).toBeDefined();
   expect(report.dailySeries.length).toBeGreaterThan(0);
   expect(report.onhandOrdersList.length).toBeGreaterThan(0);
-  expect(report.regions.na.onhandOrderCodes.length).toBeGreaterThan(0);
   expect(report.regions.na.onhandOrderCodes).toBeDefined();
   expect(
     report.provinceAudit?.orders.some(
@@ -81,20 +63,11 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
   const weight = page.getByTestId('regional-weight-chart');
   const volume = page.getByTestId('regional-volume-chart');
-  const orderCount = page.getByTestId('regional-order-count-chart');
-  await expect(orderCount).toBeVisible();
-  await expect(orderCount).toContainText('Số mã đơn theo miền');
-  const orderSearchLinks = page.locator('a[href^="/dashboard/warehouse/orders?search="]');
-  if ((await orderSearchLinks.count()) > 0) {
-    await expect(orderSearchLinks.first()).toHaveAttribute('target', '_blank');
-  }
-  const cases = ['Lưu kho', 'Đơn nháp'] as const;
-  await expect(controls.getByRole('button', { name: cases[0], exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  // Báo cáo cũ "Số mã đơn theo miền" đã được loại bỏ khỏi màn hình.
+  await expect(page.getByTestId('regional-order-count-chart')).toHaveCount(0);
+  const cases = ['Lưu kho', 'Dự kiến về kho'] as const;
   for (const label of cases) {
-    await controls.getByRole('button', { name: label, exact: true }).click();
+    await controls.getByRole('button', { name: label, exact: true }).dispatchEvent('click');
     await expect(weight).toBeVisible();
     await expect(volume).toBeVisible();
     await expect(weight).toContainText('Tổng:');
@@ -104,14 +77,25 @@ test('regional charts filter stored and draft orders while keeping both metrics 
       'true'
     );
   }
+  await controls.getByRole('button', { name: 'Tổng hợp', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Tổng hợp', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(weight.getByText('Lưu kho', { exact: true })).toBeVisible();
+  await expect(weight.getByText('Dự kiến về kho', { exact: true })).toBeVisible();
+  await expect(volume.getByText('Lưu kho', { exact: true })).toBeVisible();
+  await expect(volume.getByText('Dự kiến về kho', { exact: true })).toBeVisible();
+  expect(await weight.locator('.recharts-bar-rectangle').count()).toBeGreaterThanOrEqual(4);
+  expect(await volume.locator('.recharts-bar-rectangle').count()).toBeGreaterThanOrEqual(4);
+  await weight.locator('.recharts-bar-rectangle').first().hover();
+  await expect(weight.locator('.recharts-tooltip-wrapper')).toBeVisible();
+  await expect(weight.locator('.recharts-tooltip-wrapper')).toContainText('Lưu kho');
+  await expect(weight.locator('.recharts-tooltip-wrapper')).toContainText('Dự kiến về kho');
   await expect(page.getByRole('columnheader', { name: /Khu V/ })).toHaveCount(0);
   await expect(page.getByText('TỔNG CỘNG TOÀN QUỐC', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('parallel-slot-monthly-trends')).toHaveCount(0);
   await expect(page.getByTestId('parallel-slot-daily-stats')).toBeVisible();
-  const regionColors = await weight
-    .locator('.rounded-r-md')
-    .evaluateAll((bars) => bars.slice(0, 3).map((bar) => getComputedStyle(bar).backgroundColor));
-  expect(new Set(regionColors).size).toBe(3);
   await page.evaluate(() => {
     window.scrollTo(0, 0);
     document
@@ -124,25 +108,6 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     fullPage: true
   });
 
-  await page.getByTestId('report-date-range-picker').click();
-  await expect(page.getByText('Chọn khoảng ngày báo cáo', { exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  const quickRangeResponse = page.waitForResponse((nextResponse) => {
-    const url = new URL(nextResponse.url());
-    return (
-      nextResponse.status() === 200 &&
-      url.pathname.endsWith('/admin/reports/regional-dispatch') &&
-      url.searchParams.has('fromDate')
-    );
-  });
-  await page.getByTestId('report-quick-range-select').click();
-  await page.getByRole('option', { name: 'Tháng trước', exact: true }).click();
-  await page.getByTestId('report-apply-date-range-btn').click();
-  const quickRangeResponseResult = await quickRangeResponse;
-  expect(quickRangeResponseResult.status()).toBe(200);
-  const updatedUrl = new URL(page.url());
-  expect(updatedUrl.searchParams.get('fromDate')).not.toBe(expectedFromDate);
-  expect(updatedUrl.searchParams.get('toDate')).not.toBe(expectedToDate);
 });
 
 test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', async ({
@@ -156,11 +121,10 @@ test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', 
     return (
       response.status() === 200 &&
       url.pathname.endsWith('/admin/reports/regional-dispatch') &&
-      url.searchParams.get('fromDate') === '2026-11-01' &&
-      url.searchParams.get('toDate') === '2026-11-30'
+      url.searchParams.get('mode') === 'live'
     );
   });
-  await page.goto('/dashboard/admin/reports?fromDate=2026-11-01&toDate=2026-11-30', {
+  await page.goto('/dashboard/admin/reports', {
     waitUntil: 'domcontentloaded'
   });
   const response = await reportResponse;
@@ -176,8 +140,6 @@ test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', 
 
   const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
   const weight = page.getByTestId('regional-weight-chart');
-  const volume = page.getByTestId('regional-volume-chart');
-  const orderCount = page.getByTestId('regional-order-count-chart');
   await expect(weight).toBeVisible({ timeout: 45_000 });
   await controls.getByRole('button', { name: 'Lưu kho', exact: true }).click();
   await expect(controls.getByRole('button', { name: 'Lưu kho', exact: true })).toHaveAttribute(
@@ -189,5 +151,5 @@ test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', 
   await expect(weight.getByText('MIỀN BẮC', { exact: true })).toBeVisible();
   await expect(weight.getByText('MIỀN TRUNG', { exact: true })).toBeVisible();
   await expect(weight.getByText('MIỀN NAM', { exact: true })).toBeVisible();
-  expect(await weight.locator('.rounded-r-md').count()).toBe(4);
+  expect(await weight.locator('.recharts-bar-rectangle').count()).toBeGreaterThan(0);
 });

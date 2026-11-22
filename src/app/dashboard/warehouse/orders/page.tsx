@@ -38,6 +38,7 @@ import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
 import { formatNumber } from '@/lib/utils';
+import { extractVietnamProvince } from '@/features/warehouse/lib/vietnam-provinces';
 
 function getInitialOrderSearch(): string {
   if (typeof window === 'undefined') return '';
@@ -59,6 +60,61 @@ function getCurrentMonthRange(): { fromDate: string; toDate: string } {
     fromDate: `${year}-${month}-01`,
     toDate: `${year}-${month}-${String(lastDay).padStart(2, '0')}`
   };
+}
+
+const REGION_PROVINCES = {
+  north: [
+    'ha noi', 'hai phong', 'bac ninh', 'hung yen', 'hai duong', 'ha nam', 'nam dinh',
+    'ninh binh', 'thai binh', 'vinh phuc', 'quang ninh', 'bac giang', 'phu tho',
+    'thai nguyen', 'lang son', 'tuyen quang', 'yen bai', 'lao cai', 'cao bang',
+    'bac kan', 'ha giang', 'hoa binh', 'son la', 'dien bien', 'lai chau'
+  ],
+  central: [
+    'thanh hoa', 'nghe an', 'ha tinh', 'quang binh', 'quang tri', 'thua thien hue',
+    'hue', 'da nang', 'quang nam', 'quang ngai', 'binh dinh', 'phu yen', 'khanh hoa',
+    'ninh thuan', 'binh thuan', 'kon tum', 'gia lai', 'dak lak', 'dak nong', 'lam dong'
+  ],
+  south: [
+    'ho chi minh', 'hcm', 'sai gon', 'can tho', 'binh duong', 'dong nai', 'ba ria',
+    'vung tau', 'tay ninh', 'binh phuoc', 'long an', 'tien giang', 'ben tre',
+    'tra vinh', 'vinh long', 'dong thap', 'an giang', 'kien giang', 'hau giang',
+    'soc trang', 'bac lieu', 'ca mau'
+  ]
+} as const;
+
+function normalizeRegionText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function inferRegionFromProvince(province: string): string {
+  const normalized = normalizeRegionText(province);
+  if (!normalized) return 'CHƯA PHÂN MIỀN (N/A)';
+  if (REGION_PROVINCES.north.some((item) => normalized.includes(item))) return 'MIỀN BẮC';
+  if (REGION_PROVINCES.central.some((item) => normalized.includes(item))) return 'MIỀN TRUNG';
+  if (REGION_PROVINCES.south.some((item) => normalized.includes(item))) return 'MIỀN NAM';
+  return 'CHƯA PHÂN MIỀN (N/A)';
+}
+
+function resolveOrderProvince(order: any): string {
+  const directProvince =
+    order.province || order.destinationHubEntity?.city || order.destinationProvince;
+  if (directProvince) return String(directProvince).trim();
+
+  return (
+    extractVietnamProvince(
+      order.originalDestination ||
+        order.destinationHub ||
+        order.route ||
+        order.deliveryAddress ||
+        ''
+    ) || ''
+  );
 }
 
 export default function WarehouseOrdersPage() {
@@ -379,12 +435,8 @@ export default function WarehouseOrdersPage() {
             item.deliveryAddress ||
             order.deliveryAddress ||
             '—';
-          const provinceStr =
-            item.destinationHubEntity?.city ||
-            order.destinationHubEntity?.city ||
-            item.province ||
-            order.province ||
-            '—';
+          const provinceStr = resolveOrderProvince(item) || resolveOrderProvince(order) || '—';
+          const regionStr = inferRegionFromProvince(provinceStr);
 
           const resolvedStatus = (
             resolveDisplayStatus(item) ||
@@ -505,10 +557,11 @@ export default function WarehouseOrdersPage() {
             itemVolume, // Cột I: THỂ TÍCH (M³)
             destHubStr, // Cột J: ĐÍCH ĐẾN / ĐỊA CHỈ GIAO
             provinceStr, // Cột K: TỈNH / THÀNH PHỐ
-            statusText, // Cột L: TRẠNG THÁI
-            outboundDateVal, // Cột M: NGÀY XUẤT KHO
-            outboundTripVal, // Cột N: CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG
-            storageDaysVal // Cột O: SỐ NGÀY LƯU KHO
+            regionStr, // Cột L: KHU VỰC
+            statusText, // Cột M: TRẠNG THÁI
+            outboundDateVal, // Cột N: NGÀY XUẤT KHO
+            outboundTripVal, // Cột O: CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG
+            storageDaysVal // Cột P: SỐ NGÀY LƯU KHO
           ]);
         }
       }
@@ -528,10 +581,11 @@ export default function WarehouseOrdersPage() {
           'THỂ TÍCH (M³)', // Cột I
           'ĐÍCH ĐẾN / ĐỊA CHỈ GIAO', // Cột J
           'TỈNH / THÀNH PHỐ', // Cột K
-          'TRẠNG THÁI', // Cột L
-          'NGÀY XUẤT KHO', // Cột M
-          'BIỂN SỐ XE XUẤT HÀNG', // Cột N
-          'SỐ NGÀY LƯU KHO' // Cột O
+          'KHU VỰC', // Cột L
+          'TRẠNG THÁI', // Cột M
+          'NGÀY XUẤT KHO', // Cột N
+          'BIỂN SỐ XE XUẤT HÀNG', // Cột O
+          'SỐ NGÀY LƯU KHO' // Cột P
         ],
         ...rows
       ];
@@ -549,10 +603,11 @@ export default function WarehouseOrdersPage() {
         { wch: 15 }, // I: THỂ TÍCH (M³)
         { wch: 32 }, // J: ĐÍCH ĐẾN / ĐỊA CHỈ GIAO
         { wch: 18 }, // K: TỈNH / THÀNH PHỐ
-        { wch: 16 }, // L: TRẠNG THÁI
-        { wch: 18 }, // M: NGÀY XUẤT KHO
-        { wch: 20 }, // N: BIỂN SỐ XE XUẤT HÀNG
-        { wch: 16 } // O: SỐ NGÀY LƯU KHO
+        { wch: 22 }, // L: KHU VỰC
+        { wch: 16 }, // M: TRẠNG THÁI
+        { wch: 18 }, // N: NGÀY XUẤT KHO
+        { wch: 20 }, // O: BIỂN SỐ XE XUẤT HÀNG
+        { wch: 16 } // P: SỐ NGÀY LƯU KHO
       ];
 
       const wb = XLSX.utils.book_new();
@@ -596,7 +651,7 @@ export default function WarehouseOrdersPage() {
       for (const r of rows) {
         const orderCodeCell = String(r[1] || '');
         const inboundDateCell = String(r[2] || '');
-        const outboundDateCell = String(r[12] || '');
+        const outboundDateCell = String(r[13] || '');
         const effectiveDateCell =
           statusFilter === 'COMPLETED_INBOUND' && outboundDateCell
             ? outboundDateCell
@@ -885,9 +940,8 @@ export default function WarehouseOrdersPage() {
     setAdminTotalsUpdatedAt(null);
     const token = tokenManager.getAccessToken();
 
-    const query = new URLSearchParams({
-      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
-    });
+    const query = new URLSearchParams();
+    if (hubId && hubId !== 'ALL') query.set('hubId', hubId);
 
     fetch(`/api/v1/warehouse/orders/summary?${query.toString()}`, {
       headers: {
@@ -927,7 +981,7 @@ export default function WarehouseOrdersPage() {
     };
   }, [isAdmin, hubId]);
 
-  const COLUMN_COUNT = 11;
+  const COLUMN_COUNT = 12;
 
   /** Date formatting helper: chỉ hiển thị ngày (dd/MM/yyyy), bỏ giờ */
   const formatDate = (dateStr?: string | null) => {
@@ -1284,9 +1338,6 @@ export default function WarehouseOrdersPage() {
                 </div>
               )}
 
-              {/* Nếu không phải Super Admin thì vẫn giữ WarehouseHubFilterSelect ở toolbar (hoặc ẩn nếu role không có quyền) */}
-              {!isAdmin && <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />}
-
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
                   <button
@@ -1348,6 +1399,9 @@ export default function WarehouseOrdersPage() {
                     </th>
                     <th className='py-1 px-1.5 min-w-35 border-b border-slate-200 dark:border-slate-700'>
                       ĐÍCH ĐẾN
+                    </th>
+                    <th className='py-1 px-1.5 w-28 min-w-28 border-b border-slate-200 dark:border-slate-700'>
+                      TỈNH / TP
                     </th>
                     <th className='py-1 px-1.5 w-25 text-center border-b border-slate-200 dark:border-slate-700'>
                       TRẠNG THÁI
@@ -1442,6 +1496,12 @@ export default function WarehouseOrdersPage() {
                                   </span>
                                 )}
                             </div>
+                          </td>
+                          <td
+                            className='py-1 px-1.5 w-28 min-w-28 max-w-32 truncate text-[10px] text-slate-700 dark:text-slate-300'
+                            title={resolveOrderProvince(row) || 'Chưa xác định'}
+                          >
+                            {resolveOrderProvince(row) || 'Chưa xác định'}
                           </td>
                           <td className='py-1 px-1.5 text-center'>
                             {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}

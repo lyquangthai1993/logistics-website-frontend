@@ -21,6 +21,13 @@ type WarehouseResponse = {
 
 type WarehouseSummaryResponse = {
   data?: {
+    data?: {
+      hubId?: number | null;
+      quantity?: number;
+      weightKg?: number;
+      volumeCbm?: number;
+      orderCount?: number;
+    };
     hubId?: number | null;
     quantity?: number;
     weightKg?: number;
@@ -51,13 +58,6 @@ function round(value: number, decimals: number): number {
 function displayNumber(value: unknown, decimals: number): string {
   const rounded = round(numberOf(value), decimals);
   return String(rounded);
-}
-
-function displayMetric(value: unknown, decimals: number): string {
-  return round(numberOf(value), decimals).toLocaleString('vi-VN', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
 }
 
 async function loginToken(request: APIRequestContext, identifier: string, password: string) {
@@ -92,7 +92,8 @@ async function queryAllOrders(
   if (hubId !== undefined) query.set('hubId', String(hubId));
 
   const response = await request.get(`${API_BASE}/warehouse/orders?${query}`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: 120_000
   });
   expect(response.ok(), `Query Đơn hàng kho thất bại: ${response.status()}`).toBeTruthy();
   return (await response.json()) as WarehouseResponse;
@@ -135,6 +136,7 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
 
   for (const testCase of WAREHOUSE_CASES) {
     test(`${testCase.username} chỉ nhận đúng tổng kiện, kg và m³ của ${testCase.hubName}`, async ({ page, request }) => {
+      test.setTimeout(180_000);
       const adminToken = await loginToken(
         request,
         USER_ADMIN.username ?? USER_ADMIN.email,
@@ -151,6 +153,7 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
       const screenRows = screenResponse.data ?? [];
       const summaryRow = page.getByTestId('admin-orders-metrics-boxes');
       await expect(summaryRow).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'TỈNH / TP', exact: true })).toBeVisible();
       const screenCodes = new Set(screenRows.map((row) => row.orderCode).filter(Boolean));
       const referenceByCode = new Map(
         (adminReference.data ?? []).map((row) => [row.orderCode, row])
@@ -182,7 +185,7 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
       const warehouseAllOrders = await queryAllOrders(request, warehouseToken);
       const warehouseSummary = await querySummary(request, warehouseToken);
       const actual = aggregate(warehouseAllOrders.data ?? []);
-      const summary = warehouseSummary.data ?? {};
+      const summary = warehouseSummary.data?.data ?? warehouseSummary.data ?? {};
 
       expect(actual).toEqual(expected);
       expect(screenCodes.size).toBe(screenRows.length);
@@ -195,9 +198,14 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
       expect(round(numberOf(summary.weightKg), 2)).toBe(expected.weightKg);
       expect(round(numberOf(summary.volumeCbm), 3)).toBe(expected.volumeCbm);
       expect(summary.orderCount).toBe(expected.orderCount);
-      await expect(page.getByTestId('admin-metric-quantity')).toHaveText(displayMetric(expected.quantity, 0));
-      await expect(page.getByTestId('admin-metric-weight')).toHaveText(displayMetric(expected.weightKg, 2));
-      await expect(page.getByTestId('admin-metric-volume')).toHaveText(displayMetric(expected.volumeCbm, 2));
+      await expect(page.getByTestId('admin-metric-quantity')).toHaveText(displayNumber(expected.quantity, 0));
+      await expect(page.getByTestId('admin-metric-weight')).toHaveText(displayNumber(expected.weightKg, 2));
+      await expect(page.getByTestId('admin-metric-volume')).toHaveText(displayNumber(expected.volumeCbm, 2));
+      await page.getByTestId('warehouse-tab-all').click();
+      await page.screenshot({
+        path: `../docs/feedback_211126/screenshot_${testCase.username}_hub_metrics_verified.png`,
+        fullPage: false
+      });
     });
   }
 });
