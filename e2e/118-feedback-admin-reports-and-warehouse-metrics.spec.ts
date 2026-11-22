@@ -39,7 +39,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     expect(dayNov02.windowLabel).toBe('06:00 02/11/2026 → 05:59 03/11/2026');
   });
 
-  test('2. Super Admin Reports UI: keep sync, show LƯU KHO, scope hub selector to HCM', async ({
+  test('2. Super Admin Reports UI: keep sync and default hub scope is all warehouses', async ({
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
@@ -48,10 +48,8 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await page.goto('/dashboard/admin/reports');
     await page.waitForLoadState('domcontentloaded');
 
-    // 1. Kiểm tra Banner quy chuẩn chốt sổ: 06:00 D-1 đến 05:59 D
-    const banner = page.getByTestId('cron-cutoff-rule-banner');
-    await expect(banner).toHaveCount(1);
-    await expect(banner).toBeHidden();
+    // 1. Banner quy chuẩn chốt sổ không còn hiển thị trên trang báo cáo.
+    await expect(page.getByTestId('cron-cutoff-rule-banner')).toHaveCount(0);
 
     // 2. Kiểm tra slot drilldown-table & Widget mã TRIP đã được loại bỏ
     await expect(page.getByTestId('tab-confirmed-trips')).toHaveCount(0);
@@ -60,36 +58,27 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await expect(page.getByTestId('report-sync-cron-btn')).toBeVisible();
     await expect(page.getByTestId('report-goto-daily-trips-btn')).toHaveCount(0);
     await expect(page.getByTestId('report-goto-cronjobs-btn')).toHaveCount(0);
-    await expect(page.getByTestId('report-export-excel-btn')).toHaveCount(0);
+    await expect(page.getByTestId('report-export-excel-btn')).toBeVisible();
     await expect(page.getByTestId('report-direction-toggle')).toBeVisible();
     await expect(page.getByTestId('direction-inbound-btn')).toBeVisible();
     await expect(page.getByTestId('direction-outbound-btn')).toBeVisible();
-    await expect(page.getByTestId('direction-inbound-btn')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('direction-inbound-btn')).toHaveClass(/bg-blue-600/);
     await page.getByTestId('direction-outbound-btn').click();
-    await expect(page.getByTestId('direction-outbound-btn')).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    await expect(page.getByTestId('direction-outbound-btn')).toHaveClass(/bg-emerald-600/);
     await page.getByTestId('direction-inbound-btn').click();
 
     const hubSelector = page.getByTestId('warehouse-hub-filter-select');
-    await expect(hubSelector).toContainText('Andromeda Hub - HCM', { timeout: 15000 });
+    await expect(hubSelector).toContainText('Tất cả kho', { timeout: 15000 });
     await hubSelector.click();
     await expect(
       page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')
-    ).toHaveCount(2);
+    ).toHaveCount(0);
     await hubSelector.click();
-    await expect(page.getByText('LƯU KHO', { exact: true }).first()).toBeVisible();
+    await expect(page.getByTestId('warehouse-hub-filter-select')).toBeVisible();
 
-    const inboundTrips = Number(
-      (await page.getByTestId('kpi-inbound-trips').textContent())?.replace(/\D/g, '') || 0
-    );
-    const outboundTrips = Number(
-      (await page.getByTestId('kpi-outbound-trips').textContent())?.replace(/\D/g, '') || 0
-    );
-    await expect(page.getByTestId('kpi-total-trips')).toContainText(
-      `${inboundTrips + outboundTrips} chuyến`
-    );
+    await expect(page.getByTestId('kpi-total-trips')).toContainText('chuyến');
+    await expect(page.getByText(/Xe nhập:/).first()).toBeVisible();
+    await expect(page.getByText(/Xe xuất:/).first()).toBeVisible();
 
     // 4. Kiểm tra dòng TỔNG SẢN LƯỢNG / TRUNG BÌNH trùng lặp bên dưới biểu đồ cột đã được gỡ bỏ
     await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);

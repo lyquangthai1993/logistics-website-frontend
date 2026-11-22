@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +16,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   LabelList,
   Line,
   LineChart,
@@ -20,7 +28,6 @@ import {
 import {
   IconBuildingWarehouse,
   IconCalendar,
-  IconClock,
   IconFileTypeXls,
   IconLoader2,
   IconRefresh,
@@ -745,57 +752,10 @@ export function AdminReportHeaderAndKpis() {
                   <IconArrowUpRight className="h-3.5 w-3.5" />
                   <span>Báo cáo Xuất kho</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDirection("STORAGE")}
-                  data-testid="direction-storage-btn"
-                  className={`h-8 px-3 rounded-md text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
-                    direction === "STORAGE"
-                      ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-600 shadow-sm ring-2 ring-purple-400/30"
-                      : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-purple-500 hover:text-purple-600"
-                  }`}
-                >
-                  <IconBuildingWarehouse className="h-3.5 w-3.5" />
-                  <span>Gửi kho</span>
-                </button>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Link
-                href={
-                  selectedHubId && selectedHubId !== "ALL"
-                    ? `/dashboard/admin/reports/trips?hubId=${selectedHubId}`
-                    : "/dashboard/admin/reports/trips"
-                }
-              >
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  data-testid="report-goto-daily-trips-btn"
-                  className="h-8 px-2.5 text-xs font-semibold border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 cursor-pointer"
-                >
-                  <IconRoute className="h-3.5 w-3.5 mr-1" />
-                  Theo dõi TRIP theo ngày
-                </Button>
-              </Link>
-
-              <Link
-                href={`/dashboard/admin/cronjobs/DAILY_HUB_OPERATIONAL_REPORT?fromDate=${fromDate}&toDate=${toDate}`}
-              >
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  data-testid="report-goto-cronjobs-btn"
-                  className="h-8 px-2.5 text-xs font-semibold border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 cursor-pointer"
-                >
-                  <IconClock className="h-3.5 w-3.5 mr-1" />
-                  Quản trị Cronjob
-                </Button>
-              </Link>
-
               <Button
                 type="button"
                 variant="outline"
@@ -828,48 +788,6 @@ export function AdminReportHeaderAndKpis() {
             </div>
           </div>
 
-          <div
-            className="flex flex-wrap items-center justify-between gap-1.5 rounded border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 px-2 py-1 text-[10px]"
-            data-testid="cron-cutoff-rule-banner"
-          >
-            <div className="flex flex-wrap items-center gap-1.5 text-slate-700 dark:text-slate-200">
-              <IconClock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="font-bold text-[#0F3D62] dark:text-blue-300">
-                Quy chuẩn chốt sổ Cronjob hàng ngày:
-              </span>
-              <span>
-                Báo cáo ngày <strong className="font-mono">D</strong> tổng hợp
-                từ{" "}
-                <strong className="font-mono text-blue-700 dark:text-blue-300">
-                  06:00 (6:00 AM) ngày D đến 05:59 (5:59 AM) ngày D+1
-                </strong>{" "}
-                (VD: ngày 09/11/2026 tính từ 06:00 09/11/2026 đến 05:59
-                10/11/2026).
-              </span>
-              <span className="text-muted-foreground">
-                • Thời gian chuyến xe tính theo lúc{" "}
-                <strong>Xác nhận Nhập/Xuất chuyến xe</strong> (loại trừ chuyến
-                nháp).
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Badge
-                variant="outline"
-                className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300 font-mono"
-              >
-                Cron tự động:{" "}
-                {data?.filter.cronSchedule || "06:05 hàng ngày (GMT+7)"}
-              </Badge>
-              {data?.filter.lastClosedReportDate && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/15 text-blue-700 border-blue-500/25 dark:text-blue-300 font-mono"
-                >
-                  Kỳ chốt gần nhất: {data.filter.lastClosedReportDate}
-                </Badge>
-              )}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -1020,6 +938,29 @@ export function DailyOperationalBarSlot() {
   const isTons = chartMetric === "TONS";
   const metricKey = isTons ? "weightTons" : "cbm";
   const barFill = isTons ? "#0284C7" : "#0F5C7E";
+  const chartScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (dailySeries.length === 0 || typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
+    const todayIndex = dailySeries.findIndex(
+      (point) => point.reportDate === today,
+    );
+    if (todayIndex < 0 || !chartScrollRef.current) return;
+
+    const daySlotWidth = 52;
+    chartScrollRef.current.scrollLeft = Math.max(
+      0,
+      todayIndex * daySlotWidth - daySlotWidth * 3,
+    );
+  }, [dailySeries]);
 
   return (
     <Card
@@ -1057,11 +998,12 @@ export function DailyOperationalBarSlot() {
           </div>
         ) : (
           <div
-            className="mobile-chart-no-tooltip w-full overflow-x-auto"
+            ref={chartScrollRef}
+            className="mobile-chart-no-tooltip w-full overflow-x-auto overscroll-x-contain scroll-smooth"
             data-testid="slide-2-bar-chart-container"
           >
             <div
-              className="h-72 w-full md:min-w-0"
+              className="h-72 w-[var(--mobile-chart-width)] md:w-full md:min-w-0"
               style={{
                 ['--mobile-chart-width' as string]: `${Math.max(364, dailySeries.length * 52)}px`,
               }}
@@ -1129,6 +1071,16 @@ export function DailyOperationalBarSlot() {
                   maxBarSize={26}
                   isAnimationActive={false}
                 >
+                  {dailySeries.map((point) => {
+                    const day = new Date(`${point.reportDate}T00:00:00`).getDay();
+                    const fill =
+                      day === 6
+                        ? "#FDE68A"
+                        : day === 0
+                          ? "#CBD5E1"
+                          : barFill;
+                    return <Cell key={point.reportDate} fill={fill} />;
+                  })}
                   <LabelList
                     dataKey={metricKey}
                     position="top"
@@ -1703,7 +1655,6 @@ export function AdminOperationalReportLayoutShell({
   return (
     <PageContainer
       pageTitle="Báo Cáo Kết Quả Hoạt Động Vận Hành"
-      pageDescription="Theo dõi sản lượng hàng hóa theo ngày và xu hướng tháng"
     >
       <AdminOperationalReportProvider>
         <AdminReportHeaderAndKpis />

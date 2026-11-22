@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { formatApiError } from "@/lib/api-error";
 import { formatNumber } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOptionalAdminOperationalReport } from "./super-admin-operational-report";
@@ -26,6 +25,8 @@ export interface RegionalMetricItem {
   onhandVolumeCbm: number;
   onhandPackageCount: number;
   onhandOrderCount: number;
+  onhandOrderCodes: string[];
+  draftOrderCodes: string[];
   incomingWeightKg: number;
   incomingWeightTons: number;
   incomingVolumeCbm: number;
@@ -40,8 +41,13 @@ export interface RegionalMetricItem {
 
 export interface RegionalReportApiResponse {
   draftRegions: Record<
-    "north" | "central" | "south" | "na",
-    { weightKg: number; volumeCbm: number }
+    "north" | "central" | "south" | "storage" | "na",
+    {
+      weightKg: number;
+      volumeCbm: number;
+      orderCount: number;
+      orderCodes: string[];
+    }
   >;
   hub: {
     id: number;
@@ -50,6 +56,8 @@ export interface RegionalReportApiResponse {
     level: number;
   };
   reportDate: string;
+  range: { fromDate: string; toDate: string };
+  dailySeries: Array<Record<string, unknown>>;
   cronInfo: {
     jobKey: string;
     name: string;
@@ -62,6 +70,7 @@ export interface RegionalReportApiResponse {
     north: RegionalMetricItem;
     central: RegionalMetricItem;
     south: RegionalMetricItem;
+    storage: RegionalMetricItem;
     na: RegionalMetricItem;
   };
   totals: {
@@ -106,10 +115,13 @@ export interface RegionalReportApiResponse {
     currentHubId: number;
     currentHubName: string;
   }>;
+  provinceAudit?: {
+    orders: Array<{ province: string | null }>;
+  };
 }
 
 interface RegionRowConfig {
-  key: "north" | "central" | "south" | "na";
+  key: "north" | "central" | "south" | "storage" | "na";
   name: string;
   subtitle: string;
   badgeBg: string;
@@ -153,6 +165,17 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     barColorWeight: "bg-purple-600 dark:bg-purple-500",
     barColorVolume: "bg-purple-500/80 dark:bg-purple-400/80",
     dotColor: "bg-purple-600",
+  },
+  {
+    key: "storage",
+    name: "GỬI KHO",
+    subtitle: "Đơn hàng có địa chỉ giao là Gửi kho",
+    badgeBg: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+    badgeText: "text-fuchsia-700 dark:text-fuchsia-300",
+    badgeBorder: "border-fuchsia-500/30",
+    barColorWeight: "bg-fuchsia-600 dark:bg-fuchsia-500",
+    barColorVolume: "bg-fuchsia-500/80 dark:bg-fuchsia-400/80",
+    dotColor: "bg-fuchsia-600",
   },
   {
     key: "na",
@@ -336,20 +359,6 @@ export function SuperAdminRegionalDispatchTable() {
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               Tình hình hàng hóa
-              <Badge
-                variant="outline"
-                className="text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40"
-              >
-                Thời gian thực (Live)
-              </Badge>
-              {data?.cronInfo?.cronTime && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 px-1.5 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-mono"
-                >
-                  Lịch Cronjob: {data.cronInfo.cronTime}
-                </Badge>
-              )}
             </h3>
           </div>
         </div>
@@ -396,99 +405,11 @@ export function SuperAdminRegionalDispatchTable() {
         </div>
       </div>
       <CardContent className="p-0">
-        {/* Warning Banner if N/A cargo detected */}
-        {data?.regions?.na &&
-          (data.regions.na.totalWeightKg > 0 ||
-            data.regions.na.totalVolumeCbm > 0 ||
-            data.regions.na.onhandOrderCount > 0 ||
-            data.regions.na.incomingTripCount > 0) && (
-            <div className="mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs">
-              <IconAlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-              <div className="text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1">
-                <div>
-                  <span className="font-bold">
-                    CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN:{" "}
-                  </span>
-                  Có{" "}
-                  {data.regions.na.onhandOrderCount > 0
-                    ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
-                    : ""}
-                  {data.regions.na.onhandOrderCount > 0 &&
-                  data.regions.na.incomingTripCount > 0
-                    ? " và "
-                    : ""}
-                  {data.regions.na.incomingTripCount > 0
-                    ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
-                    : ""}{" "}
-                  ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{" "}
-                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác
-                  định được Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng
-                  rà soát lại:
-                </div>
-
-                {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
-                {naOrders.length > 0 && (
-                  <div className="pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1">
-                    <div className="font-bold text-[11px] text-amber-900 dark:text-amber-200">
-                      Danh sách đơn hàng cụ thể cần rà soát:
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {naOrders.map((ord) => (
-                        <span
-                          key={ord.id}
-                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs"
-                        >
-                          <strong className="text-purple-700 dark:text-purple-300">
-                            {ord.orderCode}
-                          </strong>
-                          <span className="text-slate-600 dark:text-slate-300 font-sans">
-                            (Tỉnh nhập:{" "}
-                            <strong className="text-rose-600 dark:text-rose-400">
-                              {ord.province || "Chưa nhập"}
-                            </strong>{" "}
-                            • {formatNumber(ord.remainingQuantity)} kiện •{" "}
-                            {formatNumber(ord.volumeCbm)} m³ •{" "}
-                            {ord.currentHubName})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Danh sách các chuyến xe N/A nếu có */}
-                {naTrips.length > 0 && (
-                  <div className="pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1">
-                    <div className="font-bold text-[11px] text-amber-900 dark:text-amber-200">
-                      Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {naTrips.map((tr) => (
-                        <span
-                          key={tr.id}
-                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs"
-                        >
-                          <strong className="text-blue-700 dark:text-blue-300">
-                            {tr.tripCode}
-                          </strong>
-                          <span className="text-slate-600 dark:text-slate-300 font-sans">
-                            (BS: {tr.licensePlate || "—"} • {tr.originHubName} →{" "}
-                            {tr.destinationHubName})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
         {/* Loading Skeleton */}
         {isLoading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
             <IconLoader2 className="h-7 w-7 animate-spin text-purple-600" />
-            <span className="text-xs">Đang tải dữ liệu cân đối đội xe...</span>
+            <span className="text-xs">Đang tải dữ liệu...</span>
           </div>
         ) : (
           <>
@@ -601,6 +522,7 @@ export function SuperAdminRegionalDispatchTable() {
                             <span>75%</span>
                             <span>100%</span>
                           </div>
+                          <div className="w-36 sm:w-44 shrink-0" />
                         </div>
                       </div>
                     </div>
@@ -660,7 +582,7 @@ export function SuperAdminRegionalDispatchTable() {
                               <span
                                 className={`w-36 sm:w-44 text-right font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
                               >
-                                  {formatNumber(metric?.totalVolumeCbm || 0)} m³
+                                  {formatNumber(metric?.totalVolumeCbm ?? 0)} m³
                                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1">
                                     ({volumePct}%)
                                   </span>
@@ -679,6 +601,7 @@ export function SuperAdminRegionalDispatchTable() {
                             <span>75%</span>
                             <span>100%</span>
                           </div>
+                          <div className="w-36 sm:w-44 shrink-0" />
                         </div>
                       </div>
                     </div>
@@ -688,6 +611,76 @@ export function SuperAdminRegionalDispatchTable() {
             )}
           </>
         )}
+
+        {/* Warning Banner if N/A cargo detected */}
+        {data?.regions?.na &&
+          (data.regions.na.totalWeightKg > 0 ||
+            data.regions.na.totalVolumeCbm > 0 ||
+            data.regions.na.onhandOrderCount > 0 ||
+            data.regions.na.incomingTripCount > 0) && (
+            <div className="mx-3 mt-3 mb-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs">
+              <IconAlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <div className="text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1">
+                <div>
+                  <span className="font-bold">CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN:{" "}</span>
+                  Có{" "}
+                  {data.regions.na.onhandOrderCount > 0
+                    ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
+                    : ""}
+                  {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0
+                    ? " và "
+                    : ""}
+                  {data.regions.na.incomingTripCount > 0
+                    ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
+                    : ""}{" "}
+                  ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{" "}
+                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+                </div>
+
+                {naOrders.length > 0 && (
+                  <div className="pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1">
+                    <div className="font-bold text-[11px] text-amber-900 dark:text-amber-200">
+                      Danh sách đơn hàng cụ thể cần rà soát:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {naOrders.map((ord) => (
+                        <span
+                          key={ord.id}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs"
+                        >
+                          <strong className="text-purple-700 dark:text-purple-300">{ord.orderCode}</strong>
+                          <span className="text-slate-600 dark:text-slate-300 font-sans">
+                            (Tỉnh nhập: <strong className="text-rose-600 dark:text-rose-400">{ord.province || "Chưa nhập"}</strong> • {formatNumber(ord.remainingQuantity)} kiện • {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {naTrips.length > 0 && (
+                  <div className="pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1">
+                    <div className="font-bold text-[11px] text-amber-900 dark:text-amber-200">
+                      Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {naTrips.map((tr) => (
+                        <span
+                          key={tr.id}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs"
+                        >
+                          <strong className="text-blue-700 dark:text-blue-300">{tr.tripCode}</strong>
+                          <span className="text-slate-600 dark:text-slate-300 font-sans">
+                            (BS: {tr.licensePlate || "—"} • {tr.originHubName} → {tr.destinationHubName})
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
       </CardContent>
     </Card>
   );
