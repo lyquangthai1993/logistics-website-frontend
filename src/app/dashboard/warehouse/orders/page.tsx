@@ -174,6 +174,7 @@ export default function WarehouseOrdersPage() {
     volumeCbm: number;
   }>({ quantity: 0, weightKg: 0, volumeCbm: 0 });
   const [isLoadingAdminTotals, setIsLoadingAdminTotals] = useState(false);
+  const [adminTotalsUpdatedAt, setAdminTotalsUpdatedAt] = useState<Date | null>(null);
 
   const handleHubIdChange = useCallback((newHubId: string) => {
     const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
@@ -877,23 +878,19 @@ export default function WarehouseOrdersPage() {
     };
   }, [fetchOrders]);
 
-  // Fetch 3 ô tính tổng (Số lượng, Số kg, CBM) cho Super Admin khi đổi tab hoặc bộ lọc
+  // Đọc 3 ô tổng (Số lượng, Số kg, CBM) từ snapshot cron theo từng Hub.
   useEffect(() => {
     if (!isAdmin) return;
     let isCancelled = false;
     setIsLoadingAdminTotals(true);
+    setAdminTotalsUpdatedAt(null);
     const token = tokenManager.getAccessToken();
 
     const query = new URLSearchParams({
-      isExport: 'true',
-      ...(effectiveSearch ? { search: effectiveSearch } : {}),
-      ...(fromDate ? { fromDate } : {}),
-      ...(toDate ? { toDate } : {}),
-      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
       ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     });
 
-    fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+    fetch(`/api/v1/warehouse/orders/summary?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -902,35 +899,20 @@ export default function WarehouseOrdersPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         if (isCancelled) return;
-        const items: any[] = resData?.data ?? [];
-        let totalQty = 0;
-        let totalWeight = 0;
-        let totalVolume = 0;
-
-        for (const item of items) {
-          const rawStock = Number(item.hubStock ?? item.remainingQuantity ?? 0);
-          const rawTotal = Number(item.totalQuantity ?? 0);
-          const total = Math.max(rawTotal, rawStock, 0);
-          const stock = Math.max(0, Math.min(rawStock, total));
-
-          if (statusFilter === 'INBOUND') {
-            totalQty += stock;
-          } else {
-            totalQty += total;
-          }
-          totalWeight += Number(item.totalWeight ?? 0);
-          totalVolume += Number(item.totalVolume ?? 0);
-        }
-
+        const summary = resData?.data ?? {};
         setAdminTotals({
-          quantity: totalQty,
-          weightKg: Math.round(totalWeight * 100) / 100,
-          volumeCbm: Math.round(totalVolume * 1000) / 1000
+          quantity: Number(summary.quantity ?? 0),
+          weightKg: Number(summary.weightKg ?? 0),
+          volumeCbm: Number(summary.volumeCbm ?? 0)
         });
+        setAdminTotalsUpdatedAt(
+          summary.calculatedAt ? new Date(summary.calculatedAt) : null
+        );
       })
       .catch(() => {
         if (!isCancelled) {
           setAdminTotals({ quantity: 0, weightKg: 0, volumeCbm: 0 });
+          setAdminTotalsUpdatedAt(null);
         }
       })
       .finally(() => {
@@ -942,7 +924,7 @@ export default function WarehouseOrdersPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isAdmin, statusFilter, hubId, effectiveSearch, fromDate, toDate]);
+  }, [isAdmin, hubId]);
 
   const COLUMN_COUNT = 11;
 
@@ -1384,6 +1366,7 @@ export default function WarehouseOrdersPage() {
                       weightKg={adminTotals.weightKg}
                       volumeCbm={adminTotals.volumeCbm}
                       isLoading={isLoadingAdminTotals}
+                      updatedAt={adminTotalsUpdatedAt}
                     />
                   )}
                   {isLoading ? (
