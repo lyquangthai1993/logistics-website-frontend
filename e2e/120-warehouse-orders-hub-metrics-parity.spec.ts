@@ -38,14 +38,19 @@ function round(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
-async function loginToken(request: APIRequestContext, email: string, password: string) {
+function displayNumber(value: unknown, decimals: number): string {
+  const rounded = round(numberOf(value), decimals);
+  return String(rounded);
+}
+
+async function loginToken(request: APIRequestContext, identifier: string, password: string) {
   const response = await request.post(`${API_BASE}/auth/email/login`, {
-    data: { email, password }
+    data: { email: identifier, password }
   });
-  expect(response.ok(), `Đăng nhập API thất bại cho ${email}`).toBeTruthy();
+  expect(response.ok(), `Đăng nhập API thất bại cho ${identifier}`).toBeTruthy();
   const body = await response.json();
   const token = body?.data?.token ?? body?.token;
-  expect(token, `Không nhận được access token cho ${email}`).toBeTruthy();
+  expect(token, `Không nhận được access token cho ${identifier}`).toBeTruthy();
   return token as string;
 }
 
@@ -54,7 +59,8 @@ async function getHub(request: APIRequestContext, adminToken: string, hubName: s
     headers: { Authorization: `Bearer ${adminToken}` }
   });
   expect(response.ok(), 'Không tải được danh sách Hub đang hoạt động').toBeTruthy();
-  const hubs = (await response.json()) as Hub[];
+  const payload = await response.json();
+  const hubs = (Array.isArray(payload) ? payload : payload?.data ?? []) as Hub[];
   const hub = hubs.find((item) => item.name === hubName);
   expect(hub, `Không tìm thấy Hub ${hubName}`).toBeTruthy();
   return hub as Hub;
@@ -104,7 +110,11 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
 
   for (const testCase of WAREHOUSE_CASES) {
     test(`${testCase.username} chỉ nhận đúng tổng kiện, kg và m³ của ${testCase.hubName}`, async ({ page, request }) => {
-      const adminToken = await loginToken(request, USER_ADMIN.email, USER_ADMIN.password);
+      const adminToken = await loginToken(
+        request,
+        USER_ADMIN.username ?? USER_ADMIN.email,
+        USER_ADMIN.password
+      );
       const hub = await getHub(request, adminToken, testCase.hubName);
       const adminReference = await queryAllOrders(request, adminToken, hub.id);
       const expected = aggregate(adminReference.data ?? []);
@@ -119,6 +129,8 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
         (adminReference.data ?? []).map((row) => [row.orderCode, row])
       );
 
+      await expect(page.locator('tbody tr').filter({ hasText: screenRows[0]?.orderCode ?? '' }).first()).toBeVisible();
+
       expect(screenResponse.meta?.total).toBeLessThanOrEqual(expected.orderCount);
       for (const row of screenRows) {
         const reference = referenceByCode.get(row.orderCode);
@@ -126,9 +138,20 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
         expect(numberOf(row.totalQuantity)).toBe(numberOf(reference?.totalQuantity));
         expect(round(numberOf(row.totalWeight), 2)).toBe(round(numberOf(reference?.totalWeight), 2));
         expect(round(numberOf(row.totalVolume), 3)).toBe(round(numberOf(reference?.totalVolume), 3));
+
+        const uiRow = page.locator('tbody tr').filter({ hasText: row.orderCode ?? '' }).first();
+        await expect(uiRow).toBeVisible();
+        const uiCells = uiRow.locator('td');
+        await expect(uiCells.nth(4)).toContainText(`/ ${displayNumber(row.totalQuantity, 0)}`);
+        await expect(uiCells.nth(5)).toHaveText(displayNumber(row.totalWeight, 2));
+        await expect(uiCells.nth(6)).toHaveText(displayNumber(row.totalVolume, 2));
       }
 
-      const warehouseToken = await loginToken(request, testCase.user.email, testCase.user.password);
+      const warehouseToken = await loginToken(
+        request,
+        testCase.user.username ?? testCase.user.email,
+        testCase.user.password
+      );
       const warehouseAllOrders = await queryAllOrders(request, warehouseToken);
       const actual = aggregate(warehouseAllOrders.data ?? []);
 
