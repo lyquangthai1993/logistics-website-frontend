@@ -810,6 +810,20 @@ export function WarehouseWaybillDetailModal({
               </div>
             </div>
             <div className='flex items-center gap-2'>
+              {isSuperAdmin && isStoredOrder && warehouseHubId && adminOverrideOrder && (
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  data-testid='btn-admin-edit-waybill'
+                  className='h-8 px-2 text-[11px] font-bold bg-white text-blue-700 border-blue-200 hover:bg-blue-50'
+                  onClick={() => setIsAdminOverrideOpen(true)}
+                  title='Điều chỉnh thông tin đơn hàng'
+                >
+                  <IconPencil className='h-3.5 w-3.5 mr-1' />
+                  Điều chỉnh
+                </Button>
+              )}
               {getWaybillStatusBadge(effectiveStatus)}
               <Button
                 variant='ghost'
@@ -1720,20 +1734,6 @@ export function WarehouseWaybillDetailModal({
                   <span>Danh mục hàng hóa vận đơn</span>
                 </h4>
                 <div className='flex items-center gap-2'>
-                {isSuperAdmin && isStoredOrder && warehouseHubId && adminOverrideOrder && (
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    data-testid='btn-admin-edit-waybill'
-                    className='h-7 px-2 text-[11px] font-bold text-blue-700 border-blue-200 hover:bg-blue-50'
-                    onClick={() => setIsAdminOverrideOpen(true)}
-                    title='Điều chỉnh thông tin đơn hàng, mã vận đơn không thay đổi'
-                  >
-                    <IconPencil className='h-3.5 w-3.5 mr-1' />
-                    Điều chỉnh
-                  </Button>
-                )}
                 <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
                   Tổng số lượng:{' '}
                   <span className='font-bold text-[#0F3D62] dark:text-blue-400 font-mono'>

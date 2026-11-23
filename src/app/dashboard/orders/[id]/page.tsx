@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ordersApi, Order, OrderStatus, isContractLocked, useOrderLedgerQuery } from '@/features/orders/api';
 import { computeCurrentHubStock } from '@/features/orders/lib/current-hub-stock';
 import { OrderTimelineLedger } from '@/features/orders/components/order-timeline-ledger';
-import { OrderAdminOverrideDialog } from '@/features/orders/components/order-admin-override-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,7 +35,6 @@ import {
   IconTruckOff,
   IconInfoCircle,
   IconLock,
-  IconShieldLock,
   IconBuildingWarehouse
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -130,7 +128,7 @@ const TRIP_STATUS_LABEL: Record<string, string> = {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isDispatcher, isFleetManager, isWarehouseManager, isSuperAdmin } = useRBAC();
+  const { isDispatcher, isFleetManager, isWarehouseManager } = useRBAC();
   const rawId = params?.id ? String(params.id) : '';
   const orderId = !isNaN(Number(rawId)) && Number.isInteger(Number(rawId)) ? Number(rawId) : rawId;
 
@@ -139,14 +137,6 @@ export default function OrderDetailPage() {
 
   // Ledger shares its query cache with <OrderTimelineLedger />; drives the per-hub stock counters.
   const { data: ledger, isLoading: ledgerLoading } = useOrderLedgerQuery(order?.id);
-
-  // Master Contract override (SUPER_ADMIN only)
-  const [isOverrideOpen, setIsOverrideOpen] = useState(false);
-  const canOverrideStoredOrder =
-    Boolean(order?.currentHubId) &&
-    ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(
-      String(order?.status ?? '').toUpperCase(),
-    );
 
   // Modal External Vehicle state
   const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
@@ -367,19 +357,6 @@ export default function OrderDetailPage() {
         </div>
 
         <div className='flex items-center flex-wrap gap-2'>
-          {/* Master Contract override: SUPER_ADMIN only, once the contract is locked */}
-          {isSuperAdmin && isContractLocked(order.status) && canOverrideStoredOrder && (
-            <Button
-              onClick={() => setIsOverrideOpen(true)}
-              variant='outline'
-              size='sm'
-              className='h-8 text-rose-700 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30'
-            >
-              <IconShieldLock className='mr-1 h-4 w-4' />
-              Điều chỉnh hợp đồng gốc
-            </Button>
-          )}
-
           {/* Dispatcher Actions: Only visible for DISPATCHER & SUPER_ADMIN */}
           {isDispatcher ? (
             <>
@@ -1056,15 +1033,6 @@ export default function OrderDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {isSuperAdmin && (
-        <OrderAdminOverrideDialog
-          order={order}
-          open={isOverrideOpen}
-          onOpenChange={setIsOverrideOpen}
-          warehouseHubId={order.currentHubId ?? null}
-          onSuccess={() => loadOrder()}
-        />
-      )}
     </div>
   );
 }
