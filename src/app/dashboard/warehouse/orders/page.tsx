@@ -907,6 +907,7 @@ export default function WarehouseOrdersPage() {
 
     const query = new URLSearchParams();
     if (hubId && hubId !== 'ALL') query.set('hubId', hubId);
+    if (statusFilter !== 'ALL') query.set('status', statusFilter);
 
     fetch(`/api/v1/warehouse/orders/summary?${query.toString()}`, {
       headers: {
@@ -944,7 +945,7 @@ export default function WarehouseOrdersPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isAdmin, hubId]);
+  }, [isAdmin, hubId, statusFilter]);
 
   const COLUMN_COUNT = 12;
 
@@ -1386,6 +1387,7 @@ export default function WarehouseOrdersPage() {
                     volumeCbm={adminTotals.volumeCbm}
                     isLoading={isLoadingAdminTotals}
                     updatedAt={adminTotalsUpdatedAt}
+                    isFiltered={statusFilter !== 'ALL'}
                   />
                   {isLoading ? (
                     <tr>
