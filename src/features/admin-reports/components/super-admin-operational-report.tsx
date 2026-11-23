@@ -741,7 +741,8 @@ export function AdminReportHeaderAndKpis() {
       </Card>
 
       {/* 2. Dải thẻ KPI Tóm tắt Sản lượng (Bấm vào thẻ CBM hoặc Số Tấn để đổi biểu đồ) */}
-      <div className="order-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
+        <div className="contents">
         <Card
           role="button"
           tabIndex={0}
@@ -754,13 +755,13 @@ export function AdminReportHeaderAndKpis() {
             }
           }}
           data-testid="kpi-card-cbm"
-          className={`p-2 border-l-4 border-l-[#0F3D62] cursor-pointer transition-all select-none ${
+          className={`order-2 p-2 border-l-4 border-l-[#0F3D62] cursor-pointer transition-all select-none ${
             chartMetric === "CBM"
               ? "ring-2 ring-blue-600 bg-blue-50/60 dark:bg-blue-950/40 shadow-sm"
               : "opacity-80 hover:opacity-100 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 shadow-2xs"
           }`}
         >
-          <CardContent className="p-0 space-y-1">
+          <CardContent className="flex h-full flex-col p-0 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase text-muted-foreground">
                 Tổng sản lượng khối (CBM)
@@ -800,13 +801,13 @@ export function AdminReportHeaderAndKpis() {
             }
           }}
           data-testid="kpi-card-tons"
-          className={`p-2 border-l-4 border-l-sky-600 cursor-pointer transition-all select-none ${
+          className={`order-2 p-2 border-l-4 border-l-sky-600 cursor-pointer transition-all select-none ${
             chartMetric === "TONS"
               ? "ring-2 ring-sky-600 bg-sky-50/60 dark:bg-sky-950/40 shadow-sm"
               : "opacity-80 hover:opacity-100 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 shadow-2xs"
           }`}
         >
-          <CardContent className="p-0 space-y-1">
+          <CardContent className="flex h-full flex-col p-0 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase text-muted-foreground">
                 Tổng sản lượng tấn (Số Tấn)
@@ -830,14 +831,14 @@ export function AdminReportHeaderAndKpis() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
 
       {/* 3. Khối tổng quan TRIP độc lập với bộ chọn báo cáo Nhập/Xuất kho */}
       <Card
-        className="order-1 border border-emerald-200 bg-emerald-50/35 p-2.5 shadow-2xs dark:border-emerald-900/70 dark:bg-emerald-950/20"
+        className="order-1 flex h-full flex-col border border-emerald-200 bg-emerald-50/35 p-2 shadow-2xs dark:border-emerald-900/70 dark:bg-emerald-950/20"
         data-testid="trip-overview-card"
       >
-        <CardContent className="p-0 space-y-1.5">
+        <CardContent className="flex h-full flex-col p-0 space-y-1.5">
           <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-emerald-200/80 dark:border-emerald-900/70 pb-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-600/10 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
@@ -860,8 +861,8 @@ export function AdminReportHeaderAndKpis() {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[minmax(180px,1.15fr)_repeat(2,minmax(130px,1fr))]">
-            <div className="rounded-md border border-emerald-200 bg-white/80 px-2 py-1.5 dark:border-emerald-900/70 dark:bg-slate-950/40">
+          <div className="mt-auto grid grid-cols-3 gap-1.5">
+            <div className="min-w-0 rounded-md border border-emerald-200 bg-white/80 px-1.5 py-1.5 dark:border-emerald-900/70 dark:bg-slate-950/40">
               <div className="text-[10px] font-bold uppercase text-muted-foreground">
                 Tổng số chuyến
               </div>
@@ -876,7 +877,7 @@ export function AdminReportHeaderAndKpis() {
               </div>
             </div>
 
-            <div className="rounded-md border border-blue-200 bg-white/65 px-2 py-1.5 dark:border-blue-900/70 dark:bg-slate-950/30">
+            <div className="min-w-0 rounded-md border border-blue-200 bg-white/65 px-1.5 py-1.5 dark:border-blue-900/70 dark:bg-slate-950/30">
               <div className="text-[10px] font-bold uppercase text-muted-foreground">
                 Xe nhập kho
               </div>
@@ -889,7 +890,7 @@ export function AdminReportHeaderAndKpis() {
               <div className="text-[10px] text-muted-foreground">chuyến đã xác nhận</div>
             </div>
 
-            <div className="rounded-md border border-sky-200 bg-white/65 px-2 py-1.5 dark:border-sky-900/70 dark:bg-slate-950/30">
+            <div className="min-w-0 rounded-md border border-sky-200 bg-white/65 px-1.5 py-1.5 dark:border-sky-900/70 dark:bg-slate-950/30">
               <div className="text-[10px] font-bold uppercase text-muted-foreground">
                 Xe xuất kho
               </div>
@@ -904,6 +905,7 @@ export function AdminReportHeaderAndKpis() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
@@ -978,7 +980,11 @@ export function DailyOperationalBarSlot() {
                 ["--mobile-chart-width" as string]: `${Math.max(364, dailySeries.length * 52)}px`,
               }}
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                initialDimension={{ width: 320, height: 208 }}
+              >
                 <BarChart data={dailySeries} margin={{ top: 22, right: 12, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                   <XAxis
@@ -1035,7 +1041,7 @@ export function DailyOperationalBarSlot() {
                   >
                     {dailySeries.map((point) => {
                       const day = new Date(`${point.reportDate}T00:00:00`).getDay();
-                      const fill = day === 6 ? "#FDE68A" : day === 0 ? "#CBD5E1" : barFill;
+                      const fill = day === 6 || day === 0 ? "#FDE68A" : barFill;
                       return <Cell key={point.reportDate} fill={fill} />;
                     })}
                     <LabelList
@@ -1098,7 +1104,11 @@ export function MonthlyOperationalTrendsSlot() {
             SỐ KHỐI
           </div>
           <div className="h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              initialDimension={{ width: 320, height: 208 }}
+            >
               <LineChart data={monthlySeries} margin={{ top: 32, right: 36, left: 24, bottom: 6 }}>
                 <CartesianGrid stroke="#CBD5E1" vertical={false} />
                 <XAxis
@@ -1164,7 +1174,11 @@ export function MonthlyOperationalTrendsSlot() {
             SỐ TẤN
           </div>
           <div className="h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              initialDimension={{ width: 320, height: 208 }}
+            >
               <LineChart data={monthlySeries} margin={{ top: 28, right: 36, left: 10, bottom: 6 }}>
                 <CartesianGrid stroke="rgba(255,255,255,0.18)" vertical={true} horizontal={true} />
                 <XAxis
