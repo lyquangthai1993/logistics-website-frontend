@@ -77,14 +77,14 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     await expect(volume).toBeVisible();
     await expect(weight).toContainText('Tổng:');
     await expect(volume).toContainText('Tổng:');
-    totalsByStatus.set(label, {
-      weight: await weightTotal.innerText(),
-      volume: await volumeTotal.innerText()
-    });
     await expect(controls.getByRole('button', { name: label, exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
+    totalsByStatus.set(label, {
+      weight: await weightTotal.innerText(),
+      volume: await volumeTotal.innerText()
+    });
   }
   await controls.getByRole('button', { name: 'Tất cả', exact: true }).click();
   await expect(controls.getByRole('button', { name: 'Tất cả', exact: true })).toHaveAttribute(
