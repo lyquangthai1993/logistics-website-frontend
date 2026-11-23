@@ -20,6 +20,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -137,6 +138,11 @@ interface RegionRowConfig {
   badgeBorder: string;
   barColorWeight: string;
   barColorVolume: string;
+  chartColors: {
+    onhand: string;
+    draft: string;
+    completed: string;
+  };
   dotColor: string;
 }
 
@@ -150,6 +156,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: "border-blue-500/30",
     barColorWeight: "bg-blue-600 dark:bg-blue-500",
     barColorVolume: "bg-blue-500/80 dark:bg-blue-400/80",
+    chartColors: { onhand: "#2563EB", draft: "#93C5FD", completed: "#1D4ED8" },
     dotColor: "bg-blue-600",
   },
   {
@@ -161,6 +168,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: "border-amber-500/30",
     barColorWeight: "bg-amber-500 dark:bg-amber-400",
     barColorVolume: "bg-amber-400/80 dark:bg-amber-300/80",
+    chartColors: { onhand: "#F97316", draft: "#FDBA74", completed: "#C2410C" },
     dotColor: "bg-amber-500",
   },
   {
@@ -172,6 +180,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: "border-purple-500/30",
     barColorWeight: "bg-purple-600 dark:bg-purple-500",
     barColorVolume: "bg-purple-500/80 dark:bg-purple-400/80",
+    chartColors: { onhand: "#7C3AED", draft: "#C4B5FD", completed: "#5B21B6" },
     dotColor: "bg-purple-600",
   },
   {
@@ -183,6 +192,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: "border-rose-500/30",
     barColorWeight: "bg-slate-500 dark:bg-slate-400",
     barColorVolume: "bg-rose-400/80 dark:bg-rose-300/80",
+    chartColors: { onhand: "#64748B", draft: "#CBD5E1", completed: "#334155" },
     dotColor: "bg-rose-500",
   },
 ];
@@ -195,9 +205,9 @@ export function SuperAdminRegionalDispatchTable() {
   // Không để bộ lọc Hub của báo cáo vận hành làm thay đổi hoặc refetch số liệu này.
   const selectedDate = todayStr;
   const selectedHubId = "ALL";
-  const [chartStatus, setChartStatus] = useState<"onhand" | "draft" | "total">(
-    "total",
-  );
+  const [chartStatus, setChartStatus] = useState<
+    "onhand" | "draft" | "completed" | "total"
+  >("total");
 
   const {
     data: raw,
@@ -205,16 +215,11 @@ export function SuperAdminRegionalDispatchTable() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: [
-      "admin-regional-dispatch-report-table",
-      selectedDate,
-    ],
+    queryKey: ["admin-regional-dispatch-report-table", selectedDate],
     queryFn: async () => {
       const res = await apiClient.get<
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
-      >(
-        `/api/v1/admin/reports/regional-dispatch?hubId=ALL&mode=live`,
-      );
+      >(`/api/v1/admin/reports/regional-dispatch?hubId=ALL&mode=live`);
       return res.data;
     },
   });
@@ -254,24 +259,45 @@ export function SuperAdminRegionalDispatchTable() {
     const stored = data?.regions[cfg.key];
     const draft = data?.draftRegions?.[cfg.key];
     const onhandWeightKg =
-      chartStatus === "draft" ? 0 : (stored?.onhandWeightKg ?? 0);
+      chartStatus === "draft" || chartStatus === "completed"
+        ? 0
+        : (stored?.onhandWeightKg ?? 0);
     const draftWeightKg =
-      chartStatus === "onhand" ? 0 : (draft?.weightKg ?? 0);
+      chartStatus === "onhand" || chartStatus === "completed"
+        ? 0
+        : (draft?.weightKg ?? 0);
+    const completedWeightKg =
+      chartStatus === "onhand" || chartStatus === "draft"
+        ? 0
+        : (stored?.incomingWeightKg ?? 0);
     const onhandVolumeCbm =
-      chartStatus === "draft" ? 0 : (stored?.onhandVolumeCbm ?? 0);
+      chartStatus === "draft" || chartStatus === "completed"
+        ? 0
+        : (stored?.onhandVolumeCbm ?? 0);
     const draftVolumeCbm =
-      chartStatus === "onhand" ? 0 : (draft?.volumeCbm ?? 0);
+      chartStatus === "onhand" || chartStatus === "completed"
+        ? 0
+        : (draft?.volumeCbm ?? 0);
+    const completedVolumeCbm =
+      chartStatus === "onhand" || chartStatus === "draft"
+        ? 0
+        : (stored?.incomingVolumeCbm ?? 0);
     return {
       region: cfg.name,
       onhandWeightKg,
       draftWeightKg,
+      completedWeightKg,
       onhandWeightTons: onhandWeightKg / 1000,
       draftWeightTons: draftWeightKg / 1000,
+      completedWeightTons: completedWeightKg / 1000,
       onhandVolumeCbm,
       draftVolumeCbm,
-      totalWeightKg: onhandWeightKg + draftWeightKg,
-      totalWeightTons: (onhandWeightKg + draftWeightKg) / 1000,
-      totalVolumeCbm: onhandVolumeCbm + draftVolumeCbm,
+      completedVolumeCbm,
+      totalWeightKg: onhandWeightKg + draftWeightKg + completedWeightKg,
+      totalWeightTons:
+        (onhandWeightKg + draftWeightKg + completedWeightKg) / 1000,
+      totalVolumeCbm: onhandVolumeCbm + draftVolumeCbm + completedVolumeCbm,
+      chartColors: cfg.chartColors,
     };
   });
   const chartTotals = chartRegions.reduce(
@@ -295,10 +321,10 @@ export function SuperAdminRegionalDispatchTable() {
         "Sẵn kho (Kg)": r?.onhandWeightKg || 0,
         "Sẵn kho (m³)": r?.onhandVolumeCbm || 0,
         "Sẵn kho (Kiện)": r?.onhandPackageCount || 0,
-        "Xe sắp về (Tấn)": r?.incomingWeightTons || 0,
-        "Xe sắp về (Kg)": r?.incomingWeightKg || 0,
-        "Xe sắp về (m³)": r?.incomingVolumeCbm || 0,
-        "Số xe sắp về": r?.incomingTripCount || 0,
+        "Đã xuất kho (Tấn)": r?.incomingWeightTons || 0,
+        "Đã xuất kho (Kg)": r?.incomingWeightKg || 0,
+        "Đã xuất kho (m³)": r?.incomingVolumeCbm || 0,
+        "Số đơn đã xuất": r?.incomingTripCount || 0,
         "TỔNG TẢI (TẤN)": r?.totalWeightTons || 0,
         "TỔNG TẢI (KG)": r?.totalWeightKg || 0,
         "TỔNG KHỐI (M³)": r?.totalVolumeCbm || 0,
@@ -313,11 +339,11 @@ export function SuperAdminRegionalDispatchTable() {
       "Sẵn kho (Kg)": totals.onhandWeightKg || 0,
       "Sẵn kho (m³)": 0,
       "Sẵn kho (Kiện)": totals.packageCount || 0,
-      "Xe sắp về (Tấn)":
+      "Đã xuất kho (Tấn)":
         Math.round(((totals.incomingWeightKg || 0) / 1000) * 100) / 100,
-      "Xe sắp về (Kg)": totals.incomingWeightKg || 0,
-      "Xe sắp về (m³)": 0,
-      "Số xe sắp về": totals.incomingTripCount || 0,
+      "Đã xuất kho (Kg)": totals.incomingWeightKg || 0,
+      "Đã xuất kho (m³)": 0,
+      "Số đơn đã xuất": totals.incomingTripCount || 0,
       "TỔNG TẢI (TẤN)": totals.totalWeightTons || 0,
       "TỔNG TẢI (KG)": totals.totalWeightKg || 0,
       "TỔNG KHỐI (M³)": totals.totalVolumeCbm || 0,
@@ -430,8 +456,9 @@ export function SuperAdminRegionalDispatchTable() {
                     {(
                       [
                         ["onhand", "Lưu kho"],
-                        ["draft", "Dự kiến về kho"],
-                        ["total", "Tổng hợp"],
+                        ["draft", "Nháp"],
+                        ["completed", "Đã xuất kho"],
+                        ["total", "Tất cả"],
                       ] as const
                     ).map(([status, label]) => (
                       <button
@@ -467,15 +494,44 @@ export function SuperAdminRegionalDispatchTable() {
                           </span>
                         </div>
                         <span className="text-xs font-mono font-bold text-purple-700 dark:text-purple-300">
-                          Tổng: {formatNumber(chartTotals.totalWeightKg / 1000)} Tấn
+                          Tổng: {formatNumber(chartTotals.totalWeightKg / 1000)}{" "}
+                          Tấn
                         </span>
                       </div>
                       <div className="h-56 pt-1">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartRegions} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} axisLine={{ stroke: "#CBD5E1" }} tickLine={false} />
-                            <YAxis type="category" dataKey="region" width={112} tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} />
+                        <ResponsiveContainer
+                          width="100%"
+                          height="100%"
+                          initialDimension={{ width: 320, height: 224 }}
+                        >
+                          <BarChart
+                            data={chartRegions}
+                            layout="vertical"
+                            margin={{ top: 4, right: 8, bottom: 4, left: 4 }}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              horizontal={false}
+                              stroke="#E2E8F0"
+                            />
+                            <XAxis
+                              type="number"
+                              tick={{ fontSize: 10, fill: "#64748B" }}
+                              axisLine={{ stroke: "#CBD5E1" }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="region"
+                              width={112}
+                              tick={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                fill: "#475569",
+                              }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
                             <Tooltip
                               formatter={(value, name) => [
                                 `${formatNumber(Number(value))} Tấn`,
@@ -483,9 +539,57 @@ export function SuperAdminRegionalDispatchTable() {
                               ]}
                               contentStyle={{ fontSize: 10, borderRadius: 6 }}
                             />
-                            {chartStatus !== "draft" && <Bar dataKey="onhandWeightTons" name="Lưu kho" stackId="weight" fill="#2563EB" radius={0} />}
-                            {chartStatus !== "onhand" && <Bar dataKey="draftWeightTons" name="Dự kiến về kho" stackId="weight" fill="#93C5FD" radius={0} />}
-                            {chartStatus === "total" && <Legend wrapperStyle={{ fontSize: 10 }} />}
+                            {chartStatus !== "draft" &&
+                              chartStatus !== "completed" && (
+                                <Bar
+                                  dataKey="onhandWeightTons"
+                                  name="Lưu kho"
+                                  stackId="weight"
+                                  radius={0}
+                                >
+                                  {chartRegions.map((entry) => (
+                                    <Cell
+                                      key={`weight-onhand-${entry.region}`}
+                                      fill={entry.chartColors.onhand}
+                                    />
+                                  ))}
+                                </Bar>
+                              )}
+                            {chartStatus !== "onhand" &&
+                              chartStatus !== "completed" && (
+                                <Bar
+                                  dataKey="draftWeightTons"
+                                  name="Nháp"
+                                  stackId="weight"
+                                  radius={0}
+                                >
+                                  {chartRegions.map((entry) => (
+                                    <Cell
+                                      key={`weight-draft-${entry.region}`}
+                                      fill={entry.chartColors.draft}
+                                    />
+                                  ))}
+                                </Bar>
+                              )}
+                            {chartStatus !== "onhand" &&
+                              chartStatus !== "draft" && (
+                                <Bar
+                                  dataKey="completedWeightTons"
+                                  name="Đã xuất kho"
+                                  stackId="weight"
+                                  radius={0}
+                                >
+                                  {chartRegions.map((entry) => (
+                                    <Cell
+                                      key={`weight-completed-${entry.region}`}
+                                      fill={entry.chartColors.completed}
+                                    />
+                                  ))}
+                                </Bar>
+                              )}
+                            {chartStatus === "total" && (
+                              <Legend wrapperStyle={{ fontSize: 10 }} />
+                            )}
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -510,11 +614,39 @@ export function SuperAdminRegionalDispatchTable() {
                         </span>
                       </div>
                       <div className="h-56 pt-1">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartRegions} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} axisLine={{ stroke: "#CBD5E1" }} tickLine={false} />
-                            <YAxis type="category" dataKey="region" width={112} tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} />
+                        <ResponsiveContainer
+                          width="100%"
+                          height="100%"
+                          initialDimension={{ width: 320, height: 224 }}
+                        >
+                          <BarChart
+                            data={chartRegions}
+                            layout="vertical"
+                            margin={{ top: 4, right: 8, bottom: 4, left: 4 }}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              horizontal={false}
+                              stroke="#E2E8F0"
+                            />
+                            <XAxis
+                              type="number"
+                              tick={{ fontSize: 10, fill: "#64748B" }}
+                              axisLine={{ stroke: "#CBD5E1" }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="region"
+                              width={112}
+                              tick={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                fill: "#475569",
+                              }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
                             <Tooltip
                               formatter={(value, name) => [
                                 `${formatNumber(Number(value))} m³`,
@@ -522,9 +654,57 @@ export function SuperAdminRegionalDispatchTable() {
                               ]}
                               contentStyle={{ fontSize: 10, borderRadius: 6 }}
                             />
-                            {chartStatus !== "draft" && <Bar dataKey="onhandVolumeCbm" name="Lưu kho" stackId="volume" fill="#7C3AED" radius={0} />}
-                            {chartStatus !== "onhand" && <Bar dataKey="draftVolumeCbm" name="Dự kiến về kho" stackId="volume" fill="#C4B5FD" radius={0} />}
-                            {chartStatus === "total" && <Legend wrapperStyle={{ fontSize: 10 }} />}
+                            {chartStatus !== "draft" &&
+                              chartStatus !== "completed" && (
+                                <Bar
+                                  dataKey="onhandVolumeCbm"
+                                  name="Lưu kho"
+                                  stackId="volume"
+                                  radius={0}
+                                >
+                                  {chartRegions.map((entry) => (
+                                    <Cell
+                                      key={`volume-onhand-${entry.region}`}
+                                      fill={entry.chartColors.onhand}
+                                    />
+                                  ))}
+                                </Bar>
+                              )}
+                            {chartStatus !== "onhand" &&
+                              chartStatus !== "completed" && (
+                                <Bar
+                                  dataKey="draftVolumeCbm"
+                                  name="Nháp"
+                                  stackId="volume"
+                                  radius={0}
+                                >
+                                  {chartRegions.map((entry) => (
+                                    <Cell
+                                      key={`volume-draft-${entry.region}`}
+                                      fill={entry.chartColors.draft}
+                                    />
+                                  ))}
+                                </Bar>
+                              )}
+                            {chartStatus !== "onhand" &&
+                              chartStatus !== "draft" && (
+                                <Bar
+                                  dataKey="completedVolumeCbm"
+                                  name="Đã xuất kho"
+                                  stackId="volume"
+                                  radius={0}
+                                >
+                                  {chartRegions.map((entry) => (
+                                    <Cell
+                                      key={`volume-completed-${entry.region}`}
+                                      fill={entry.chartColors.completed}
+                                    />
+                                  ))}
+                                </Bar>
+                              )}
+                            {chartStatus === "total" && (
+                              <Legend wrapperStyle={{ fontSize: 10 }} />
+                            )}
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -546,19 +726,24 @@ export function SuperAdminRegionalDispatchTable() {
               <IconAlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
               <div className="text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1">
                 <div>
-                  <span className="font-bold">CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN:{" "}</span>
+                  <span className="font-bold">
+                    CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN:{" "}
+                  </span>
                   Có{" "}
                   {data.regions.na.onhandOrderCount > 0
                     ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
                     : ""}
-                  {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0
+                  {data.regions.na.onhandOrderCount > 0 &&
+                  data.regions.na.incomingTripCount > 0
                     ? " và "
                     : ""}
                   {data.regions.na.incomingTripCount > 0
-                    ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
+                    ? `${formatNumber(data.regions.na.incomingTripCount)} đơn đã xuất kho`
                     : ""}{" "}
                   ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{" "}
-                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
+                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác
+                  định được Miền do nhập sai hoặc thiếu tỉnh thành đến. Vui lòng
+                  rà soát lại:
                 </div>
 
                 {naOrders.length > 0 && (
@@ -572,9 +757,17 @@ export function SuperAdminRegionalDispatchTable() {
                           key={ord.id}
                           className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs"
                         >
-                          <strong className="text-purple-700 dark:text-purple-300">{ord.orderCode}</strong>
+                          <strong className="text-purple-700 dark:text-purple-300">
+                            {ord.orderCode}
+                          </strong>
                           <span className="text-slate-600 dark:text-slate-300 font-sans">
-                            (Tỉnh nhập: <strong className="text-rose-600 dark:text-rose-400">{ord.province || "Chưa nhập"}</strong> • {formatNumber(ord.remainingQuantity)} kiện • {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
+                            (Tỉnh nhập:{" "}
+                            <strong className="text-rose-600 dark:text-rose-400">
+                              {ord.province || "Chưa nhập"}
+                            </strong>{" "}
+                            • {formatNumber(ord.remainingQuantity)} kiện •{" "}
+                            {formatNumber(ord.volumeCbm)} m³ •{" "}
+                            {ord.currentHubName})
                           </span>
                         </span>
                       ))}
@@ -593,9 +786,12 @@ export function SuperAdminRegionalDispatchTable() {
                           key={tr.id}
                           className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs"
                         >
-                          <strong className="text-blue-700 dark:text-blue-300">{tr.tripCode}</strong>
+                          <strong className="text-blue-700 dark:text-blue-300">
+                            {tr.tripCode}
+                          </strong>
                           <span className="text-slate-600 dark:text-slate-300 font-sans">
-                            (BS: {tr.licensePlate || "—"} • {tr.originHubName} → {tr.destinationHubName})
+                            (BS: {tr.licensePlate || "—"} • {tr.originHubName} →{" "}
+                            {tr.destinationHubName})
                           </span>
                         </span>
                       ))}
