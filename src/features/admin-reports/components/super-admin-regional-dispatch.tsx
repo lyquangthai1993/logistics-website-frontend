@@ -133,7 +133,7 @@ export function SuperAdminRegionalDispatch() {
       const res = await apiClient.get<
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
       >(
-        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}&mode=live`
+        `/api/v1/admin/reports/regional-dispatch?hubId=${selectedHubId}`
       );
       const raw = res.data as { data?: RegionalReportApiResponse } &
         RegionalReportApiResponse;
