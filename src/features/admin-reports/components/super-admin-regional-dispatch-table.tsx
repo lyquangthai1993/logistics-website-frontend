@@ -222,7 +222,7 @@ export function SuperAdminRegionalDispatchTable() {
     queryFn: async () => {
       const res = await apiClient.get<
         RegionalReportApiResponse | { data: RegionalReportApiResponse }
-      >(`/api/v1/admin/reports/regional-dispatch?hubId=ALL&mode=live`);
+      >(`/api/v1/admin/reports/regional-dispatch?hubId=ALL`);
       return res.data;
     },
   });
