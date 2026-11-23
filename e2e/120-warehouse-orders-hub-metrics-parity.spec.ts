@@ -86,10 +86,12 @@ async function getHub(request: APIRequestContext, adminToken: string, hubName: s
 async function queryAllOrders(
   request: APIRequestContext,
   token: string,
-  hubId?: number
+  hubId?: number,
+  status?: string
 ): Promise<WarehouseResponse> {
   const query = new URLSearchParams({ groupBy: 'orderCode', isExport: 'true', limit: '5000' });
   if (hubId !== undefined) query.set('hubId', String(hubId));
+  if (status) query.set('status', status);
 
   const response = await request.get(`${API_BASE}/warehouse/orders?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -99,8 +101,13 @@ async function queryAllOrders(
   return (await response.json()) as WarehouseResponse;
 }
 
-async function querySummary(request: APIRequestContext, token: string): Promise<WarehouseSummaryResponse> {
-  const response = await request.get(`${API_BASE}/warehouse/orders/summary`, {
+async function querySummary(
+  request: APIRequestContext,
+  token: string,
+  status?: string
+): Promise<WarehouseSummaryResponse> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  const response = await request.get(`${API_BASE}/warehouse/orders/summary${query}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   expect(response.ok(), `API tổng hợp Đơn hàng kho thất bại: ${response.status()}`).toBeTruthy();
@@ -201,6 +208,38 @@ test.describe('Đối chiếu tổng Đơn hàng kho theo Hub', () => {
       await expect(page.getByTestId('admin-metric-quantity')).toHaveText(displayNumber(expected.quantity, 0));
       await expect(page.getByTestId('admin-metric-weight')).toHaveText(displayNumber(expected.weightKg, 2));
       await expect(page.getByTestId('admin-metric-volume')).toHaveText(displayNumber(expected.volumeCbm, 2));
+      await page.getByTestId('warehouse-tab-all').click();
+
+      const statusCases = [
+        { key: 'INBOUND', testId: 'warehouse-tab-inbound' },
+        { key: 'DRAFT', testId: 'warehouse-tab-draft' },
+        { key: 'COMPLETED_INBOUND', testId: 'warehouse-tab-completed_inbound' }
+      ] as const;
+      for (const statusCase of statusCases) {
+        const statusReference = await queryAllOrders(request, adminToken, hub.id, statusCase.key);
+        const statusExpected = aggregate(statusReference.data ?? []);
+        const statusSummary = await querySummary(request, warehouseToken, statusCase.key);
+        const statusData = statusSummary.data?.data ?? statusSummary.data ?? {};
+
+        await page.getByTestId(statusCase.testId).click();
+        await expect(page.getByTestId('admin-metric-quantity')).toHaveText(
+          displayNumber(statusExpected.quantity, 0),
+          { timeout: 60_000 }
+        );
+        await expect(page.getByTestId('admin-metric-weight')).toHaveText(
+          displayNumber(statusExpected.weightKg, 2),
+          { timeout: 60_000 }
+        );
+        await expect(page.getByTestId('admin-metric-volume')).toHaveText(
+          displayNumber(statusExpected.volumeCbm, 2),
+          { timeout: 60_000 }
+        );
+        expect(statusData.quantity).toBe(statusExpected.quantity);
+        expect(round(numberOf(statusData.weightKg), 2)).toBe(statusExpected.weightKg);
+        expect(round(numberOf(statusData.volumeCbm), 3)).toBe(statusExpected.volumeCbm);
+        expect(statusData.orderCount).toBe(statusExpected.orderCount);
+      }
+
       await page.getByTestId('warehouse-tab-all').click();
       await page.screenshot({
         path: `../docs/feedback_211126/screenshot_${testCase.username}_hub_metrics_verified.png`,

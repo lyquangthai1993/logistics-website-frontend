@@ -9,6 +9,7 @@ export interface AdminOrdersMetricsSummaryProps {
   volumeCbm: number;
   isLoading?: boolean;
   updatedAt?: Date | null;
+  isFiltered?: boolean;
 }
 
 export function AdminOrdersMetricsSummaryRow({
@@ -16,7 +17,8 @@ export function AdminOrdersMetricsSummaryRow({
   weightKg,
   volumeCbm,
   isLoading,
-  updatedAt
+  updatedAt,
+  isFiltered
 }: AdminOrdersMetricsSummaryProps) {
   const updatedAtLabel = updatedAt
     ? updatedAt.toLocaleString('vi-VN', {
@@ -48,7 +50,9 @@ export function AdminOrdersMetricsSummaryRow({
               <IconInfoCircle className='size-3.5' aria-hidden='true' />
             </TooltipTrigger>
             <TooltipContent className='max-w-72 text-[11px] leading-4'>
-              {updatedAtLabel
+              {isFiltered
+                ? 'Số liệu được đọc từ snapshot theo kho của trạng thái đang chọn.'
+                : updatedAtLabel
                 ? `Số liệu snapshot theo từng kho được cron quét lúc ${updatedAtLabel}. Do dữ liệu phát sinh liên tục, tổng cộng có thể chênh lệch nhẹ so với thời điểm hiện tại.`
                 : 'Số liệu snapshot theo từng kho được tổng hợp định kỳ và có thể chênh lệch nhẹ so với thời điểm hiện tại.'}
             </TooltipContent>
