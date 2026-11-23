@@ -36,6 +36,9 @@ export interface RegionalMetricItem {
   onhandPackageCount: number;
   onhandOrderCount: number;
   onhandOrderCodes: string[];
+  draftWeightKg: number;
+  draftVolumeCbm: number;
+  draftOrderCount: number;
   draftOrderCodes: string[];
   incomingWeightKg: number;
   incomingWeightTons: number;
@@ -265,7 +268,7 @@ export function SuperAdminRegionalDispatchTable() {
     const draftWeightKg =
       chartStatus === "onhand" || chartStatus === "completed"
         ? 0
-        : (draft?.weightKg ?? 0);
+        : (stored?.draftWeightKg ?? draft?.weightKg ?? 0);
     const completedWeightKg =
       chartStatus === "onhand" || chartStatus === "draft"
         ? 0
@@ -277,7 +280,7 @@ export function SuperAdminRegionalDispatchTable() {
     const draftVolumeCbm =
       chartStatus === "onhand" || chartStatus === "completed"
         ? 0
-        : (draft?.volumeCbm ?? 0);
+        : (stored?.draftVolumeCbm ?? draft?.volumeCbm ?? 0);
     const completedVolumeCbm =
       chartStatus === "onhand" || chartStatus === "draft"
         ? 0
