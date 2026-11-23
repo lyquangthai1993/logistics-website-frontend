@@ -303,7 +303,13 @@ export function SuperAdminRegionalDispatchTable() {
       chartColors: cfg.chartColors,
     };
   });
-  const chartTotals = chartRegions.reduce(
+  const chartTotals = chartStatus === "total"
+    ? {
+        totalWeightKg: Number(totals.totalWeightKg) || 0,
+        totalWeightTons: (Number(totals.totalWeightKg) || 0) / 1000,
+        totalVolumeCbm: Number(totals.totalVolumeCbm) || 0,
+      }
+    : chartRegions.reduce(
     (sum, region) => ({
       totalWeightKg: sum.totalWeightKg + region.totalWeightKg,
       totalWeightTons: sum.totalWeightTons + region.totalWeightTons,
