@@ -872,8 +872,7 @@ export function AdminReportHeaderAndKpis() {
               >
                 {formatNumberVn(
                   (summary?.inbound.tripCount ?? 0) + (summary?.outbound.tripCount ?? 0),
-                )}{" "}
-                chuyến
+                )}
               </div>
             </div>
 
