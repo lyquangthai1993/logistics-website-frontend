@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-error';
 import { formatNumber } from '@/lib/utils';
-import { WarehouseHubFilterSelect } from '@/features/warehouse/components/warehouse-hub-filter-select';
+import { useAdminOperationalReport } from './super-admin-operational-report';
 
 type RegionKey = 'north' | 'central' | 'south' | 'storage' | 'na';
 type CargoStatus = 'onhand' | 'draft' | 'total';
@@ -201,7 +201,7 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
 
 export function SuperAdminRegionalDispatchTable() {
   const queryClient = useQueryClient();
-  const [selectedHubId, setSelectedHubId] = useState('ALL');
+  const { selectedHubId } = useAdminOperationalReport();
   const [status, setStatus] = useState<CargoStatus>('total');
   const { data: report, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['admin-regional-dispatch-report-table', selectedHubId],
@@ -261,13 +261,6 @@ export function SuperAdminRegionalDispatchTable() {
           <p className='text-[10px] text-slate-500'>Chốt số liệu tự động lúc {report?.cronInfo.cronTime ?? '06:00'} hằng ngày · Chỉ Cấp 1 • Hub Chính</p>
         </div>
         <div className='flex flex-wrap items-center gap-1.5'>
-          <span className='text-[10px] text-slate-600 dark:text-slate-300'>Lọc Hub</span>
-          <WarehouseHubFilterSelect
-            value={selectedHubId}
-            onChange={setSelectedHubId}
-            reportScope
-            testIdPrefix='cargo-hub-filter'
-          />
           <Button variant='outline' size='sm' className='h-8 text-xs' onClick={() => refetch()} disabled={isFetching}>
             <IconRefresh className='h-3.5 w-3.5' /> Làm mới
           </Button>
