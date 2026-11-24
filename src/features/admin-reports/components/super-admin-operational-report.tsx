@@ -847,19 +847,10 @@ export function AdminReportHeaderAndKpis() {
               </span>
               <div className="min-w-0">
                 <h2 className="text-xs font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100">
-                  Chuyến xe (TRIP) xác nhận
+                  Tổng chuyến
                 </h2>
-                <p className="text-[10px] text-muted-foreground">
-                  Tổng quan số chuyến trong kỳ báo cáo
-                </p>
               </div>
             </div>
-            <Badge
-              variant="outline"
-              className="h-5 border-emerald-300 bg-emerald-500/10 px-1.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-800 dark:text-emerald-300"
-            >
-              Đã xác nhận
-            </Badge>
           </div>
 
           <div className="mt-auto grid grid-cols-3 gap-1.5">

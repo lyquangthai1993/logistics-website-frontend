@@ -97,13 +97,6 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
   });
   const totalWeightKg = rows.reduce((sum, row) => sum + (row.selected?.weightKg ?? 0), 0);
   const totalVolumeCbm = rows.reduce((sum, row) => sum + (row.selected?.volumeCbm ?? 0), 0);
-  const onhandOrderCount = new Set(rows.flatMap((row) => row.metric?.onhandOrderCodes ?? [])).size;
-  const onhandPackageCount = rows.reduce((sum, row) => sum + (row.metric?.onhandPackageCount ?? 0), 0);
-  const unmeasuredRows = rows.filter((row) =>
-    (row.metric?.onhandPackageCount ?? 0) > 0
-    && row.metric?.onhandWeightKg === 0
-    && row.metric?.onhandVolumeCbm === 0
-  );
 
   return (
     <section className='border border-slate-200 dark:border-slate-800 rounded-md' data-testid={`regional-hub-${report.hub.id}`}>
@@ -121,16 +114,6 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
         <p className='p-2 text-xs text-slate-500'>Chưa có số liệu chốt cho hub này.</p>
       ) : (
         <div className='p-1.5 space-y-2'>
-          {status !== 'draft' && (
-            <div className='flex flex-wrap items-center gap-2 text-[10px]'>
-              <strong data-testid='regional-onhand-count'>Hàng tại kho: {formatNumber(onhandOrderCount)} mã · {formatNumber(onhandPackageCount)} kiện</strong>
-              {unmeasuredRows.map((row) => (
-                <span key={row.key} className='text-amber-700 dark:text-amber-300' data-testid={`regional-unmeasured-${row.key}`}>
-                  {row.label}: {formatNumber(row.metric?.onhandPackageCount ?? 0)} kiện chưa có kg/m³
-                </span>
-              ))}
-            </div>
-          )}
           <div className='grid grid-cols-1 xl:grid-cols-2 gap-2'>
             <div className='border border-slate-200 dark:border-slate-800 rounded-md p-1.5' data-testid='regional-weight-chart'>
               <div className='flex items-center justify-between gap-2 text-xs'>

@@ -80,16 +80,8 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
   expect(hcmSnapshot?.regions).toBeTruthy();
   if (!hcmSnapshot?.regions) throw new Error('Missing HCM regional snapshot');
   const hcmPanel = page.getByTestId(`regional-hub-${hcmSnapshot.hub.id}`);
-  const hcmPackages = REGION_KEYS.reduce(
-    (sum, key) => sum + hcmSnapshot.regions![key].onhandPackageCount, 0
-  );
-  await expect(hcmPanel.getByTestId('regional-onhand-count')).toContainText(`${hcmPackages} kiện`);
-  const storage = hcmSnapshot.regions.storage;
   await expect(hcmPanel.locator('[data-testid="regional-region-storage"]')).toHaveCount(0);
-  if (storage.onhandPackageCount > 0 && storage.onhandWeightKg === 0 && storage.onhandVolumeCbm === 0) {
-    await expect(hcmPanel.getByTestId('regional-unmeasured-storage'))
-      .toHaveText(`LƯU KHO: ${storage.onhandPackageCount} kiện chưa có kg/m³`);
-  }
+  await expect(hcmPanel.getByTestId('regional-onhand-count')).toHaveCount(0);
   await expect(page.getByText('Hàng tại kho được chia theo tỉnh giao. Dòng LƯU KHO gồm đơn ghi “Lưu kho” ở tỉnh giao.')).toBeVisible();
   await expect(page.getByTestId('regional-weight-chart').first()).toBeVisible();
   await controls.getByRole('button', { name: 'Dự kiến nhập kho', exact: true }).click();
