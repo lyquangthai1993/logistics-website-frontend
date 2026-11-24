@@ -186,21 +186,6 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
             </div>
           </div>
 
-          <div className='grid grid-cols-1 xl:grid-cols-2 gap-1.5'>
-            {rows.map((row) => (
-              <details key={row.key} className='border border-slate-200 dark:border-slate-800 rounded p-1.5' data-testid={`regional-region-${row.key}`}>
-                <summary className='cursor-pointer text-[10px] flex flex-wrap items-center justify-between gap-2'>
-                  <strong style={{ color: row.color }}>{row.label}</strong>
-                  <span>{formatNumber(row.selected?.orderCount ?? 0)} mã · {status !== 'draft' && `${formatNumber(row.metric?.onhandPackageCount ?? 0)} kiện tại kho · `}{formatNumber(row.selected?.weightKg ?? 0)} kg · {formatNumber(row.selected?.volumeCbm ?? 0)} m³</span>
-                </summary>
-                <div className='pt-1 flex flex-wrap gap-1'>
-                  {row.selected?.orderCodes.length ? row.selected.orderCodes.map((code) => (
-                    <span key={code} className='border rounded px-1 py-0.5 text-[11px] font-mono font-bold'>{code}</span>
-                  )) : <span className='text-[10px] text-slate-500'>Không có mã đơn.</span>}
-                </div>
-              </details>
-            ))}
-          </div>
         </div>
       )}
     </section>
