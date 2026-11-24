@@ -93,10 +93,20 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
       draftTons: status === 'onhand' ? 0 : (metric?.draftWeightKg ?? 0) / 1000,
       onhandVolume: status === 'draft' ? 0 : (metric?.onhandVolumeCbm ?? 0),
       draftVolume: status === 'onhand' ? 0 : (metric?.draftVolumeCbm ?? 0),
+      onhandWeightPercent: 0,
+      draftWeightPercent: 0,
+      onhandVolumePercent: 0,
+      draftVolumePercent: 0,
     };
   });
   const totalWeightKg = rows.reduce((sum, row) => sum + (row.selected?.weightKg ?? 0), 0);
   const totalVolumeCbm = rows.reduce((sum, row) => sum + (row.selected?.volumeCbm ?? 0), 0);
+  for (const row of rows) {
+    row.onhandWeightPercent = totalWeightKg > 0 ? row.onhandTons * 100_000 / totalWeightKg : 0;
+    row.draftWeightPercent = totalWeightKg > 0 ? row.draftTons * 100_000 / totalWeightKg : 0;
+    row.onhandVolumePercent = totalVolumeCbm > 0 ? row.onhandVolume * 100 / totalVolumeCbm : 0;
+    row.draftVolumePercent = totalVolumeCbm > 0 ? row.draftVolume * 100 / totalVolumeCbm : 0;
+  }
 
   return (
     <section className='border border-slate-200 dark:border-slate-800 rounded-md' data-testid={`regional-hub-${report.hub.id}`}>
@@ -124,16 +134,23 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
                 <ResponsiveContainer width='100%' height='100%' initialDimension={{ width: 320, height: 176 }}>
                   <BarChart data={rows} layout='vertical' margin={{ top: 3, right: 4, bottom: 3, left: 4 }}>
                     <CartesianGrid strokeDasharray='3 3' horizontal={false} />
-                    <XAxis type='number' tick={{ fontSize: 10 }} />
+                    <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
                     <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(value, name) => [`${formatNumber(Number(value))} tấn`, String(name)]} />
+                    <Tooltip formatter={(value, name, item) => {
+                      const row = item.payload as (typeof rows)[number];
+                      const absoluteValue = name === 'Hàng tại kho' ? row.onhandTons : row.draftTons;
+                      return [
+                        `${formatNumber(Number(value))}% · ${formatNumber(absoluteValue)} tấn`,
+                        String(name),
+                      ];
+                    }} />
                     {status !== 'draft' && (
-                      <Bar dataKey='onhandTons' name='Hàng tại kho' stackId='weight' isAnimationActive={false}>
+                      <Bar dataKey='onhandWeightPercent' name='Hàng tại kho' stackId='weight' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
                       </Bar>
                     )}
                     {status !== 'onhand' && (
-                      <Bar dataKey='draftTons' name='Dự kiến nhập kho' stackId='weight' isAnimationActive={false}>
+                      <Bar dataKey='draftWeightPercent' name='Dự kiến nhập kho' stackId='weight' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
                       </Bar>
                     )}
@@ -150,16 +167,23 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
                 <ResponsiveContainer width='100%' height='100%' initialDimension={{ width: 320, height: 176 }}>
                   <BarChart data={rows} layout='vertical' margin={{ top: 3, right: 4, bottom: 3, left: 4 }}>
                     <CartesianGrid strokeDasharray='3 3' horizontal={false} />
-                    <XAxis type='number' tick={{ fontSize: 10 }} />
+                    <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
                     <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(value, name) => [`${formatNumber(Number(value))} m³`, String(name)]} />
+                    <Tooltip formatter={(value, name, item) => {
+                      const row = item.payload as (typeof rows)[number];
+                      const absoluteValue = name === 'Hàng tại kho' ? row.onhandVolume : row.draftVolume;
+                      return [
+                        `${formatNumber(Number(value))}% · ${formatNumber(absoluteValue)} m³`,
+                        String(name),
+                      ];
+                    }} />
                     {status !== 'draft' && (
-                      <Bar dataKey='onhandVolume' name='Hàng tại kho' stackId='volume' isAnimationActive={false}>
+                      <Bar dataKey='onhandVolumePercent' name='Hàng tại kho' stackId='volume' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
                       </Bar>
                     )}
                     {status !== 'onhand' && (
-                      <Bar dataKey='draftVolume' name='Dự kiến nhập kho' stackId='volume' isAnimationActive={false}>
+                      <Bar dataKey='draftVolumePercent' name='Dự kiến nhập kho' stackId='volume' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
                       </Bar>
                     )}
