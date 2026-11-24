@@ -21,7 +21,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -144,7 +143,6 @@ interface RegionRowConfig {
   chartColors: {
     onhand: string;
     draft: string;
-    completed: string;
   };
   dotColor: string;
 }
@@ -159,7 +157,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: 'border-blue-500/30',
     barColorWeight: 'bg-blue-600 dark:bg-blue-500',
     barColorVolume: 'bg-blue-500/80 dark:bg-blue-400/80',
-    chartColors: { onhand: '#2563EB', draft: '#93C5FD', completed: '#1D4ED8' },
+    chartColors: { onhand: '#2563EB', draft: '#93C5FD' },
     dotColor: 'bg-blue-600'
   },
   {
@@ -171,7 +169,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: 'border-amber-500/30',
     barColorWeight: 'bg-amber-500 dark:bg-amber-400',
     barColorVolume: 'bg-amber-400/80 dark:bg-amber-300/80',
-    chartColors: { onhand: '#F97316', draft: '#FDBA74', completed: '#C2410C' },
+    chartColors: { onhand: '#F97316', draft: '#FDBA74' },
     dotColor: 'bg-amber-500'
   },
   {
@@ -183,7 +181,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: 'border-purple-500/30',
     barColorWeight: 'bg-purple-600 dark:bg-purple-500',
     barColorVolume: 'bg-purple-500/80 dark:bg-purple-400/80',
-    chartColors: { onhand: '#7C3AED', draft: '#C4B5FD', completed: '#5B21B6' },
+    chartColors: { onhand: '#7C3AED', draft: '#C4B5FD' },
     dotColor: 'bg-purple-600'
   },
   {
@@ -195,7 +193,7 @@ const REGION_CONFIGS: RegionRowConfig[] = [
     badgeBorder: 'border-rose-500/30',
     barColorWeight: 'bg-slate-500 dark:bg-slate-400',
     barColorVolume: 'bg-rose-400/80 dark:bg-rose-300/80',
-    chartColors: { onhand: '#64748B', draft: '#CBD5E1', completed: '#334155' },
+    chartColors: { onhand: '#64748B', draft: '#CBD5E1' },
     dotColor: 'bg-rose-500'
   }
 ];
@@ -262,45 +260,31 @@ export function SuperAdminRegionalDispatchTable() {
     const onhandWeightKg = chartStatus === 'draft' ? 0 : (stored?.onhandWeightKg ?? 0);
     const draftWeightKg =
       chartStatus === 'onhand' ? 0 : (stored?.draftWeightKg ?? draft?.weightKg ?? 0);
-    const completedWeightKg =
-      chartStatus === 'onhand' || chartStatus === 'draft' ? 0 : (stored?.incomingWeightKg ?? 0);
     const onhandVolumeCbm = chartStatus === 'draft' ? 0 : (stored?.onhandVolumeCbm ?? 0);
     const draftVolumeCbm =
       chartStatus === 'onhand' ? 0 : (stored?.draftVolumeCbm ?? draft?.volumeCbm ?? 0);
-    const completedVolumeCbm =
-      chartStatus === 'onhand' || chartStatus === 'draft' ? 0 : (stored?.incomingVolumeCbm ?? 0);
     return {
       region: cfg.name,
       onhandWeightKg,
       draftWeightKg,
-      completedWeightKg,
       onhandWeightTons: onhandWeightKg / 1000,
       draftWeightTons: draftWeightKg / 1000,
-      completedWeightTons: completedWeightKg / 1000,
       onhandVolumeCbm,
       draftVolumeCbm,
-      completedVolumeCbm,
-      totalWeightKg: onhandWeightKg + draftWeightKg + completedWeightKg,
-      totalWeightTons: (onhandWeightKg + draftWeightKg + completedWeightKg) / 1000,
-      totalVolumeCbm: onhandVolumeCbm + draftVolumeCbm + completedVolumeCbm,
+      totalWeightKg: onhandWeightKg + draftWeightKg,
+      totalWeightTons: (onhandWeightKg + draftWeightKg) / 1000,
+      totalVolumeCbm: onhandVolumeCbm + draftVolumeCbm,
       chartColors: cfg.chartColors
     };
   });
-  const chartTotals =
-    chartStatus === 'total'
-      ? {
-          totalWeightKg: Number(totals.totalWeightKg) || 0,
-          totalWeightTons: (Number(totals.totalWeightKg) || 0) / 1000,
-          totalVolumeCbm: Number(totals.totalVolumeCbm) || 0
-        }
-      : chartRegions.reduce(
-          (sum, region) => ({
-            totalWeightKg: sum.totalWeightKg + region.totalWeightKg,
-            totalWeightTons: sum.totalWeightTons + region.totalWeightTons,
-            totalVolumeCbm: sum.totalVolumeCbm + region.totalVolumeCbm
-          }),
-          { totalWeightKg: 0, totalWeightTons: 0, totalVolumeCbm: 0 }
-        );
+  const chartTotals = chartRegions.reduce(
+    (sum, region) => ({
+      totalWeightKg: sum.totalWeightKg + region.totalWeightKg,
+      totalWeightTons: sum.totalWeightTons + region.totalWeightTons,
+      totalVolumeCbm: sum.totalVolumeCbm + region.totalVolumeCbm
+    }),
+    { totalWeightKg: 0, totalWeightTons: 0, totalVolumeCbm: 0 }
+  );
 
   const handleExportExcel = () => {
     if (!data?.regions) return;
@@ -517,11 +501,12 @@ export function SuperAdminRegionalDispatchTable() {
                               tickLine={false}
                             />
                             <Tooltip
-                              formatter={(value, name) =>
-                                name === 'Đã xuất kho'
-                                  ? null
-                                  : [`${formatNumber(Number(value))} Tấn`, String(name)]
-                              }
+                              formatter={(value, name) => [
+                                `${formatNumber(Number(value))} Tấn`,
+                                String(name)
+                              ]}
+                              labelStyle={{ fontWeight: 700 }}
+                              itemStyle={{ fontWeight: 700 }}
                               contentStyle={{ fontSize: 10, borderRadius: 6 }}
                             />
                             {chartStatus !== 'draft' && (
@@ -554,24 +539,36 @@ export function SuperAdminRegionalDispatchTable() {
                                 ))}
                               </Bar>
                             )}
-                            {chartStatus === 'total' && (
-                              <Bar
-                                dataKey='completedWeightTons'
-                                name='Đã xuất kho'
-                                stackId='weight'
-                                radius={0}
-                              >
-                                {chartRegions.map((entry) => (
-                                  <Cell
-                                    key={`weight-completed-${entry.region}`}
-                                    fill={entry.chartColors.completed}
-                                  />
-                                ))}
-                              </Bar>
-                            )}
-                            {chartStatus === 'total' && <Legend wrapperStyle={{ fontSize: 10 }} />}
                           </BarChart>
                         </ResponsiveContainer>
+                      </div>
+                      <div
+                        data-testid='regional-weight-chart-legend'
+                        className='flex flex-wrap items-center gap-2 text-[10px] text-slate-600 dark:text-slate-300'
+                        aria-label='Chú giải màu theo khu vực'
+                      >
+                        {chartRegions.map((entry) => (
+                          <span
+                            key={`weight-legend-${entry.region}`}
+                            className='inline-flex items-center gap-1'
+                          >
+                            <span
+                              className='h-2.5 w-2.5 rounded-sm'
+                              style={{
+                                backgroundColor: entry.chartColors.onhand
+                              }}
+                              aria-hidden='true'
+                            />
+                            <span
+                              className='h-2.5 w-2.5 rounded-sm'
+                              style={{
+                                backgroundColor: entry.chartColors.draft
+                              }}
+                              aria-hidden='true'
+                            />
+                            {entry.region}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   }
@@ -631,11 +628,12 @@ export function SuperAdminRegionalDispatchTable() {
                               tickLine={false}
                             />
                             <Tooltip
-                              formatter={(value, name) =>
-                                name === 'Đã xuất kho'
-                                  ? null
-                                  : [`${formatNumber(Number(value))} m³`, String(name)]
-                              }
+                              formatter={(value, name) => [
+                                `${formatNumber(Number(value))} m³`,
+                                String(name)
+                              ]}
+                              labelStyle={{ fontWeight: 700 }}
+                              itemStyle={{ fontWeight: 700 }}
                               contentStyle={{ fontSize: 10, borderRadius: 6 }}
                             />
                             {chartStatus !== 'draft' && (
@@ -663,24 +661,36 @@ export function SuperAdminRegionalDispatchTable() {
                                 ))}
                               </Bar>
                             )}
-                            {chartStatus === 'total' && (
-                              <Bar
-                                dataKey='completedVolumeCbm'
-                                name='Đã xuất kho'
-                                stackId='volume'
-                                radius={0}
-                              >
-                                {chartRegions.map((entry) => (
-                                  <Cell
-                                    key={`volume-completed-${entry.region}`}
-                                    fill={entry.chartColors.completed}
-                                  />
-                                ))}
-                              </Bar>
-                            )}
-                            {chartStatus === 'total' && <Legend wrapperStyle={{ fontSize: 10 }} />}
                           </BarChart>
                         </ResponsiveContainer>
+                      </div>
+                      <div
+                        data-testid='regional-volume-chart-legend'
+                        className='flex flex-wrap items-center gap-2 text-[10px] text-slate-600 dark:text-slate-300'
+                        aria-label='Chú giải màu theo khu vực'
+                      >
+                        {chartRegions.map((entry) => (
+                          <span
+                            key={`volume-legend-${entry.region}`}
+                            className='inline-flex items-center gap-1'
+                          >
+                            <span
+                              className='h-2.5 w-2.5 rounded-sm'
+                              style={{
+                                backgroundColor: entry.chartColors.onhand
+                              }}
+                              aria-hidden='true'
+                            />
+                            <span
+                              className='h-2.5 w-2.5 rounded-sm'
+                              style={{
+                                backgroundColor: entry.chartColors.draft
+                              }}
+                              aria-hidden='true'
+                            />
+                            {entry.region}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   }
