@@ -16,9 +16,13 @@ test('regional charts filter stored and draft orders while keeping both metrics 
       regionalResponses.push(response);
     }
   });
-  await page.goto('/dashboard/admin/reports', { waitUntil: 'domcontentloaded' });
+  await page.goto('/dashboard/admin/reports', {
+    waitUntil: 'domcontentloaded'
+  });
   await expect(page.getByRole('heading', { name: /Tình hình hàng hóa/ })).toBeVisible();
-  await expect(page.getByTestId('regional-weight-chart')).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByTestId('regional-weight-chart')).toBeVisible({
+    timeout: 45_000
+  });
   await expect(page.getByTestId('regional-volume-chart')).toBeVisible();
   const response = regionalResponses.at(-1);
   expect(response).toBeDefined();
@@ -61,7 +65,10 @@ test('regional charts filter stored and draft orders while keeping both metrics 
     expect(Array.isArray(report.draftRegions[key].orderCodes)).toBe(true);
   }
   expect(Number(report.regions.south.incomingWeightKg)).toBeGreaterThan(0);
-  const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
+  const controls = page.getByRole('group', {
+    name: 'Trạng thái đơn hàng',
+    exact: true
+  });
   await expect(controls.getByRole('button', { name: 'Đã xuất kho', exact: true })).toHaveCount(0);
   const weight = page.getByTestId('regional-weight-chart');
   const volume = page.getByTestId('regional-volume-chart');
@@ -69,7 +76,7 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   const volumeTotal = volume.getByTestId('regional-volume-total');
   // Báo cáo cũ "Số mã đơn theo miền" đã được loại bỏ khỏi màn hình.
   await expect(page.getByTestId('regional-order-count-chart')).toHaveCount(0);
-  const cases = ['Lưu kho', 'Nháp'] as const;
+  const cases = ['Lưu kho', 'Dự kiến nhập kho'] as const;
   const totalsByStatus = new Map<string, { weight: string; volume: string }>();
   for (const label of cases) {
     await controls.getByRole('button', { name: label, exact: true }).dispatchEvent('click');
@@ -97,17 +104,17 @@ test('regional charts filter stored and draft orders while keeping both metrics 
   });
   expect(new Set([...totalsByStatus.values()].map((totals) => totals.weight)).size).toBe(3);
   expect(new Set([...totalsByStatus.values()].map((totals) => totals.volume)).size).toBe(3);
-  await expect(weight.getByText('Lưu kho', { exact: true })).toBeVisible();
-  await expect(weight.getByText('Nháp', { exact: true })).toBeVisible();
-  await expect(volume.getByText('Lưu kho', { exact: true })).toBeVisible();
-  await expect(volume.getByText('Nháp', { exact: true })).toBeVisible();
+  await expect(weight.getByText('Đã xuất kho', { exact: true })).toHaveCount(0);
+  await expect(volume.getByText('Đã xuất kho', { exact: true })).toHaveCount(0);
+  await expect(weight.getByTestId('regional-weight-chart-legend')).toBeVisible();
+  await expect(volume.getByTestId('regional-volume-chart-legend')).toBeVisible();
   expect(await weight.locator('.recharts-bar-rectangle').count()).toBeGreaterThanOrEqual(4);
   expect(await volume.locator('.recharts-bar-rectangle').count()).toBeGreaterThanOrEqual(4);
   await weight.locator('.recharts-bar-rectangle').first().hover();
   const weightTooltip = weight.locator('.recharts-tooltip-wrapper');
   await expect(weightTooltip).toBeVisible();
   await expect(weightTooltip).toContainText('Lưu kho');
-  await expect(weightTooltip).toContainText('Nháp');
+  await expect(weightTooltip).toContainText('Dự kiến nhập kho');
   const bars = weight.locator('.recharts-bar-rectangle');
   let visibleBarsChecked = 0;
   for (let index = 0; index < (await bars.count()); index += 1) {
@@ -176,7 +183,10 @@ test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', 
     storageOrders.every((order) => ['MIỀN BẮC', 'MIỀN TRUNG', 'MIỀN NAM'].includes(order.region))
   ).toBe(true);
 
-  const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
+  const controls = page.getByRole('group', {
+    name: 'Trạng thái đơn hàng',
+    exact: true
+  });
   const weight = page.getByTestId('regional-weight-chart');
   await expect(weight).toBeVisible({ timeout: 45_000 });
   await controls.getByRole('button', { name: 'Lưu kho', exact: true }).click();
@@ -186,8 +196,9 @@ test('Lưu kho classifies Gửi kho/Lưu kho orders by the holding Hub region', 
   );
   await expect(weight.getByText('GỬI KHO', { exact: true })).toHaveCount(0);
   await expect(weight.getByText('LƯU KHO', { exact: true })).toHaveCount(0);
-  await expect(weight.getByText('MIỀN BẮC', { exact: true })).toBeVisible();
-  await expect(weight.getByText('MIỀN TRUNG', { exact: true })).toBeVisible();
-  await expect(weight.getByText('MIỀN NAM', { exact: true })).toBeVisible();
+  const legend = weight.getByTestId('regional-weight-chart-legend');
+  await expect(legend.getByText('MIỀN BẮC', { exact: true })).toBeVisible();
+  await expect(legend.getByText('MIỀN TRUNG', { exact: true })).toBeVisible();
+  await expect(legend.getByText('MIỀN NAM', { exact: true })).toBeVisible();
   expect(await weight.locator('.recharts-bar-rectangle').count()).toBeGreaterThan(0);
 });
