@@ -62,9 +62,7 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
     const panel = page.getByTestId(`regional-hub-${hubReport.hub.id}`);
     await expect(panel).toBeVisible();
     await expect(panel.getByTestId('regional-calculated-at')).not.toContainText('Chưa có dữ liệu');
-    for (const key of REGION_KEYS) {
-      await expect(panel.getByTestId(`regional-region-${key}`)).toBeVisible();
-    }
+    await expect(panel.locator('[data-testid^="regional-region-"]')).toHaveCount(0);
   }
 
   const allCodes = report.hubReports.flatMap((hubReport) =>
@@ -87,7 +85,7 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
   );
   await expect(hcmPanel.getByTestId('regional-onhand-count')).toContainText(`${hcmPackages} kiện`);
   const storage = hcmSnapshot.regions.storage;
-  await expect(hcmPanel.getByTestId('regional-region-storage')).toContainText(`${storage.onhandPackageCount} kiện tại kho`);
+  await expect(hcmPanel.locator('[data-testid="regional-region-storage"]')).toHaveCount(0);
   if (storage.onhandPackageCount > 0 && storage.onhandWeightKg === 0 && storage.onhandVolumeCbm === 0) {
     await expect(hcmPanel.getByTestId('regional-unmeasured-storage'))
       .toHaveText(`LƯU KHO: ${storage.onhandPackageCount} kiện chưa có kg/m³`);
