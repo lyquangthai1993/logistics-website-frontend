@@ -76,7 +76,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await hubSelector.click();
     await expect(page.getByTestId('warehouse-hub-filter-select')).toBeVisible();
 
-    await expect(page.getByTestId('kpi-total-trips')).toContainText('chuyến');
+    await expect(page.getByTestId('kpi-total-trips')).toHaveText(/^\d[\d.,]*$/);
     await expect(page.getByText(/Xe nhập kho/i).first()).toBeVisible();
     await expect(page.getByText(/Xe xuất kho/i).first()).toBeVisible();
     const tripBox = await page.getByTestId('trip-overview-card').boundingBox();
