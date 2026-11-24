@@ -439,7 +439,7 @@ export function SuperAdminRegionalDispatchTable() {
                     {(
                       [
                         ['onhand', 'Lưu kho'],
-                        ['draft', 'Nháp'],
+                        ['draft', 'Dự kiến nhập kho'],
                         ['total', 'Tất cả']
                       ] as const
                     ).map(([status, label]) => (
