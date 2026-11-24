@@ -542,7 +542,7 @@ export function SuperAdminRegionalDispatchTable() {
                             {chartStatus !== 'onhand' && (
                               <Bar
                                 dataKey='draftWeightTons'
-                                name='Nháp'
+                                name='Dự kiến nhập kho'
                                 stackId='weight'
                                 radius={0}
                               >
