@@ -500,7 +500,42 @@ function WarehouseInboundContent() {
     }
   }, [vehicleGroups]);
 
-  const handleOpenReceiptForVehicle = (grp: InboundVehicleGroup) => {
+  const handleOpenReceiptForVehicle = async (grp: InboundVehicleGroup) => {
+    // After confirming an inbound trip, the group passed by the edit modal can
+    // still contain the pre-confirm inventoryTransactions snapshot. Read the
+    // committed receipt from the backend before opening the A4 modal so the
+    // immediate print matches a later re-open/print from the board.
+    if (grp.tripCode && grp.tripCode !== '—' && grp.status === 'COMPLETED') {
+      const token = tokenManager.getAccessToken();
+      const receiptRes = await fetch(
+        `/api/v1/warehouse/inbound/receipt-data?tripCode=${encodeURIComponent(grp.tripCode)}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        }
+      );
+
+      if (!receiptRes.ok) {
+        const errData = await receiptRes.json().catch(() => ({ message: receiptRes.statusText }));
+        showApiErrorToast(
+          { response: { data: errData, status: receiptRes.status } },
+          'Không thể tải dữ liệu phiếu nhập kho sau khi xác nhận'
+        );
+        return;
+      }
+
+      const receiptBody = await receiptRes.json();
+      const canonicalReceipt = receiptBody?.data ?? receiptBody;
+      setSelectedReceiptData({
+        ...canonicalReceipt,
+        orderCode: canonicalReceipt.orderCode || grp.orders?.[0]?.orderCode || grp.tripCode,
+        originHub: canonicalReceipt.originHub ?? canonicalReceipt.originHubName,
+        destinationHub: canonicalReceipt.destinationHub ?? canonicalReceipt.destinationHubName,
+        tripCode: canonicalReceipt.tripCode || grp.tripCode
+      });
+      setIsInboundReceiptModalOpen(true);
+      return;
+    }
+
     // "Nhập tại kho" must be the receiving warehouse (the user's own hub first,
     // or the destination/current/origin hub entity), NEVER the customer's pickup address!
     const userHubId = user?.hub?.id;
