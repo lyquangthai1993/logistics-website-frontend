@@ -670,6 +670,7 @@ export function AdminReportHeaderAndKpis() {
               <WarehouseHubFilterSelect
                 value={selectedHubId}
                 onChange={(val) => setSelectedHubId(val)}
+                reportScope
               />
 
               <div

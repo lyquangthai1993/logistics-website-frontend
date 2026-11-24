@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   IconBuildingWarehouse,
@@ -32,6 +32,7 @@ export interface WarehouseHubFilterSelectProps {
   hubs?: WarehouseHubOption[];
   className?: string;
   reportScope?: boolean;
+  testIdPrefix?: string;
 }
 
 function isSatelliteHub(h?: WarehouseHubOption): boolean {
@@ -75,7 +76,8 @@ export function WarehouseHubFilterSelect({
   onChange,
   hubs: externalHubs,
   className = '',
-  reportScope = false
+  reportScope = false,
+  testIdPrefix = 'warehouse-hub-filter'
 }: WarehouseHubFilterSelectProps) {
   const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
@@ -92,11 +94,13 @@ export function WarehouseHubFilterSelect({
   const shouldFetch = isSuperAdmin && (!externalHubs || externalHubs.length === 0);
 
   const { data: fetchedHubs = [], isLoading } = useQuery<WarehouseHubOption[]>({
-    queryKey: ['hubs', 'active'],
+    queryKey: ['hubs', reportScope ? 'level-1-all' : 'active-all'],
     queryFn: async () => {
-      const res = await apiClient.get<any>('/api/v1/hubs/active');
+      const res = await apiClient.get<any>(
+        reportScope ? '/api/v1/hubs?level=1&limit=100' : '/api/v1/hubs/active'
+      );
       const payload = res.data?.data ?? res.data ?? res;
-      return Array.isArray(payload) ? payload : [];
+      return Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
     },
     enabled: shouldFetch,
     staleTime: 5 * 60 * 1000
@@ -104,7 +108,7 @@ export function WarehouseHubFilterSelect({
 
   const allHubs = useMemo(() => {
     const raw = externalHubs && externalHubs.length > 0 ? externalHubs : fetchedHubs;
-    const scoped = reportScope ? raw.filter((hub) => (hub.level ?? 1) === 1) : raw;
+    const scoped = reportScope ? raw.filter((hub) => hub.level === 1) : raw;
     return scoped.toSorted((a, b) => {
       const levelA = a.level || 1;
       const levelB = b.level || 1;
@@ -132,24 +136,11 @@ export function WarehouseHubFilterSelect({
     : undefined;
   const isSelectedSatellite = isSatelliteHub(selectedHub);
 
-  useEffect(() => {
-    if (!reportScope || normalizedValue !== 'ALL') return;
-    const hcmHub = allHubs.find((hub) => hub.code === 'HUB-HCM-01');
-    if (hcmHub) onChange(String(hcmHub.id));
-  }, [allHubs, normalizedValue, onChange, reportScope]);
-
   if (!isSuperAdmin) {
     return null;
   }
 
   const handleSelectHub = (nextValue: string) => {
-    if (
-      reportScope &&
-      nextValue !== 'ALL' &&
-      allHubs.find((hub) => String(hub.id) === nextValue)?.code !== 'HUB-HCM-01'
-    ) {
-      return;
-    }
     onChange(nextValue);
     setOpen(false);
     setSearch('');
@@ -162,7 +153,7 @@ export function WarehouseHubFilterSelect({
           render={
             <button
               type='button'
-              data-testid='warehouse-hub-filter-select'
+              data-testid={`${testIdPrefix}-select`}
               title='Super Admin: Lọc dữ liệu theo Kho / Trạm cụ thể'
               className={`h-8 text-xs px-2.5 gap-1.5 min-w-[185px] max-w-[260px] rounded-md border inline-flex items-center justify-between transition-colors cursor-pointer ${
                 isFiltered
@@ -202,10 +193,10 @@ export function WarehouseHubFilterSelect({
               <span className='text-[10px] text-muted-foreground truncate'>
                 {selectedHub
                   ? `Đang xem: ${selectedHub.name}${selectedHub.city ? ` • ${selectedHub.city}` : ''}`
-                  : 'Chuyển nhanh góc nhìn theo Cấp 1 • Hub Chính / Cấp 2 • Trạm Xe Bo'}
+                  : reportScope ? 'Chọn Cấp 1 • Hub Chính để xem báo cáo' : 'Chuyển nhanh góc nhìn theo Cấp 1 • Hub Chính / Cấp 2 • Trạm Xe Bo'}
               </span>
             </div>
-            {isFiltered && !reportScope && (
+            {isFiltered && (
               <Button
                 type='button'
                 variant='default'
@@ -225,7 +216,7 @@ export function WarehouseHubFilterSelect({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder='Tìm tên kho, mã kho, tỉnh thành...'
-              data-testid='warehouse-hub-filter-search'
+              data-testid={`${testIdPrefix}-search`}
               className='h-7 pl-7 pr-6 text-xs bg-background'
             />
             {search && (
@@ -243,12 +234,12 @@ export function WarehouseHubFilterSelect({
           {/* Danh sách kho cuộn dọc */}
           <div className='max-h-64 overflow-y-auto divide-y divide-border/60 rounded border bg-white dark:bg-slate-950'>
             {/* Tùy chọn Tất cả kho */}
-            {!reportScope && (!search.trim() ||
+            {(!search.trim() ||
               'tất cả kho toàn hệ thống all'.includes(search.trim().toLowerCase())) && (
               <button
                 type='button'
                 onClick={() => handleSelectHub('ALL')}
-                data-testid='warehouse-hub-filter-item-all'
+                data-testid={`${testIdPrefix}-item-all`}
                 className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/70 transition-colors cursor-pointer ${
                   !isFiltered ? 'bg-slate-100/80 dark:bg-slate-800/60' : ''
                 }`}
@@ -270,7 +261,7 @@ export function WarehouseHubFilterSelect({
                       Toàn hệ thống
                     </Badge>
                     <span className='text-[10px] text-muted-foreground truncate'>
-                      • Gộp tất cả Hub &amp; Trạm
+                      {reportScope ? '• Xem từng Hub Chính' : '• Gộp tất cả Hub & Trạm'}
                     </span>
                   </div>
                 </div>
@@ -304,13 +295,8 @@ export function WarehouseHubFilterSelect({
                     key={h.id}
                     type='button'
                     onClick={() => handleSelectHub(String(h.id))}
-                    disabled={reportScope && h.code !== 'HUB-HCM-01'}
-                    data-testid={`warehouse-hub-filter-item-${h.id}`}
-                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left transition-colors ${
-                      reportScope && h.code !== 'HUB-HCM-01'
-                        ? 'cursor-not-allowed opacity-40 grayscale'
-                        : 'hover:bg-muted/70 cursor-pointer'
-                    } ${isSelected
+                    data-testid={`${testIdPrefix}-item-${h.id}`}
+                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left transition-colors hover:bg-muted/70 cursor-pointer ${isSelected
                         ? isSatellite
                           ? 'bg-purple-50/70 dark:bg-purple-950/40'
                           : 'bg-blue-50/70 dark:bg-blue-950/40'
@@ -370,7 +356,7 @@ export function WarehouseHubFilterSelect({
       {isFiltered && (
         <button
           type='button'
-          data-testid='warehouse-hub-filter-clear'
+          data-testid={`${testIdPrefix}-clear`}
           onClick={() => handleSelectHub('ALL')}
           className={`h-8 w-7 inline-flex items-center justify-center rounded-md border transition-colors cursor-pointer ${
             isSelectedSatellite
