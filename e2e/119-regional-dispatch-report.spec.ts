@@ -60,6 +60,23 @@ test('Tình hình hàng hóa is restricted to the HCM hub scope', async ({ page 
     await expect(panel).toBeVisible();
     await expect(panel.getByTestId('regional-calculated-at')).not.toContainText('Chưa có dữ liệu');
     await expect(panel.locator('[data-testid^="regional-region-"]')).toHaveCount(0);
+
+    const unassigned = hubReport.regions?.na;
+    const unassignedCodes = [...new Set([
+      ...(unassigned?.onhandOrderCodes ?? []),
+      ...(unassigned?.draftOrderCodes ?? []),
+    ])];
+    const unassignedCount = (unassigned?.onhandOrderCount ?? 0) + (unassigned?.draftOrderCount ?? 0);
+    const warning = panel.getByTestId('regional-unassigned-warning');
+    if (unassignedCount > 0) {
+      await expect(warning).toBeVisible();
+      await expect(warning).toContainText('CẢNH BÁO ĐƠN CHƯA PHÂN MIỀN');
+      for (const orderCode of unassignedCodes) {
+        await expect(panel.getByTestId('regional-unassigned-order-codes')).toContainText(orderCode);
+      }
+    } else {
+      await expect(warning).toHaveCount(0);
+    }
   }
 
   const allCodes = report.hubReports.flatMap((hubReport) =>
@@ -76,7 +93,11 @@ test('Tình hình hàng hóa is restricted to the HCM hub scope', async ({ page 
   const hcmSnapshot = report.hubReports.find((item) => item.hub.name.includes('HCM'));
   expect(hcmSnapshot?.regions).toBeTruthy();
   if (!hcmSnapshot?.regions) throw new Error('Missing HCM regional snapshot');
+  expect(
+    hcmSnapshot.regions.na.onhandOrderCount + hcmSnapshot.regions.na.draftOrderCount
+  ).toBeGreaterThan(0);
   const hcmPanel = page.getByTestId(`regional-hub-${hcmSnapshot.hub.id}`);
+  await expect(hcmPanel.getByTestId('regional-unassigned-warning')).toBeVisible();
   await expect(hcmPanel.locator('[data-testid="regional-region-storage"]')).toHaveCount(0);
   await expect(hcmPanel.getByTestId('regional-onhand-count')).toHaveCount(0);
   await expect(page.getByText('Hàng tại kho được chia theo tỉnh giao. Dòng LƯU KHO gồm đơn ghi “Lưu kho” ở tỉnh giao.')).toBeVisible();
@@ -109,7 +130,7 @@ test('Tình hình hàng hóa is restricted to the HCM hub scope', async ({ page 
   await page.getByRole('button', { name: 'Đồng bộ số liệu' }).click();
   const scopedSync = await scopedSyncResponse;
   expect(scopedSync.status()).toBe(200);
-  expect(scopedSync.request().postDataJSON().hubId).toBe(hcmHub.hub.id);
+  expect(scopedSync.request().postDataJSON().hubId).toBe(hcmHub.id);
   const scopedSyncRaw = await scopedSync.json();
   const scopedSyncResult = scopedSyncRaw.data ?? scopedSyncRaw;
   expect(scopedSyncResult.rowsProcessed).toBe(REGION_KEYS.length);
