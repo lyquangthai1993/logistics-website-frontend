@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import SignInViewPage from '@/features/auth/components/sign-in-view';
 import { isTokenValid, parseJwtServer, getRoleDefaultPath } from '@/lib/server-auth';
+import { normalizeRole } from '@/lib/role-utils';
 
 export const metadata: Metadata = {
   title: 'Đăng nhập',
@@ -15,9 +16,9 @@ export default async function Page() {
 
   if (isTokenValid(token)) {
     const payload = parseJwtServer(token!);
-    redirect(getRoleDefaultPath(payload?.role));
+    const role = normalizeRole(payload?.role);
+    if (role) redirect(getRoleDefaultPath(role));
   }
 
   return <SignInViewPage />;
 }
-

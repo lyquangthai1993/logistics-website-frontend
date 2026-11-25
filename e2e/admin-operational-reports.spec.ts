@@ -23,13 +23,13 @@ async function getAuthToken(email: string, password = 'secret'): Promise<string>
   return body?.token || body?.data?.token || '';
 }
 
-test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (18:00 D-1 -> 18:00 D)', () => {
-  test('1. API & Cronjob Logic: Khung giờ 18:00 D-1 -> 18:00 D và chỉ tính chuyến xe lúc Xác nhận (không tính nháp)', async () => {
+test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (06:00 D -> 05:59 D+1)', () => {
+  test('1. API & Cronjob Logic: Khung giờ 06:00 D -> 05:59 D+1 và chỉ tính chuyến xe lúc Xác nhận (không tính nháp)', async () => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
     const adminToken = await getAuthToken(superAdmin.email, superAdmin.password);
     expect(adminToken.length).toBeGreaterThan(10);
 
-    // 1. Kiểm tra khung giờ báo cáo ngày 02/11/2026: phải đúng từ 18:00 01/11/2026 đến 18:00 02/11/2026 (GMT+7)
+    // 1. Kiểm tra khung giờ báo cáo ngày 02/11/2026: phải đúng từ 06:00 02/11/2026 đến 05:59 03/11/2026 (GMT+7)
     const reportRes = await fetch(
       `${normalizedApiV1}/admin/reports/operational?fromDate=2026-11-01&toDate=2026-11-07&direction=ALL`,
       {
@@ -50,10 +50,10 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
       (d: { reportDate?: string }) => d.reportDate === '2026-11-02'
     );
     expect(dayNov02).toBeDefined();
-    expect(dayNov02.windowLabel).toBe('18:00 01/11/2026 → 18:00 02/11/2026');
-    // 18:00 GMT+7 = 11:00 UTC
-    expect(dayNov02.windowStart).toBe('2026-11-01T11:00:00.000Z');
-    expect(dayNov02.windowEnd).toBe('2026-11-02T11:00:00.000Z');
+    expect(dayNov02.windowLabel).toBe('06:00 02/11/2026 → 05:59 03/11/2026');
+    // 06:00 GMT+7 = 23:00 UTC của ngày hôm trước
+    expect(dayNov02.windowStart).toBe('2026-11-01T23:00:00.000Z');
+    expect(dayNov02.windowEnd).toBe('2026-11-02T23:00:00.000Z');
 
     // Kiểm tra dữ liệu xu hướng theo tháng (Slide 3)
     expect(Array.isArray(reportData.monthlySeries)).toBe(true);
@@ -81,7 +81,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     const rerunData = rawRerun?.data ?? rawRerun;
     expect(rerunData.fromDate).toBe('2026-11-01');
     expect(rerunData.toDate).toBe('2026-11-03');
-    expect(rerunData.windowLabel).toBe('18:00 31/10/2026 → 18:00 03/11/2026');
+    expect(rerunData.windowLabel).toBe('06:00 31/10/2026 → 05:59 03/11/2026');
     expect(rerunData.processedDays).toBe(3);
     expect(rerunData.upsertedRows).toBeGreaterThan(0);
     expect(rerunData.log?.status).toBe('SUCCESS');
@@ -139,31 +139,26 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(
       page.getByTestId('super-admin-operational-report')
     ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Số mã đơn theo miền')).toHaveCount(0);
 
     // Kiểm tra duy nhất 1 Bộ lọc chung Global trên cùng và 3 Parallel Route Slots
     await expect(page.getByTestId('global-report-filter-bar')).toBeVisible();
     await expect(page.getByTestId('slide2-metric-cbm')).toHaveCount(0);
     await expect(page.getByTestId('report-trip-search-input')).toHaveCount(0);
     await expect(page.getByTestId('parallel-slot-daily-stats')).toBeVisible();
-    await expect(page.getByTestId('parallel-slot-monthly-trends')).toBeVisible();
-    await expect(page.getByTestId('parallel-slot-drilldown-table')).toBeVisible();
 
-    // Kiểm tra banner quy chuẩn Cronjob 18:00 D-1 -> 18:00 D
-    const banner = page.getByTestId('cron-cutoff-rule-banner');
-    await expect(banner).toBeVisible();
-    await expect(banner).toContainText('18:00 (6:00 PM) ngày D-1 đến 18:00 (6:00 PM) ngày D');
-    await expect(banner).toContainText('02/11/2026');
+    // Banner quy chuẩn chốt sổ đã được loại khỏi trang báo cáo.
+    await expect(page.getByTestId('cron-cutoff-rule-banner')).toHaveCount(0);
 
     // Kiểm tra 4 thẻ KPI
     await expect(page.getByTestId('kpi-total-cbm')).toBeVisible();
     await expect(page.getByTestId('kpi-total-tons')).toBeVisible();
     await expect(page.getByTestId('kpi-total-trips')).toBeVisible();
-    await expect(page.getByTestId('kpi-total-packages')).toBeVisible();
 
     // Kiểm tra Slide 2 (Biểu đồ cột CBM / SỐ TẤN theo ngày, không lặp lại dòng footer trùng thông tin)
     const slide2Card = page.getByTestId('slide-2-daily-chart-card');
     await expect(slide2Card).toBeVisible();
-    await expect(slide2Card).toContainText('1. Tình hình hoạt động của Hub');
+    await expect(slide2Card).toContainText('BÁO CÁO KẾT QUẢ HOẠT ĐỘNG VẬN HÀNH');
     await expect(page.getByTestId('slide-2-summary-footer')).toHaveCount(0);
     await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('CBM');
     await page.getByTestId('kpi-card-tons').click();
@@ -171,20 +166,11 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await page.getByTestId('kpi-card-cbm').click();
     await expect(page.getByTestId('slide-2-chart-metric-label')).toHaveText('CBM');
 
-    // Kiểm tra Slide 3 (2 Biểu đồ đường SỐ KHỐI & SỐ TẤN theo tháng)
-    const slide3Card = page.getByTestId('slide-3-monthly-charts-card');
-    await expect(slide3Card).toBeVisible();
-    await expect(page.getByTestId('slide-3-cbm-line-chart')).toContainText('SỐ KHỐI');
-    await expect(page.getByTestId('slide-3-tons-line-chart')).toContainText('SỐ TẤN');
-
-    // Thử chuyển đổi bộ lọc chiều vận hành
+    // Kiểm tra các bộ lọc chiều vận hành còn được hiển thị
     await page.getByTestId('direction-inbound-btn').click();
     await page.getByTestId('direction-outbound-btn').click();
+    await expect(page.getByTestId('direction-storage-btn')).toHaveCount(0);
     await page.getByTestId('direction-inbound-btn').click();
-
-    await page.getByTestId('tab-confirmed-trips').click();
-    await expect(page.getByTestId('tab-hub-breakdown')).toHaveCount(0);
-    await page.getByTestId('tab-daily-breakdown').click();
 
     await expect(
       page.getByTestId('slide-2-bar-chart-container')
@@ -194,6 +180,31 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
       path: 'screenshot_super_admin_operational_report_verified.png',
       fullPage: true
     });
+  });
+
+  test('2b. Mobile báo cáo vận hành hiển thị vùng cuộn ngang và ẩn tooltip hover', async ({ page }) => {
+    const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
+    await clearSession(page);
+    await loginAs(page, superAdmin);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/dashboard/admin/reports');
+
+    const chart = page.getByTestId('slide-2-bar-chart-container');
+    await expect(chart).toBeVisible({ timeout: 15000 });
+    const dimensions = await chart.evaluate((element) => {
+      const inner = element.firstElementChild as HTMLElement | null;
+      return {
+        viewportWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        contentWidth: inner?.scrollWidth ?? 0,
+        visibleTooltipCount: [...element.querySelectorAll('.recharts-tooltip-wrapper')].filter(
+          (tooltip) => getComputedStyle(tooltip).display !== 'none',
+        ).length,
+      };
+    });
+    expect(dimensions.contentWidth).toBeGreaterThanOrEqual(7 * 52);
+    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.viewportWidth);
+    expect(dimensions.visibleTooltipCount).toBe(0);
   });
 
   test('3. Trang Quản trị Cronjob (/dashboard/admin/cronjobs) & Trang Detail (/dashboard/admin/cronjobs/[jobKey]): Chọn khoảng ngày Từ ngày -> Đến ngày, Cấu hình lịch chạy & Nhật ký', async ({
@@ -304,7 +315,7 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     });
   });
 
-  test('4. Widget Theo dõi chi tiết mã TRIP & Trang chuyên biệt theo ngày (/dashboard/admin/reports/trips): Xem 1 ngày cụ thể có bao nhiêu xe nhập/xuất & đơn hàng trong từng TRIP', async ({
+  test('4. Trang chuyên biệt theo ngày (/dashboard/admin/reports/trips): Xem 1 ngày cụ thể có bao nhiêu xe nhập/xuất & đơn hàng trong từng TRIP', async ({
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
@@ -339,13 +350,11 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(page).toHaveURL(/\/dashboard\/warehouse\/orders/);
     await expect(page.locator('aside a[href="/dashboard/orders"], nav a[href="/dashboard/orders"]')).toHaveCount(0);
 
-    // 2. Mở trang Báo cáo vận hành, kiểm tra Widget Theo dõi mã TRIP và bấm mở sang trang Theo dõi TRIP theo ngày
+    // 2. Mở trang Báo cáo vận hành: widget và các nút điều hướng TRIP đã được loại bỏ khỏi trang tổng.
     await page.goto('/dashboard/admin/reports');
-    await expect(page.getByTestId('trip-tracking-widget')).toBeVisible({
-      timeout: 15000
-    });
-    await expect(page.getByTestId('widget-open-daily-trips-btn')).toBeVisible();
-    await expect(page.getByTestId('report-goto-daily-trips-btn')).toBeVisible();
+    await expect(page.getByTestId('trip-tracking-widget')).toHaveCount(0);
+    await expect(page.getByTestId('widget-open-daily-trips-btn')).toHaveCount(0);
+    await expect(page.getByTestId('report-goto-daily-trips-btn')).toHaveCount(0);
 
     // Điều hướng sang trang chuyên biệt /dashboard/admin/reports/trips?date=<targetDate>
     await page.goto(`/dashboard/admin/reports/trips?date=${targetDate}`);
@@ -357,12 +366,12 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(page.getByTestId('slide-2-daily-chart-card')).toHaveCount(0);
     await expect(page.getByTestId('slide-3-monthly-charts-card')).toHaveCount(0);
 
-    // 3. Kiểm tra Bộ lọc 1 ngày cụ thể, Nút Xuất Excel, Khung Cảnh báo Chuyến xe Chưa xác nhận trước Cut-off 18:00, Dải 14 ngày chọn nhanh và 4 Thẻ KPI Số xe Nhập / Xuất
+    // 3. Kiểm tra Bộ lọc 1 ngày cụ thể, Nút Xuất Excel, Khung Cảnh báo Chuyến xe Chưa xác nhận trước Cut-off 06:00, Dải 14 ngày chọn nhanh và 4 Thẻ KPI Số xe Nhập / Xuất
     await expect(page.getByTestId('daily-trips-filter-bar')).toBeVisible();
     await expect(page.getByTestId('btn-export-daily-trips-excel')).toBeVisible();
     await expect(page.getByTestId('pending-trips-alert-card')).toBeVisible();
     await expect(page.getByTestId('pending-trips-alert-card')).toContainText(
-      'Kiểm soát Chuyến xe Chưa xác nhận trước giờ Cut-off 18:00'
+      'Kiểm soát Chuyến xe Chưa xác nhận trước giờ Cut-off 06:00'
     );
     await expect(page.getByTestId('recent-days-strip')).toBeVisible();
     await expect(page.getByTestId('daily-trips-date-input')).toHaveValue(
@@ -378,17 +387,27 @@ test.describe('[Super Admin] Báo cáo vận hành Hub & Quản trị Cronjob (1
     await expect(outboundTripsKpi).toContainText('xe xuất kho');
 
     // Kiểm tra bảng tóm tắt 1 ánh nhìn (Số chuyến Nhập / Xuất, các mã TRIP, Tổng sản lượng) & 2 bảng song song Nhập / Xuất
+    await page
+      .locator('summary')
+      .filter({ hasText: 'Xem bảng tổng hợp Nhập / Xuất' })
+      .first()
+      .click();
     await expect(page.getByTestId('daily-glance-summary-table')).toBeVisible();
     await expect(page.getByTestId('glance-row-inbound')).toContainText('CHUYẾN NHẬP KHO');
     await expect(page.getByTestId('glance-row-outbound')).toContainText('CHUYẾN XUẤT KHO');
     await expect(page.getByTestId('glance-row-total')).toContainText('TỔNG CỘNG NGÀY');
     await expect(page.getByTestId('inbound-trips-table-section')).toBeVisible();
-    await expect(page.getByTestId('outbound-trips-table-section')).toBeVisible();
+    await expect(page.getByTestId('outbound-trips-table-section')).toHaveCount(0);
+    await page
+      .locator('summary')
+      .filter({ hasText: 'Lịch sử sản lượng 14 ngày gần nhất' })
+      .click();
     await expect(page.getByTestId('daily-trips-by-date-summary-table')).toBeVisible();
 
     // 4. Kiểm tra chuyển đổi bộ lọc Chiều Xe Nhập Kho / Xe Xuất Kho / Tất cả
     await page.getByTestId('daily-dir-inbound').click();
     await page.getByTestId('daily-dir-outbound').click();
+    await expect(page.getByTestId('outbound-trips-table-section')).toBeVisible();
     await page.getByTestId('daily-dir-all').click();
 
     // 5. Nếu ngày đang chọn có chuyến xe TRIP, bấm mở rộng chuyến xe đầu tiên để xem bảng kê đơn hàng bên trong

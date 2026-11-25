@@ -14,7 +14,10 @@ test.describe('Task #85: Comprehensive Logistics TMS System & Quality Verificati
 
   test('CASE-01: Static Code Audit - Core Invariants & Compact Density Compliance', () => {
     // 1. Kiểm tra không có icon thừa trên các component kho chính
-    const modalPath = path.resolve(__dirname, '../src/features/warehouse/components/warehouse-trip-detail-modal.tsx');
+    const modalPath = path.resolve(
+      __dirname,
+      '../src/features/warehouse/components/warehouse-trip-detail-modal.tsx'
+    );
     expect(fs.existsSync(modalPath)).toBeTruthy();
     const modalContent = fs.readFileSync(modalPath, 'utf-8');
 
@@ -39,7 +42,10 @@ test.describe('Task #85: Comprehensive Logistics TMS System & Quality Verificati
   });
 
   test('CASE-02: Backend Controller & Service Code Audit - Strict RBAC & Invariants', () => {
-    const controllerPath = path.resolve(__dirname, '../../backend/src/orders/warehouse.controller.ts');
+    const controllerPath = path.resolve(
+      __dirname,
+      '../../backend/src/orders/warehouse.controller.ts'
+    );
     const servicePath = path.resolve(__dirname, '../../backend/src/orders/warehouse.service.ts');
     const ordersServicePath = path.resolve(__dirname, '../../backend/src/orders/orders.service.ts');
 
@@ -60,11 +66,13 @@ test.describe('Task #85: Comprehensive Logistics TMS System & Quality Verificati
     expect(serviceContent).toContain('effectiveHubStock');
 
     // Loại bỏ hoàn toàn join quan hệ ảo trips.vehicle và trips.driver
-    expect(ordersServiceContent).not.toContain('.leftJoinAndSelect(\'trips.vehicle\'');
-    expect(ordersServiceContent).not.toContain('.leftJoinAndSelect(\'trips.driver\'');
+    expect(ordersServiceContent).not.toContain(".leftJoinAndSelect('trips.vehicle'");
+    expect(ordersServiceContent).not.toContain(".leftJoinAndSelect('trips.driver'");
   });
 
-  test('CASE-03: Render Visual Evidence - Comprehensive System Health & Operational Dashboard', async ({ page }) => {
+  test('CASE-03: Render Visual Evidence - Comprehensive System Health & Operational Dashboard', async ({
+    page
+  }) => {
     await page.setViewportSize({ width: 1366, height: 860 });
 
     const html = `
@@ -220,7 +228,7 @@ test.describe('Task #85: Comprehensive Logistics TMS System & Quality Verificati
     `;
 
     await page.setContent(html);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
 
     expect(fs.existsSync(SCREENSHOT_PATH)).toBeTruthy();

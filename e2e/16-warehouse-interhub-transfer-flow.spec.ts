@@ -3,21 +3,24 @@ import { loginAs, clearSession } from './helpers/auth';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const SCREENSHOT_DIR = path.resolve(__dirname, '../../docs/user-guide/screenshots/interhub-transfer');
+const SCREENSHOT_DIR = path.resolve(
+  __dirname,
+  '../../docs/user-guide/screenshots/interhub-transfer'
+);
 
 const WAREHOUSE_HYN = {
   email: 'lyquangthai1993+4@gmail.com', // Quản lý Kho A (Polaris Hub - Hưng Yên)
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 const WAREHOUSE_DAD = {
   email: 'lyquangthai1993+5@gmail.com', // Quản lý Kho B (Magellan Hub - Đà Nẵng)
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:4000';
 
 // Seed 10 sample orders at Hub A if less than 10 are stored
 async function ensureHubAHasOrders(request: any) {
@@ -25,8 +28,8 @@ async function ensureHubAHasOrders(request: any) {
   const loginRes = await request.post(`${BASE_URL}/api/v1/auth/email/login`, {
     data: {
       email: WAREHOUSE_HYN.email,
-      password: WAREHOUSE_HYN.password,
-    },
+      password: WAREHOUSE_HYN.password
+    }
   });
   if (!loginRes.ok()) return;
   const loginData = await loginRes.json();
@@ -34,15 +37,20 @@ async function ensureHubAHasOrders(request: any) {
   if (!token) return;
 
   // Check existing stored orders
-  const ordersRes = await request.get(`${BASE_URL}/api/v1/warehouse/orders?limit=30&status=INBOUND`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const ordersRes = await request.get(
+    `${BASE_URL}/api/v1/warehouse/orders?limit=30&status=INBOUND`,
+    {
+      headers: { Authorization: `Bearer ${token}` }
+    }
+  );
   const ordersData = await ordersRes.json();
   const rawOrders = ordersData?.data || [];
   const currentCount = rawOrders.length;
 
   const needed = Math.max(0, 15 - currentCount);
-  console.log(`[Seed Check] Kho A hiện có ${currentCount} đơn LƯU KHO. Cần tạo thêm: ${needed} đơn.`);
+  console.log(
+    `[Seed Check] Kho A hiện có ${currentCount} đơn LƯU KHO. Cần tạo thêm: ${needed} đơn.`
+  );
 
   const sampleItems = [
     { desc: 'Vải cuộn may mặc cao cấp', qty: 45, kg: 850, m3: 3.2 },
@@ -54,7 +62,7 @@ async function ensureHubAHasOrders(request: any) {
     { desc: 'Sợi polyester dệt may', qty: 50, kg: 1100, m3: 3.6 },
     { desc: 'Giấy in văn phòng đóng kiện', qty: 120, kg: 780, m3: 2.4 },
     { desc: 'Phụ kiện kim khí ngũ kim', qty: 35, kg: 540, m3: 1.5 },
-    { desc: 'Bình xịt hóa chất bảo hộ', qty: 55, kg: 380, m3: 1.8 },
+    { desc: 'Bình xịt hóa chất bảo hộ', qty: 55, kg: 380, m3: 1.8 }
   ];
 
   for (let i = 0; i < needed; i++) {
@@ -62,7 +70,7 @@ async function ensureHubAHasOrders(request: any) {
     await request.post(`${BASE_URL}/api/v1/warehouse/inbound/quick-create`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       data: {
         goodsDescription: `${item.desc} (Lô #${i + 1})`,
@@ -71,12 +79,11 @@ async function ensureHubAHasOrders(request: any) {
         totalVolume: item.m3,
         deliveryMode: 'HUB_L1',
         destinationHubId: 2, // Đà Nẵng
-        initialStatus: 'INBOUND',
-      },
+        initialStatus: 'INBOUND'
+      }
     });
   }
 }
-
 
 test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Phần Kèm Bổ Sung Dòng Mới', () => {
   test.beforeAll(async ({ request }) => {
@@ -108,13 +115,15 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
         body: JSON.stringify({
           statusCode: 200,
           message: 'Success',
-          data: { updatedCount: 2, newCount: 4, orders: [] },
-        }),
+          data: { updatedCount: 2, newCount: 4, orders: [] }
+        })
       });
     });
   });
 
-  test('Kịch bản hoàn chỉnh: Kho A xuất 10 đơn ➔ Kho B dỡ 2 đơn và nhập mới 4 dòng hàng', async ({ page }) => {
+  test('Kịch bản hoàn chỉnh: Kho A xuất 10 đơn ➔ Kho B dỡ 2 đơn và nhập mới 4 dòng hàng', async ({
+    page
+  }) => {
     test.setTimeout(90_000);
     const timestamp = Date.now().toString().slice(-4);
     const testLicensePlate = `29C-9${timestamp}`;
@@ -207,7 +216,9 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     await page.waitForTimeout(800);
 
     // Bước 4: Bước 3 - Xác nhận phiếu xuất kho & Kiểm tra Loading Plan
-    await expect(page.getByRole('heading', { name: 'Xác nhận phiếu xuất kho', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('heading', { name: 'Xác nhận phiếu xuất kho', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
     await expect(page.locator(`text=${testLicensePlate}`).first()).toBeVisible();
     await expect(page.locator(`text=${testDriver}`).first()).toBeVisible();
     await expect(page.locator('text=/Danh sách hàng xuất kho \\(10 đơn\\)/i')).toBeVisible();
@@ -222,7 +233,9 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     await confirmTransferBtn.click();
 
     // Chờ thông báo thành công và chuyển hướng về danh sách xuất kho
-    await expect(page.locator('text=/Đã xác nhận xuất kho luân chuyển thành công/i')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('text=/Đã xác nhận xuất kho luân chuyển thành công/i')).toBeVisible({
+      timeout: 20_000
+    });
     await page.waitForTimeout(1500);
 
     const shot05 = path.join(SCREENSHOT_DIR, '05_KhoA_Xuat_Thanh_Cong.png');
@@ -240,7 +253,9 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     await page.waitForLoadState('domcontentloaded');
 
     // Xác thực nút chuyển mode Nhập kho luân chuyển tại Magellan Hub - Đà Nẵng
-    await expect(page.getByRole('button', { name: /Nhận luân chuyển nội bộ/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: /Nhận luân chuyển nội bộ/i })).toBeVisible({
+      timeout: 15_000
+    });
     await page.waitForTimeout(500);
 
     const shot06 = path.join(SCREENSHOT_DIR, '06_KhoB_Bang_Nhap_Kho.png');
@@ -254,7 +269,9 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     await page.waitForTimeout(800);
 
     // Modal Bước 1 (WH_CASE_02B_TRIP_MODAL) xuất hiện
-    await expect(page.locator('text=BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=BƯỚC 1 / 3: CHỌN CHUYẾN ĐANG ĐẾN HUB')).toBeVisible({
+      timeout: 10_000
+    });
     await expect(page.locator('text=Chọn chuyến đang đến để tiếp nhận hàng')).toBeVisible();
 
     // Tìm kiếm chuyến xe theo biển số xe vừa xuất từ Kho A
@@ -275,7 +292,9 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     await page.waitForTimeout(800);
 
     // Modal Bước 2 (WH_CASE_03_MODAL) xuất hiện
-    await expect(page.locator('text=BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=BƯỚC 2 / 3: CHỌN ĐƠN HÀNG CẦN TIẾP NHẬN')).toBeVisible({
+      timeout: 10_000
+    });
     await expect(page.locator(`text=${testLicensePlate}`).first()).toBeVisible();
 
     // Chờ tải danh sách đơn hàng xong
@@ -287,7 +306,9 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     console.log(`[Screenshot 08] Đã chụp Modal Bước 2 Danh sách 10 đơn trên xe: ${shot08}`);
 
     // Bước 9: Bỏ chọn tất cả, CHỈ TÍCH CHỌN ĐÚNG 2 ĐƠN HÀNG
-    const selectAllTripCheckbox = page.locator('.fixed.inset-0 label:has-text("Chọn tất cả") input[type="checkbox"]');
+    const selectAllTripCheckbox = page.locator(
+      '.fixed.inset-0 label:has-text("Chọn tất cả") input[type="checkbox"]'
+    );
     if (await selectAllTripCheckbox.isChecked()) {
       await selectAllTripCheckbox.uncheck();
       await page.waitForTimeout(300);
@@ -339,26 +360,26 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
         desc: 'Thiết bị điện tử viễn thông (Gom tại Thanh Hóa)',
         qty: '18',
         kg: '240',
-        address: '45 Nguyễn Văn Linh, Q. Hải Châu, Đà Nẵng',
+        address: '45 Nguyễn Văn Linh, Q. Hải Châu, Đà Nẵng'
       },
       {
         desc: 'Vật tư phụ liệu may mặc (Lấy tại Vinh)',
         qty: '35',
         kg: '520',
-        address: 'Lô B2, KCN Hòa Khánh, Liên Chiểu, Đà Nẵng',
+        address: 'Lô B2, KCN Hòa Khánh, Liên Chiểu, Đà Nẵng'
       },
       {
         desc: 'Phụ tùng cơ khí khuôn đúc (Lấy tại Hà Tĩnh)',
         qty: '12',
         kg: '380',
-        address: '120 Điện Biên Phủ, Thanh Khê, Đà Nẵng',
+        address: '120 Điện Biên Phủ, Thanh Khê, Đà Nẵng'
       },
       {
         desc: 'Thực phẩm chế biến đóng thùng (Lấy tại Đồng Hới)',
         qty: '40',
         kg: '600',
-        address: 'Chợ Đầu mối Hòa Cường, Hải Châu, Đà Nẵng',
-      },
+        address: 'Chợ Đầu mối Hòa Cường, Hải Châu, Đà Nẵng'
+      }
     ];
 
     for (let i = 0; i < 4; i++) {
@@ -376,7 +397,7 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
 
       // Nhập Số kg
       const kgInputs = row.locator('input[type="number"]');
-      if (await kgInputs.count() >= 2) {
+      if ((await kgInputs.count()) >= 2) {
         await kgInputs.nth(1).fill(item.kg);
       }
 
@@ -401,8 +422,12 @@ test.describe('E2E Toàn Trình: Luân Chuyển Liên Hub & Nhập Kho Một Ph�
     await submitInboundBtn.click();
 
     // Chờ thông báo toast thành công và quay lại Bảng nhập kho
-    await expect(page.locator('text=/xác nhận nhập kho thành công/i')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole('button', { name: /Nhận luân chuyển nội bộ/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('text=/xác nhận nhập kho thành công/i')).toBeVisible({
+      timeout: 20_000
+    });
+    await expect(page.getByRole('button', { name: /Nhận luân chuyển nội bộ/i })).toBeVisible({
+      timeout: 15_000
+    });
     await page.waitForTimeout(1000);
 
     const shot12 = path.join(SCREENSHOT_DIR, '12_KhoB_Tiep_Nhan_Thanh_Cong.png');

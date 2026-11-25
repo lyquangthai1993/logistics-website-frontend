@@ -1,3 +1,5 @@
+import { normalizeRole } from '@/lib/role-utils';
+
 /**
  * Server-side authentication and JWT validation helper functions.
  * Usable inside Server Components, Server Actions, and Route Handlers.
@@ -30,7 +32,13 @@ export function parseJwtServer(token: string): JwtPayload | null {
  * @param bufferSeconds Buffer window in seconds (default 10s)
  */
 export function isTokenValid(token?: string | null, bufferSeconds = 10): boolean {
-  if (!token || typeof token !== 'string' || token.trim() === '' || token === 'undefined' || token === 'null') {
+  if (
+    !token ||
+    typeof token !== 'string' ||
+    token.trim() === '' ||
+    token === 'undefined' ||
+    token === 'null'
+  ) {
     return false;
   }
 
@@ -51,25 +59,19 @@ export function isTokenValid(token?: string | null, bufferSeconds = 10): boolean
 /**
  * Returns the default dashboard landing page for a given role.
  */
-export function getRoleDefaultPath(role?: string | number | { id: number; name?: string } | null): string {
-  let roleStr = '';
-  if (typeof role === 'object' && role) {
-    if (role.id === 1) roleStr = 'SUPER_ADMIN';
-    else if (role.id === 2) roleStr = 'DISPATCHER';
-    else if (role.id === 3) roleStr = 'FLEET_MANAGER';
-    else if (role.id === 4) roleStr = 'WAREHOUSE_MANAGER';
-    else roleStr = role.name || '';
-  } else if (typeof role === 'number') {
-    if (role === 1) roleStr = 'SUPER_ADMIN';
-    else if (role === 2) roleStr = 'DISPATCHER';
-    else if (role === 3) roleStr = 'FLEET_MANAGER';
-    else if (role === 4) roleStr = 'WAREHOUSE_MANAGER';
-  } else if (typeof role === 'string') {
-    roleStr = role;
+export function getRoleDefaultPath(
+  role?: string | number | { id: number; name?: string } | null
+): string {
+  switch (normalizeRole(role)) {
+    case 'REPORT_VIEWER':
+      return '/dashboard/admin/reports';
+    case 'FLEET_MANAGER':
+      return '/dashboard/trips';
+    case 'SUPER_ADMIN':
+    case 'DISPATCHER':
+    case 'WAREHOUSE_MANAGER':
+      return '/dashboard/warehouse/orders';
+    default:
+      return '/auth/sign-in?error=unsupported-role';
   }
-  const upper = roleStr.toUpperCase();
-  if (upper.includes('WAREHOUSE')) return '/dashboard/warehouse/orders';
-  if (upper.includes('FLEET')) return '/dashboard/trips';
-  if (upper.includes('DISPATCHER')) return '/dashboard/warehouse/orders';
-  return '/dashboard/warehouse/orders';
 }

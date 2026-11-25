@@ -20,7 +20,7 @@ test.describe('Order Dispatch & Trip Assignment E2E Workflow', () => {
     // ── STEP 1: Dispatcher creates order and submits to Fleet ──────────────
     await loginAs(page, dispatcherUser);
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: 'Lập Lệnh Điều Vận' })).toBeVisible();
 
@@ -58,7 +58,7 @@ test.describe('Order Dispatch & Trip Assignment E2E Workflow', () => {
     // ── STEP 2: Fleet Manager views pending order and assigns trip ─────────
     await loginAs(page, fleetUser);
     await page.goto('/dashboard/trips');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click assign vehicle button using data-testid
     const assignBtn = page.locator(`[data-testid="btn-assign-order-${testOrderCode}"]`);
@@ -78,7 +78,7 @@ test.describe('Order Dispatch & Trip Assignment E2E Workflow', () => {
 
     // Switch to all trips tab
     await page.click('button:has-text("Danh Sách Chuyến Xe")');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find trip for this order and confirm it
     const confirmBtn = page
@@ -102,7 +102,7 @@ test.describe('Order Dispatch & Trip Assignment E2E Workflow', () => {
     // ── STEP 3: Warehouse Manager views confirmed trip on Inbound Board ───
     await loginAs(page, warehouseUser);
     await page.goto('/dashboard/warehouse');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: 'Inbound Hub & Kho Tiếp Nhận' })).toBeVisible();
 

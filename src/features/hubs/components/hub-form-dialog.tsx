@@ -38,6 +38,7 @@ export function HubFormDialog({
   const [formOrderCodePrefix, setFormOrderCodePrefix] = useState('');
   const [formName, setFormName] = useState('');
   const [formCity, setFormCity] = useState('');
+  const [formRegion, setFormRegion] = useState<CreateHubPayload['region']>();
   const [formAddress, setFormAddress] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formManager, setFormManager] = useState('');
@@ -50,6 +51,7 @@ export function HubFormDialog({
       setFormOrderCodePrefix(hub.orderCodePrefix || '');
       setFormName(hub.name || '');
       setFormCity(hub.city || '');
+      setFormRegion(hub.region || undefined);
       setFormAddress(hub.address || '');
       setFormPhone(hub.contactPhone || '');
       setFormManager(hub.managerName || '');
@@ -60,6 +62,7 @@ export function HubFormDialog({
       setFormOrderCodePrefix('');
       setFormName('');
       setFormCity('');
+      setFormRegion(undefined);
       setFormAddress('');
       setFormPhone('');
       setFormManager('');
@@ -101,6 +104,7 @@ export function HubFormDialog({
       orderCodePrefix: formOrderCodePrefix.trim().toUpperCase() || undefined,
       name: formName.trim(),
       city: formCity.trim(),
+      region: formRegion,
       address: formAddress.trim() || undefined,
       contactPhone: formPhone.trim() || undefined,
       managerName: formManager.trim() || undefined,
@@ -181,7 +185,7 @@ export function HubFormDialog({
             </div>
           </div>
 
-          <div className='grid grid-cols-3 gap-2'>
+          <div className='grid grid-cols-4 gap-2'>
             <div className='space-y-1'>
               <label
                 htmlFor='input-hub-code'
@@ -228,6 +232,22 @@ export function HubFormDialog({
                 onChange={(e) => setFormCity(e.target.value)}
                 className='h-8 text-xs'
               />
+            </div>
+            <div className='space-y-1'>
+              <label htmlFor='input-hub-region' className='text-muted-foreground text-xs font-semibold'>
+                Miền vận hành
+              </label>
+              <select
+                id='input-hub-region'
+                value={formRegion || ''}
+                onChange={(e) => setFormRegion((e.target.value || undefined) as CreateHubPayload['region'])}
+                className='h-8 w-full rounded-md border bg-background px-2 text-xs'
+              >
+                <option value=''>Chọn miền</option>
+                <option value='MIỀN BẮC'>Miền Bắc</option>
+                <option value='MIỀN TRUNG'>Miền Trung</option>
+                <option value='MIỀN NAM'>Miền Nam</option>
+              </select>
             </div>
           </div>
 

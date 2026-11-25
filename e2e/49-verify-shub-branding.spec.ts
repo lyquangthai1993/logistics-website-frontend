@@ -16,16 +16,11 @@ import { TEST_USERS } from './helpers/auth';
 import path from 'path';
 import fs from 'fs';
 
-const BASE_URL =
-  process.env.PLAYWRIGHT_BASE_URL ??
-  process.env.BASE_URL ??
-  'http://localhost:4000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? process.env.BASE_URL ?? 'http://localhost:4000';
 
 test.describe('Verify S-Hub Branding & Logo (Multi-Environment)', () => {
   const screenshotsDir = path.resolve(__dirname, 'screenshots');
-  const adminUser =
-    TEST_USERS.find((u) => u.role === 'SUPER_ADMIN') ||
-    TEST_USERS[0];
+  const adminUser = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN') || TEST_USERS[0];
 
   test.beforeAll(() => {
     if (!fs.existsSync(screenshotsDir)) {
@@ -47,7 +42,7 @@ test.describe('Verify S-Hub Branding & Logo (Multi-Environment)', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const targetSignInUrl = `${BASE_URL.replace(/\/$/, '')}/auth/sign-in`;
     console.log(`[E2E] Navigating to target sign-in: ${targetSignInUrl}`);
-    await page.goto(targetSignInUrl, { waitUntil: 'networkidle' });
+    await page.goto(targetSignInUrl, { waitUntil: 'domcontentloaded' });
 
     // Assert Logo Image is visible on AuthHeroBanner
     const loginLogoImg = page.locator('img[src*="logo_phieu_xuat_nhap_kho"]').first();
@@ -79,7 +74,10 @@ test.describe('Verify S-Hub Branding & Logo (Multi-Environment)', () => {
     }
 
     // 3. Inspect Sidebar Branding (Expanded)
-    const sidebarLogoImg = page.locator('[data-sidebar="header"]').locator('img[src*="logo_phieu_xuat_nhap_kho"]').first();
+    const sidebarLogoImg = page
+      .locator('[data-sidebar="header"]')
+      .locator('img[src*="logo_phieu_xuat_nhap_kho"]')
+      .first();
     await expect(sidebarLogoImg).toBeVisible({ timeout: 10_000 });
 
     const sHubSidebar = page.locator('[data-sidebar="header"]').getByText(/S-Hub/i).first();
@@ -92,23 +90,35 @@ test.describe('Verify S-Hub Branding & Logo (Multi-Environment)', () => {
     expect(headerText).not.toContain('Logistics TMS');
 
     // Take screenshot of Dashboard with Sidebar Expanded
-    const dashboardScreenshotPath = path.join(screenshotsDir, 'screenshot_localhost_sidebar_shub.png');
+    const dashboardScreenshotPath = path.join(
+      screenshotsDir,
+      'screenshot_localhost_sidebar_shub.png'
+    );
     await page.screenshot({ path: dashboardScreenshotPath });
     console.log(`[VERIFY] Saved sidebar screenshot: ${dashboardScreenshotPath}`);
 
     // Take cropped screenshot of the branding header area specifically
-    const cropScreenshotPath = path.join(screenshotsDir, 'screenshot_localhost_sidebar_brand_crop.png');
+    const cropScreenshotPath = path.join(
+      screenshotsDir,
+      'screenshot_localhost_sidebar_brand_crop.png'
+    );
     await sidebarHeader.screenshot({ path: cropScreenshotPath });
     console.log(`[VERIFY] Saved cropped brand screenshot: ${cropScreenshotPath}`);
 
     // 4. Also toggle to collapsed and capture collapsed screenshot
     await page.click('[data-sidebar="trigger"]');
     await page.waitForTimeout(400);
-    const collapsedScreenshotPath = path.join(screenshotsDir, 'screenshot_localhost_sidebar_collapsed_shub.png');
+    const collapsedScreenshotPath = path.join(
+      screenshotsDir,
+      'screenshot_localhost_sidebar_collapsed_shub.png'
+    );
     await page.screenshot({ path: collapsedScreenshotPath });
     console.log(`[VERIFY] Saved collapsed sidebar screenshot: ${collapsedScreenshotPath}`);
 
-    const collapsedCropPath = path.join(screenshotsDir, 'screenshot_localhost_sidebar_collapsed_crop.png');
+    const collapsedCropPath = path.join(
+      screenshotsDir,
+      'screenshot_localhost_sidebar_collapsed_crop.png'
+    );
     await sidebar.locator('[data-sidebar="header"]').screenshot({ path: collapsedCropPath });
     console.log(`[VERIFY] Saved collapsed brand crop: ${collapsedCropPath}`);
   });

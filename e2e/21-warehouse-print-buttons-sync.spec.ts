@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 
-const ARTIFACT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-4861-9a69-65b90b6d5c21';
+const ARTIFACT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/f8c46d05-4cbd-4861-9a69-65b90b6d5c21';
 
 // Test against the Vercel dev branch deployment
 const TARGET_BASE_URL =
-  process.env.TARGET_URL ||
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  process.env.TARGET_URL || (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4000');
 
 const USER = {
   email: 'lyquangthai1993+4@gmail.com',
-  password: 'secret',
+  password: 'secret'
 };
 
 test.describe('Đồng Bộ Nút In Phiếu Nhập & In Phiếu Xuất (Vercel Dev)', () => {
@@ -20,7 +20,9 @@ test.describe('Đồng Bộ Nút In Phiếu Nhập & In Phiếu Xuất (Vercel D
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Kiểm tra và chụp hình các nút "In phiếu nhập" và "In phiếu xuất" trên môi trường Vercel Dev', async ({ page }) => {
+  test('Kiểm tra và chụp hình các nút "In phiếu nhập" và "In phiếu xuất" trên môi trường Vercel Dev', async ({
+    page
+  }) => {
     // ── 1. Đăng nhập ──────────────────────────────────────────────────────────
     console.log(`Navigating to ${TARGET_BASE_URL}/auth/sign-in...`);
     await page.goto(`${TARGET_BASE_URL}/auth/sign-in`);
@@ -108,7 +110,9 @@ test.describe('Đồng Bộ Nút In Phiếu Nhập & In Phiếu Xuất (Vercel D
       // Đóng modal
       await outboundDialog.locator('button:has-text("Đóng")').click();
     } else {
-      console.log('No existing outbound orders with print button. Creating a quick customer outbound order...');
+      console.log(
+        'No existing outbound orders with print button. Creating a quick customer outbound order...'
+      );
       // Chuyển sang Mode 1 Xuất cho khách hàng để tạo đơn và mở modal
       const newOutboundBtn = page.getByRole('button', { name: /Xuất cho khách hàng/ });
       await newOutboundBtn.click();
@@ -121,7 +125,10 @@ test.describe('Đồng Bộ Nút In Phiếu Nhập & In Phiếu Xuất (Vercel D
       await page.locator('input[placeholder="Địa chỉ giao hàng..."]').fill('Hà Nội');
 
       // Điền hàng hóa
-      await page.locator('input[placeholder="Tên loại hàng..."]').first().fill('Hàng mẫu kiểm tra in phiếu xuất');
+      await page
+        .locator('input[placeholder="Tên loại hàng..."]')
+        .first()
+        .fill('Hàng mẫu kiểm tra in phiếu xuất');
       await page.locator('table tbody tr:first-child td:nth-child(5) input').first().fill('10');
 
       // Xác nhận xuất kho

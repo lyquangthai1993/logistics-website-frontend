@@ -31,9 +31,11 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
     if (!fs.existsSync(sc1) || !fs.existsSync(sc2) || !fs.existsSync(sc3)) {
       console.log('2. Navigating to Inbound Warehouse...');
       await page.goto(`${BASE_URL}/dashboard/warehouse/inbound`);
-      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
 
-      await expect(page.locator('h1').filter({ hasText: 'Nhập kho' })).toBeVisible({ timeout: 15_000 });
+      await expect(page.locator('h1').filter({ hasText: 'Nhập kho' })).toBeVisible({
+        timeout: 15_000
+      });
 
       console.log('3. Searching for trip SD208...');
       const searchInput = page.locator('input[placeholder*="Tìm mã chuyến"]');
@@ -50,7 +52,9 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
       await modalContent.waitFor({ state: 'visible', timeout: 10_000 });
       await expect(modalContent).toContainText('SD208');
 
-      const rollbackBtn = modalContent.locator('button', { hasText: 'Mở lại chuyến xe (Rollback)' });
+      const rollbackBtn = modalContent.locator('button', {
+        hasText: 'Mở lại chuyến xe (Rollback)'
+      });
       if (await rollbackBtn.isVisible()) {
         console.log('5. Capturing Screenshot 1: Admin Rollback Button...');
         await page.screenshot({ path: sc1, fullPage: false });
@@ -58,7 +62,9 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
         console.log('6. Clicking Mở lại chuyến xe (Rollback)...');
         await rollbackBtn.click();
 
-        const confirmDialog = page.locator('[role="dialog"]').filter({ hasText: 'Xác nhận mở lại chuyến xe' });
+        const confirmDialog = page
+          .locator('[role="dialog"]')
+          .filter({ hasText: 'Xác nhận mở lại chuyến xe' });
         await confirmDialog.waitFor({ state: 'visible', timeout: 8_000 });
 
         const reasonInput = confirmDialog.locator('input[placeholder*="Nhập nhầm biển số"]');
@@ -69,7 +75,10 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
         await page.screenshot({ path: sc2, fullPage: false });
 
         console.log('8. Confirming rollback...');
-        const confirmSubmitBtn = confirmDialog.locator('button').filter({ hasText: /Mở lại/i }).last();
+        const confirmSubmitBtn = confirmDialog
+          .locator('button')
+          .filter({ hasText: /Mở lại/i })
+          .last();
         await confirmSubmitBtn.waitFor({ state: 'visible', timeout: 5_000 });
         await confirmSubmitBtn.click();
 
@@ -86,7 +95,7 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
     // Now navigate to Warehouse Orders to inspect audit log
     console.log('10. Navigating to Warehouse Orders to inspect NDA2610-0213...');
     await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
 
     // Search NDA2610-0213
     const orderSearch = page.locator('input[placeholder*="Tìm kiếm"]').first();
@@ -100,7 +109,10 @@ test.describe('Admin Trip Rollback & Audit Log Verification', () => {
     await orderRowCode.click();
 
     // Wait for the modal dialog
-    const waybillModal = page.locator('[role="dialog"]').filter({ hasText: 'NDA2610-0213' }).first();
+    const waybillModal = page
+      .locator('[role="dialog"]')
+      .filter({ hasText: 'NDA2610-0213' })
+      .first();
     await waybillModal.waitFor({ state: 'visible', timeout: 15_000 });
 
     // Scroll down inside modal to show both ledger and Audit log section

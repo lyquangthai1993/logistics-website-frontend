@@ -29,7 +29,8 @@ const DEV_FRONTEND_URL =
 const EVIDENCE_DIR = path.resolve(__dirname, '../../feedbacks/feedback_15_10_task_87');
 const SCREENSHOT_PATH = path.join(EVIDENCE_DIR, 'screenshot_01_verified.png');
 
-test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàng Kho & Loại Bỏ Dashboard', () => {
+test.describe
+  .serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàng Kho & Loại Bỏ Dashboard', () => {
   test.beforeAll(() => {
     if (!fs.existsSync(EVIDENCE_DIR)) {
       fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
@@ -38,19 +39,13 @@ test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàn
 
   test('CASE-01: Static Code Audit — Kiểm tra cấu hình chuyển hướng mặc định và loại bỏ Overview', () => {
     // 1. Audit login-form.tsx
-    const loginFormPath = path.resolve(
-      __dirname,
-      '../src/features/auth/components/login-form.tsx'
-    );
+    const loginFormPath = path.resolve(__dirname, '../src/features/auth/components/login-form.tsx');
     expect(fs.existsSync(loginFormPath)).toBeTruthy();
     const loginContent = fs.readFileSync(loginFormPath, 'utf-8');
     expect(loginContent).toContain("let targetUrl = '/dashboard/warehouse/orders'");
 
     // 2. Audit overview/page.tsx
-    const overviewPagePath = path.resolve(
-      __dirname,
-      '../src/app/dashboard/overview/page.tsx'
-    );
+    const overviewPagePath = path.resolve(__dirname, '../src/app/dashboard/overview/page.tsx');
     expect(fs.existsSync(overviewPagePath)).toBeTruthy();
     const overviewContent = fs.readFileSync(overviewPagePath, 'utf-8');
     expect(overviewContent).toContain("redirect('/dashboard/warehouse/orders')");
@@ -58,8 +53,12 @@ test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàn
     // 3. Audit dashboard/page.tsx & page.tsx
     const dashboardPagePath = path.resolve(__dirname, '../src/app/dashboard/page.tsx');
     const rootPagePath = path.resolve(__dirname, '../src/app/page.tsx');
-    expect(fs.readFileSync(dashboardPagePath, 'utf-8')).toContain("redirect('/dashboard/warehouse/orders')");
-    expect(fs.readFileSync(rootPagePath, 'utf-8')).toContain("redirect('/dashboard/warehouse/orders')");
+    expect(fs.readFileSync(dashboardPagePath, 'utf-8')).toContain(
+      "redirect('/dashboard/warehouse/orders')"
+    );
+    expect(fs.readFileSync(rootPagePath, 'utf-8')).toContain(
+      "redirect('/dashboard/warehouse/orders')"
+    );
 
     // 4. Audit nav-config.ts
     const navConfigPath = path.resolve(__dirname, '../src/config/nav-config.ts');
@@ -93,7 +92,7 @@ test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàn
 
     // 4. Cố tình truy cập trực tiếp vào /dashboard/overview
     await page.goto(`${DEV_FRONTEND_URL}/dashboard/overview`, {
-      waitUntil: 'networkidle'
+      waitUntil: 'domcontentloaded'
     });
 
     // 5. Xác nhận hệ thống tự động redirect ngược lại về /dashboard/warehouse/orders
@@ -101,7 +100,9 @@ test.describe.serial('Feedback 15/10 (Task #87) — Chuyển Hướng Đơn Hàn
     expect(page.url()).toContain('/dashboard/warehouse/orders');
 
     // 6. Kiểm tra sidebar không hiển thị mục "Dashboard"
-    const dashboardSidebarLink = page.locator('aside a[href="/dashboard/overview"], nav a[href="/dashboard/overview"]');
+    const dashboardSidebarLink = page.locator(
+      'aside a[href="/dashboard/overview"], nav a[href="/dashboard/overview"]'
+    );
     await expect(dashboardSidebarLink).toHaveCount(0);
 
     // 7. Chụp ảnh màn hình nghiệm thu thực tế trực tiếp từ ứng dụng Web đang chạy (Ảnh thật 100%)

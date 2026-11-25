@@ -10,7 +10,11 @@
 import { test, expect, request } from '@playwright/test';
 import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_BASE = (
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:4001/api/v1'
+).replace(/\/$/, '');
 const WAREHOUSE = TEST_USERS.find((u) => u.role === 'WAREHOUSE_MANAGER')!;
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -27,7 +31,7 @@ test.describe('[Flow 1 - Swagger REST API Trigger] Send Notification via Swagger
     // 🌐 1. Login user on Chrome browser and navigate to Dashboard
     await loginAs(page, WAREHOUSE);
     await page.goto('/dashboard/overview');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Extract access token
     const cookies = await page.context().cookies();
@@ -40,7 +44,7 @@ test.describe('[Flow 1 - Swagger REST API Trigger] Send Notification via Swagger
     const apiCtx = await request.newContext({
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
-    const profileRes = await apiCtx.get(`${API_BASE}/api/v1/auth/me`);
+    const profileRes = await apiCtx.get(`${API_BASE}/auth/me`);
     expect(profileRes.status()).toBe(200);
     const profileData = await profileRes.json();
     const targetUserId: number = profileData.id ?? profileData.data?.id;
@@ -55,7 +59,7 @@ test.describe('[Flow 1 - Swagger REST API Trigger] Send Notification via Swagger
     const uniqueMessage =
       'Thông báo gửi từ Swagger API nhận vào userId + message qua WebSocket real-time!';
 
-    const swaggerApiRes = await apiCtx.post(`${API_BASE}/api/v1/notifications/send-test`, {
+    const swaggerApiRes = await apiCtx.post(`${API_BASE}/notifications/send-test`, {
       data: {
         userId: targetUserId,
         title: uniqueTitle,
@@ -107,7 +111,7 @@ test.describe('[Flow 2 - Direct Socket Message Trigger] Emit Raw WebSocket Messa
     // 🌐 1. Login user on Chrome browser and open Dashboard
     await loginAs(page, WAREHOUSE);
     await page.goto('/dashboard/overview');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Extract access token from cookies
     const cookies = await page.context().cookies();
@@ -120,7 +124,7 @@ test.describe('[Flow 2 - Direct Socket Message Trigger] Emit Raw WebSocket Messa
     const apiCtx = await request.newContext({
       extraHTTPHeaders: { Authorization: `Bearer ${token}` }
     });
-    const profileRes = await apiCtx.get(`${API_BASE}/api/v1/auth/me`);
+    const profileRes = await apiCtx.get(`${API_BASE}/auth/me`);
     const profileData = await profileRes.json();
     const targetUserId: number = profileData.id ?? profileData.data?.id;
 
@@ -153,7 +157,7 @@ test.describe('[Flow 2 - Direct Socket Message Trigger] Emit Raw WebSocket Messa
 
     // If window socket isn't globally exposed, fallback: send via API or socket.io-client
     // Also trigger via API to ensure socket emission test reliability
-    await apiCtx.post(`${API_BASE}/api/v1/notifications/send-test`, {
+    await apiCtx.post(`${API_BASE}/notifications/send-test`, {
       data: {
         userId: targetUserId,
         title: socketTitle,

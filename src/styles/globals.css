@@ -682,3 +682,21 @@
     -webkit-text-fill-color: currentColor;
   }
 }
+
+@media (max-width: 767px) {
+  .mobile-chart-no-tooltip > div[style] {
+    width: var(--mobile-chart-width);
+    min-width: var(--mobile-chart-width);
+  }
+
+  .mobile-chart-no-tooltip .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-chart-no-tooltip > div[style] {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}

@@ -14,6 +14,8 @@ export interface Order {
   orderCode: string;
   status: OrderStatus;
   route?: string | null;
+  pickupAddress?: string | null;
+  deliveryAddress?: string | null;
   // Legacy string fields (kept for display/backward compat)
   originHub?: string | null;
   destinationHub?: string | null;
@@ -72,10 +74,19 @@ export interface OrderLedgerEntry {
 
 export interface AdminOverrideOrderPayload {
   auditReason: string;
+  warehouseHubId: number;
   totalQuantity?: number;
   totalWeight?: number;
   totalVolume?: number;
   goodsDescription?: string;
+  route?: string;
+  pickupAddress?: string;
+  deliveryAddress?: string;
+  province?: string;
+  notes?: string;
+  accompanyingDocs?: string;
+  externalNote?: string;
+  isExternalVehicleNeeded?: boolean;
   originHubId?: number;
   destinationHubId?: number;
 }

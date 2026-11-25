@@ -1,889 +1,296 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  IconAlertTriangle,
-  IconDownload,
-  IconLoader2,
-  IconRefresh,
-  IconTruck
-} from '@tabler/icons-react';
+import React, { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { IconDownload, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api-client';
-import { formatNumber } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useOptionalAdminOperationalReport } from './super-admin-operational-report';
+import { apiClient } from '@/lib/api-client';
+import { formatApiError } from '@/lib/api-error';
+import { formatNumber } from '@/lib/utils';
+import { useAdminOperationalReport } from './super-admin-operational-report';
+
+type RegionKey = 'north' | 'central' | 'south' | 'storage' | 'na';
+type CargoStatus = 'onhand' | 'draft' | 'total';
 
 export interface RegionalMetricItem {
   region: string;
   onhandWeightKg: number;
-  onhandWeightTons: number;
   onhandVolumeCbm: number;
   onhandPackageCount: number;
   onhandOrderCount: number;
   onhandOrderCodes: string[];
+  draftWeightKg: number;
+  draftVolumeCbm: number;
+  draftOrderCount: number;
   draftOrderCodes: string[];
-  incomingWeightKg: number;
-  incomingWeightTons: number;
-  incomingVolumeCbm: number;
-  incomingPackageCount: number;
-  incomingTripCount: number;
-  totalWeightKg: number;
-  totalWeightTons: number;
-  totalVolumeCbm: number;
-  recommendedVehicle: string;
-  quickSnippet: string;
+}
+
+export interface RegionalHubReport {
+  hub: { id: number; code: string; name: string; level: number };
+  hasSnapshot: boolean;
+  reportDate: string | null;
+  calculatedAt: string | null;
+  regions: Record<RegionKey, RegionalMetricItem> | null;
 }
 
 export interface RegionalReportApiResponse {
-  draftRegions: Record<
-    'north' | 'central' | 'south' | 'storage' | 'na',
-    {
-      weightKg: number;
-      volumeCbm: number;
-      orderCount?: number;
-      orderCodes?: string[];
-    }
-  >;
-  range: { fromDate: string; toDate: string };
-  dailySeries: Array<{
-    reportDate: string;
-    hasSnapshot: boolean;
-    onhandWeightKg: number;
-    onhandVolumeCbm: number;
-    onhandOrderCount: number;
-    draftWeightKg: number;
-    draftVolumeCbm: number;
-    draftOrderCount: number;
-    incomingWeightKg: number;
-    incomingVolumeCbm: number;
-    incomingTripCount: number;
-    totalWeightKg: number;
-    totalVolumeCbm: number;
-  }>;
-  hub: {
-    id: number;
-    code: string;
-    name: string;
-    level: number;
-  };
-  reportDate: string;
+  hubReports: RegionalHubReport[];
   cronInfo: {
-    jobKey: string;
-    name: string;
     cronTime: string;
-    isEnabled: boolean;
     lastRunAt: string | null;
     lastRunStatus: string;
   };
-  regions: {
-    north: RegionalMetricItem;
-    central: RegionalMetricItem;
-    south: RegionalMetricItem;
-    storage: RegionalMetricItem;
-    na: RegionalMetricItem;
-  };
-  totals: {
-    totalWeightKg: number;
-    totalWeightTons: number;
-    totalVolumeCbm: number;
-    onhandWeightKg: number;
-    incomingWeightKg: number;
-    packageCount: number;
-    orderCount: number;
-    incomingTripCount: number;
-  };
-  hubsList: Array<{ id: number; code: string; name: string; level: number }>;
-  incomingTripsList: Array<{
-    id: number;
-    tripCode: string;
-    licensePlate: string;
-    driverName: string;
-    status: string;
-    originHubName: string;
-    destinationHubName: string;
-    weightKg: number;
-    weightTons: number;
-    volumeCbm: number;
-    packageCount: number;
-    orderCode: string;
-    province: string;
-    region: string;
-    estimatedDeliveryDate: string | null;
-  }>;
-  onhandOrdersList: Array<{
-    id: number;
-    orderCode: string;
-    province: string;
-    region: string;
-    remainingQuantity: number;
-    totalQuantity: number;
-    weightKg: number;
-    weightTons: number;
-    volumeCbm: number;
-    goodsDescription: string | null;
-    currentHubId: number;
-    currentHubName: string;
-  }>;
-  provinceAudit?: {
-    scannedOrderCount: number;
-    invalidOrderCount: number;
-    missingProvinceCount: number;
-    unrecognizedProvinceCount: number;
-    isTruncated: boolean;
-    orders: Array<{
-      id: number;
-      orderCode: string;
-      province: string | null;
-      reason: 'MISSING_PROVINCE' | 'UNRECOGNIZED_PROVINCE';
-    }>;
-  };
 }
 
-interface RegionRowConfig {
-  key: 'north' | 'central' | 'south' | 'storage' | 'na';
-  name: string;
-  subtitle: string;
-  badgeBg: string;
-  badgeText: string;
-  badgeBorder: string;
-  barColorWeight: string;
-  barColorVolume: string;
-  dotColor: string;
-}
-
-const REGION_CONFIGS: RegionRowConfig[] = [
-  {
-    key: 'north',
-    name: 'MIỀN BẮC',
-    subtitle: 'Hà Nội, Hải Phòng, Bắc Ninh, Hải Dương...',
-    badgeBg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
-    badgeText: 'text-blue-700 dark:text-blue-300',
-    badgeBorder: 'border-blue-500/30',
-    barColorWeight: 'bg-blue-600 dark:bg-blue-500',
-    barColorVolume: 'bg-blue-500/80 dark:bg-blue-400/80',
-    dotColor: 'bg-blue-600'
-  },
-  {
-    key: 'central',
-    name: 'MIỀN TRUNG',
-    subtitle: 'Đà Nẵng, Huế, Quảng Nam, Nghệ An...',
-    badgeBg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    badgeText: 'text-amber-700 dark:text-amber-300',
-    badgeBorder: 'border-amber-500/30',
-    barColorWeight: 'bg-amber-500 dark:bg-amber-400',
-    barColorVolume: 'bg-amber-400/80 dark:bg-amber-300/80',
-    dotColor: 'bg-amber-500'
-  },
-  {
-    key: 'south',
-    name: 'MIỀN NAM',
-    subtitle: 'TP.HCM, Bình Dương, Đồng Nai + 13 tỉnh Miền Tây Nam Bộ',
-    badgeBg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300',
-    badgeText: 'text-purple-700 dark:text-purple-300',
-    badgeBorder: 'border-purple-500/30',
-    barColorWeight: 'bg-purple-600 dark:bg-purple-500',
-    barColorVolume: 'bg-purple-500/80 dark:bg-purple-400/80',
-    dotColor: 'bg-purple-600'
-  },
-  {
-    key: 'storage',
-    name: 'LƯU KHO',
-    subtitle: 'Hàng khách gửi lưu tại kho chờ lấy ra',
-    badgeBg: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
-    badgeText: 'text-cyan-700 dark:text-cyan-300',
-    badgeBorder: 'border-cyan-500/30',
-    barColorWeight: 'bg-cyan-600 dark:bg-cyan-500',
-    barColorVolume: 'bg-cyan-500/80 dark:bg-cyan-400/80',
-    dotColor: 'bg-cyan-600'
-  },
-  {
-    key: 'na',
-    name: 'CHƯA PHÂN MIỀN (N/A)',
-    subtitle: 'Đơn hàng thiếu/sai thông tin tỉnh thành đến',
-    badgeBg: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    badgeText: 'text-slate-600 dark:text-slate-300',
-    badgeBorder: 'border-rose-500/30',
-    barColorWeight: 'bg-slate-500 dark:bg-slate-400',
-    barColorVolume: 'bg-rose-400/80 dark:bg-rose-300/80',
-    dotColor: 'bg-rose-500'
-  }
+const REGION_CONFIGS: Array<{ key: RegionKey; label: string; color: string; draftColor: string }> = [
+  { key: 'north', label: 'MIỀN BẮC', color: '#2563EB', draftColor: '#93C5FD' },
+  { key: 'central', label: 'MIỀN TRUNG', color: '#F97316', draftColor: '#FDBA74' },
+  { key: 'south', label: 'MIỀN NAM', color: '#7C3AED', draftColor: '#C4B5FD' },
+  { key: 'storage', label: 'LƯU KHO', color: '#059669', draftColor: '#6EE7B7' },
+  { key: 'na', label: 'CHƯA XÁC ĐỊNH MIỀN', color: '#64748B', draftColor: '#CBD5E1' },
 ];
 
-export function SuperAdminRegionalDispatchTable() {
-  const globalFilter = useOptionalAdminOperationalReport();
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+function formatSnapshotTime(value: string | null): string {
+  if (!value) return 'Chưa có dữ liệu';
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value));
+}
 
-  // Keep the regional report query aligned with the shared date and hub filters.
-  const selectedFromDate = globalFilter?.fromDate || todayStr;
-  const selectedDate = globalFilter?.toDate || todayStr;
-  const selectedHubId = globalFilter?.selectedHubId || 'ALL';
-  const [chartStatus, setChartStatus] = useState<'onhand' | 'draft' | 'total'>('total');
-
-  const {
-    data: raw,
-    isLoading,
-    isFetching,
-    refetch
-  } = useQuery({
-    queryKey: [
-      'admin-regional-dispatch-report-table',
-      selectedHubId,
-      selectedFromDate,
-      selectedDate
-    ],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        hubId: selectedHubId,
-        fromDate: selectedFromDate,
-        toDate: selectedDate,
-        mode: 'live'
-      });
-      const res = await apiClient.get<
-        RegionalReportApiResponse | { data: RegionalReportApiResponse }
-      >(`/api/v1/admin/reports/regional-dispatch?${params.toString()}`);
-      return res.data;
-    }
-  });
-
-  // Unwrap ApiResponse envelope safely
-  const data = raw ? ('data' in raw ? raw.data : raw) : undefined;
-
-  const totals = data?.totals || {
-    totalWeightKg: 0,
-    totalWeightTons: 0,
-    totalVolumeCbm: 0,
-    onhandWeightKg: 0,
-    incomingWeightKg: 0,
-    packageCount: 0,
-    orderCount: 0,
-    incomingTripCount: 0
+function metricForStatus(metric: RegionalMetricItem, status: CargoStatus) {
+  const onhand = status !== 'draft';
+  const draft = status !== 'onhand';
+  const codes = [
+    ...(onhand ? metric.onhandOrderCodes : []),
+    ...(draft ? metric.draftOrderCodes : []),
+  ];
+  return {
+    weightKg: (onhand ? metric.onhandWeightKg : 0) + (draft ? metric.draftWeightKg : 0),
+    volumeCbm: (onhand ? metric.onhandVolumeCbm : 0) + (draft ? metric.draftVolumeCbm : 0),
+    orderCount: new Set(codes).size,
+    orderCodes: [...new Set(codes)],
   };
+}
 
-  const chartRegions = REGION_CONFIGS.map((cfg) => {
-    const stored = data?.regions[cfg.key];
-    const draft = data?.draftRegions?.[cfg.key];
-    const weightKg =
-      (chartStatus === 'draft' ? 0 : (stored?.onhandWeightKg ?? 0)) +
-      (chartStatus === 'onhand' ? 0 : (draft?.weightKg ?? 0));
-    const volumeCbm =
-      (chartStatus === 'draft' ? 0 : (stored?.onhandVolumeCbm ?? 0)) +
-      (chartStatus === 'onhand' ? 0 : (draft?.volumeCbm ?? 0));
+function RegionalHubPanel({ report, status }: { report: RegionalHubReport; status: CargoStatus }) {
+  const rows = REGION_CONFIGS.map((config) => {
+    const metric = report.regions?.[config.key];
+    const selected = metric ? metricForStatus(metric, status) : null;
     return {
-      totalWeightKg: weightKg,
-      totalWeightTons: weightKg / 1000,
-      totalVolumeCbm: volumeCbm
+      ...config,
+      metric,
+      selected,
+      onhandTons: status === 'draft' ? 0 : (metric?.onhandWeightKg ?? 0) / 1000,
+      draftTons: status === 'onhand' ? 0 : (metric?.draftWeightKg ?? 0) / 1000,
+      onhandVolume: status === 'draft' ? 0 : (metric?.onhandVolumeCbm ?? 0),
+      draftVolume: status === 'onhand' ? 0 : (metric?.draftVolumeCbm ?? 0),
+      onhandWeightPercent: 0,
+      draftWeightPercent: 0,
+      onhandVolumePercent: 0,
+      draftVolumePercent: 0,
     };
   });
-  const chartTotals = chartRegions.reduce(
-    (sum, region) => ({
-      totalWeightKg: sum.totalWeightKg + region.totalWeightKg,
-      totalWeightTons: sum.totalWeightTons + region.totalWeightTons,
-      totalVolumeCbm: sum.totalVolumeCbm + region.totalVolumeCbm
-    }),
-    { totalWeightKg: 0, totalWeightTons: 0, totalVolumeCbm: 0 }
-  );
-
-  // Province audit scans all recent orders, including orders that no longer
-  // contribute cargo to the weight/volume snapshot. Keep the audit count in a
-  // separate count chart so the 55 unresolved order codes remain visible
-  // without mixing order counts with kg or m³.
-  const chartOrderCounts = REGION_CONFIGS.map((cfg) => {
-    const stored = data?.regions[cfg.key];
-    const draft = data?.draftRegions?.[cfg.key];
-    return cfg.key === 'na'
-      ? (data?.provinceAudit?.invalidOrderCount ?? 0)
-      : (stored?.onhandOrderCount ?? 0) + (draft?.orderCount ?? 0);
-  });
-  const totalChartOrderCount = chartOrderCounts.reduce((sum, count) => sum + count, 0);
-
-  const handleExportExcel = () => {
-    if (!data?.regions) return;
-    const wb = XLSX.utils.book_new();
-
-    const summaryRows = REGION_CONFIGS.map((c) => {
-      const r = data.regions[c.key];
-      return {
-        'Vùng / Miền': c.name,
-        'Sẵn kho (Tấn)': r?.onhandWeightTons || 0,
-        'Sẵn kho (Kg)': r?.onhandWeightKg || 0,
-        'Sẵn kho (m³)': r?.onhandVolumeCbm || 0,
-        'Sẵn kho (Kiện)': r?.onhandPackageCount || 0,
-        'Xe sắp về (Tấn)': r?.incomingWeightTons || 0,
-        'Xe sắp về (Kg)': r?.incomingWeightKg || 0,
-        'Xe sắp về (m³)': r?.incomingVolumeCbm || 0,
-        'Số xe sắp về': r?.incomingTripCount || 0,
-        'TỔNG TẢI (TẤN)': r?.totalWeightTons || 0,
-        'TỔNG TẢI (KG)': r?.totalWeightKg || 0,
-        'TỔNG KHỐI (M³)': r?.totalVolumeCbm || 0,
-        'Đề xuất điều xe': r?.recommendedVehicle || ''
-      };
-    });
-
-    summaryRows.push({
-      'Vùng / Miền': 'TỔNG CỘNG TOÀN QUỐC',
-      'Sẵn kho (Tấn)': Math.round(((totals.onhandWeightKg || 0) / 1000) * 100) / 100,
-      'Sẵn kho (Kg)': totals.onhandWeightKg || 0,
-      'Sẵn kho (m³)': 0,
-      'Sẵn kho (Kiện)': totals.packageCount || 0,
-      'Xe sắp về (Tấn)': Math.round(((totals.incomingWeightKg || 0) / 1000) * 100) / 100,
-      'Xe sắp về (Kg)': totals.incomingWeightKg || 0,
-      'Xe sắp về (m³)': 0,
-      'Số xe sắp về': totals.incomingTripCount || 0,
-      'TỔNG TẢI (TẤN)': totals.totalWeightTons || 0,
-      'TỔNG TẢI (KG)': totals.totalWeightKg || 0,
-      'TỔNG KHỐI (M³)': totals.totalVolumeCbm || 0,
-      'Đề xuất điều xe': 'Toàn hệ thống'
-    });
-
-    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Can_Doi_Doi_Xe');
-
-    const fileName = `Can_Doi_Doi_Xe_${selectedHubId}_${selectedDate}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    toast.success(`Đã xuất file ${fileName} thành công!`);
-  };
-
-  const naOrders = useMemo(() => {
-    if (!data?.onhandOrdersList) return [];
-    return data.onhandOrdersList.filter(
-      (o) => o.region?.includes('N/A') || o.region === 'CHƯA PHÂN MIỀN (N/A)' || o.region === 'N/A'
-    );
-  }, [data]);
-
-  const naSnapshotOrderCodes = useMemo(() => data?.regions.na.onhandOrderCodes ?? [], [data]);
-
-  const naTrips = useMemo(() => {
-    if (!data?.incomingTripsList) return [];
-    return data.incomingTripsList.filter(
-      (t) => t.region?.includes('N/A') || t.region === 'CHƯA PHÂN MIỀN (N/A)' || t.region === 'N/A'
-    );
-  }, [data]);
+  const totalWeightKg = rows.reduce((sum, row) => sum + (row.selected?.weightKg ?? 0), 0);
+  const totalVolumeCbm = rows.reduce((sum, row) => sum + (row.selected?.volumeCbm ?? 0), 0);
+  for (const row of rows) {
+    row.onhandWeightPercent = totalWeightKg > 0 ? row.onhandTons * 100_000 / totalWeightKg : 0;
+    row.draftWeightPercent = totalWeightKg > 0 ? row.draftTons * 100_000 / totalWeightKg : 0;
+    row.onhandVolumePercent = totalVolumeCbm > 0 ? row.onhandVolume * 100 / totalVolumeCbm : 0;
+    row.draftVolumePercent = totalVolumeCbm > 0 ? row.draftVolume * 100 / totalVolumeCbm : 0;
+  }
 
   return (
-    <Card className='border border-slate-200 dark:border-slate-800 shadow-sm'>
-      {/* Table Header Bar */}
-      <div className='p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3'>
-        <div className='space-y-0.5'>
-          <div className='flex items-center gap-2'>
-            <div className='p-1.5 rounded-md bg-purple-600/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400'>
-              <IconTruck className='h-4 w-4' />
-            </div>
-            <h3 className='text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
-              Tình hình hàng hóa
-              <Badge
-                variant='outline'
-                className='text-[10px] py-0 px-1.5 border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40'
-              >
-                Thời gian thực (Live)
-              </Badge>
-              {data?.cronInfo?.cronTime && (
-                <Badge
-                  variant='outline'
-                  className='text-[10px] py-0 px-1.5 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-mono'
-                >
-                  Lịch Cronjob: {data.cronInfo.cronTime}
-                </Badge>
-              )}
-            </h3>
-          </div>
+    <section className='border border-slate-200 dark:border-slate-800 rounded-md' data-testid={`regional-hub-${report.hub.id}`}>
+      <div className='p-1.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900'>
+        <div className='flex items-center gap-2 min-w-0'>
+          <strong className='text-xs text-blue-700 dark:text-blue-300 truncate'>{report.hub.name}</strong>
+          <span className='text-[10px] text-slate-500 font-mono'>{report.hub.code}</span>
         </div>
+        <span className='text-[10px] text-slate-600 dark:text-slate-300' data-testid='regional-calculated-at'>
+          Chốt: {formatSnapshotTime(report.calculatedAt)}
+        </span>
+      </div>
 
-        {/* Action Controls */}
-        <div className='flex items-center flex-wrap gap-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className='h-8 text-xs gap-1.5'
-          >
-            <IconRefresh className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            Làm mới
+      {!report.hasSnapshot || !report.regions ? (
+        <p className='p-2 text-xs text-slate-500'>Chưa có số liệu chốt cho hub này.</p>
+      ) : (
+        <div className='p-1.5 space-y-2'>
+          <div className='grid grid-cols-1 xl:grid-cols-2 gap-2'>
+            <div className='border border-slate-200 dark:border-slate-800 rounded-md p-1.5' data-testid='regional-weight-chart'>
+              <div className='flex items-center justify-between gap-2 text-xs'>
+                <strong>Khối lượng theo miền giao</strong>
+                <span data-testid='regional-weight-total' className='font-mono font-bold'>Tổng: {formatNumber(totalWeightKg / 1000)} tấn</span>
+              </div>
+              <div className='h-44'>
+                <ResponsiveContainer width='100%' height='100%' initialDimension={{ width: 320, height: 176 }}>
+                  <BarChart data={rows} layout='vertical' margin={{ top: 3, right: 4, bottom: 3, left: 4 }}>
+                    <CartesianGrid strokeDasharray='3 3' horizontal={false} />
+                    <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
+                    <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(value, name, item) => {
+                      const row = item.payload as (typeof rows)[number];
+                      const absoluteValue = name === 'Hàng tại kho' ? row.onhandTons : row.draftTons;
+                      return [
+                        `${formatNumber(Number(value))}% · ${formatNumber(absoluteValue)} tấn`,
+                        String(name),
+                      ];
+                    }} />
+                    {status !== 'draft' && (
+                      <Bar dataKey='onhandWeightPercent' name='Hàng tại kho' stackId='weight' isAnimationActive={false}>
+                        {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
+                      </Bar>
+                    )}
+                    {status !== 'onhand' && (
+                      <Bar dataKey='draftWeightPercent' name='Dự kiến nhập kho' stackId='weight' isAnimationActive={false}>
+                        {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
+                      </Bar>
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className='border border-slate-200 dark:border-slate-800 rounded-md p-1.5' data-testid='regional-volume-chart'>
+              <div className='flex items-center justify-between gap-2 text-xs'>
+                <strong>Thể tích theo miền giao</strong>
+                <span data-testid='regional-volume-total' className='font-mono font-bold'>Tổng: {formatNumber(totalVolumeCbm)} m³</span>
+              </div>
+              <div className='h-44'>
+                <ResponsiveContainer width='100%' height='100%' initialDimension={{ width: 320, height: 176 }}>
+                  <BarChart data={rows} layout='vertical' margin={{ top: 3, right: 4, bottom: 3, left: 4 }}>
+                    <CartesianGrid strokeDasharray='3 3' horizontal={false} />
+                    <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
+                    <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(value, name, item) => {
+                      const row = item.payload as (typeof rows)[number];
+                      const absoluteValue = name === 'Hàng tại kho' ? row.onhandVolume : row.draftVolume;
+                      return [
+                        `${formatNumber(Number(value))}% · ${formatNumber(absoluteValue)} m³`,
+                        String(name),
+                      ];
+                    }} />
+                    {status !== 'draft' && (
+                      <Bar dataKey='onhandVolumePercent' name='Hàng tại kho' stackId='volume' isAnimationActive={false}>
+                        {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
+                      </Bar>
+                    )}
+                    {status !== 'onhand' && (
+                      <Bar dataKey='draftVolumePercent' name='Dự kiến nhập kho' stackId='volume' isAnimationActive={false}>
+                        {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
+                      </Bar>
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function SuperAdminRegionalDispatchTable() {
+  const queryClient = useQueryClient();
+  const { selectedHubId } = useAdminOperationalReport();
+  const [status, setStatus] = useState<CargoStatus>('total');
+  const { data: report, error, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['admin-regional-dispatch-report-table', selectedHubId],
+    queryFn: async () => {
+      const response = await apiClient.get<RegionalReportApiResponse | { data: RegionalReportApiResponse }>(
+        '/api/v1/admin/reports/regional-dispatch',
+        { params: { hubId: selectedHubId } },
+      );
+      const payload = response.data;
+      return 'data' in payload ? payload.data : payload;
+    },
+    staleTime: 60_000,
+  });
+  const sync = useMutation({
+    mutationFn: () => apiClient.post('/api/v1/admin/reports/regional-dispatch/sync', {
+      hubId: selectedHubId === 'ALL' ? undefined : Number(selectedHubId),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-regional-dispatch-report-table'] });
+      toast.success('Đã cập nhật tình hình hàng hóa.');
+    },
+    onError: (cause: unknown) => toast.error(formatApiError(cause)),
+  });
+
+  const exportExcel = () => {
+    if (!report) return;
+    const rows = report.hubReports.flatMap((hubReport) => {
+      if (!hubReport.regions) return [];
+      return REGION_CONFIGS.map((config) => {
+        const metric = hubReport.regions![config.key];
+        return {
+          Hub: hubReport.hub.name,
+          'Ngày chốt': hubReport.reportDate ?? '',
+          'Thời điểm tính': formatSnapshotTime(hubReport.calculatedAt),
+          'Miền giao': config.label,
+          'Mã đơn tại kho': metric.onhandOrderCodes.join(', '),
+          'Số kiện tại kho': metric.onhandPackageCount,
+          'Kg tại kho': metric.onhandWeightKg,
+          'm³ tại kho': metric.onhandVolumeCbm,
+          'Mã đơn dự kiến nhập': metric.draftOrderCodes.join(', '),
+          'Kg dự kiến nhập': metric.draftWeightKg,
+          'm³ dự kiến nhập': metric.draftVolumeCbm,
+        };
+      });
+    });
+    if (rows.length === 0) return;
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'Tinh_hinh_hang_hoa');
+    XLSX.writeFile(workbook, `Tinh_hinh_hang_hoa_${selectedHubId}.xlsx`);
+  };
+
+  return (
+    <Card className='border border-slate-200 dark:border-slate-800'>
+      <div className='p-1.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2'>
+        <div>
+          <h3 className='text-sm font-bold'>Tình hình hàng hóa</h3>
+          <p className='text-[10px] text-slate-500'>Chốt số liệu tự động lúc {report?.cronInfo.cronTime ?? '06:00'} hằng ngày · Chỉ Cấp 1 • Hub Chính</p>
+        </div>
+        <div className='flex flex-wrap items-center gap-1.5'>
+          <Button variant='outline' size='sm' className='h-8 text-xs' onClick={() => refetch()} disabled={isFetching}>
+            <IconRefresh className='h-3.5 w-3.5' /> Làm mới
           </Button>
-
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={handleExportExcel}
-            disabled={isLoading || !data}
-            className='h-8 text-xs gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/40'
-          >
-            <IconDownload className='h-3.5 w-3.5' />
-            Xuất Excel
+          <Button variant='outline' size='sm' className='h-8 text-xs' onClick={exportExcel} disabled={!report?.hubReports.some((hub) => hub.hasSnapshot)}>
+            <IconDownload className='h-3.5 w-3.5' /> Xuất Excel
+          </Button>
+          <Button size='sm' className='h-8 text-xs' onClick={() => sync.mutate()} disabled={sync.isPending}>
+            {sync.isPending ? <IconLoader2 className='h-3.5 w-3.5 animate-spin' /> : <IconRefresh className='h-3.5 w-3.5' />}
+            Đồng bộ số liệu
           </Button>
         </div>
       </div>
-      <CardContent className='p-0'>
-        {/* Warning Banner if N/A cargo detected */}
-        {data?.regions?.na &&
-          (data.regions.na.totalWeightKg > 0 ||
-            data.regions.na.totalVolumeCbm > 0 ||
-            data.regions.na.onhandOrderCount > 0 ||
-            data.regions.na.incomingTripCount > 0 ||
-            (data.provinceAudit?.invalidOrderCount ?? 0) > 0) && (
-            <div className='mx-3 mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-xs'>
-              <IconAlertTriangle className='h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0' />
-              <div className='text-xs text-amber-800 dark:text-amber-300 space-y-2 flex-1'>
-                <div>
-                  <span className='font-bold'>CẢNH BÁO DỮ LIỆU CHƯA PHÂN MIỀN: </span>
-                  Có{' '}
-                  {data.regions.na.onhandOrderCount > 0
-                    ? `${formatNumber(data.regions.na.onhandOrderCount)} đơn tồn kho`
-                    : ''}
-                  {data.regions.na.onhandOrderCount > 0 && data.regions.na.incomingTripCount > 0
-                    ? ' và '
-                    : ''}
-                  {data.regions.na.incomingTripCount > 0
-                    ? `${formatNumber(data.regions.na.incomingTripCount)} chuyến xe sắp về`
-                    : ''}{' '}
-                  ({formatNumber(data.regions.na.totalWeightTons)} Tấn •{' '}
-                  {formatNumber(data.regions.na.totalVolumeCbm)} m³) chưa xác định được Miền do nhập
-                  sai hoặc thiếu tỉnh thành đến. Vui lòng rà soát lại:
-                </div>
-
-                {/* Danh sách các đơn N/A cụ thể hiển thị trực tiếp */}
-                {data.provinceAudit && data.provinceAudit.invalidOrderCount > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Quét đơn thiếu hoặc sai tỉnh/thành:{' '}
-                      {formatNumber(data.provinceAudit.invalidOrderCount)} mã
-                    </div>
-                    <div className='text-[10px] text-amber-800 dark:text-amber-300'>
-                      Đã quét {formatNumber(data.provinceAudit.scannedOrderCount)} đơn theo Hub ·
-                      Thiếu tỉnh: {formatNumber(data.provinceAudit.missingProvinceCount)} · Không
-                      nhận diện: {formatNumber(data.provinceAudit.unrecognizedProvinceCount)}
-                      {data.provinceAudit.isTruncated ? ' · Hiển thị tối đa 500 mã' : ''}
-                    </div>
-                    <div className='max-h-28 overflow-y-auto flex flex-wrap gap-1 rounded border border-amber-200 bg-white/70 p-1 dark:border-amber-900/40 dark:bg-slate-900/50'>
-                      {data.provinceAudit.orders.map((order) => (
-                        <a
-                          key={`province-audit-${order.id}`}
-                          href={`/dashboard/warehouse/orders?search=${encodeURIComponent(order.orderCode)}`}
-                          target='_blank'
-                          rel='noreferrer'
-                          title={order.province || 'Chưa nhập tỉnh/thành'}
-                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
-                        >
-                          {order.orderCode}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {naOrders.length > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Danh sách đơn hàng cụ thể cần rà soát:
-                    </div>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {naOrders.map((ord) => (
-                        <span
-                          key={ord.id}
-                          className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
-                        >
-                          <strong className='text-purple-700 dark:text-purple-300'>
-                            {ord.orderCode}
-                          </strong>
-                          <span className='text-slate-600 dark:text-slate-300 font-sans'>
-                            (Tỉnh nhập:{' '}
-                            <strong className='text-rose-600 dark:text-rose-400'>
-                              {ord.province || 'Chưa nhập'}
-                            </strong>{' '}
-                            • {formatNumber(ord.remainingQuantity)} kiện •{' '}
-                            {formatNumber(ord.volumeCbm)} m³ • {ord.currentHubName})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {naSnapshotOrderCodes.length > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Mã đơn ghi nhận trong snapshot N/A:
-                    </div>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {naSnapshotOrderCodes.map((orderCode) => (
-                        <a
-                          key={`snapshot-na-${orderCode}`}
-                          href={`/dashboard/warehouse/orders?search=${encodeURIComponent(orderCode)}`}
-                          target='_blank'
-                          rel='noreferrer'
-                          className='rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 hover:bg-amber-200 hover:underline dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/70'
-                        >
-                          {orderCode}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Danh sách các chuyến xe N/A nếu có */}
-                {naTrips.length > 0 && (
-                  <div className='pt-1.5 border-t border-amber-200 dark:border-amber-900/40 space-y-1'>
-                    <div className='font-bold text-[11px] text-amber-900 dark:text-amber-200'>
-                      Danh sách chuyến xe sắp về chưa có tỉnh/Hub đích rõ ràng:
-                    </div>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {naTrips.map((tr) => (
-                        <span
-                          key={tr.id}
-                          className='inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-mono shadow-2xs'
-                        >
-                          <strong className='text-blue-700 dark:text-blue-300'>
-                            {tr.tripCode}
-                          </strong>
-                          <span className='text-slate-600 dark:text-slate-300 font-sans'>
-                            (BS: {tr.licensePlate || '—'} • {tr.originHubName} →{' '}
-                            {tr.destinationHubName})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-        {/* Loading Skeleton */}
+      <CardContent className='p-1.5 space-y-2'>
+        <div role='group' aria-label='Trạng thái đơn hàng' className='flex flex-wrap gap-1'>
+          {([['onhand', 'Hàng tại kho'], ['draft', 'Dự kiến nhập kho'], ['total', 'Tất cả']] as const).map(([value, label]) => (
+            <button key={value} type='button' aria-pressed={status === value} onClick={() => setStatus(value)}
+              className={`h-8 px-2 text-xs rounded border cursor-pointer ${status === value ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-300 dark:border-slate-700'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className='text-[10px] text-slate-500'>Hàng tại kho được chia theo tỉnh giao. Dòng LƯU KHO gồm đơn ghi “Lưu kho” ở tỉnh giao.</p>
         {isLoading ? (
-          <div className='py-12 flex flex-col items-center justify-center gap-2 text-slate-400'>
-            <IconLoader2 className='h-7 w-7 animate-spin text-purple-600' />
-            <span className='text-xs'>Đang tải dữ liệu cân đối đội xe...</span>
-          </div>
+          <p className='p-2 text-xs text-slate-500'>Đang tải số liệu chốt...</p>
+        ) : error ? (
+          <p className='p-2 text-xs text-rose-700'>{formatApiError(error)}</p>
+        ) : !report?.hubReports.length ? (
+          <p className='p-2 text-xs text-slate-500'>Chưa có Hub Chính cấp 1.</p>
         ) : (
-          <>
-            {/* Visual Horizontal Bar Chart Section (Styled exactly like user reference image) */}
-            {data?.regions && (
-              <div className='p-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-2'>
-                {/* Chart Toolbar */}
-                <div className='flex items-center justify-between flex-wrap gap-2'>
-                  <div
-                    role='group'
-                    aria-label='Trạng thái đơn hàng'
-                    className='flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs'
-                  >
-                    {(
-                      [
-                        ['onhand', 'Lưu kho'],
-                        ['draft', 'Đơn nháp'],
-                        ['total', 'Tổng hợp']
-                      ] as const
-                    ).map(([status, label]) => (
-                      <button
-                        key={status}
-                        type='button'
-                        aria-pressed={chartStatus === status}
-                        onClick={() => setChartStatus(status)}
-                        className={`h-8 px-2.5 rounded text-xs font-medium cursor-pointer ${
-                          chartStatus === status
-                            ? 'bg-purple-600 text-white font-semibold'
-                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Visual Charts Grid */}
-                <div className='grid gap-2 grid-cols-1 lg:grid-cols-3'>
-                  {/* Chart 1: Weight (Tấn • Kg) */}
-                  {
-                    <div
-                      data-testid='regional-weight-chart'
-                      className='p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2'
-                    >
-                      <div className='flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-2'>
-                        <div className='flex items-center gap-1.5'>
-                          <span className='inline-block w-2.5 h-2.5 rounded-full bg-purple-600' />
-                          <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
-                            Khối Lượng Vận Tải Theo Miền (kg)
-                          </span>
-                        </div>
-                        <span className='text-xs font-mono font-bold text-purple-700 dark:text-purple-300'>
-                          Tổng: {formatNumber(chartTotals.totalWeightKg)} kg
-                        </span>
-                      </div>
-
-                      {/* Horizontal Bars */}
-                      <div className='space-y-2 pt-1'>
-                        {REGION_CONFIGS.map((cfg, index) => {
-                          const metric = chartRegions[index];
-                          const weightPct =
-                            chartTotals.totalWeightKg > 0 && metric?.totalWeightKg
-                              ? Math.round(
-                                  (metric.totalWeightKg / chartTotals.totalWeightKg) * 1000
-                                ) / 10
-                              : 0;
-                          return (
-                            <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
-                              {/* Label on left (right-aligned, clean font like reference image) */}
-                              <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
-                                <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
-                                  {cfg.name}
-                                </span>
-                              </div>
-
-                              {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
-                              <div className='flex-1 flex items-center min-w-0'>
-                                <div
-                                  className={`h-6 sm:h-7 ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
-                                  style={{
-                                    width: `${Math.max(
-                                      weightPct > 0 ? weightPct : 0,
-                                      (metric?.totalWeightKg || 0) > 0 ? 3 : 0
-                                    )}%`,
-                                    maxWidth: 'calc(100% - 170px)'
-                                  }}
-                                />
-                                <span
-                                  className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                                >
-                                  {formatNumber(metric?.totalWeightKg ?? 0)} kg
-                                  <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
-                                    ({weightPct}%)
-                                  </span>
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* Bottom axis line with ticks & scale (0 ... 100) */}
-                        <div className='flex items-center gap-2.5 pt-1.5'>
-                          <div className='w-28 sm:w-36 shrink-0' />
-                          <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
-                            <span>0%</span>
-                            <span>25%</span>
-                            <span>50%</span>
-                            <span>75%</span>
-                            <span>100%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  }
-
-                  {/* Chart 2: Volume (m³) */}
-                  {
-                    <div
-                      data-testid='regional-volume-chart'
-                      className='p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-2'
-                    >
-                      <div className='flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-2'>
-                        <div className='flex items-center gap-1.5'>
-                          <span className='inline-block w-2.5 h-2.5 rounded-full bg-purple-600' />
-                          <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
-                            Thể Tích Hàng Hóa Theo Miền (m³)
-                          </span>
-                        </div>
-                        <span className='text-xs font-mono font-bold text-purple-700 dark:text-purple-300'>
-                          Tổng: {formatNumber(chartTotals.totalVolumeCbm)} m³
-                        </span>
-                      </div>
-
-                      {/* Horizontal Bars */}
-                      <div className='space-y-2 pt-1'>
-                        {REGION_CONFIGS.map((cfg, index) => {
-                          const metric = chartRegions[index];
-                          const volumePct =
-                            chartTotals.totalVolumeCbm > 0 && metric?.totalVolumeCbm
-                              ? Math.round(
-                                  (metric.totalVolumeCbm / chartTotals.totalVolumeCbm) * 1000
-                                ) / 10
-                              : 0;
-                          return (
-                            <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
-                              {/* Label on left (right-aligned, clean font like reference image) */}
-                              <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
-                                <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
-                                  {cfg.name}
-                                </span>
-                              </div>
-
-                              {/* Bar + End-of-bar value (Styled exactly like user reference image) */}
-                              <div className='flex-1 flex items-center min-w-0'>
-                                <div
-                                  className={`h-6 sm:h-7 ${cfg.barColorWeight} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
-                                  style={{
-                                    width: `${Math.max(
-                                      volumePct > 0 ? volumePct : 0,
-                                      (metric?.totalVolumeCbm || 0) > 0 ? 3 : 0
-                                    )}%`,
-                                    maxWidth: 'calc(100% - 170px)'
-                                  }}
-                                />
-                                <span
-                                  className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                                >
-                                  {formatNumber(metric?.totalVolumeCbm || 0)} m³
-                                  <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
-                                    ({volumePct}%)
-                                  </span>
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* Bottom axis line with ticks & scale (0 ... 100) */}
-                        <div className='flex items-center gap-2.5 pt-1.5'>
-                          <div className='w-28 sm:w-36 shrink-0' />
-                          <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
-                            <span>0%</span>
-                            <span>25%</span>
-                            <span>50%</span>
-                            <span>75%</span>
-                            <span>100%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  }
-                  {/* Chart 3: Order-code count, including the province audit list */}
-                  <div
-                    data-testid='regional-order-count-chart'
-                    className='rounded-lg bg-white p-2 shadow-2xs border border-slate-200 dark:bg-slate-900 dark:border-slate-800 space-y-2'
-                  >
-                    <div className='flex items-baseline justify-between border-b border-slate-100 pb-2 dark:border-slate-800'>
-                      <div className='flex items-center gap-1.5'>
-                        <span className='inline-block h-2.5 w-2.5 rounded-full bg-rose-500' />
-                        <span className='font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100'>
-                          Số mã đơn theo miền
-                        </span>
-                      </div>
-                      <span className='text-xs font-mono font-bold text-rose-700 dark:text-rose-300'>
-                        Tổng: {formatNumber(totalChartOrderCount)} mã
-                      </span>
-                    </div>
-
-                    <div className='space-y-2 pt-1'>
-                      {REGION_CONFIGS.map((cfg, index) => {
-                        const orderCount = chartOrderCounts[index] || 0;
-                        const orderPct =
-                          totalChartOrderCount > 0
-                            ? Math.round((orderCount / totalChartOrderCount) * 1000) / 10
-                            : 0;
-                        return (
-                          <div key={cfg.key} className='flex items-center gap-2.5 py-1'>
-                            <div className='w-28 sm:w-36 text-right shrink-0 pr-1'>
-                              <span className='font-bold text-xs text-slate-700 dark:text-slate-300 block truncate'>
-                                {cfg.name}
-                              </span>
-                            </div>
-                            <div className='flex-1 flex items-center min-w-0'>
-                              <div
-                                className={`h-6 sm:h-7 ${cfg.barColorVolume} rounded-r-md transition-all duration-700 ease-out shadow-xs shrink-0`}
-                                style={{
-                                  width: `${Math.max(
-                                    orderPct > 0 ? orderPct : 0,
-                                    orderCount > 0 ? 3 : 0
-                                  )}%`,
-                                  maxWidth: 'calc(100% - 170px)'
-                                }}
-                              />
-                              <span
-                                className={`ml-2 font-bold text-xs sm:text-sm ${cfg.badgeText} font-mono whitespace-nowrap shrink-0`}
-                              >
-                                {formatNumber(orderCount)} mã
-                                <span className='text-[10px] text-slate-500 dark:text-slate-400 font-normal ml-1'>
-                                  ({orderPct}%)
-                                </span>
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      <div className='flex items-center gap-2.5 pt-1.5'>
-                        <div className='w-28 sm:w-36 shrink-0' />
-                        <div className='flex-1 border-t border-slate-300 dark:border-slate-700 pt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono'>
-                          <span>0%</span>
-                          <span>25%</span>
-                          <span>50%</span>
-                          <span>75%</span>
-                          <span>100%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className='grid gap-1.5 border-b border-slate-200 p-2 dark:border-slate-800 sm:grid-cols-2'>
-              {REGION_CONFIGS.map((region) => {
-                const metrics = data?.regions?.[region.key];
-                const draft = data?.draftRegions?.[region.key];
-                const draftCodes = draft?.orderCodes || [];
-                const storedCodes = metrics?.onhandOrderCodes || [];
-                return (
-                  <details
-                    key={region.key}
-                    className='rounded border border-slate-200 px-2 py-1 dark:border-slate-700'
-                  >
-                    <summary className='cursor-pointer text-[10px] font-semibold text-slate-700 dark:text-slate-200'>
-                      {region.name}: Lưu kho {formatNumber(metrics?.onhandOrderCount ?? 0)} mã · Đơn
-                      nháp {formatNumber(draft?.orderCount ?? 0)} mã
-                    </summary>
-                    <div className='space-y-1.5 pt-1.5'>
-                      <div className='flex flex-wrap gap-1'>
-                        <span className='w-full text-[10px] font-semibold'>Mã vận đơn lưu kho</span>
-                        {storedCodes.length ? (
-                          storedCodes.map((code) => (
-                            <a
-                              key={`stored-${code}`}
-                              href={`/dashboard/warehouse/orders?search=${encodeURIComponent(code)}`}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='rounded bg-blue-50 px-1 font-mono text-[10px] dark:bg-blue-950/40'
-                            >
-                              {code}
-                            </a>
-                          ))
-                        ) : (
-                          <span className='text-[10px] text-slate-500'>
-                            Chưa có mã lưu kho trong snapshot.
-                          </span>
-                        )}
-                      </div>
-                      <div className='flex flex-wrap gap-1'>
-                        <span className='w-full text-[10px] font-semibold'>
-                          Mã vận đơn đơn nháp
-                        </span>
-                        {draftCodes.length ? (
-                          draftCodes.map((code) => (
-                            <a
-                              key={`draft-${code}`}
-                              href={`/dashboard/warehouse/orders?search=${encodeURIComponent(code)}`}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='rounded bg-amber-50 px-1 font-mono text-[10px] dark:bg-amber-950/40'
-                            >
-                              {code}
-                            </a>
-                          ))
-                        ) : (
-                          <span className='text-[10px] text-slate-500'>
-                            Chưa có mã đơn nháp trong snapshot.
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </details>
-                );
-              })}
-            </div>
-          </>
+          report.hubReports.map((hubReport) => <RegionalHubPanel key={hubReport.hub.id} report={hubReport} status={status} />)
         )}
       </CardContent>
     </Card>

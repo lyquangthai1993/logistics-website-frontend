@@ -15,14 +15,27 @@ import { TEST_USERS, loginAs, clearSession } from './helpers/auth';
  * Format: { route, allowedRoles }
  */
 const ROUTE_MATRIX = [
-  { route: '/dashboard/admin', allowedRoles: ['SUPER_ADMIN'] },
+  { route: '/dashboard/admin', expectedPath: undefined, allowedRoles: ['SUPER_ADMIN'] },
   {
     route: '/dashboard/orders',
+    expectedPath: '/dashboard/(orders|warehouse/orders)',
     allowedRoles: ['SUPER_ADMIN', 'DISPATCHER', 'FLEET_MANAGER', 'WAREHOUSE_MANAGER']
   },
-  { route: '/dashboard/trips', allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER'] },
-  { route: '/dashboard/fleet', allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER'] },
-  { route: '/dashboard/warehouse', allowedRoles: ['SUPER_ADMIN', 'WAREHOUSE_MANAGER'] }
+  {
+    route: '/dashboard/trips',
+    expectedPath: undefined,
+    allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER']
+  },
+  {
+    route: '/dashboard/fleet',
+    expectedPath: undefined,
+    allowedRoles: ['SUPER_ADMIN', 'FLEET_MANAGER']
+  },
+  {
+    route: '/dashboard/warehouse',
+    expectedPath: undefined,
+    allowedRoles: ['SUPER_ADMIN', 'WAREHOUSE_MANAGER']
+  }
 ];
 
 const CORE_ROLE_USERS = Array.from(new Map(TEST_USERS.map((u) => [u.role, u])).values());
@@ -37,7 +50,7 @@ for (const user of CORE_ROLE_USERS) {
       await clearSession(page);
     });
 
-    for (const { route, allowedRoles } of ROUTE_MATRIX) {
+    for (const { route, expectedPath, allowedRoles } of ROUTE_MATRIX) {
       const isAllowed = allowedRoles.includes(user.role);
 
       test(`${isAllowed ? '✅ ALLOW' : '🚫 BLOCK'} ${user.role} → ${route}`, async ({ page }) => {
@@ -45,15 +58,19 @@ for (const user of CORE_ROLE_USERS) {
         await page.waitForLoadState('domcontentloaded');
 
         if (isAllowed) {
-          // Should stay on the requested route (or sub-path)
-          await expect(page).toHaveURL(new RegExp(route.replace('/', '\\/')), { timeout: 10000 });
+          // Legacy orders URL is redirected to the current warehouse orders route.
+          await expect(page).toHaveURL(new RegExp((expectedPath ?? route).replaceAll('/', '\\/')), {
+            timeout: 10000
+          });
         } else {
           // Should redirect away from unauthorized route
           await expect(page).not.toHaveURL(new RegExp(route.replace('/', '\\/')), {
             timeout: 10000
           });
           // Should land on default permitted landing page (not sign-in, since user IS authenticated)
-          await expect(page).toHaveURL(/\/dashboard\/(orders|trips|warehouse\/orders)/, { timeout: 10000 });
+          await expect(page).toHaveURL(/\/dashboard\/(orders|trips|warehouse\/orders)/, {
+            timeout: 10000
+          });
         }
       });
     }

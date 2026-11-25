@@ -1,140 +1,150 @@
 import { test, expect } from '@playwright/test';
-import type { Response as PlaywrightResponse } from '@playwright/test';
 import { loginAs, USER_ADMIN } from './helpers/auth';
-import { formatNumber } from '../src/lib/utils';
 import type { RegionalReportApiResponse } from '../src/features/admin-reports/components/super-admin-regional-dispatch-table';
 
 test.use({ viewport: { width: 1920, height: 1080 } });
 
-test('regional charts filter stored and draft orders while keeping both metrics visible', async ({
-  page
-}) => {
-  test.setTimeout(120_000);
+const REGION_KEYS = ['north', 'central', 'south', 'storage', 'na'] as const;
+
+test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) => {
+  test.setTimeout(180_000);
   await loginAs(page, USER_ADMIN);
-  const regionalResponses: PlaywrightResponse[] = [];
-  page.on('response', (response) => {
-    if (response.url().includes('/admin/reports/regional-dispatch?') && response.status() === 200) {
-      regionalResponses.push(response);
-    }
+
+  const initialResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.status() === 200
+      && url.pathname.endsWith('/admin/reports/regional-dispatch')
+      && url.searchParams.get('hubId') === 'ALL';
   });
   await page.goto('/dashboard/admin/reports', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: /Tình hình hàng hóa/ })).toBeVisible();
-  await expect(page.getByTestId('regional-weight-chart')).toBeVisible({ timeout: 45_000 });
-  await expect(page.getByTestId('regional-volume-chart')).toBeVisible();
-  const response = regionalResponses.at(-1);
-  expect(response).toBeDefined();
-  if (!response) throw new Error('No regional report response captured');
+  await initialResponse;
+  await expect(page.getByRole('heading', { name: 'Tình hình hàng hóa' })).toBeVisible();
+
+  const refreshedResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.status() === 200
+      && url.pathname.endsWith('/admin/reports/regional-dispatch')
+      && url.searchParams.get('hubId') === 'ALL';
+  });
+  const syncResponse = page.waitForResponse((response) =>
+    response.url().includes('/admin/reports/regional-dispatch/sync')
+    && response.request().method() === 'POST'
+  );
+  await page.getByRole('button', { name: 'Đồng bộ số liệu' }).click();
+  expect((await syncResponse).status()).toBe(200);
+  const response = await refreshedResponse;
   const requestUrl = new URL(response.url());
-  const initialUrl = new URL(page.url());
-  const fromDate = initialUrl.searchParams.get('fromDate');
-  const toDate = initialUrl.searchParams.get('toDate');
-  const expectedFromDate =
-    fromDate ??
-    (() => {
-      const today = new Date();
-      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
-    })();
-  const expectedToDate =
-    toDate ??
-    (() => {
-      const today = new Date();
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    })();
-  expect(requestUrl.searchParams.get('fromDate')).toBe(expectedFromDate);
-  expect(requestUrl.searchParams.get('toDate')).toBe(expectedToDate);
-  expect(requestUrl.searchParams.get('hubId')).toBeTruthy();
+  expect(requestUrl.searchParams.get('fromDate')).toBeNull();
+  expect(requestUrl.searchParams.get('toDate')).toBeNull();
   const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
-  expect(report.draftRegions).toBeDefined();
-  expect(report.dailySeries.length).toBeGreaterThan(0);
-  expect(report.onhandOrdersList.length).toBeGreaterThan(0);
-  expect(report.regions.na.onhandOrderCodes.length).toBeGreaterThan(0);
-  for (const orderCode of report.regions.na.onhandOrderCodes) {
-    const orderCodeMatches = await page.getByText(orderCode, { exact: true }).all();
-    const hasVisibleOrderCode = (
-      await Promise.all(orderCodeMatches.map((match) => match.isVisible()))
-    ).some(Boolean);
-    expect(hasVisibleOrderCode).toBe(true);
-  }
-  const regions = ['north', 'central', 'south', 'storage', 'na'] as const;
-  const storedWeight = regions.reduce((sum, key) => sum + report.regions[key].onhandWeightKg, 0);
-  const storedVolume = regions.reduce((sum, key) => sum + report.regions[key].onhandVolumeCbm, 0);
-  const draftWeight = regions.reduce((sum, key) => sum + report.draftRegions[key].weightKg, 0);
-  const draftVolume = regions.reduce((sum, key) => sum + report.draftRegions[key].volumeCbm, 0);
-  for (const key of regions) {
-    expect(Array.isArray(report.regions[key].onhandOrderCodes)).toBe(true);
-    expect(Array.isArray(report.regions[key].draftOrderCodes)).toBe(true);
-    expect(Array.isArray(report.draftRegions[key].orderCodes)).toBe(true);
-  }
-  const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng', exact: true });
-  const weight = page.getByTestId('regional-weight-chart');
-  const volume = page.getByTestId('regional-volume-chart');
-  const orderCount = page.getByTestId('regional-order-count-chart');
-  await expect(orderCount).toBeVisible();
-  await expect(orderCount).toContainText('Số mã đơn theo miền');
-  const orderSearchLinks = page.locator('a[href^="/dashboard/warehouse/orders?search="]');
-  if ((await orderSearchLinks.count()) > 0) {
-    await expect(orderSearchLinks.first()).toHaveAttribute('target', '_blank');
-  }
-  const cases = [
-    ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume],
-    ['Lưu kho', storedWeight, storedVolume],
-    ['Đơn nháp', draftWeight, draftVolume],
-    ['Tổng hợp', storedWeight + draftWeight, storedVolume + draftVolume]
-  ] as const;
-  await expect(controls.getByRole('button', { name: cases[0][0], exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
-  for (const [label, kg, cbm] of cases) {
-    await controls.getByRole('button', { name: label, exact: true }).click();
-    await expect(weight).toBeVisible();
-    await expect(volume).toBeVisible();
-    await expect(weight).toContainText(`Tổng: ${formatNumber(kg)} kg`);
-    await expect(volume).toContainText(`Tổng: ${formatNumber(cbm)} m³`);
-    await expect(controls.getByRole('button', { name: label, exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-  }
-  await expect(page.getByRole('columnheader', { name: /Khu V/ })).toHaveCount(0);
-  await expect(page.getByText('TỔNG CỘNG TOÀN QUỐC', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('parallel-slot-monthly-trends')).toHaveCount(0);
-  await expect(page.getByTestId('parallel-slot-daily-stats')).toBeVisible();
-  const regionColors = await weight
-    .locator('.rounded-r-md')
-    .evaluateAll((bars) => bars.slice(0, 3).map((bar) => getComputedStyle(bar).backgroundColor));
-  expect(new Set(regionColors).size).toBe(3);
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
-    document
-      .querySelectorAll('main, [data-slot="scroll-area-viewport"]')
-      .forEach((element) => element.scrollTo(0, 0));
-    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
-  });
-  await page.screenshot({
-    path: 'e2e/screenshots/screenshot_regional_dispatch_range_verified.png',
-    fullPage: true
-  });
 
-  await page.getByTestId('report-date-range-picker').click();
-  await expect(page.getByText('Chọn khoảng ngày báo cáo', { exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  const quickRangeResponse = page.waitForResponse((nextResponse) => {
-    const url = new URL(nextResponse.url());
-    return (
-      nextResponse.status() === 200 &&
-      url.pathname.endsWith('/admin/reports/regional-dispatch') &&
-      url.searchParams.has('fromDate')
-    );
+  expect(report.cronInfo.cronTime).toBe('06:00');
+  expect(report.hubReports.length).toBeGreaterThan(0);
+  expect(report.hubReports.map((item) => item.hub.name)).toEqual(expect.arrayContaining([
+    'Andromeda Hub - HCM',
+    'Magellan Hub - Đà Nẵng',
+    'Polaris Hub - Hưng Yên',
+  ]));
+  expect(new Set(report.hubReports.map((item) => item.hub.id)).size).toBe(report.hubReports.length);
+  expect(report.hubReports.every((item) => item.hub.level === 1)).toBe(true);
+  for (const hubReport of report.hubReports) {
+    expect(hubReport.hasSnapshot).toBe(true);
+    expect(hubReport.reportDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(hubReport.calculatedAt).toBeTruthy();
+    expect(hubReport.regions).not.toBeNull();
+    expect(Object.keys(hubReport.regions ?? {}).sort()).toEqual([...REGION_KEYS].sort());
+    for (const key of REGION_KEYS) {
+      const region = hubReport.regions?.[key];
+      expect(region?.onhandOrderCodes).toBeInstanceOf(Array);
+      expect(region?.draftOrderCodes).toBeInstanceOf(Array);
+    }
+    const panel = page.getByTestId(`regional-hub-${hubReport.hub.id}`);
+    await expect(panel).toBeVisible();
+    await expect(panel.getByTestId('regional-calculated-at')).not.toContainText('Chưa có dữ liệu');
+    await expect(panel.locator('[data-testid^="regional-region-"]')).toHaveCount(0);
+  }
+
+  const allCodes = report.hubReports.flatMap((hubReport) =>
+    REGION_KEYS.flatMap((key) => [
+      ...(hubReport.regions?.[key].onhandOrderCodes ?? []),
+      ...(hubReport.regions?.[key].draftOrderCodes ?? []),
+    ])
+  );
+  expect(allCodes.length).toBeGreaterThan(0);
+
+  const controls = page.getByRole('group', { name: 'Trạng thái đơn hàng' });
+  await controls.getByRole('button', { name: 'Hàng tại kho', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Hàng tại kho', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const hcmSnapshot = report.hubReports.find((item) => item.hub.name.includes('HCM'));
+  expect(hcmSnapshot?.regions).toBeTruthy();
+  if (!hcmSnapshot?.regions) throw new Error('Missing HCM regional snapshot');
+  const hcmPanel = page.getByTestId(`regional-hub-${hcmSnapshot.hub.id}`);
+  await expect(hcmPanel.locator('[data-testid="regional-region-storage"]')).toHaveCount(0);
+  await expect(hcmPanel.getByTestId('regional-onhand-count')).toHaveCount(0);
+  await expect(page.getByText('Hàng tại kho được chia theo tỉnh giao. Dòng LƯU KHO gồm đơn ghi “Lưu kho” ở tỉnh giao.')).toBeVisible();
+  await expect(page.getByTestId('regional-weight-chart').first()).toBeVisible();
+  await controls.getByRole('button', { name: 'Dự kiến nhập kho', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Dự kiến nhập kho', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('regional-volume-chart').first()).toBeVisible();
+  await controls.getByRole('button', { name: 'Tất cả', exact: true }).click();
+
+  const selectedHub = report.hubReports.find((item) => item.hub.name.includes('Đà Nẵng'));
+  expect(selectedHub).toBeDefined();
+  if (!selectedHub) throw new Error('Missing level 1 Da Nang hub');
+  const selectedResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.status() === 200
+      && url.pathname.endsWith('/admin/reports/regional-dispatch')
+      && url.searchParams.get('hubId') === String(selectedHub.hub.id);
   });
-  await page.getByTestId('report-quick-range-select').click();
-  await page.getByRole('option', { name: 'Tháng trước', exact: true }).click();
-  await page.getByTestId('report-apply-date-range-btn').click();
-  const quickRangeResponseResult = await quickRangeResponse;
-  expect(quickRangeResponseResult.status()).toBe(200);
-  const updatedUrl = new URL(page.url());
-  expect(updatedUrl.searchParams.get('fromDate')).not.toBe(expectedFromDate);
-  expect(updatedUrl.searchParams.get('toDate')).not.toBe(expectedToDate);
+  await page.getByTestId('warehouse-hub-filter-select').click();
+  await page.getByTestId(`warehouse-hub-filter-item-${selectedHub.hub.id}`).click();
+  const selectedRaw = await (await selectedResponse).json();
+  const selectedReport: RegionalReportApiResponse = selectedRaw.data ?? selectedRaw;
+  expect(selectedReport.hubReports.map((item) => item.hub.id)).toEqual([selectedHub.hub.id]);
+  await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(1);
+  await expect(page.getByTestId(`regional-hub-${selectedHub.hub.id}`)).toBeVisible();
+  await expect(page.getByTestId('warehouse-hub-filter-select')).toContainText(selectedHub.hub.name);
+  await expect(page.getByTestId('cargo-hub-filter-select')).toHaveCount(0);
+
+  const hcmHub = report.hubReports.find((item) => item.hub.name.includes('HCM'));
+  expect(hcmHub).toBeDefined();
+  if (!hcmHub) throw new Error('Missing level 1 HCM hub');
+  await page.getByTestId('warehouse-hub-filter-select').click();
+  await page.getByTestId(`warehouse-hub-filter-item-${hcmHub.hub.id}`).click();
+  await expect(page.getByTestId('warehouse-hub-filter-select')).toContainText(hcmHub.hub.name);
+  await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(1);
+  await expect(page.getByTestId(`regional-hub-${hcmHub.hub.id}`)).toBeVisible();
+
+  const scopedSyncResponse = page.waitForResponse((response) =>
+    response.url().includes('/admin/reports/regional-dispatch/sync')
+    && response.request().method() === 'POST'
+  );
+  await page.getByRole('button', { name: 'Đồng bộ số liệu' }).click();
+  const scopedSync = await scopedSyncResponse;
+  expect(scopedSync.status()).toBe(200);
+  expect(scopedSync.request().postDataJSON().hubId).toBe(hcmHub.hub.id);
+  const scopedSyncRaw = await scopedSync.json();
+  const scopedSyncResult = scopedSyncRaw.data ?? scopedSyncRaw;
+  expect(scopedSyncResult.rowsProcessed).toBe(REGION_KEYS.length);
+
+  await page.getByTestId('warehouse-hub-filter-clear').click();
+  await expect(page.getByTestId('warehouse-hub-filter-select')).toContainText('Tất cả kho');
+  await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(report.hubReports.length);
+  for (const chartId of ['regional-weight-chart', 'regional-volume-chart']) {
+    await expect.poll(async () => {
+      const bars = page.getByTestId(chartId).first().locator('.recharts-bar-rectangle');
+      for (let index = 0; index < await bars.count(); index += 1) {
+        const box = await bars.nth(index).boundingBox();
+        if (box && box.width > 20 && box.height > 2) return true;
+      }
+      return false;
+    }, { timeout: 15_000 }).toBe(true);
+  }
+
+  await page.screenshot({
+    path: 'e2e/screenshots/screenshot_regional_dispatch_tab_filters_verified.png',
+    fullPage: true,
+  });
 });

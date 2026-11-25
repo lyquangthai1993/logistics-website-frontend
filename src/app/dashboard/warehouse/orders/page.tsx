@@ -38,10 +38,44 @@ import { renderWarehouseOrderStatusBadge } from '@/features/warehouse/components
 import { TablePaginationBar } from '@/components/ui/table/table-pagination-bar';
 import { AdminOrdersMetricsSummaryRow } from '@/features/warehouse/components/admin-orders-metrics-summary-row';
 import { formatNumber } from '@/lib/utils';
+import { extractVietnamProvince } from '@/features/warehouse/lib/vietnam-provinces';
 
 function getInitialOrderSearch(): string {
   if (typeof window === 'undefined') return '';
   return (new URLSearchParams(window.location.search).get('search') || '').trim();
+}
+
+function getInitialDateFilter(key: 'fromDate' | 'toDate'): string {
+  if (typeof window === 'undefined') return '';
+  const value = new URLSearchParams(window.location.search).get(key) || '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+}
+
+function getCurrentMonthRange(): { fromDate: string; toDate: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  return {
+    fromDate: `${year}-${month}-01`,
+    toDate: `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+  };
+}
+
+function resolveOrderProvince(order: any): string {
+  const directProvince =
+    order.province || order.destinationHubEntity?.city || order.destinationProvince;
+  if (directProvince) return String(directProvince).trim();
+
+  return (
+    extractVietnamProvince(
+      order.originalDestination ||
+        order.destinationHub ||
+        order.route ||
+        order.deliveryAddress ||
+        ''
+    ) || ''
+  );
 }
 
 export default function WarehouseOrdersPage() {
@@ -54,6 +88,9 @@ export default function WarehouseOrdersPage() {
 
   const [search, setSearch] = useState(getInitialOrderSearch);
   const [appliedSearch, setAppliedSearch] = useState(getInitialOrderSearch);
+  const [fromDate, setFromDate] = useState(getInitialDateFilter('fromDate'));
+  const [toDate, setToDate] = useState(getInitialDateFilter('toDate'));
+  const [datePreset, setDatePreset] = useState('');
 
   const syncSearchToUrl = useCallback((value: string) => {
     if (typeof window === 'undefined') return;
@@ -67,7 +104,11 @@ export default function WarehouseOrdersPage() {
     }
     sp.delete('page');
     const qs = sp.toString();
-    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    window.history.replaceState(
+      null,
+      '',
+      qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    );
   }, []);
 
   const handleSearchSubmit = () => {
@@ -91,6 +132,46 @@ export default function WarehouseOrdersPage() {
     syncSearchToUrl('');
   };
 
+  const syncDateFilterToUrl = useCallback((nextFromDate: string, nextToDate: string) => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    if (nextFromDate) sp.set('fromDate', nextFromDate);
+    else sp.delete('fromDate');
+    if (nextToDate) sp.set('toDate', nextToDate);
+    else sp.delete('toDate');
+    sp.delete('page');
+    const qs = sp.toString();
+    window.history.replaceState(
+      null,
+      '',
+      qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    );
+  }, []);
+
+  const applyDateFilter = useCallback(
+    (nextFromDate: string, nextToDate: string, preset = '') => {
+      if (nextFromDate && nextToDate && nextFromDate > nextToDate) {
+        toast.error('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+        return;
+      }
+      setFromDate(nextFromDate);
+      setToDate(nextToDate);
+      setDatePreset(preset);
+      setPage(1);
+      syncDateFilterToUrl(nextFromDate, nextToDate);
+    },
+    [syncDateFilterToUrl]
+  );
+
+  const handleDatePresetChange = (preset: string) => {
+    if (preset === 'THIS_MONTH') {
+      const range = getCurrentMonthRange();
+      applyDateFilter(range.fromDate, range.toDate, preset);
+      return;
+    }
+    setDatePreset('');
+  };
+
   const effectiveSearch = appliedSearch.trim();
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -103,13 +184,14 @@ export default function WarehouseOrdersPage() {
     return 'ALL';
   });
 
-  // State lưu trữ tổng số lượng, số kg, số khối cho Super Admin
+  // State lưu trữ tổng số lượng, số kg, số khối theo Hub hiện tại.
   const [adminTotals, setAdminTotals] = useState<{
     quantity: number;
     weightKg: number;
     volumeCbm: number;
   }>({ quantity: 0, weightKg: 0, volumeCbm: 0 });
   const [isLoadingAdminTotals, setIsLoadingAdminTotals] = useState(false);
+  const [adminTotalsUpdatedAt, setAdminTotalsUpdatedAt] = useState<Date | null>(null);
 
   const handleHubIdChange = useCallback((newHubId: string) => {
     const normalized = newHubId && newHubId !== 'ALL' ? String(newHubId) : 'ALL';
@@ -227,6 +309,8 @@ export default function WarehouseOrdersPage() {
         limit: '5000',
         ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
         ...(effectiveSearch ? { search: effectiveSearch } : {}),
+        ...(isAdmin && fromDate ? { fromDate } : {}),
+        ...(isAdmin && toDate ? { toDate } : {}),
         ...(hubId && hubId !== 'ALL' ? { hubId } : {})
       });
 
@@ -312,12 +396,12 @@ export default function WarehouseOrdersPage() {
             item.deliveryAddress ||
             order.deliveryAddress ||
             '—';
-          const provinceStr =
-            item.destinationHubEntity?.city ||
-            order.destinationHubEntity?.city ||
-            item.province ||
-            order.province ||
-            '—';
+          const provinceStr = resolveOrderProvince(item) || resolveOrderProvince(order) || '—';
+          const apiRegion = item.destinationRegion || order.destinationRegion;
+          const regionStr =
+            apiRegion === 'N/A'
+              ? 'CHƯA PHÂN MIỀN (N/A)'
+              : apiRegion || 'CHƯA PHÂN MIỀN (N/A)';
 
           const resolvedStatus = (
             resolveDisplayStatus(item) ||
@@ -438,10 +522,11 @@ export default function WarehouseOrdersPage() {
             itemVolume, // Cột I: THỂ TÍCH (M³)
             destHubStr, // Cột J: ĐÍCH ĐẾN / ĐỊA CHỈ GIAO
             provinceStr, // Cột K: TỈNH / THÀNH PHỐ
-            statusText, // Cột L: TRẠNG THÁI
-            outboundDateVal, // Cột M: NGÀY XUẤT KHO
-            outboundTripVal, // Cột N: CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG
-            storageDaysVal // Cột O: SỐ NGÀY LƯU KHO
+            regionStr, // Cột L: KHU VỰC
+            statusText, // Cột M: TRẠNG THÁI
+            outboundDateVal, // Cột N: NGÀY XUẤT KHO
+            outboundTripVal, // Cột O: CHUYẾN XE / BIỂN SỐ XE XUẤT HÀNG
+            storageDaysVal // Cột P: SỐ NGÀY LƯU KHO
           ]);
         }
       }
@@ -461,10 +546,11 @@ export default function WarehouseOrdersPage() {
           'THỂ TÍCH (M³)', // Cột I
           'ĐÍCH ĐẾN / ĐỊA CHỈ GIAO', // Cột J
           'TỈNH / THÀNH PHỐ', // Cột K
-          'TRẠNG THÁI', // Cột L
-          'NGÀY XUẤT KHO', // Cột M
-          'BIỂN SỐ XE XUẤT HÀNG', // Cột N
-          'SỐ NGÀY LƯU KHO' // Cột O
+          'KHU VỰC', // Cột L
+          'TRẠNG THÁI', // Cột M
+          'NGÀY XUẤT KHO', // Cột N
+          'BIỂN SỐ XE XUẤT HÀNG', // Cột O
+          'SỐ NGÀY LƯU KHO' // Cột P
         ],
         ...rows
       ];
@@ -482,10 +568,11 @@ export default function WarehouseOrdersPage() {
         { wch: 15 }, // I: THỂ TÍCH (M³)
         { wch: 32 }, // J: ĐÍCH ĐẾN / ĐỊA CHỈ GIAO
         { wch: 18 }, // K: TỈNH / THÀNH PHỐ
-        { wch: 16 }, // L: TRẠNG THÁI
-        { wch: 18 }, // M: NGÀY XUẤT KHO
-        { wch: 20 }, // N: BIỂN SỐ XE XUẤT HÀNG
-        { wch: 16 } // O: SỐ NGÀY LƯU KHO
+        { wch: 22 }, // L: KHU VỰC
+        { wch: 16 }, // M: TRẠNG THÁI
+        { wch: 18 }, // N: NGÀY XUẤT KHO
+        { wch: 20 }, // O: BIỂN SỐ XE XUẤT HÀNG
+        { wch: 16 } // P: SỐ NGÀY LƯU KHO
       ];
 
       const wb = XLSX.utils.book_new();
@@ -529,7 +616,7 @@ export default function WarehouseOrdersPage() {
       for (const r of rows) {
         const orderCodeCell = String(r[1] || '');
         const inboundDateCell = String(r[2] || '');
-        const outboundDateCell = String(r[12] || '');
+        const outboundDateCell = String(r[13] || '');
         const effectiveDateCell =
           statusFilter === 'COMPLETED_INBOUND' && outboundDateCell
             ? outboundDateCell
@@ -558,7 +645,7 @@ export default function WarehouseOrdersPage() {
         bucket.totalVolumeCbm += Number(r[8]) || 0;
       }
 
-      const sortedDaily = Array.from(dailyMap.values()).sort((a, b) =>
+      const sortedDaily = Array.from(dailyMap.values()).toSorted((a, b) =>
         a.sortKey.localeCompare(b.sortKey)
       );
 
@@ -764,6 +851,8 @@ export default function WarehouseOrdersPage() {
       // One row per order code; lines sharing a code are returned in `items`
       groupBy: 'orderCode',
       ...(effectiveSearch ? { search: effectiveSearch } : {}),
+      ...(isAdmin && fromDate ? { fromDate } : {}),
+      ...(isAdmin && toDate ? { toDate } : {}),
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
       ...(hubId && hubId !== 'ALL' ? { hubId } : {})
     });
@@ -800,7 +889,7 @@ export default function WarehouseOrdersPage() {
           setIsLoading(false);
         }
       });
-  }, [page, pageSize, effectiveSearch, statusFilter, hubId]);
+  }, [page, pageSize, effectiveSearch, statusFilter, hubId, isAdmin, fromDate, toDate]);
 
   useEffect(() => {
     fetchOrders();
@@ -809,21 +898,18 @@ export default function WarehouseOrdersPage() {
     };
   }, [fetchOrders]);
 
-  // Fetch 3 ô tính tổng (Số lượng, Số kg, CBM) cho Super Admin khi đổi tab hoặc bộ lọc
+  // Đọc 3 ô tổng (Số lượng, Số kg, CBM) từ snapshot cron theo từng Hub.
   useEffect(() => {
-    if (!isAdmin) return;
     let isCancelled = false;
     setIsLoadingAdminTotals(true);
+    setAdminTotalsUpdatedAt(null);
     const token = tokenManager.getAccessToken();
 
-    const query = new URLSearchParams({
-      isExport: 'true',
-      ...(effectiveSearch ? { search: effectiveSearch } : {}),
-      ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
-      ...(hubId && hubId !== 'ALL' ? { hubId } : {})
-    });
+    const query = new URLSearchParams();
+    if (hubId && hubId !== 'ALL') query.set('hubId', hubId);
+    if (statusFilter !== 'ALL') query.set('status', statusFilter);
 
-    fetch(`/api/v1/warehouse/orders?${query.toString()}`, {
+    fetch(`/api/v1/warehouse/orders/summary?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -832,35 +918,22 @@ export default function WarehouseOrdersPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((resData) => {
         if (isCancelled) return;
-        const items: any[] = resData?.data ?? [];
-        let totalQty = 0;
-        let totalWeight = 0;
-        let totalVolume = 0;
-
-        for (const item of items) {
-          const rawStock = Number(item.hubStock ?? item.remainingQuantity ?? 0);
-          const rawTotal = Number(item.totalQuantity ?? 0);
-          const total = Math.max(rawTotal, rawStock, 0);
-          const stock = Math.max(0, Math.min(rawStock, total));
-
-          if (statusFilter === 'INBOUND') {
-            totalQty += stock;
-          } else {
-            totalQty += total;
-          }
-          totalWeight += Number(item.totalWeight ?? 0);
-          totalVolume += Number(item.totalVolume ?? 0);
-        }
-
+        // The local Next proxy may wrap the Nest response one extra time:
+        // { data: { data: { quantity, weightKg, volumeCbm } } }.
+        const summary = resData?.data?.data ?? resData?.data ?? {};
         setAdminTotals({
-          quantity: totalQty,
-          weightKg: Math.round(totalWeight * 100) / 100,
-          volumeCbm: Math.round(totalVolume * 1000) / 1000
+          quantity: Number(summary.quantity ?? 0),
+          weightKg: Number(summary.weightKg ?? 0),
+          volumeCbm: Number(summary.volumeCbm ?? 0)
         });
+        setAdminTotalsUpdatedAt(
+          summary.calculatedAt ? new Date(summary.calculatedAt) : null
+        );
       })
       .catch(() => {
         if (!isCancelled) {
           setAdminTotals({ quantity: 0, weightKg: 0, volumeCbm: 0 });
+          setAdminTotalsUpdatedAt(null);
         }
       })
       .finally(() => {
@@ -872,9 +945,9 @@ export default function WarehouseOrdersPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isAdmin, statusFilter, hubId, effectiveSearch]);
+  }, [isAdmin, hubId, statusFilter]);
 
-  const COLUMN_COUNT = 11;
+  const COLUMN_COUNT = 12;
 
   /** Date formatting helper: chỉ hiển thị ngày (dd/MM/yyyy), bỏ giờ */
   const formatDate = (dateStr?: string | null) => {
@@ -1076,7 +1149,10 @@ export default function WarehouseOrdersPage() {
             <div className='flex flex-wrap items-center gap-2.5'>
               <h1 className='text-xl font-black tracking-tight flex items-center gap-2 text-[#0F3D62] dark:text-blue-400'>
                 <IconBuildingWarehouse className='h-6 w-6' />
-                <span>Tổng Hợp Đơn Hàng Tại Kho{currentHubName && !isAdmin ? ` · ${currentHubName}` : ''}</span>
+                <span>
+                  Tổng Hợp Đơn Hàng Tại Kho
+                  {currentHubName && !isAdmin ? ` · ${currentHubName}` : ''}
+                </span>
               </h1>
               {isAdmin && (
                 <div className='inline-flex items-center' data-testid='admin-header-hub-filter'>
@@ -1186,8 +1262,47 @@ export default function WarehouseOrdersPage() {
                 )}
               </div>
 
-              {/* Nếu không phải Super Admin thì vẫn giữ WarehouseHubFilterSelect ở toolbar (hoặc ẩn nếu role không có quyền) */}
-              {!isAdmin && <WarehouseHubFilterSelect value={hubId} onChange={handleHubIdChange} />}
+              {isAdmin && (
+                <div
+                  className='flex flex-wrap items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800/60'
+                  data-testid='admin-orders-date-filter'
+                >
+                  <span className='px-1 text-[10px] font-semibold text-slate-500'>Ngày</span>
+                  <input
+                    type='date'
+                    value={fromDate}
+                    onChange={(event) => applyDateFilter(event.target.value, toDate)}
+                    aria-label='Từ ngày'
+                    className='h-7 rounded border border-slate-300 bg-white px-1 text-[10px] dark:border-slate-600 dark:bg-slate-900'
+                  />
+                  <span className='text-[10px] text-slate-400'>đến</span>
+                  <input
+                    type='date'
+                    value={toDate}
+                    onChange={(event) => applyDateFilter(fromDate, event.target.value)}
+                    aria-label='Đến ngày'
+                    className='h-7 rounded border border-slate-300 bg-white px-1 text-[10px] dark:border-slate-600 dark:bg-slate-900'
+                  />
+                  <select
+                    value={datePreset}
+                    onChange={(event) => handleDatePresetChange(event.target.value)}
+                    aria-label='Lọc nhanh theo thời gian'
+                    className='h-7 rounded border border-slate-300 bg-white px-1 text-[10px] font-semibold dark:border-slate-600 dark:bg-slate-900'
+                  >
+                    <option value=''>Lọc nhanh</option>
+                    <option value='THIS_MONTH'>Tháng này</option>
+                  </select>
+                  {(fromDate || toDate) && (
+                    <button
+                      type='button'
+                      onClick={() => applyDateFilter('', '', '')}
+                      className='h-7 rounded px-1.5 text-[10px] font-semibold text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700'
+                    >
+                      Xóa ngày
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className='flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold'>
                 {['ALL', 'INBOUND', 'DRAFT', 'COMPLETED_INBOUND'].map((tab) => (
@@ -1246,10 +1361,13 @@ export default function WarehouseOrdersPage() {
                       SỐ KG
                     </th>
                     <th className='py-1 px-1.5 w-20 text-right border-b border-slate-200 dark:border-slate-700'>
-                      CBM
+                      CBM (m³)
                     </th>
                     <th className='py-1 px-1.5 min-w-35 border-b border-slate-200 dark:border-slate-700'>
                       ĐÍCH ĐẾN
+                    </th>
+                    <th className='py-1 px-1.5 w-28 min-w-28 border-b border-slate-200 dark:border-slate-700'>
+                      TỈNH / TP
                     </th>
                     <th className='py-1 px-1.5 w-25 text-center border-b border-slate-200 dark:border-slate-700'>
                       TRẠNG THÁI
@@ -1263,14 +1381,14 @@ export default function WarehouseOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-800'>
-                  {isAdmin && (
-                    <AdminOrdersMetricsSummaryRow
-                      quantity={adminTotals.quantity}
-                      weightKg={adminTotals.weightKg}
-                      volumeCbm={adminTotals.volumeCbm}
-                      isLoading={isLoadingAdminTotals}
-                    />
-                  )}
+                  <AdminOrdersMetricsSummaryRow
+                    quantity={adminTotals.quantity}
+                    weightKg={adminTotals.weightKg}
+                    volumeCbm={adminTotals.volumeCbm}
+                    isLoading={isLoadingAdminTotals}
+                    updatedAt={adminTotalsUpdatedAt}
+                    isFiltered={statusFilter !== 'ALL'}
+                  />
                   {isLoading ? (
                     <tr>
                       <td colSpan={COLUMN_COUNT} className='p-2 text-center text-gray-500'>
@@ -1346,6 +1464,12 @@ export default function WarehouseOrdersPage() {
                                 )}
                             </div>
                           </td>
+                          <td
+                            className='py-1 px-1.5 w-28 min-w-28 max-w-32 truncate text-[10px] text-slate-700 dark:text-slate-300'
+                            title={resolveOrderProvince(row) || 'Chưa xác định'}
+                          >
+                            {resolveOrderProvince(row) || 'Chưa xác định'}
+                          </td>
                           <td className='py-1 px-1.5 text-center'>
                             {renderWarehouseOrderStatusBadge(resolveDisplayStatus(row))}
                           </td>
@@ -1395,6 +1519,7 @@ export default function WarehouseOrdersPage() {
           onClose={() => setIsDetailModalOpen(false)}
           waybill={selectedWaybill}
           onSuccess={fetchOrders}
+          warehouseHubId={hubId !== 'ALL' ? Number(hubId) : null}
           onPrintLabel={(w) => {
             setIsDetailModalOpen(false);
             setPrintData({

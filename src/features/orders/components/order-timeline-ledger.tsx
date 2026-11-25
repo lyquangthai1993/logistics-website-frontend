@@ -42,7 +42,7 @@ const TONE_STYLES: Record<LedgerTone, { dot: string; badge: string; label: strin
   adjustment: {
     dot: 'bg-rose-500',
     badge: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300',
-    label: 'Điều chỉnh hợp đồng gốc'
+    label: 'Điều chỉnh thông tin đơn hàng'
   }
 };
 

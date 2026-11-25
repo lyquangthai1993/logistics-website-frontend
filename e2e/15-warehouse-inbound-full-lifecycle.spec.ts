@@ -3,12 +3,13 @@ import { loginAs, clearSession } from './helpers/auth';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const ARTIFACT_SCREENSHOT_DIR = 'C:/Users/Lenovo/.gemini/antigravity/brain/c7d08c37-27fe-4b7e-9f0e-b4053fb1c08a/screenshots';
+const ARTIFACT_SCREENSHOT_DIR =
+  'C:/Users/Lenovo/.gemini/antigravity/brain/c7d08c37-27fe-4b7e-9f0e-b4053fb1c08a/screenshots';
 
 const WAREHOUSE_HYN = {
   email: 'lyquangthai1993+4@gmail.com',
   password: 'secret',
-  role: 'WAREHOUSE_MANAGER' as const,
+  role: 'WAREHOUSE_MANAGER' as const
 };
 
 test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', () => {
@@ -23,11 +24,13 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
     await page.setViewportSize({ width: 1440, height: 900 });
   });
 
-  test('Kịch bản 1: Tiếp nhận hàng trực tiếp từ khách (Mode 1) & Kiểm tra đồng bộ KPI Cards', async ({ page }) => {
+  test('Kịch bản 1: Tiếp nhận hàng trực tiếp từ khách (Mode 1) & Kiểm tra đồng bộ KPI Cards', async ({
+    page
+  }) => {
     // ── 1. Đăng nhập với quyền Quản lý Kho Hưng Yên ─────────────────────────────
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Kiểm tra tiêu đề trang và 4 Stat Cards
     await expect(page.getByRole('heading', { name: /Nhập kho/ })).toBeVisible({ timeout: 10_000 });
@@ -75,13 +78,17 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
     await page.screenshot({ path: screenshot03, fullPage: true });
   });
 
-  test('Kịch bản 2: Xem chi tiết mã vận đơn (No-SKU Standard Modal) & In tem A4 Pallet', async ({ page }) => {
+  test('Kịch bản 2: Xem chi tiết mã vận đơn (No-SKU Standard Modal) & In tem A4 Pallet', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Kiểm tra danh sách bảng đơn hàng
-    const orderLink = page.locator('tbody tr button[title*="Xem chi tiết"], tbody tr td:nth-child(2) button').first();
+    const orderLink = page
+      .locator('tbody tr button[title*="Xem chi tiết"], tbody tr td:nth-child(2) button')
+      .first();
     if (await orderLink.isVisible()) {
       // Click mở Modal Chi Tiết Mã Vận Đơn
       await orderLink.click();
@@ -96,13 +103,18 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
       await page.screenshot({ path: screenshot04 });
 
       // Mở modal in tem A4 từ trong chi tiết vận đơn
-      const printInDetailBtn = page.locator('.fixed.inset-0 button:has-text("In tem nhận diện A4")');
+      const printInDetailBtn = page.locator(
+        '.fixed.inset-0 button:has-text("In tem nhận diện A4")'
+      );
       if (await printInDetailBtn.isVisible()) {
         await printInDetailBtn.click();
 
         // Kiểm tra Modal Tem A4 Pallet
         await expect(page.locator('text=TEM NHẬN DIỆN HÀNG HÓA')).toBeVisible({ timeout: 10_000 });
-        const screenshot05 = path.join(ARTIFACT_SCREENSHOT_DIR, '15_E2E_05_A4_PALLET_LABEL_MODAL.png');
+        const screenshot05 = path.join(
+          ARTIFACT_SCREENSHOT_DIR,
+          '15_E2E_05_A4_PALLET_LABEL_MODAL.png'
+        );
         await page.screenshot({ path: screenshot05 });
 
         // Đóng modal tem A4
@@ -114,10 +126,12 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
     }
   });
 
-  test('Kịch bản 3: Quy trình Kiểm đếm thực tế (Tally Modal) ➔ Chuyển trạng thái sang ĐÃ NHẬP KHO', async ({ page }) => {
+  test('Kịch bản 3: Quy trình Kiểm đếm thực tế (Tally Modal) ➔ Chuyển trạng thái sang ĐÃ NHẬP KHO', async ({
+    page
+  }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Tìm nút "Kiểm đếm" nếu có đơn ở trạng thái chờ
     const tallyBtn = page.locator('tbody tr button:has-text("Kiểm đếm")').first();
@@ -136,7 +150,10 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
       }
 
       // Chụp ảnh Modal Kiểm Đếm
-      const screenshot06 = path.join(ARTIFACT_SCREENSHOT_DIR, '15_E2E_06_WAREHOUSE_TALLY_MODAL.png');
+      const screenshot06 = path.join(
+        ARTIFACT_SCREENSHOT_DIR,
+        '15_E2E_06_WAREHOUSE_TALLY_MODAL.png'
+      );
       await page.screenshot({ path: screenshot06 });
 
       // Xác nhận nhập kho
@@ -153,7 +170,7 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
   test('Kịch bản 4: Tương tác Thanh Phân Trang & Bộ Lọc Status Tabs', async ({ page }) => {
     await loginAs(page, WAREHOUSE_HYN);
     await page.goto('/dashboard/warehouse/inbound');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Chuyển đổi giữa các tab trạng thái
     const waitingTab = page.locator('button:has-text("Chờ nhập kho")');
@@ -183,7 +200,10 @@ test.describe('Phân Hệ Nhập Kho - Full Lifecycle Inbound E2E Test Suite', (
     await page.waitForTimeout(800);
 
     // Chụp ảnh kết quả
-    const screenshot08 = path.join(ARTIFACT_SCREENSHOT_DIR, '15_E2E_08_TABS_AND_PAGINATION_ACTIVE.png');
+    const screenshot08 = path.join(
+      ARTIFACT_SCREENSHOT_DIR,
+      '15_E2E_08_TABS_AND_PAGINATION_ACTIVE.png'
+    );
     await page.screenshot({ path: screenshot08, fullPage: true });
   });
 });

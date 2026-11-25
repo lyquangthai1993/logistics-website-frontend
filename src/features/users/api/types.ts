@@ -1,5 +1,6 @@
 export interface Role {
   id: number;
+  roleCode?: string;
   name?: string;
   displayName?: string | null;
   description?: string | null;

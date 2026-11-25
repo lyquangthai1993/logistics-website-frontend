@@ -22,7 +22,7 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
     await page.goto(
       '/dashboard/orders?page=-5&perPage=99999&search=%3Cscript%3Ealert(1)%3C/script%3E&status=INVALID_STATUS_XYZ&preset=corrupted_preset&sort=invalid_json'
     );
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Page must render without crashing
     await expect(page.getByRole('heading', { name: 'Lập Lệnh Điều Vận' })).toBeVisible({
@@ -32,7 +32,7 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
 
     // 1.2 Extreme page number beyond dataset
     await page.goto('/dashboard/orders?page=99999');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('heading', { name: 'Lập Lệnh Điều Vận' })).toBeVisible();
     await expect(page.locator('table')).toBeVisible();
 
@@ -45,7 +45,7 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
 
   test('Test 2: Date Preset Switching & Custom Date Range Edge Cases', async ({ page }) => {
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 2.1 Click "Hôm nay"
     await page.click('button:has-text("Hôm nay")');
@@ -70,14 +70,14 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
 
     // 2.5 Inverted Date Range via URL
     await page.goto('/dashboard/orders?preset=custom&fromDate=2026-12-31&toDate=2026-01-01');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('heading', { name: 'Lập Lệnh Điều Vận' })).toBeVisible();
     await expect(page.locator('table')).toBeVisible();
   });
 
   test('Test 3: Search Query Edge Cases & Vietnamese Diacritics', async ({ page }) => {
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const searchInput = page.locator('input[placeholder*="Tìm theo mã đơn"]').first();
     await expect(searchInput).toBeVisible();
@@ -100,7 +100,7 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
 
   test('Test 4: Order Creation Validation & Auto Code Generation', async ({ page }) => {
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 4.1 Open Create Dialog
     await page.click('button:has-text("Tạo lệnh điều vận mới")');
@@ -131,7 +131,7 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
 
   test('Test 5: Full Order Intake, Edit, and Submit to Fleet Flow', async ({ page }) => {
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const uniqueCode = `ORD${Date.now().toString().slice(-5)}`;
 
@@ -166,7 +166,7 @@ test.describe('Challenger 1 Empirical Suite: Orders Intake & Dispatch Stress Tes
 
   test('Test 6: Status Filter Switching & Table Pagination', async ({ page }) => {
     await page.goto('/dashboard/orders');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // 6.1 Status filter dropdown in toolbar
     const statusFilterBtn = page.locator(

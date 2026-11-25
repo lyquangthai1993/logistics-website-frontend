@@ -20,12 +20,12 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const DEV_BACKEND_URL =
-  process.env.API_URL ?? 'https://logistics-website-backend-1jho.onrender.com/api/v1';
+const DEV_BACKEND_URL = process.env.API_URL ?? 'http://localhost:4001/api/v1';
 const DEV_FRONTEND_URL =
   process.env.PLAYWRIGHT_BASE_URL ??
   process.env.BASE_URL ??
-  'https://logistics-website-frontend-git-dev-thai-lys-projects.vercel.app';
+  process.env.PLAYWRIGHT_BASE_URL ??
+  'http://localhost:4000';
 
 const ADMIN_EMAIL = 'lyquangthai1993+1@gmail.com';
 const PASSWORD = 'secret';
@@ -51,7 +51,7 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
   test.beforeAll(async ({ request }) => {
     // 1. Authenticate against Backend
     const loginRes = await request.post(`${DEV_BACKEND_URL}/auth/email/login`, {
-      data: { email: ADMIN_EMAIL, password: PASSWORD },
+      data: { email: ADMIN_EMAIL, password: PASSWORD }
     });
     expect(loginRes.ok(), `Login status: ${loginRes.status()}`).toBeTruthy();
     const loginJson = await loginRes.json();
@@ -60,7 +60,7 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
 
     // 2. Fetch existing inbound trips to find an active trip
     const tripsRes = await request.get(`${DEV_BACKEND_URL}/warehouse/inbound-trips`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { Authorization: `Bearer ${adminToken}` }
     });
     if (tripsRes.ok()) {
       const tripsJson = await tripsRes.json();
@@ -74,7 +74,7 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
 
   // ── TEST 1: API - APPEND ROADSIDE CARGO TO TRIP ──
   test('API: Append roadside order to trip with pickup address and operating destination hub', async ({
-    request,
+    request
   }) => {
     if (!targetTripCode) {
       test.skip(!targetTripCode, 'No active trip available on dev backend to append order');
@@ -89,14 +89,14 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
       totalVolume: 1.5,
       deliveryAddress: '150 Điện Biên Phủ, Thanh Khê, Đà Nẵng',
       province: 'Đà Nẵng',
-      notes: 'Bốc thêm dọc đường kiểm thử tự động 06/10',
+      notes: 'Bốc thêm dọc đường kiểm thử tự động 06/10'
     };
 
     const res = await request.post(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(targetTripCode)}/append-order`,
       {
         headers: { Authorization: `Bearer ${adminToken}` },
-        data: payload,
+        data: payload
       }
     );
 
@@ -116,7 +116,7 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
     const manifestRes = await request.get(
       `${DEV_BACKEND_URL}/warehouse/trips/${encodeURIComponent(targetTripCode)}/manifest`,
       {
-        headers: { Authorization: `Bearer ${adminToken}` },
+        headers: { Authorization: `Bearer ${adminToken}` }
       }
     );
     expect(manifestRes.ok()).toBeTruthy();
@@ -131,9 +131,7 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
   });
 
   // ── TEST 2: UI - BROWSER VERIFICATION & ZERO RAW ID 3 ──
-  test('UI: Verify modal inputs, single append button, and zero raw ID 3', async ({
-    page,
-  }) => {
+  test('UI: Verify modal inputs, single append button, and zero raw ID 3', async ({ page }) => {
     // 1. Log in as Da Nang warehouse manager
     await page.goto(`${DEV_FRONTEND_URL}/auth/sign-in`);
     await page.locator('input[name="email"]').waitFor({ state: 'visible', timeout: 25_000 });
@@ -168,7 +166,7 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
 
       // Verify modal is open
       await expect(page.locator('text=/Bốc thêm đơn dọc đường/').first()).toBeVisible({
-        timeout: 8000,
+        timeout: 8000
       });
 
       // 2. Verify road-side pickup input exists
@@ -190,7 +188,9 @@ test.describe.serial('Feedback 06/10: En-route Roadside Cargo Appending & Inboun
       const modalScreenshot = await page.screenshot({ fullPage: false });
       saveEvidenceScreenshot('01_verified_roadside_append_modal.png', modalScreenshot);
 
-      console.log('✓ UI Verification passed: No raw ID 3, clean roadside pickup & current hub badge.');
+      console.log(
+        '✓ UI Verification passed: No raw ID 3, clean roadside pickup & current hub badge.'
+      );
     }
   });
 });
