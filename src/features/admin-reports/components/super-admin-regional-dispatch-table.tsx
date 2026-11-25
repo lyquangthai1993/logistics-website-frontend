@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { IconDownload, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
@@ -127,7 +127,7 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
           <div className='grid grid-cols-1 xl:grid-cols-2 gap-2'>
             <div className='border border-slate-200 dark:border-slate-800 rounded-md p-1.5' data-testid='regional-weight-chart'>
               <div className='flex items-center justify-between gap-2 text-xs'>
-                <strong>Khối lượng theo miền giao</strong>
+                <strong>Khối lượng theo miền giao (tấn)</strong>
                 <span data-testid='regional-weight-total' className='font-mono font-bold'>Tổng: {formatNumber(totalWeightKg / 1000)} tấn</span>
               </div>
               <div className='h-44'>
@@ -136,22 +136,26 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
                     <CartesianGrid strokeDasharray='3 3' horizontal={false} />
                     <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
                     <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(value, name, item) => {
-                      const row = item.payload as (typeof rows)[number];
-                      const absoluteValue = name === 'Hàng tại kho' ? row.onhandTons : row.draftTons;
-                      return [
-                        `${formatNumber(Number(value))}% · ${formatNumber(absoluteValue)} tấn`,
-                        String(name),
-                      ];
-                    }} />
                     {status !== 'draft' && (
                       <Bar dataKey='onhandWeightPercent' name='Hàng tại kho' stackId='weight' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
+                        <LabelList
+                          dataKey='onhandTons'
+                          position='inside'
+                          formatter={(value) => formatNumber(Number(value))}
+                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                        />
                       </Bar>
                     )}
                     {status !== 'onhand' && (
                       <Bar dataKey='draftWeightPercent' name='Dự kiến nhập kho' stackId='weight' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
+                        <LabelList
+                          dataKey='draftTons'
+                          position='inside'
+                          formatter={(value) => formatNumber(Number(value))}
+                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                        />
                       </Bar>
                     )}
                   </BarChart>
@@ -160,7 +164,7 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
             </div>
             <div className='border border-slate-200 dark:border-slate-800 rounded-md p-1.5' data-testid='regional-volume-chart'>
               <div className='flex items-center justify-between gap-2 text-xs'>
-                <strong>Thể tích theo miền giao</strong>
+                <strong>Thể tích theo miền giao (m³)</strong>
                 <span data-testid='regional-volume-total' className='font-mono font-bold'>Tổng: {formatNumber(totalVolumeCbm)} m³</span>
               </div>
               <div className='h-44'>
@@ -169,22 +173,26 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
                     <CartesianGrid strokeDasharray='3 3' horizontal={false} />
                     <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
                     <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(value, name, item) => {
-                      const row = item.payload as (typeof rows)[number];
-                      const absoluteValue = name === 'Hàng tại kho' ? row.onhandVolume : row.draftVolume;
-                      return [
-                        `${formatNumber(Number(value))}% · ${formatNumber(absoluteValue)} m³`,
-                        String(name),
-                      ];
-                    }} />
                     {status !== 'draft' && (
                       <Bar dataKey='onhandVolumePercent' name='Hàng tại kho' stackId='volume' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
+                        <LabelList
+                          dataKey='onhandVolume'
+                          position='inside'
+                          formatter={(value) => formatNumber(Number(value))}
+                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                        />
                       </Bar>
                     )}
                     {status !== 'onhand' && (
                       <Bar dataKey='draftVolumePercent' name='Dự kiến nhập kho' stackId='volume' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
+                        <LabelList
+                          dataKey='draftVolume'
+                          position='inside'
+                          formatter={(value) => formatNumber(Number(value))}
+                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                        />
                       </Bar>
                     )}
                   </BarChart>
