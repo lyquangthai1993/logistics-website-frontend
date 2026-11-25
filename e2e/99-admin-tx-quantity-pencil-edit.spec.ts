@@ -4,10 +4,9 @@ import * as fs from 'fs';
 import { loginAs, TEST_USERS, USER_WAREHOUSE_HCM } from './helpers/auth';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://frontend-tms-core-dev.up.railway.app';
-const EVIDENCE_DIR = path.resolve(
-  __dirname,
-  '../../feedbacks/feedback_11_25_task_127',
-);
+const EVIDENCE_DIR =
+  process.env.E2E_EVIDENCE_DIR ||
+  path.resolve(__dirname, '../../feedbacks/feedback_11_25_task_127');
 
 test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Activity Log Audit (Task #99)', () => {
   test.beforeAll(() => {
@@ -99,146 +98,173 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
     const originalWeight = Number(await weightInput.inputValue());
     expect(originalVolume).toBeGreaterThan(0);
     expect(originalWeight).toBeGreaterThan(0);
+    let adjustmentNeedsRestore = false;
 
-    await qtyInput.fill(String(adjustedQty));
-    await reasonInput.fill(
-      `[E2E-TEST] Điều chỉnh số lượng kiện từ ${originalQty} lên ${adjustedQty} kiện`
-    );
-
-    await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'screenshot_02_inline_quantity_editor_open.png'),
-      fullPage: false
-    });
-
-    // Quantity edits recalculate both metrics from the original transaction after 3 seconds.
-    await expect(saveBtn).toBeDisabled();
-    await weightInput.fill('999');
-    await volumeInput.fill('999');
-    await page.waitForTimeout(2_500);
-    await expect(weightInput).toHaveValue('999');
-    await expect(volumeInput).toHaveValue('999');
-    const expectedWeight = Math.round(((originalWeight * adjustedQty) / originalQty) * 1000) / 1000;
-    const expectedVolume = Math.round(((originalVolume * adjustedQty) / originalQty) * 1000) / 1000;
-    await expect(weightInput).toHaveValue(String(expectedWeight), { timeout: 5_000 });
-    await expect(volumeInput).toHaveValue(String(expectedVolume), { timeout: 5_000 });
-    await expect(saveBtn).toBeEnabled();
-    await reasonInput.fill(
-      `[E2E-TEST] Điều chỉnh kiện và tam suất từ ${originalQty} lên ${adjustedQty}`
-    );
-    await page.waitForTimeout(350);
-    const savedWeight = await weightInput.inputValue();
-    const savedVolume = await volumeInput.inputValue();
-
-    await saveBtn.click();
-
-    // Expect inline input to close and updated quantity badge to reflect adjustedQty
-    await expect(qtyInput).toBeHidden({ timeout: 15_000 });
-    await expect(qtyDisplay).toContainText(`${adjustedQty} kiện`, {
-      timeout: 10_000
-    });
-
-    await pencilBtn.click();
-    await expect(weightInput).toHaveValue(savedWeight, { timeout: 5_000 });
-    await expect(volumeInput).toHaveValue(savedVolume, { timeout: 5_000 });
-    await detailDialog.locator(`[data-testid="btn-cancel-tx-qty-${txId}"]`).click();
-    await expect(qtyInput).toBeHidden({ timeout: 5_000 });
-
-    // Expect Activity Log section to show TRANSACTION_UPDATED entry
-    const auditSection = detailDialog.locator('text=Nhật ký thao tác & Thay đổi dữ liệu');
-    await expect(auditSection).toBeVisible({ timeout: 10_000 });
-    await expect(
-      detailDialog.locator('[data-action="TRANSACTION_UPDATED"], text=Điều chỉnh số lượng').first()
-    ).toBeVisible({ timeout: 10_000 });
-
-    await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'screenshot_03_quantity_updated_and_audit_logged.png'),
-      fullPage: false
-    });
-
-    // =========================================================================
-    // STEP 4: Restore Original Quantity to Keep Production/Dev Parity Clean
-    // =========================================================================
-    await pencilBtn.click();
-    await expect(qtyInput).toBeVisible({ timeout: 5_000 });
-    await qtyInput.fill(String(originalQty));
-    await expect(weightInput).toHaveValue(String(originalWeight), { timeout: 5_000 });
-    await expect(volumeInput).toHaveValue(String(originalVolume), { timeout: 5_000 });
-    await weightInput.fill(String(originalWeight));
-    await volumeInput.fill(String(originalVolume));
-    await reasonInput.fill(`[E2E-TEST] Hoàn trả số lượng gốc ${originalQty} kiện sau kiểm thử`);
-    await saveBtn.click();
-
-    await expect(qtyInput).toBeHidden({ timeout: 15_000 });
-    await expect(qtyDisplay).toContainText(`${originalQty} kiện`, {
-      timeout: 10_000
-    });
-
-    // =========================================================================
-    // STEP 4.5: Verify "Lý do điều chỉnh" in Delete Confirmation Modal is a Textarea
-    // =========================================================================
-    const deleteBtn = detailDialog.locator('button', { hasText: 'Xóa bớt dòng' }).first();
-    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
-    await deleteBtn.click();
-
-    const deleteConfirmModal = page
-      .locator('[role="dialog"]')
-      .filter({ hasText: 'Xác nhận xóa dòng giao dịch kho' })
-      .first();
-    await expect(deleteConfirmModal).toBeVisible({ timeout: 5_000 });
-
-    const modalReasonTextarea = deleteConfirmModal
-      .locator('textarea[placeholder*="Nhập lý do điều chỉnh"]')
-      .first();
-    await expect(modalReasonTextarea).toBeVisible({ timeout: 5_000 });
-
-    await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'screenshot_05_delete_modal_reason_textarea_verified.png'),
-      fullPage: false
-    });
-
-    const cancelDeleteBtn = deleteConfirmModal.locator('button', { hasText: 'Hủy bỏ' }).first();
-    await cancelDeleteBtn.click();
-    await expect(deleteConfirmModal).toBeHidden({ timeout: 5_000 });
-
-    // =========================================================================
-    // STEP 5: RBAC Verification - Warehouse Manager Must NOT See Pencil Icon
-    // =========================================================================
-    const browser = page.context().browser()!;
-    const wmContext = await browser.newContext({
-      viewport: { width: 1440, height: 900 }
-    });
-    const wmPage = await wmContext.newPage();
     try {
-      await loginAs(wmPage, warehouseHcmUser, BASE_URL);
-      await wmPage.goto(`${BASE_URL}/dashboard/warehouse/orders`);
+      await qtyInput.fill(String(adjustedQty));
+      const quantityChangedAt = Date.now();
+      await reasonInput.fill(
+        `[E2E-TEST] Điều chỉnh số lượng kiện từ ${originalQty} lên ${adjustedQty} kiện`
+      );
 
-      const wmSearch = wmPage.locator('input[placeholder*="Tìm kiếm"]').first();
-      await expect(wmSearch).toBeVisible({ timeout: 15_000 });
-      await wmSearch.fill('NAV2610-0128');
-      await wmSearch.press('Enter');
-
-      const wmCell = wmPage.locator('td').filter({ hasText: 'NAV2610-0128' }).first();
-      await expect(wmCell).toBeVisible({ timeout: 15_000 });
-      await wmCell.click();
-
-      const wmDialog = wmPage
-        .locator('[role="dialog"]')
-        .filter({ hasText: 'NAV2610-0128' })
-        .first();
-      await expect(wmDialog).toBeVisible({ timeout: 10_000 });
-
-      await expect(wmDialog.locator('[data-testid^="btn-edit-tx-qty-"]')).toHaveCount(0);
-      await expect(wmDialog.locator('button', { hasText: 'Xóa bớt dòng' })).toHaveCount(0);
-
-      await wmPage.screenshot({
-        path: path.join(
-          EVIDENCE_DIR,
-          'screenshot_04_rbac_warehouse_manager_no_pencil_verified.png'
-        ),
+      // Quantity edits recalculate both metrics from the original transaction after 3 seconds.
+      await expect(saveBtn).toBeDisabled();
+      await weightInput.fill('999');
+      await volumeInput.fill('999');
+      const waitBeforeDebounce = Math.max(0, 2_500 - (Date.now() - quantityChangedAt));
+      if (waitBeforeDebounce > 0) await page.waitForTimeout(waitBeforeDebounce);
+      await expect(weightInput).toHaveValue('999');
+      await expect(volumeInput).toHaveValue('999');
+      await page.screenshot({
+        path: path.join(EVIDENCE_DIR, 'screenshot_02_inline_quantity_editor_open.png'),
         fullPage: false
       });
+      const expectedWeight =
+        Math.round(((originalWeight * adjustedQty) / originalQty) * 1000) / 1000;
+      const expectedVolume =
+        Math.round(((originalVolume * adjustedQty) / originalQty) * 1000) / 1000;
+      await expect(weightInput).toHaveValue(String(expectedWeight), { timeout: 5_000 });
+      await expect(volumeInput).toHaveValue(String(expectedVolume), { timeout: 5_000 });
+      await expect(saveBtn).toBeEnabled();
+      await reasonInput.fill(
+        `[E2E-TEST] Điều chỉnh kiện và tam suất từ ${originalQty} lên ${adjustedQty}`
+      );
+      await page.waitForTimeout(350);
+      const savedWeight = await weightInput.inputValue();
+      const savedVolume = await volumeInput.inputValue();
+
+      adjustmentNeedsRestore = true;
+      await saveBtn.click();
+
+      // Expect inline input to close and updated quantity badge to reflect adjustedQty
+      await expect(qtyInput).toBeHidden({ timeout: 15_000 });
+      await expect(qtyDisplay).toContainText(`${adjustedQty} kiện`, {
+        timeout: 10_000
+      });
+
+      await pencilBtn.click();
+      await expect(weightInput).toHaveValue(savedWeight, { timeout: 5_000 });
+      await expect(volumeInput).toHaveValue(savedVolume, { timeout: 5_000 });
+      await detailDialog.locator(`[data-testid="btn-cancel-tx-qty-${txId}"]`).click();
+      await expect(qtyInput).toBeHidden({ timeout: 5_000 });
+
+      // Expect Activity Log section to show TRANSACTION_UPDATED entry
+      const auditSection = detailDialog.locator('text=Nhật ký thao tác & Thay đổi dữ liệu');
+      await expect(auditSection).toBeVisible({ timeout: 10_000 });
+      await expect(
+        detailDialog.getByText('Điều chỉnh số lượng', { exact: false }).first()
+      ).toBeVisible({ timeout: 10_000 });
+
+      await page.screenshot({
+        path: path.join(EVIDENCE_DIR, 'screenshot_03_quantity_updated_and_audit_logged.png'),
+        fullPage: false
+      });
+
+      // =========================================================================
+      // STEP 4: Restore Original Quantity to Keep Production/Dev Parity Clean
+      // =========================================================================
+      await pencilBtn.click();
+      await expect(qtyInput).toBeVisible({ timeout: 5_000 });
+      await qtyInput.fill(String(originalQty));
+      await expect(weightInput).toHaveValue(String(originalWeight), { timeout: 5_000 });
+      await expect(volumeInput).toHaveValue(String(originalVolume), { timeout: 5_000 });
+      await weightInput.fill(String(originalWeight));
+      await volumeInput.fill(String(originalVolume));
+      await reasonInput.fill(`[E2E-TEST] Hoàn trả số lượng gốc ${originalQty} kiện sau kiểm thử`);
+      await saveBtn.click();
+
+      await expect(qtyInput).toBeHidden({ timeout: 15_000 });
+      await expect(qtyDisplay).toContainText(`${originalQty} kiện`, {
+        timeout: 10_000
+      });
+      adjustmentNeedsRestore = false;
+
+      // =========================================================================
+      // STEP 4.5: Verify "Lý do điều chỉnh" in Delete Confirmation Modal is a Textarea
+      // =========================================================================
+      const deleteBtn = detailDialog.locator('button', { hasText: 'Xóa bớt dòng' }).first();
+      await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
+      await deleteBtn.click();
+
+      const deleteConfirmModal = page
+        .locator('[role="dialog"]')
+        .filter({ hasText: 'Xác nhận xóa dòng giao dịch kho' })
+        .first();
+      await expect(deleteConfirmModal).toBeVisible({ timeout: 5_000 });
+
+      const modalReasonTextarea = deleteConfirmModal
+        .locator('textarea[placeholder*="Nhập lý do điều chỉnh"]')
+        .first();
+      await expect(modalReasonTextarea).toBeVisible({ timeout: 5_000 });
+
+      await page.screenshot({
+        path: path.join(EVIDENCE_DIR, 'screenshot_05_delete_modal_reason_textarea_verified.png'),
+        fullPage: false
+      });
+
+      const cancelDeleteBtn = deleteConfirmModal.locator('button', { hasText: 'Hủy bỏ' }).first();
+      await cancelDeleteBtn.click();
+      await expect(deleteConfirmModal).toBeHidden({ timeout: 5_000 });
+
+      // =========================================================================
+      // STEP 5: RBAC Verification - Warehouse Manager Must NOT See Pencil Icon
+      // =========================================================================
+      const browser = page.context().browser()!;
+      const wmContext = await browser.newContext({
+        viewport: { width: 1440, height: 900 }
+      });
+      const wmPage = await wmContext.newPage();
+      try {
+        await loginAs(wmPage, warehouseHcmUser, BASE_URL);
+        await wmPage.goto(`${BASE_URL}/dashboard/warehouse/orders`);
+
+        const wmSearch = wmPage.locator('input[placeholder*="Tìm kiếm"]').first();
+        await expect(wmSearch).toBeVisible({ timeout: 15_000 });
+        await wmSearch.fill('NAV2610-0128');
+        await wmSearch.press('Enter');
+
+        const wmCell = wmPage.locator('td').filter({ hasText: 'NAV2610-0128' }).first();
+        await expect(wmCell).toBeVisible({ timeout: 15_000 });
+        await wmCell.click();
+
+        const wmDialog = wmPage
+          .locator('[role="dialog"]')
+          .filter({ hasText: 'NAV2610-0128' })
+          .first();
+        await expect(wmDialog).toBeVisible({ timeout: 10_000 });
+
+        await expect(wmDialog.locator('[data-testid^="btn-edit-tx-qty-"]')).toHaveCount(0);
+        await expect(wmDialog.locator('button', { hasText: 'Xóa bớt dòng' })).toHaveCount(0);
+
+        await wmPage.screenshot({
+          path: path.join(
+            EVIDENCE_DIR,
+            'screenshot_04_rbac_warehouse_manager_no_pencil_verified.png'
+          ),
+          fullPage: false
+        });
+      } finally {
+        await wmContext.close();
+      }
     } finally {
-      await wmContext.close();
+      if (adjustmentNeedsRestore) {
+        if (!(await qtyInput.isVisible().catch(() => false))) {
+          await pencilBtn.click();
+        }
+        await expect(qtyInput).toBeVisible({ timeout: 10_000 });
+        await expect(qtyInput).toBeEnabled({ timeout: 10_000 });
+        await qtyInput.fill(String(originalQty));
+        await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
+        await weightInput.fill(String(originalWeight));
+        await volumeInput.fill(String(originalVolume));
+        await reasonInput.fill(`[E2E-TEST] Dọn dữ liệu kiểm thử, khôi phục ${originalQty} kiện`);
+        await saveBtn.click();
+        await expect(qtyInput).toBeHidden({ timeout: 15_000 });
+        await expect(qtyDisplay).toContainText(`${originalQty} kiện`, {
+          timeout: 10_000
+        });
+        adjustmentNeedsRestore = false;
+      }
     }
   });
 });
