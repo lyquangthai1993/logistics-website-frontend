@@ -39,7 +39,7 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     expect(dayNov02.windowLabel).toBe('06:00 02/11/2026 → 05:59 03/11/2026');
   });
 
-  test('2. Super Admin Reports UI: keep sync and default hub scope is all warehouses', async ({
+  test('2. Super Admin Reports UI: keep sync and lock report scope to HCM', async ({
     page
   }) => {
     const superAdmin = TEST_USERS.find((u) => u.role === 'SUPER_ADMIN')!;
@@ -68,13 +68,21 @@ test.describe('[Feedback 09/11] Super Admin Reports Cutoff 06:00 & Warehouse Ord
     await page.getByTestId('direction-inbound-btn').click();
 
     const hubSelector = page.getByTestId('warehouse-hub-filter-select');
-    await expect(hubSelector).toContainText('Tất cả kho', { timeout: 15000 });
+    await expect(hubSelector).toContainText('Andromeda Hub - HCM', { timeout: 15000 });
     await hubSelector.click();
+    await expect(page.getByTestId('warehouse-hub-filter-item-all')).toHaveCount(0);
     await expect(
       page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')
-    ).toHaveCount(0);
-    await hubSelector.click();
-    await expect(page.getByTestId('warehouse-hub-filter-select')).toBeVisible();
+    ).toHaveCount(2);
+    await expect(
+      page.locator('button[data-testid^="warehouse-hub-filter-item-"]:not([disabled])')
+    ).toHaveCount(1);
+    await expect(
+      page
+        .locator('button[data-testid^="warehouse-hub-filter-item-"]')
+        .filter({ hasText: 'Andromeda Hub - HCM' })
+    ).toBeEnabled();
+    await page.keyboard.press('Escape');
 
     await expect(page.getByTestId('kpi-total-trips')).toHaveText(/^\d[\d.,]*$/);
     await expect(page.getByText(/Xe nhập kho/i).first()).toBeVisible();
