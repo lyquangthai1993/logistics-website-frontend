@@ -111,6 +111,7 @@ declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
     updateData: (rowIndex: number, columnId: string, value: unknown) => void;
     updateRow: (rowIndex: number, row: WarehouseRowItem) => void;
+    updateRowFields: (rowIndex: number, fields: Partial<WarehouseRowItem>) => void;
     duplicateRow?: (rowIndex: number) => void;
     deleteRow?: (rowIndex: number) => void;
     openPrintLabel?: (data: PalletLabelData) => void;
@@ -1272,43 +1273,79 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
   const isOutbound = table.options.meta?.isOutboundMode;
   const initialValue = getValue() ?? 1;
   const [value, setValue] = useState<string | number>(initialValue);
+  const [calculationMessage, setCalculationMessage] = useState('');
+  const calculationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setValue(initialValue);
   }, [initialValue]);
 
+  useEffect(
+    () => () => {
+      if (calculationTimerRef.current) clearTimeout(calculationTimerRef.current);
+    },
+    []
+  );
+
   const availStock =
     r.remainingQuantity !== undefined && r.remainingQuantity !== null
       ? r.remainingQuantity
       : undefined;
+  const rowIdentity = `${String(r.id ?? '')}:${r.orderCode}:${row.index}`;
 
-  const baseQty =
-    Number(r.baseOrderQuantity ?? availStock ?? r.inboundQuantity ?? r.totalQuantity) || 1;
-  const baseWeight = Number(r.baseOrderWeight ?? r.totalWeight) || 0;
-  const baseVolume = Number(r.baseOrderVolume ?? r.totalVolume) || 0;
+  const baseQty = Number(r.baseOrderQuantity ?? availStock ?? r.inboundQuantity ?? r.totalQuantity);
+  const baseWeight = Number(r.baseOrderWeight ?? r.totalWeight);
+  const baseVolume = Number(r.baseOrderVolume ?? r.totalVolume);
+
+  useEffect(() => {
+    if (calculationTimerRef.current) {
+      clearTimeout(calculationTimerRef.current);
+      calculationTimerRef.current = null;
+    }
+    setCalculationMessage('');
+  }, [rowIdentity]);
+
+  function scheduleProportionalCalculation(rawQuantity: string) {
+    if (!isOutbound) return;
+    if (calculationTimerRef.current) clearTimeout(calculationTimerRef.current);
+    setCalculationMessage('');
+    calculationTimerRef.current = setTimeout(() => {
+      calculationTimerRef.current = null;
+      const requestedQty = Number(rawQuantity);
+      let reason = '';
+      if (!rawQuantity.trim() || !Number.isFinite(requestedQty) || requestedQty <= 0) {
+        reason = 'Nhập số kiện lớn hơn 0 để tính kg và m³.';
+      } else if (availStock === undefined || !Number.isFinite(availStock) || availStock <= 0) {
+        reason = 'Không có số kiện tồn khả dụng để làm căn cứ tính.';
+      } else if (requestedQty > availStock) {
+        reason = `Số kiện xuất vượt tồn khả dụng (${availStock} kiện).`;
+      } else if (!Number.isFinite(baseQty) || baseQty <= 0) {
+        reason = 'Thiếu số kiện tồn gốc để tính tỷ lệ.';
+      } else if (!Number.isFinite(baseWeight) || baseWeight <= 0 || !Number.isFinite(baseVolume) || baseVolume <= 0) {
+        reason = 'Số kg và số m³ gốc phải lớn hơn 0 mới tính được.';
+      }
+
+      if (reason) {
+        setCalculationMessage(reason);
+        return;
+      }
+
+      table.options.meta?.updateRowFields(row.index, {
+        totalQuantity: requestedQty,
+        quantityToExport: requestedQty,
+        totalWeight: proportionalMetric(baseWeight, requestedQty, baseQty),
+        totalVolume: proportionalMetric(baseVolume, requestedQty, baseQty)
+      });
+      setCalculationMessage('Đã tự tính kg và m³ theo số kiện.');
+    }, 3000);
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setValue(raw);
     const parsed = parseInt(raw, 10);
     if (!isNaN(parsed)) {
-      if (isOutbound && availStock !== undefined && parsed === availStock) {
-        const calcWeight =
-          r.baseOrderWeight !== undefined && r.baseOrderWeight !== null
-            ? Number(r.baseOrderWeight)
-            : proportionalMetric(baseWeight, parsed, baseQty);
-        const calcVolume =
-          r.baseOrderVolume !== undefined && r.baseOrderVolume !== null
-            ? Number(r.baseOrderVolume)
-            : proportionalMetric(baseVolume, parsed, baseQty);
-        table.options.meta?.updateRow(row.index, {
-          ...r,
-          totalQuantity: parsed,
-          quantityToExport: parsed,
-          totalWeight: calcWeight,
-          totalVolume: calcVolume
-        });
-      } else if (isOutbound) {
+      if (isOutbound) {
         table.options.meta?.updateRow(row.index, {
           ...r,
           totalQuantity: parsed,
@@ -1318,12 +1355,18 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
         table.options.meta?.updateData(row.index, column.id, parsed);
       }
     }
+    scheduleProportionalCalculation(raw);
   };
 
   const handleBlur = () => {
-    if (value === '' || isNaN(Number(value)) || Number(value) < 1) {
-      setValue(1);
-      table.options.meta?.updateData(row.index, column.id, 1);
+    if (value === '' || isNaN(Number(value))) {
+      if (isOutbound) {
+        setValue('');
+        table.options.meta?.updateRowFields(row.index, { totalQuantity: 0, quantityToExport: 0 });
+      } else {
+        setValue(1);
+        table.options.meta?.updateData(row.index, column.id, 1);
+      }
     }
   };
 
@@ -1331,7 +1374,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
     const text = e.clipboardData.getData('text');
     if (!text || text.includes('\t') || text.includes('\n')) return;
     e.preventDefault();
-    const parsed = parseLocalizedQuantity(text, true, 1);
+    const parsed = parseLocalizedQuantity(text, true, 0);
     setValue(parsed);
     if (isOutbound) {
       table.options.meta?.updateRow(row.index, {
@@ -1339,6 +1382,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
         totalQuantity: parsed,
         quantityToExport: parsed
       });
+      scheduleProportionalCalculation(String(parsed));
     } else {
       table.options.meta?.updateData(row.index, column.id, parsed);
     }
@@ -1360,6 +1404,11 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
   const handleApplyProportional = () => {
     if (isRowInbound) return;
     const currentQty = Math.max(1, Number(value) || 1);
+    if (calculationTimerRef.current) {
+      clearTimeout(calculationTimerRef.current);
+      calculationTimerRef.current = null;
+    }
+    setCalculationMessage('');
     const calcWeight = proportionalMetric(baseWeight, currentQty, baseQty);
     const calcVolume = proportionalMetric(baseVolume, currentQty, baseQty);
     table.options.meta?.updateRow(row.index, {
@@ -1379,7 +1428,7 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
       <div className='flex items-center gap-0.5'>
         <Input
           type='number'
-          min={1}
+          min={isOutbound ? 0 : 1}
           max={isOutbound && availStock !== undefined ? availStock : undefined}
           value={value}
           onChange={handleChange}
@@ -1425,6 +1474,20 @@ function QuantityCell({ getValue, row, column, table }: CellContext<WarehouseRow
           )}
         >
           {isExceeded ? `Vượt tồn!` : `Tồn: ${availStock}`}
+        </div>
+      )}
+      {isOutbound && calculationMessage && (
+        <div
+          role='status'
+          data-testid={`proportional-calculation-status-${row.index}`}
+          className={cn(
+            'text-[9px] leading-tight',
+            calculationMessage.startsWith('Đã tự tính')
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-amber-700 dark:text-amber-400'
+          )}
+        >
+          {calculationMessage}
         </div>
       )}
     </div>
@@ -1975,6 +2038,8 @@ export function WarehouseEditableGrid({
   onInboundSingleOrder,
   loadingRowIndex = null
 }: WarehouseEditableGridProps) {
+  const latestRowsRef = React.useRef(rows);
+  latestRowsRef.current = rows;
   const user = useAuthStore((state) => state.user);
   const resolvedIsAdmin = Boolean(
     isAdmin || user?.role === 'SUPER_ADMIN' || (user?.role as any) === 'ADMIN'
@@ -2052,6 +2117,17 @@ export function WarehouseEditableGrid({
       );
     },
     [rows, onChange]
+  );
+
+  const updateRowFields = useCallback(
+    (rowIndex: number, fields: Partial<WarehouseRowItem>) => {
+      onChange(
+        latestRowsRef.current.map((row, index) =>
+          index === rowIndex ? { ...row, ...fields } : row
+        )
+      );
+    },
+    [onChange]
   );
 
   const createBlankRow = (pickup = ''): WarehouseRowItem => ({
@@ -2551,6 +2627,7 @@ export function WarehouseEditableGrid({
     meta: {
       updateData,
       updateRow,
+      updateRowFields,
       duplicateRow: handleDuplicateRow,
       deleteRow: handleDeleteRow,
       openPrintLabel: (data) => setPrintLabelData(data),
