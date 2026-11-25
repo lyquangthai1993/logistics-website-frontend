@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   IconBuildingWarehouse,
@@ -12,6 +12,7 @@ import {
   IconX
 } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { normalizeRole } from '@/lib/role-utils';
 import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ export interface WarehouseHubFilterSelectProps {
   hubs?: WarehouseHubOption[];
   className?: string;
   reportScope?: boolean;
+  restrictedHubCode?: string;
   testIdPrefix?: string;
 }
 
@@ -77,6 +79,7 @@ export function WarehouseHubFilterSelect({
   hubs: externalHubs,
   className = '',
   reportScope = false,
+  restrictedHubCode,
   testIdPrefix = 'warehouse-hub-filter'
 }: WarehouseHubFilterSelectProps) {
   const { user } = useAuthStore();
@@ -90,8 +93,10 @@ export function WarehouseHubFilterSelect({
     roleName === 'SUPER_ADMIN' ||
     roleName === 'ADMIN' ||
     roleName.includes('ADMIN');
+  const canViewReportFilter = reportScope && normalizeRole(user?.role) === 'REPORT_VIEWER';
 
-  const shouldFetch = isSuperAdmin && (!externalHubs || externalHubs.length === 0);
+  const shouldFetch =
+    (isSuperAdmin || canViewReportFilter) && (!externalHubs || externalHubs.length === 0);
 
   const { data: fetchedHubs = [], isLoading } = useQuery<WarehouseHubOption[]>({
     queryKey: ['hubs', reportScope ? 'level-1-all' : 'active-all'],
@@ -117,6 +122,16 @@ export function WarehouseHubFilterSelect({
     });
   }, [externalHubs, fetchedHubs, reportScope]);
 
+  const restrictedHub = restrictedHubCode
+    ? allHubs.find((hub) => hub.code === restrictedHubCode)
+    : undefined;
+
+  useEffect(() => {
+    if (restrictedHub && (!value || value === 'ALL')) {
+      onChange(String(restrictedHub.id));
+    }
+  }, [onChange, restrictedHub, value]);
+
   const filteredHubs = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return allHubs;
@@ -136,7 +151,7 @@ export function WarehouseHubFilterSelect({
     : undefined;
   const isSelectedSatellite = isSatelliteHub(selectedHub);
 
-  if (!isSuperAdmin) {
+  if (!isSuperAdmin && !canViewReportFilter) {
     return null;
   }
 
@@ -174,7 +189,11 @@ export function WarehouseHubFilterSelect({
             <span className='truncate'>
               {selectedHub
                 ? `${selectedHub.name}${selectedHub.city ? ` (${selectedHub.city})` : ''}`
-                : 'Tất cả kho'}
+                : restrictedHubCode
+                  ? isLoading
+                    ? 'Đang tải kho...'
+                    : 'Không có kho khả dụng'
+                  : 'Tất cả kho'}
             </span>
           </div>
           <IconChevronDown className='h-3.5 w-3.5 shrink-0 opacity-60' />
@@ -196,7 +215,7 @@ export function WarehouseHubFilterSelect({
                   : reportScope ? 'Chọn Cấp 1 • Hub Chính để xem báo cáo' : 'Chuyển nhanh góc nhìn theo Cấp 1 • Hub Chính / Cấp 2 • Trạm Xe Bo'}
               </span>
             </div>
-            {isFiltered && (
+            {isFiltered && !restrictedHubCode && (
               <Button
                 type='button'
                 variant='default'
@@ -234,8 +253,9 @@ export function WarehouseHubFilterSelect({
           {/* Danh sách kho cuộn dọc */}
           <div className='max-h-64 overflow-y-auto divide-y divide-border/60 rounded border bg-white dark:bg-slate-950'>
             {/* Tùy chọn Tất cả kho */}
-            {(!search.trim() ||
-              'tất cả kho toàn hệ thống all'.includes(search.trim().toLowerCase())) && (
+            {!restrictedHubCode &&
+              (!search.trim() ||
+                'tất cả kho toàn hệ thống all'.includes(search.trim().toLowerCase())) && (
               <button
                 type='button'
                 onClick={() => handleSelectHub('ALL')}
@@ -289,14 +309,16 @@ export function WarehouseHubFilterSelect({
                 const isSelected = String(h.id) === normalizedValue;
                 const badgeInfo = getHubTypeBadge(h);
                 const isSatellite = badgeInfo.isSatellite;
+                const isDisabled = Boolean(restrictedHubCode && h.code !== restrictedHubCode);
 
                 return (
                   <button
                     key={h.id}
                     type='button'
-                    onClick={() => handleSelectHub(String(h.id))}
+                    onClick={() => !isDisabled && handleSelectHub(String(h.id))}
+                    disabled={isDisabled}
                     data-testid={`${testIdPrefix}-item-${h.id}`}
-                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left transition-colors hover:bg-muted/70 cursor-pointer ${isSelected
+                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left transition-colors ${isDisabled ? 'cursor-not-allowed opacity-45' : 'hover:bg-muted/70 cursor-pointer'} ${isSelected
                         ? isSatellite
                           ? 'bg-purple-50/70 dark:bg-purple-950/40'
                           : 'bg-blue-50/70 dark:bg-blue-950/40'
@@ -353,7 +375,7 @@ export function WarehouseHubFilterSelect({
         </PopoverContent>
       </Popover>
 
-      {isFiltered && (
+      {isFiltered && !restrictedHubCode && (
         <button
           type='button'
           data-testid={`${testIdPrefix}-clear`}

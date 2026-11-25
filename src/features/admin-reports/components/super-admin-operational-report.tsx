@@ -329,7 +329,7 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
 
   const [fromDate, setFromDate] = useState<string>(defaultRange.fromDate);
   const [toDate, setToDate] = useState<string>(defaultRange.toDate);
-  const [selectedHubId, setSelectedHubId] = useState<string>("ALL");
+  const [selectedHubId, setSelectedHubId] = useState<string>("");
   const [direction, setDirection] = useState<ReportDirection>("INBOUND");
   const [chartMetric, setChartMetric] = useState<ReportChartMetric>("CBM");
   const [activeTab, setActiveTab] = useState<"daily" | "trips" | "hubs">("daily");
@@ -354,6 +354,7 @@ export function AdminOperationalReportProvider({ children }: { children: React.R
       } & OperationalReportResponse;
       return raw?.data ?? raw;
     },
+    enabled: Boolean(selectedHubId),
     staleTime: 30 * 1000,
   });
 
@@ -671,6 +672,7 @@ export function AdminReportHeaderAndKpis() {
                 value={selectedHubId}
                 onChange={(val) => setSelectedHubId(val)}
                 reportScope
+                restrictedHubCode="HUB-HCM-01"
               />
 
               <div
