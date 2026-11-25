@@ -94,6 +94,20 @@ function RegionalHubPanel({ report, status, showUnassignedWarning }: { report: R
       draftTons: status === 'onhand' ? 0 : (metric?.draftWeightKg ?? 0) / 1000,
       onhandVolume: status === 'draft' ? 0 : (metric?.onhandVolumeCbm ?? 0),
       draftVolume: status === 'onhand' ? 0 : (metric?.draftVolumeCbm ?? 0),
+      totalTons: (selected?.weightKg ?? 0) / 1000,
+      totalVolume: selected?.volumeCbm ?? 0,
+      totalTonsOnhand: status === 'total' && (metric?.draftWeightKg ?? 0) === 0 && (metric?.onhandWeightKg ?? 0) > 0
+        ? (selected?.weightKg ?? 0) / 1000
+        : null,
+      totalTonsDraft: status === 'total' && (metric?.draftWeightKg ?? 0) > 0
+        ? (selected?.weightKg ?? 0) / 1000
+        : null,
+      totalVolumeOnhand: status === 'total' && (metric?.draftVolumeCbm ?? 0) === 0 && (metric?.onhandVolumeCbm ?? 0) > 0
+        ? selected?.volumeCbm ?? 0
+        : null,
+      totalVolumeDraft: status === 'total' && (metric?.draftVolumeCbm ?? 0) > 0
+        ? selected?.volumeCbm ?? 0
+        : null,
       onhandWeightPercent: 0,
       draftWeightPercent: 0,
       onhandVolumePercent: 0,
@@ -140,30 +154,48 @@ function RegionalHubPanel({ report, status, showUnassignedWarning }: { report: R
               </div>
               <div className='h-44'>
                 <ResponsiveContainer width='100%' height='100%' initialDimension={{ width: 320, height: 176 }}>
-                  <BarChart data={rows} layout='vertical' margin={{ top: 3, right: 4, bottom: 3, left: 4 }}>
+                  <BarChart data={rows} layout='vertical' margin={{ top: 3, right: status === 'total' ? 28 : 4, bottom: 3, left: 4 }}>
                     <CartesianGrid strokeDasharray='3 3' horizontal={false} />
                     <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
                     <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
                     {status !== 'draft' && (
                       <Bar dataKey='onhandWeightPercent' name='Hàng tại kho' stackId='weight' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
-                        <LabelList
-                          dataKey='onhandTons'
-                          position='inside'
-                          formatter={(value) => formatNumber(Number(value))}
-                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
-                        />
+                        {status === 'onhand' ? (
+                          <LabelList
+                            dataKey='onhandTons'
+                            position='inside'
+                            formatter={(value) => formatNumber(Number(value))}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                          />
+                        ) : status === 'total' ? (
+                          <LabelList
+                            dataKey='totalTonsOnhand'
+                            position='right'
+                            formatter={(value) => (Number(value) > 0 ? formatNumber(Number(value)) : '')}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A' }}
+                          />
+                        ) : null}
                       </Bar>
                     )}
                     {status !== 'onhand' && (
                       <Bar dataKey='draftWeightPercent' name='Dự kiến nhập kho' stackId='weight' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
-                        <LabelList
-                          dataKey='draftTons'
-                          position='inside'
-                          formatter={(value) => formatNumber(Number(value))}
-                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
-                        />
+                        {status === 'draft' ? (
+                          <LabelList
+                            dataKey='draftTons'
+                            position='inside'
+                            formatter={(value) => formatNumber(Number(value))}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                          />
+                        ) : (
+                          <LabelList
+                            dataKey='totalTonsDraft'
+                            position='right'
+                            formatter={(value) => (Number(value) > 0 ? formatNumber(Number(value)) : '')}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A' }}
+                          />
+                        )}
                       </Bar>
                     )}
                   </BarChart>
@@ -177,30 +209,48 @@ function RegionalHubPanel({ report, status, showUnassignedWarning }: { report: R
               </div>
               <div className='h-44'>
                 <ResponsiveContainer width='100%' height='100%' initialDimension={{ width: 320, height: 176 }}>
-                  <BarChart data={rows} layout='vertical' margin={{ top: 3, right: 4, bottom: 3, left: 4 }}>
+                  <BarChart data={rows} layout='vertical' margin={{ top: 3, right: status === 'total' ? 28 : 4, bottom: 3, left: 4 }}>
                     <CartesianGrid strokeDasharray='3 3' horizontal={false} />
                     <XAxis type='number' domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => String(value) + '%'} tick={{ fontSize: 10 }} />
                     <YAxis type='category' dataKey='label' width={130} tick={{ fontSize: 10 }} />
                     {status !== 'draft' && (
                       <Bar dataKey='onhandVolumePercent' name='Hàng tại kho' stackId='volume' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.color} />)}
-                        <LabelList
-                          dataKey='onhandVolume'
-                          position='inside'
-                          formatter={(value) => formatNumber(Number(value))}
-                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
-                        />
+                        {status === 'onhand' ? (
+                          <LabelList
+                            dataKey='onhandVolume'
+                            position='inside'
+                            formatter={(value) => formatNumber(Number(value))}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                          />
+                        ) : status === 'total' ? (
+                          <LabelList
+                            dataKey='totalVolumeOnhand'
+                            position='right'
+                            formatter={(value) => (Number(value) > 0 ? formatNumber(Number(value)) : '')}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A' }}
+                          />
+                        ) : null}
                       </Bar>
                     )}
                     {status !== 'onhand' && (
                       <Bar dataKey='draftVolumePercent' name='Dự kiến nhập kho' stackId='volume' isAnimationActive={false}>
                         {rows.map((row) => <Cell key={row.key} fill={row.draftColor} />)}
-                        <LabelList
-                          dataKey='draftVolume'
-                          position='inside'
-                          formatter={(value) => formatNumber(Number(value))}
-                          style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
-                        />
+                        {status === 'draft' ? (
+                          <LabelList
+                            dataKey='draftVolume'
+                            position='inside'
+                            formatter={(value) => formatNumber(Number(value))}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A', stroke: '#FFFFFF', strokeWidth: 2, paintOrder: 'stroke' }}
+                          />
+                        ) : (
+                          <LabelList
+                            dataKey='totalVolumeDraft'
+                            position='right'
+                            formatter={(value) => (Number(value) > 0 ? formatNumber(Number(value)) : '')}
+                            style={{ fontSize: 9, fontWeight: 700, fill: '#0F172A' }}
+                          />
+                        )}
                       </Bar>
                     )}
                   </BarChart>
