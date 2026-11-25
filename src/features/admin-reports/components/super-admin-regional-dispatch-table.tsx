@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { IconDownload, IconLoader2, IconRefresh } from '@tabler/icons-react';
+import { IconAlertTriangle, IconDownload, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from 'recharts';
@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-error';
 import { formatNumber } from '@/lib/utils';
+import { useRBAC } from '@/hooks/use-rbac';
 import { useAdminOperationalReport } from './super-admin-operational-report';
 
 type RegionKey = 'north' | 'central' | 'south' | 'storage' | 'na';
@@ -81,7 +82,7 @@ function metricForStatus(metric: RegionalMetricItem, status: CargoStatus) {
   };
 }
 
-function RegionalHubPanel({ report, status }: { report: RegionalHubReport; status: CargoStatus }) {
+function RegionalHubPanel({ report, status, showUnassignedWarning }: { report: RegionalHubReport; status: CargoStatus; showUnassignedWarning: boolean }) {
   const rows = REGION_CONFIGS.map((config) => {
     const metric = report.regions?.[config.key];
     const selected = metric ? metricForStatus(metric, status) : null;
@@ -107,6 +108,13 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
     row.onhandVolumePercent = totalVolumeCbm > 0 ? row.onhandVolume * 100 / totalVolumeCbm : 0;
     row.draftVolumePercent = totalVolumeCbm > 0 ? row.draftVolume * 100 / totalVolumeCbm : 0;
   }
+  const unassignedMetric = report.regions?.na;
+  const unassignedOnhandCount = status === 'draft' ? 0 : (unassignedMetric?.onhandOrderCount ?? 0);
+  const unassignedDraftCount = status === 'onhand' ? 0 : (unassignedMetric?.draftOrderCount ?? 0);
+  const unassignedOrderCodes = unassignedMetric
+    ? metricForStatus(unassignedMetric, status).orderCodes
+    : [];
+  const hasUnassignedOrders = unassignedOnhandCount > 0 || unassignedDraftCount > 0;
 
   return (
     <section className='border border-slate-200 dark:border-slate-800 rounded-md' data-testid={`regional-hub-${report.hub.id}`}>
@@ -200,7 +208,41 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
               </div>
             </div>
           </div>
-
+          {showUnassignedWarning && hasUnassignedOrders && (
+            <div
+              role='alert'
+              data-testid='regional-unassigned-warning'
+              className='flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-1.5 text-[11px] text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+            >
+              <IconAlertTriangle className='mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400' />
+              <div className='min-w-0 space-y-1'>
+                <p>
+                  <strong>CẢNH BÁO ĐƠN CHƯA PHÂN MIỀN:</strong>{' '}
+                  {unassignedOnhandCount > 0 && (
+                    <span>{formatNumber(unassignedOnhandCount)} đơn hàng tại kho</span>
+                  )}
+                  {unassignedOnhandCount > 0 && unassignedDraftCount > 0 ? ' và ' : ''}
+                  {unassignedDraftCount > 0 && (
+                    <span>{formatNumber(unassignedDraftCount)} đơn dự kiến nhập kho</span>
+                  )}{' '}
+                  chưa xác định được miền giao do thiếu hoặc chưa nhận diện tỉnh/thành.
+                </p>
+                {unassignedOrderCodes.length > 0 && (
+                  <div className='flex flex-wrap items-center gap-1' data-testid='regional-unassigned-order-codes'>
+                    <span>Mã đơn cần rà soát:</span>
+                    {unassignedOrderCodes.map((orderCode) => (
+                      <span
+                        key={orderCode}
+                        className='rounded border border-amber-300 bg-white px-1 font-mono text-[10px] dark:border-amber-700 dark:bg-slate-900'
+                      >
+                        {orderCode}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -209,6 +251,7 @@ function RegionalHubPanel({ report, status }: { report: RegionalHubReport; statu
 
 export function SuperAdminRegionalDispatchTable() {
   const queryClient = useQueryClient();
+  const { isSuperAdmin } = useRBAC();
   const { selectedHubId } = useAdminOperationalReport();
   const [status, setStatus] = useState<CargoStatus>('total');
   const { data: report, error, isLoading, isFetching, refetch } = useQuery({
@@ -298,7 +341,7 @@ export function SuperAdminRegionalDispatchTable() {
         ) : !report?.hubReports.length ? (
           <p className='p-2 text-xs text-slate-500'>Chưa có Hub Chính cấp 1.</p>
         ) : (
-          report.hubReports.map((hubReport) => <RegionalHubPanel key={hubReport.hub.id} report={hubReport} status={status} />)
+          report.hubReports.map((hubReport) => <RegionalHubPanel key={hubReport.hub.id} report={hubReport} status={status} showUnassignedWarning={isSuperAdmin} />)
         )}
       </CardContent>
     </Card>
