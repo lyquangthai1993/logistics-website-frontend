@@ -922,16 +922,16 @@ export function WarehouseWaybillDetailModal({
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className='sm:max-w-[96vw] w-[96vw] max-w-[96vw] p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl'
+          className='flex min-h-0 w-[96vw] max-w-[96vw] max-h-[calc(100dvh-0.75rem)] flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:rounded-2xl sm:max-w-[96vw]'
         >
           {/* ── Compact Header Bar ── */}
-          <div className='bg-[#0F3D62] text-white px-5 py-3.5 flex items-center justify-between'>
-            <div className='flex items-center gap-3'>
-              <IconBuildingWarehouse className='h-5 w-5 text-blue-300' />
-              <div>
-                <h2 className='text-sm sm:text-base font-bold text-white flex items-center gap-2'>
+          <div className='flex shrink-0 flex-wrap items-center gap-1.5 bg-[#0F3D62] px-2 py-1.5 text-white sm:flex-nowrap sm:justify-between sm:gap-2'>
+            <div className='flex min-w-0 flex-1 items-center gap-2'>
+              <IconBuildingWarehouse className='h-5 w-5 shrink-0 text-blue-300' />
+              <div className='min-w-0'>
+                <h2 className='flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-bold text-white sm:gap-2 sm:text-base'>
                   Chi tiết đơn hàng tiếp nhận kho
-                  <span className='font-mono bg-white/20 px-2 py-0.5 rounded text-xs'>
+                  <span className='max-w-full break-all rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] sm:px-2 sm:text-xs'>
                     {waybill.orderCode}
                   </span>
                   <button
@@ -949,7 +949,7 @@ export function WarehouseWaybillDetailModal({
                 </h2>
               </div>
             </div>
-            <div className='flex items-center gap-2'>
+            <div className='ml-auto flex shrink-0 items-center gap-1.5'>
               {isSuperAdmin && isStoredOrder && warehouseHubId && adminOverrideOrder && (
                 <Button
                   type='button'
@@ -977,9 +977,9 @@ export function WarehouseWaybillDetailModal({
           </div>
 
           {/* ── Scrollable Body Structured Like Inbound Create Form ── */}
-          <div className='p-4 sm:p-5 space-y-4 max-h-[82vh] overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50'>
+          <div className='min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-slate-50/50 p-2 dark:bg-slate-950/50'>
             {/* ── Lịch Sử Hàng Hóa & Biến Động Kho ── */}
-            <div className='bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-xs'>
+            <div className='space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:p-2'>
               <div className='flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3'>
                 <div className='flex items-center gap-2'>
                   <IconHistory className='h-5 w-5 text-[#0F3D62] dark:text-blue-400' />
@@ -2055,7 +2055,7 @@ export function WarehouseWaybillDetailModal({
           </div>
 
           {/* ── Dialog Footer (Clean Close & Print Actions) ── */}
-          <div className='p-3 px-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2'>
+          <div className='flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900'>
             <div className='flex items-center gap-2'>
               <Button
                 type='button'
@@ -2087,9 +2087,9 @@ export function WarehouseWaybillDetailModal({
           }
         }}
       >
-        <DialogContent className='sm:max-w-md p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl'>
+        <DialogContent className='flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] max-w-md flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900'>
           <div
-            className={`p-4 text-white flex items-center gap-3 ${
+            className={`flex shrink-0 items-center gap-2 px-2 py-1.5 text-white sm:gap-2 ${
               actionModal.type === 'DELETE' ? 'bg-rose-600' : 'bg-emerald-600'
             }`}
           >
@@ -2110,7 +2110,7 @@ export function WarehouseWaybillDetailModal({
             </div>
           </div>
 
-          <div className='p-4 space-y-3 text-xs'>
+          <div className='min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2 text-xs'>
             {actionModal.tx && (
               <div className='p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1 font-mono'>
                 <div className='flex justify-between'>
@@ -2175,7 +2175,7 @@ export function WarehouseWaybillDetailModal({
             </div>
           </div>
 
-          <div className='p-3 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2'>
+          <div className='flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/40'>
             <Button
               type='button'
               variant='outline'
