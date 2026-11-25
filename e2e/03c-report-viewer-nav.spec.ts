@@ -11,6 +11,19 @@ test.describe('[RBAC] REPORT_VIEWER navigation role normalization', () => {
         body: JSON.stringify({ data: [] })
       })
     );
+    await page.route('**/api/v1/hubs?*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [
+            { id: 1, code: 'HUB-HCM-01', name: 'Andromeda Hub - HCM', city: 'TP. Hồ Chí Minh', level: 1 },
+            { id: 2, code: 'HUB-DAD-01', name: 'Magellan Hub - Đà Nẵng', city: 'Đà Nẵng', level: 1 },
+            { id: 3, code: 'HUB-HYN-01', name: 'Polaris Hub - Hưng Yên', city: 'Hưng Yên', level: 1 }
+          ]
+        })
+      })
+    );
     const emptyMetric = {
       region: '',
       onhandWeightKg: 0,
@@ -107,6 +120,14 @@ test.describe('[RBAC] REPORT_VIEWER navigation role normalization', () => {
 
     await expect(page.locator('a[href="/dashboard/admin/reports"]').first()).toBeVisible();
     await expect(page.locator('a[href="/dashboard/admin/reports/trips"]')).toHaveCount(0);
+
+    const hubSelector = page.getByTestId('warehouse-hub-filter-select');
+    await expect(hubSelector).toContainText('Andromeda Hub - HCM');
+    await hubSelector.click();
+    await expect(page.getByTestId('warehouse-hub-filter-item-all')).toHaveCount(0);
+    await expect(
+      page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')
+    ).toHaveCount(2);
 
     for (const href of [
       '/dashboard/admin/cronjobs',
