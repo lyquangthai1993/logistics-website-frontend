@@ -15,6 +15,86 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
     }
   });
 
+  test('Super Admin keeps an outbound line unchanged when original kg and m³ are invalid', async ({
+    page
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginAs(page, TEST_USERS[0], BASE_URL);
+    await page.goto(`${BASE_URL}/dashboard/warehouse/orders`);
+
+    const searchInput = page.locator('input[placeholder*="Tìm kiếm"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 15_000 });
+    await searchInput.fill('NAV2610-0128');
+    await searchInput.press('Enter');
+    const orderCell = page.locator('td').filter({ hasText: 'NAV2610-0128' }).first();
+    await expect(orderCell).toBeVisible({ timeout: 15_000 });
+    expect(await page.locator('tr').filter({ hasText: 'NAV2610-0128' }).count()).toBeGreaterThan(0);
+    await orderCell.click();
+
+    const detailDialog = page
+      .locator('[role="dialog"]')
+      .filter({ hasText: 'NAV2610-0128' })
+      .first();
+    await expect(detailDialog).toBeVisible({ timeout: 15_000 });
+    const outboundTx = await page.evaluate(async (orderCode) => {
+      const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.accessToken;
+      const response = await fetch(
+        `/api/v1/warehouse/orders/${encodeURIComponent(orderCode)}/transactions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!response.ok) throw new Error(`Could not load transactions (${response.status})`);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const tx = data.transactions?.find(
+        (item: any) => item.type === 'OUTBOUND' && !item.isDeleted
+      );
+      return tx
+        ? {
+            id: Number(tx.id),
+            quantity: Number(tx.quantity),
+            weight: Number(tx.weight) || 0,
+            volume: Number(tx.volume) || 0
+          }
+        : null;
+    }, 'NAV2610-0128');
+    expect(outboundTx).not.toBeNull();
+    if (!outboundTx) throw new Error('Expected an active outbound transaction');
+    expect(outboundTx.quantity).toBeGreaterThan(1);
+    expect(outboundTx.weight <= 0 || outboundTx.volume <= 0).toBeTruthy();
+
+    const txId = String(outboundTx.id);
+    const pencilBtn = detailDialog.locator(`[data-testid="btn-edit-tx-qty-${txId}"]`);
+    await expect(pencilBtn).toBeVisible({ timeout: 5_000 });
+    const qtyDisplay = detailDialog.locator(`[data-testid="tx-qty-display-${txId}"]`);
+    await pencilBtn.click();
+
+    const qtyInput = detailDialog.locator(`[data-testid="input-edit-tx-qty-${txId}"]`);
+    const volumeInput = detailDialog.locator(`[data-testid="input-edit-tx-volume-${txId}"]`);
+    const weightInput = detailDialog.locator(`[data-testid="input-edit-tx-weight-${txId}"]`);
+    const saveBtn = detailDialog.locator(`[data-testid="btn-save-tx-qty-${txId}"]`);
+    const cancelBtn = detailDialog.locator(`[data-testid="btn-cancel-tx-qty-${txId}"]`);
+    const status = detailDialog.locator(`[data-testid="tx-proportional-status-${txId}"]`);
+    await expect(qtyInput).toHaveValue(String(outboundTx.quantity));
+    await expect(volumeInput).toHaveValue(String(outboundTx.volume));
+    await expect(weightInput).toHaveValue(String(outboundTx.weight));
+
+    await qtyInput.fill(String(outboundTx.quantity - 1));
+    await expect(status).toContainText('Không thể tính tam suất', { timeout: 5_000 });
+    await expect(status).toContainText('Vui lòng nhập đủ kg và m³');
+    await expect(volumeInput).toHaveValue(String(outboundTx.volume));
+    await expect(weightInput).toHaveValue(String(outboundTx.weight));
+    await expect(saveBtn).toBeDisabled();
+    await page.screenshot({
+      path: path.join(EVIDENCE_DIR, 'screenshot_06_outbound_invalid_base_blocks_save.png'),
+      fullPage: false
+    });
+
+    await cancelBtn.click();
+    await expect(qtyInput).toBeHidden({ timeout: 5_000 });
+    await expect(qtyDisplay).toContainText(`${outboundTx.quantity} kiện`);
+  });
+
   test('Super Admin can click pencil icon to adjust transaction package quantity with ACID balance & RBAC guard', async ({
     page
   }) => {
