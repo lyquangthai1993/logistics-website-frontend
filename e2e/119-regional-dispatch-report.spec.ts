@@ -6,7 +6,7 @@ test.use({ viewport: { width: 1920, height: 1080 } });
 
 const REGION_KEYS = ['north', 'central', 'south', 'storage', 'na'] as const;
 
-test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) => {
+test('Tình hình hàng hóa is restricted to the HCM hub scope', async ({ page }) => {
   test.setTimeout(180_000);
   await loginAs(page, USER_ADMIN);
 
@@ -14,7 +14,7 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
     const url = new URL(response.url());
     return response.status() === 200
       && url.pathname.endsWith('/admin/reports/regional-dispatch')
-      && url.searchParams.get('hubId') === 'ALL';
+      && /^\d+$/.test(url.searchParams.get('hubId') ?? '');
   });
   await page.goto('/dashboard/admin/reports', { waitUntil: 'domcontentloaded' });
   await initialResponse;
@@ -24,7 +24,7 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
     const url = new URL(response.url());
     return response.status() === 200
       && url.pathname.endsWith('/admin/reports/regional-dispatch')
-      && url.searchParams.get('hubId') === 'ALL';
+      && /^\d+$/.test(url.searchParams.get('hubId') ?? '');
   });
   const syncResponse = page.waitForResponse((response) =>
     response.url().includes('/admin/reports/regional-dispatch/sync')
@@ -39,13 +39,10 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
   const raw = await response.json();
   const report: RegionalReportApiResponse = raw.data ?? raw;
 
+  expect(requestUrl.searchParams.get('hubId')).toBe(String(report.hubReports[0].hub.id));
   expect(report.cronInfo.cronTime).toBe('06:00');
-  expect(report.hubReports.length).toBeGreaterThan(0);
-  expect(report.hubReports.map((item) => item.hub.name)).toEqual(expect.arrayContaining([
-    'Andromeda Hub - HCM',
-    'Magellan Hub - Đà Nẵng',
-    'Polaris Hub - Hưng Yên',
-  ]));
+  expect(report.hubReports).toHaveLength(1);
+  expect(report.hubReports[0].hub.name).toBe('Andromeda Hub - HCM');
   expect(new Set(report.hubReports.map((item) => item.hub.id)).size).toBe(report.hubReports.length);
   expect(report.hubReports.every((item) => item.hub.level === 1)).toBe(true);
   for (const hubReport of report.hubReports) {
@@ -89,33 +86,21 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
   await expect(page.getByTestId('regional-volume-chart').first()).toBeVisible();
   await controls.getByRole('button', { name: 'Tất cả', exact: true }).click();
 
-  const selectedHub = report.hubReports.find((item) => item.hub.name.includes('Đà Nẵng'));
-  expect(selectedHub).toBeDefined();
-  if (!selectedHub) throw new Error('Missing level 1 Da Nang hub');
-  const selectedResponse = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.status() === 200
-      && url.pathname.endsWith('/admin/reports/regional-dispatch')
-      && url.searchParams.get('hubId') === String(selectedHub.hub.id);
-  });
-  await page.getByTestId('warehouse-hub-filter-select').click();
-  await page.getByTestId(`warehouse-hub-filter-item-${selectedHub.hub.id}`).click();
-  const selectedRaw = await (await selectedResponse).json();
-  const selectedReport: RegionalReportApiResponse = selectedRaw.data ?? selectedRaw;
-  expect(selectedReport.hubReports.map((item) => item.hub.id)).toEqual([selectedHub.hub.id]);
+  const hcmHub = report.hubReports[0].hub;
+  const hubSelector = page.getByTestId('warehouse-hub-filter-select');
+  await expect(hubSelector).toContainText(hcmHub.name);
+  await hubSelector.click();
+  await expect(page.getByTestId('warehouse-hub-filter-item-all')).toHaveCount(0);
+  await expect(
+    page.locator('button[data-testid^="warehouse-hub-filter-item-"][disabled]')
+  ).toHaveCount(2);
+  await expect(
+    page.locator('button[data-testid^="warehouse-hub-filter-item-"]:not([disabled])')
+  ).toHaveCount(1);
+  await page.keyboard.press('Escape');
   await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(1);
-  await expect(page.getByTestId(`regional-hub-${selectedHub.hub.id}`)).toBeVisible();
-  await expect(page.getByTestId('warehouse-hub-filter-select')).toContainText(selectedHub.hub.name);
+  await expect(page.getByTestId(`regional-hub-${hcmHub.id}`)).toBeVisible();
   await expect(page.getByTestId('cargo-hub-filter-select')).toHaveCount(0);
-
-  const hcmHub = report.hubReports.find((item) => item.hub.name.includes('HCM'));
-  expect(hcmHub).toBeDefined();
-  if (!hcmHub) throw new Error('Missing level 1 HCM hub');
-  await page.getByTestId('warehouse-hub-filter-select').click();
-  await page.getByTestId(`warehouse-hub-filter-item-${hcmHub.hub.id}`).click();
-  await expect(page.getByTestId('warehouse-hub-filter-select')).toContainText(hcmHub.hub.name);
-  await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(1);
-  await expect(page.getByTestId(`regional-hub-${hcmHub.hub.id}`)).toBeVisible();
 
   const scopedSyncResponse = page.waitForResponse((response) =>
     response.url().includes('/admin/reports/regional-dispatch/sync')
@@ -129,9 +114,8 @@ test('Tình hình hàng hóa uses its own level 1 hub filter', async ({ page }) 
   const scopedSyncResult = scopedSyncRaw.data ?? scopedSyncRaw;
   expect(scopedSyncResult.rowsProcessed).toBe(REGION_KEYS.length);
 
-  await page.getByTestId('warehouse-hub-filter-clear').click();
-  await expect(page.getByTestId('warehouse-hub-filter-select')).toContainText('Tất cả kho');
-  await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(report.hubReports.length);
+  await expect(hubSelector).toContainText(hcmHub.name);
+  await expect(page.locator('[data-testid^="regional-hub-"]')).toHaveCount(1);
   for (const chartId of ['regional-weight-chart', 'regional-volume-chart']) {
     await expect.poll(async () => {
       const bars = page.getByTestId(chartId).first().locator('.recharts-bar-rectangle');
