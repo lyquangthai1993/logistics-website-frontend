@@ -1032,7 +1032,7 @@ export function DailyOperationalBarSlot() {
                   >
                     {dailySeries.map((point) => {
                       const day = new Date(`${point.reportDate}T00:00:00`).getDay();
-                      const fill = day === 6 || day === 0 ? "#FDE68A" : barFill;
+                      const fill = day === 0 ? "#FDE68A" : barFill;
                       return <Cell key={point.reportDate} fill={fill} />;
                     })}
                     <LabelList
