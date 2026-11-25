@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -306,7 +306,7 @@ export function WarehouseWaybillDetailModal({
     serverData?.userRole === 'SUPER_ADMIN'
   );
   const isStoredOrder = ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(
-    String(serverData?.order?.status ?? waybill?.status ?? '').toUpperCase(),
+    String(serverData?.order?.status ?? waybill?.status ?? '').toUpperCase()
   );
   const adminOverrideOrder = waybill
     ? ({
@@ -316,7 +316,7 @@ export function WarehouseWaybillDetailModal({
         totalVolume: waybill.totalVolume ?? serverData?.order?.totalVolume ?? 0,
         isExternalVehicleNeeded: Boolean(waybill.isExternalVehicleNeeded),
         createdAt: String(waybill.createdAt ?? new Date().toISOString()),
-        updatedAt: String(waybill.updatedAt ?? new Date().toISOString()),
+        updatedAt: String(waybill.updatedAt ?? new Date().toISOString())
       } as Order)
     : null;
 
@@ -324,9 +324,17 @@ export function WarehouseWaybillDetailModal({
   const [editingTx, setEditingTx] = useState<{
     id: number;
     quantity: string;
+    weight: string;
+    volume: string;
+    originalQuantity: number;
+    originalWeight: number;
+    originalVolume: number;
     reason: string;
+    calculationMessage: string;
+    isCalculating: boolean;
     isSaving: boolean;
   } | null>(null);
+  const quantityRecalculationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
   // Super Admin Action Modal (Delete / Restore)
@@ -444,27 +452,140 @@ export function WarehouseWaybillDetailModal({
   };
 
   const handleStartEditQuantity = (tx: any) => {
+    if (quantityRecalculationTimer.current) {
+      clearTimeout(quantityRecalculationTimer.current);
+      quantityRecalculationTimer.current = null;
+    }
+    const quantity = Number(tx.quantity) || 0;
+    const weight = Number(tx.weight) || 0;
+    const volume = Number(tx.volume) || 0;
     setEditingTx({
       id: Number(tx.id),
-      quantity: String(tx.quantity ?? 1),
+      quantity: String(tx.quantity ?? ''),
+      weight: String(tx.weight ?? ''),
+      volume: String(tx.volume ?? ''),
+      originalQuantity: quantity,
+      originalWeight: weight,
+      originalVolume: volume,
       reason: 'Admin điều chỉnh số lượng kiện giao dịch kho',
+      calculationMessage: '',
+      isCalculating: false,
       isSaving: false
     });
   };
 
   const handleCancelEditQuantity = () => {
     if (editingTx?.isSaving) return;
+    if (quantityRecalculationTimer.current) {
+      clearTimeout(quantityRecalculationTimer.current);
+      quantityRecalculationTimer.current = null;
+    }
     setEditingTx(null);
   };
 
-  const handleSaveEditQuantity = async (tx: any) => {
+  const handleChangeEditQuantity = (tx: any, value: string) => {
     if (!editingTx || editingTx.id !== Number(tx.id)) return;
+    if (quantityRecalculationTimer.current) {
+      clearTimeout(quantityRecalculationTimer.current);
+      quantityRecalculationTimer.current = null;
+    }
+    setEditingTx((prev) =>
+      prev
+        ? {
+            ...prev,
+            quantity: value,
+            calculationMessage: 'Sẽ tự tính lại kg và m³ sau 3 giây kể từ lần sửa kiện cuối.',
+            isCalculating: true
+          }
+        : null
+    );
+    quantityRecalculationTimer.current = setTimeout(() => {
+      quantityRecalculationTimer.current = null;
+      setEditingTx((prev) => {
+        if (!prev || prev.id !== Number(tx.id)) return prev;
+        const nextQuantity = Number(value);
+        if (!Number.isInteger(nextQuantity) || nextQuantity < 1) {
+          return {
+            ...prev,
+            calculationMessage: 'Số kiện phải là số nguyên lớn hơn hoặc bằng 1.',
+            isCalculating: false
+          };
+        }
+        if (prev.originalQuantity <= 0) {
+          return {
+            ...prev,
+            calculationMessage:
+              'Không thể tính tam suất vì số kiện gốc của giao dịch không hợp lệ.',
+            isCalculating: false
+          };
+        }
+        if (prev.originalWeight <= 0 || prev.originalVolume <= 0) {
+          return {
+            ...prev,
+            calculationMessage:
+              'Không thể tính tam suất vì kg hoặc m³ gốc bằng 0. Vui lòng nhập đủ kg và m³.',
+            isCalculating: false
+          };
+        }
+        const ratio = nextQuantity / prev.originalQuantity;
+        const nextWeight =
+          nextQuantity === prev.originalQuantity
+            ? prev.originalWeight
+            : Math.round(prev.originalWeight * ratio * 1000) / 1000;
+        const nextVolume =
+          nextQuantity === prev.originalQuantity
+            ? prev.originalVolume
+            : Math.round(prev.originalVolume * ratio * 1000) / 1000;
+        return {
+          ...prev,
+          weight: String(nextWeight),
+          volume: String(nextVolume),
+          calculationMessage: `Đã tính tam suất theo giao dịch gốc: ${nextQuantity}/${prev.originalQuantity} kiện.`,
+          isCalculating: false
+        };
+      });
+    }, 3000);
+  };
+
+  useEffect(
+    () => () => {
+      if (quantityRecalculationTimer.current) {
+        clearTimeout(quantityRecalculationTimer.current);
+      }
+    },
+    []
+  );
+
+  const handleSaveEditQuantity = async (tx: any) => {
+    if (!editingTx || editingTx.id !== Number(tx.id) || editingTx.isCalculating) return;
     const parsedQty = Number(editingTx.quantity);
+    const parsedWeight = Number(editingTx.weight);
+    const parsedVolume = Number(editingTx.volume);
     if (!Number.isFinite(parsedQty) || parsedQty < 1 || !Number.isInteger(parsedQty)) {
       toast.error('Số lượng kiện điều chỉnh phải là số nguyên lớn hơn hoặc bằng 1!');
       return;
     }
-    if (parsedQty === Number(tx.quantity)) {
+    if (
+      !Number.isFinite(parsedWeight) ||
+      parsedWeight <= 0 ||
+      !Number.isFinite(parsedVolume) ||
+      parsedVolume <= 0
+    ) {
+      setEditingTx((prev) =>
+        prev
+          ? {
+              ...prev,
+              calculationMessage: 'Vui lòng nhập kg và m³ lớn hơn 0 trước khi lưu.'
+            }
+          : null
+      );
+      return;
+    }
+    if (
+      parsedQty === Number(tx.quantity) &&
+      parsedWeight === Number(tx.weight) &&
+      parsedVolume === Number(tx.volume)
+    ) {
       setEditingTx(null);
       return;
     }
@@ -480,6 +601,8 @@ export function WarehouseWaybillDetailModal({
         },
         body: JSON.stringify({
           quantity: parsedQty,
+          weight: parsedWeight,
+          volume: parsedVolume,
           reason: editingTx.reason.trim() || 'Admin điều chỉnh số lượng kiện giao dịch kho'
         })
       });
@@ -494,7 +617,7 @@ export function WarehouseWaybillDetailModal({
       toast.success(
         resData?.data?.message ||
           resData?.message ||
-          `Đã điều chỉnh số lượng kiện (${tx.quantity} → ${parsedQty} kiện) và cân bằng tồn kho thành công!`
+          `Đã điều chỉnh giao dịch: ${parsedQty} kiện · ${parsedVolume} m³ · ${parsedWeight} kg.`
       );
       setEditingTx(null);
       await reloadData();
@@ -510,6 +633,10 @@ export function WarehouseWaybillDetailModal({
       setEditingTx(null);
       reloadData();
     } else if (!isOpen) {
+      if (quantityRecalculationTimer.current) {
+        clearTimeout(quantityRecalculationTimer.current);
+        quantityRecalculationTimer.current = null;
+      }
       setServerData(null);
       setEditingTx(null);
     }
@@ -702,6 +829,19 @@ export function WarehouseWaybillDetailModal({
     return transactions;
   }, [serverData, transactions]);
 
+  useEffect(() => {
+    if (!editingTx) return;
+    const activeTransaction = displayTransactions.find(
+      (transaction) => Number(transaction.id) === editingTx.id
+    );
+    if (activeTransaction && !activeTransaction.isDeleted) return;
+    if (quantityRecalculationTimer.current) {
+      clearTimeout(quantityRecalculationTimer.current);
+      quantityRecalculationTimer.current = null;
+    }
+    setEditingTx(null);
+  }, [displayTransactions, editingTx?.id]);
+
   const step0Trips: any[] = useMemo(() => {
     const rawTrips =
       serverData && Array.isArray(serverData.trips) && serverData.trips.length > 0
@@ -782,16 +922,16 @@ export function WarehouseWaybillDetailModal({
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className='sm:max-w-[96vw] w-[96vw] max-w-[96vw] p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl'
+          className='flex min-h-0 w-[96vw] max-w-[96vw] max-h-[calc(100dvh-0.75rem)] flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:rounded-2xl sm:max-w-[96vw]'
         >
           {/* ── Compact Header Bar ── */}
-          <div className='bg-[#0F3D62] text-white px-5 py-3.5 flex items-center justify-between'>
-            <div className='flex items-center gap-3'>
-              <IconBuildingWarehouse className='h-5 w-5 text-blue-300' />
-              <div>
-                <h2 className='text-sm sm:text-base font-bold text-white flex items-center gap-2'>
+          <div className='flex shrink-0 flex-wrap items-center gap-1.5 bg-[#0F3D62] px-2 py-1.5 text-white sm:flex-nowrap sm:justify-between sm:gap-2'>
+            <div className='flex min-w-0 flex-1 items-center gap-2'>
+              <IconBuildingWarehouse className='h-5 w-5 shrink-0 text-blue-300' />
+              <div className='min-w-0'>
+                <h2 className='flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-bold text-white sm:gap-2 sm:text-base'>
                   Chi tiết đơn hàng tiếp nhận kho
-                  <span className='font-mono bg-white/20 px-2 py-0.5 rounded text-xs'>
+                  <span className='max-w-full break-all rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] sm:px-2 sm:text-xs'>
                     {waybill.orderCode}
                   </span>
                   <button
@@ -809,7 +949,7 @@ export function WarehouseWaybillDetailModal({
                 </h2>
               </div>
             </div>
-            <div className='flex items-center gap-2'>
+            <div className='ml-auto flex shrink-0 items-center gap-1.5'>
               {isSuperAdmin && isStoredOrder && warehouseHubId && adminOverrideOrder && (
                 <Button
                   type='button'
@@ -837,9 +977,9 @@ export function WarehouseWaybillDetailModal({
           </div>
 
           {/* ── Scrollable Body Structured Like Inbound Create Form ── */}
-          <div className='p-4 sm:p-5 space-y-4 max-h-[82vh] overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50'>
+          <div className='min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-slate-50/50 p-2 dark:bg-slate-950/50'>
             {/* ── Lịch Sử Hàng Hóa & Biến Động Kho ── */}
-            <div className='bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-xs'>
+            <div className='space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:p-2'>
               <div className='flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3'>
                 <div className='flex items-center gap-2'>
                   <IconHistory className='h-5 w-5 text-[#0F3D62] dark:text-blue-400' />
@@ -1153,34 +1293,66 @@ export function WarehouseWaybillDetailModal({
                                 !isDeleted &&
                                 tx.id &&
                                 editingTx?.id === Number(tx.id) ? (
-                                  <div className='inline-flex flex-wrap items-center gap-1.5 bg-white dark:bg-slate-900 p-1 rounded-md border border-blue-300 dark:border-blue-700 shadow-2xs'>
-                                    <Input
-                                      type='number'
-                                      min={1}
-                                      step={1}
-                                      data-testid={`input-edit-tx-qty-${tx.id}`}
-                                      value={editingTx.quantity}
-                                      onChange={(e) =>
-                                        setEditingTx((prev) =>
-                                          prev ? { ...prev, quantity: e.target.value } : null
-                                        )
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleSaveEditQuantity(tx);
-                                        } else if (e.key === 'Escape') {
-                                          e.preventDefault();
-                                          handleCancelEditQuantity();
+                                  <div className='flex max-w-full flex-wrap items-end gap-1.5 bg-white dark:bg-slate-900 p-1 rounded-md border border-blue-300 dark:border-blue-700 shadow-2xs'>
+                                    <label className='grid gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300'>
+                                      Kiện
+                                      <Input
+                                        type='number'
+                                        min={1}
+                                        step={1}
+                                        data-testid={`input-edit-tx-qty-${tx.id}`}
+                                        value={editingTx.quantity}
+                                        onChange={(e) =>
+                                          handleChangeEditQuantity(tx, e.target.value)
                                         }
-                                      }}
-                                      disabled={editingTx.isSaving}
-                                      className='h-7 w-20 px-2 text-xs font-mono font-black text-blue-700 dark:text-blue-300 text-center'
-                                      autoFocus
-                                    />
-                                    <span className='text-[11px] font-bold text-slate-600 dark:text-slate-300'>
-                                      kiện
-                                    </span>
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSaveEditQuantity(tx);
+                                          } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            handleCancelEditQuantity();
+                                          }
+                                        }}
+                                        disabled={editingTx.isSaving}
+                                        className='h-7 w-16 px-1.5 text-xs font-mono font-black text-blue-700 dark:text-blue-300 text-center'
+                                        autoFocus
+                                      />
+                                    </label>
+                                    <label className='grid gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300'>
+                                      m³
+                                      <Input
+                                        type='number'
+                                        min={0}
+                                        step='0.001'
+                                        data-testid={`input-edit-tx-volume-${tx.id}`}
+                                        value={editingTx.volume}
+                                        onChange={(e) =>
+                                          setEditingTx((prev) =>
+                                            prev ? { ...prev, volume: e.target.value } : null
+                                          )
+                                        }
+                                        disabled={editingTx.isSaving}
+                                        className='h-7 w-20 px-1.5 text-xs font-mono text-center'
+                                      />
+                                    </label>
+                                    <label className='grid gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300'>
+                                      Kg
+                                      <Input
+                                        type='number'
+                                        min={0}
+                                        step='0.001'
+                                        data-testid={`input-edit-tx-weight-${tx.id}`}
+                                        value={editingTx.weight}
+                                        onChange={(e) =>
+                                          setEditingTx((prev) =>
+                                            prev ? { ...prev, weight: e.target.value } : null
+                                          )
+                                        }
+                                        disabled={editingTx.isSaving}
+                                        className='h-7 w-20 px-1.5 text-xs font-mono text-center'
+                                      />
+                                    </label>
                                     <Textarea
                                       rows={2}
                                       data-testid={`input-edit-tx-reason-${tx.id}`}
@@ -1208,7 +1380,16 @@ export function WarehouseWaybillDetailModal({
                                       size='sm'
                                       data-testid={`btn-save-tx-qty-${tx.id}`}
                                       onClick={() => handleSaveEditQuantity(tx)}
-                                      disabled={editingTx.isSaving}
+                                      disabled={
+                                        editingTx.isSaving ||
+                                        editingTx.isCalculating ||
+                                        !Number.isInteger(Number(editingTx.quantity)) ||
+                                        Number(editingTx.quantity) < 1 ||
+                                        !Number.isFinite(Number(editingTx.volume)) ||
+                                        Number(editingTx.volume) <= 0 ||
+                                        !Number.isFinite(Number(editingTx.weight)) ||
+                                        Number(editingTx.weight) <= 0
+                                      }
                                       className='h-7 px-2.5 text-[11px] font-bold bg-[#0F3D62] hover:bg-[#0c314f] text-white cursor-pointer'
                                     >
                                       {editingTx.isSaving ? (
@@ -1220,6 +1401,14 @@ export function WarehouseWaybillDetailModal({
                                         </>
                                       )}
                                     </Button>
+                                    {editingTx.calculationMessage && (
+                                      <p
+                                        data-testid={`tx-proportional-status-${tx.id}`}
+                                        className='basis-full text-[10px] text-amber-700 dark:text-amber-300'
+                                      >
+                                        {editingTx.calculationMessage}
+                                      </p>
+                                    )}
                                     <Button
                                       type='button'
                                       size='sm'
@@ -1734,17 +1923,17 @@ export function WarehouseWaybillDetailModal({
                   <span>Danh mục hàng hóa vận đơn</span>
                 </h4>
                 <div className='flex items-center gap-2'>
-                <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
-                  Tổng số lượng:{' '}
-                  <span className='font-bold text-[#0F3D62] dark:text-blue-400 font-mono'>
-                    {waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}
-                  </span>{' '}
-                  ·{' '}
-                  <span className='font-bold font-mono'>
-                    {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}
-                  </span>{' '}
-                  kg · <span className='font-bold font-mono'>{waybill.totalVolume ?? 0}</span> CBM
-                </span>
+                  <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
+                    Tổng số lượng:{' '}
+                    <span className='font-bold text-[#0F3D62] dark:text-blue-400 font-mono'>
+                      {waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}
+                    </span>{' '}
+                    ·{' '}
+                    <span className='font-bold font-mono'>
+                      {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')}
+                    </span>{' '}
+                    kg · <span className='font-bold font-mono'>{waybill.totalVolume ?? 0}</span> CBM
+                  </span>
                 </div>
               </div>
 
@@ -1866,7 +2055,7 @@ export function WarehouseWaybillDetailModal({
           </div>
 
           {/* ── Dialog Footer (Clean Close & Print Actions) ── */}
-          <div className='p-3 px-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2'>
+          <div className='flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900'>
             <div className='flex items-center gap-2'>
               <Button
                 type='button'
@@ -1898,9 +2087,9 @@ export function WarehouseWaybillDetailModal({
           }
         }}
       >
-        <DialogContent className='sm:max-w-md p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl'>
+        <DialogContent className='flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] max-w-md flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900'>
           <div
-            className={`p-4 text-white flex items-center gap-3 ${
+            className={`flex shrink-0 items-center gap-2 px-2 py-1.5 text-white sm:gap-2 ${
               actionModal.type === 'DELETE' ? 'bg-rose-600' : 'bg-emerald-600'
             }`}
           >
@@ -1921,7 +2110,7 @@ export function WarehouseWaybillDetailModal({
             </div>
           </div>
 
-          <div className='p-4 space-y-3 text-xs'>
+          <div className='min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2 text-xs'>
             {actionModal.tx && (
               <div className='p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1 font-mono'>
                 <div className='flex justify-between'>
@@ -1986,7 +2175,7 @@ export function WarehouseWaybillDetailModal({
             </div>
           </div>
 
-          <div className='p-3 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2'>
+          <div className='flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/40'>
             <Button
               type='button'
               variant='outline'
