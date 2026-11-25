@@ -107,11 +107,6 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
         `[E2E-TEST] Điều chỉnh số lượng kiện từ ${originalQty} lên ${adjustedQty} kiện`
       );
 
-      await page.screenshot({
-        path: path.join(EVIDENCE_DIR, 'screenshot_02_inline_quantity_editor_open.png'),
-        fullPage: false
-      });
-
       // Quantity edits recalculate both metrics from the original transaction after 3 seconds.
       await expect(saveBtn).toBeDisabled();
       await weightInput.fill('999');
@@ -120,6 +115,10 @@ test.describe('Super Admin Inline Transaction Quantity Edit via Pencil Icon & Ac
       if (waitBeforeDebounce > 0) await page.waitForTimeout(waitBeforeDebounce);
       await expect(weightInput).toHaveValue('999');
       await expect(volumeInput).toHaveValue('999');
+      await page.screenshot({
+        path: path.join(EVIDENCE_DIR, 'screenshot_02_inline_quantity_editor_open.png'),
+        fullPage: false
+      });
       const expectedWeight =
         Math.round(((originalWeight * adjustedQty) / originalQty) * 1000) / 1000;
       const expectedVolume =
