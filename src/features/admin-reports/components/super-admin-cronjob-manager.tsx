@@ -34,6 +34,7 @@ export interface CronJobConfig {
   description: string | null;
   isEnabled: boolean;
   cronTime: string;
+  cronExpression: string;
   cutoffHour: number;
   notifySuperAdmins: boolean;
   lastRunAt: string | null;
@@ -129,6 +130,87 @@ interface LastRerunSummary {
 
 type DayRunState = 'IDLE' | 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED';
 
+type SnapshotScheduleMode =
+  | 'everyMinutes'
+  | 'everyHours'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'custom';
+
+function parseSnapshotSchedule(expression: string | undefined): {
+  mode: SnapshotScheduleMode;
+  value: string;
+  time: string;
+  weekday: string;
+  monthDay: string;
+} {
+  const value = expression?.trim() || '*/5 * * * *';
+  const everyMinutes = value.match(/^\*\/(\d+) \* \* \* \*$/);
+  if (everyMinutes) {
+    return {
+      mode: 'everyMinutes',
+      value: everyMinutes[1],
+      time: '00:00',
+      weekday: '1',
+      monthDay: '1'
+    };
+  }
+  const everyHours = value.match(/^0 \*\/(\d+) \* \* \*$/);
+  if (everyHours) {
+    return { mode: 'everyHours', value: everyHours[1], time: '00:00', weekday: '1', monthDay: '1' };
+  }
+  const daily = value.match(/^(\d{1,2}) (\d{1,2}) \* \* \*$/);
+  if (daily) {
+    return {
+      mode: 'daily',
+      value: '1',
+      time: `${daily[2].padStart(2, '0')}:${daily[1].padStart(2, '0')}`,
+      weekday: '1',
+      monthDay: '1'
+    };
+  }
+  const weekly = value.match(/^(\d{1,2}) (\d{1,2}) \* \* ([0-7])$/);
+  if (weekly) {
+    return {
+      mode: 'weekly',
+      value: '1',
+      time: `${weekly[2].padStart(2, '0')}:${weekly[1].padStart(2, '0')}`,
+      weekday: weekly[3],
+      monthDay: '1'
+    };
+  }
+  const monthly = value.match(/^(\d{1,2}) (\d{1,2}) (\d{1,2}) \* \*$/);
+  if (monthly) {
+    return {
+      mode: 'monthly',
+      value: '1',
+      time: `${monthly[2].padStart(2, '0')}:${monthly[1].padStart(2, '0')}`,
+      weekday: '1',
+      monthDay: monthly[3]
+    };
+  }
+  return { mode: 'custom', value, time: '00:00', weekday: '1', monthDay: '1' };
+}
+
+function buildSnapshotCron(
+  mode: SnapshotScheduleMode,
+  value: string,
+  time: string,
+  weekday: string,
+  monthDay: string
+): string {
+  const [hour = '0', minute = '0'] = time.split(':');
+  const safeValue = Math.max(1, Number(value) || 1);
+  if (mode === 'everyMinutes') return `*/${Math.min(59, safeValue)} * * * *`;
+  if (mode === 'everyHours') return `0 */${Math.min(23, safeValue)} * * *`;
+  if (mode === 'custom') return value.trim();
+  if (mode === 'weekly') return `${Number(minute)} ${Number(hour)} * * ${Number(weekday)}`;
+  if (mode === 'monthly')
+    return `${Number(minute)} ${Number(hour)} ${Math.min(31, Math.max(1, Number(monthDay) || 1))} * *`;
+  return `${Number(minute)} ${Number(hour)} * * *`;
+}
+
 function formatDateTimeVn(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -180,7 +262,10 @@ function enumerateDatesClient(fromYmd: string, toYmd: string): string[] {
   return list;
 }
 
-function computeRangeWindowPreview(fromDate: string, toDate: string): {
+function computeRangeWindowPreview(
+  fromDate: string,
+  toDate: string
+): {
   orderedFrom: string;
   orderedTo: string;
   daysCount: number;
@@ -266,16 +351,12 @@ export function SuperAdminCronjobManager() {
   const loadCronRegistry = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get(
-        '/api/v1/admin/reports/cronjobs?daysLimit=14'
-      );
+      const res = await apiClient.get('/api/v1/admin/reports/cronjobs?daysLimit=14');
       const raw = res.data;
       const payload: CronManagementResponse = raw?.data ?? raw;
       setData(payload);
     } catch (err) {
-      toast.error(
-        formatApiError(err, 'Không thể tải danh sách tác vụ Cronjob')
-      );
+      toast.error(formatApiError(err, 'Không thể tải danh sách tác vụ Cronjob'));
     } finally {
       setLoading(false);
     }
@@ -298,9 +379,7 @@ export function SuperAdminCronjobManager() {
       );
       await loadCronRegistry();
     } catch (err) {
-      toast.error(
-        formatApiError(err, 'Không thể cập nhật trạng thái công tắc Cronjob')
-      );
+      toast.error(formatApiError(err, 'Không thể cập nhật trạng thái công tắc Cronjob'));
     } finally {
       setTogglingJobKey(null);
     }
@@ -313,10 +392,7 @@ export function SuperAdminCronjobManager() {
     return data?.config ? [data.config] : [];
   }, [data]);
 
-  const activeJobsCount = useMemo(
-    () => jobList.filter((j) => j.isEnabled).length,
-    [jobList]
-  );
+  const activeJobsCount = useMemo(() => jobList.filter((j) => j.isEnabled).length, [jobList]);
 
   return (
     <div className='space-y-2 pb-2' data-testid='super-admin-cronjob-page'>
@@ -330,9 +406,7 @@ export function SuperAdminCronjobManager() {
             <div className='text-sm font-bold font-mono text-slate-900 dark:text-slate-100'>
               {jobList.length} tác vụ hệ thống
             </div>
-            <span className='text-[10px] text-muted-foreground'>
-              Quản lý tập trung tại máy chủ
-            </span>
+            <span className='text-[10px] text-muted-foreground'>Quản lý tập trung tại máy chủ</span>
           </CardContent>
         </Card>
 
@@ -389,7 +463,8 @@ export function SuperAdminCronjobManager() {
                 Danh mục Tác vụ Cronjob Hệ thống ({jobList.length} tác vụ)
               </h2>
               <span className='text-[10px] text-muted-foreground'>
-                • Chọn một tác vụ để mở trang Chi tiết & thực hiện chạy lại theo khoảng ngày hoặc cấu hình lịch chạy
+                • Chọn một tác vụ để mở trang Chi tiết & thực hiện chạy lại theo khoảng ngày hoặc
+                cấu hình lịch chạy
               </span>
             </div>
 
@@ -402,9 +477,7 @@ export function SuperAdminCronjobManager() {
               data-testid='btn-refresh-cron-page'
               className='h-7 px-2 text-[10px] font-semibold cursor-pointer'
             >
-              <IconRefresh
-                className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`}
-              />
+              <IconRefresh className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Làm mới danh sách
             </Button>
           </div>
@@ -430,9 +503,7 @@ export function SuperAdminCronjobManager() {
                   <tr
                     key={job.jobKey}
                     data-testid={`cron-job-row-${job.jobKey}`}
-                    onClick={() =>
-                      router.push(`/dashboard/admin/cronjobs/${job.jobKey}`)
-                    }
+                    onClick={() => router.push(`/dashboard/admin/cronjobs/${job.jobKey}`)}
                     className='hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors cursor-pointer'
                   >
                     <td className='py-1 px-1.5'>
@@ -440,10 +511,7 @@ export function SuperAdminCronjobManager() {
                         <span className='font-bold text-xs text-slate-900 dark:text-slate-100'>
                           {job.name}
                         </span>
-                        <Badge
-                          variant='outline'
-                          className='text-[10px] font-mono px-1.5 py-0'
-                        >
+                        <Badge variant='outline' className='text-[10px] font-mono px-1.5 py-0'>
                           {job.jobKey}
                         </Badge>
                       </div>
@@ -458,9 +526,7 @@ export function SuperAdminCronjobManager() {
                     </td>
                     <td className='py-1 px-1.5 font-mono text-muted-foreground'>
                       {job.nextRunLabel ||
-                        (job.isEnabled
-                          ? `${job.cronTime} hàng ngày (GMT+7)`
-                          : 'Đang tạm dừng')}
+                        (job.isEnabled ? `${job.cronTime} hàng ngày (GMT+7)` : 'Đang tạm dừng')}
                     </td>
                     <td className='py-1 px-1.5 font-mono'>
                       {job.lastRunAt ? (
@@ -477,20 +543,13 @@ export function SuperAdminCronjobManager() {
                           ) : null}
                         </div>
                       ) : (
-                        <span className='text-muted-foreground'>
-                          Chưa chạy (Đang trống)
-                        </span>
+                        <span className='text-muted-foreground'>Chưa chạy (Đang trống)</span>
                       )}
                     </td>
                     <td className='py-1 px-1.5 text-center font-mono font-semibold'>
-                      {job.lastReportDate
-                        ? formatDateVn(job.lastReportDate)
-                        : '—'}
+                      {job.lastReportDate ? formatDateVn(job.lastReportDate) : '—'}
                     </td>
-                    <td
-                      className='py-1 px-1.5 text-center'
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td className='py-1 px-1.5 text-center' onClick={(e) => e.stopPropagation()}>
                       <button
                         type='button'
                         role='switch'
@@ -506,34 +565,23 @@ export function SuperAdminCronjobManager() {
                       >
                         <span
                           className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
-                            job.isEnabled
-                              ? 'bg-emerald-600'
-                              : 'bg-slate-300 dark:bg-slate-600'
+                            job.isEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'
                           }`}
                         >
                           <span
                             className={`inline-block h-3 w-3 rounded-full bg-white shadow-xs transition-transform ${
-                              job.isEnabled
-                                ? 'translate-x-3.5'
-                                : 'translate-x-0.5'
+                              job.isEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
                             }`}
                           />
                         </span>
-                        <span className='font-mono'>
-                          {job.isEnabled ? 'ON' : 'OFF'}
-                        </span>
+                        <span className='font-mono'>{job.isEnabled ? 'ON' : 'OFF'}</span>
                       </button>
                     </td>
-                    <td
-                      className='py-1 px-1.5 text-right'
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td className='py-1 px-1.5 text-right' onClick={(e) => e.stopPropagation()}>
                       <Button
                         type='button'
                         size='sm'
-                        onClick={() =>
-                          router.push(`/dashboard/admin/cronjobs/${job.jobKey}`)
-                        }
+                        onClick={() => router.push(`/dashboard/admin/cronjobs/${job.jobKey}`)}
                         className='h-6 px-2 text-[10px] font-bold bg-[#0F3D62] hover:bg-[#154c79] text-white cursor-pointer'
                         data-testid={`btn-open-cronjob-detail-${job.jobKey}`}
                       >
@@ -559,9 +607,7 @@ export function SuperAdminCronjobManager() {
  */
 export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   const router = useRouter();
-  const normalizedJobKey = decodeURIComponent(
-    jobKey || 'DAILY_HUB_OPERATIONAL_REPORT'
-  ).trim();
+  const normalizedJobKey = decodeURIComponent(jobKey || 'DAILY_HUB_OPERATIONAL_REPORT').trim();
 
   const [data, setData] = useState<CronManagementResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -571,16 +617,11 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   const [toDate, setToDate] = useState<string>('');
   const [rerunNotify, setRerunNotify] = useState<boolean>(false);
   const [runningKey, setRunningKey] = useState<string | null>(null);
-  const [lastRerunResult, setLastRerunResult] =
-    useState<LastRerunSummary | null>(null);
+  const [lastRerunResult, setLastRerunResult] = useState<LastRerunSummary | null>(null);
 
   // Sequential Day-by-Day execution tracking state
-  const [dayStatuses, setDayStatuses] = useState<Record<string, DayRunState>>(
-    {}
-  );
-  const [currentRunningDay, setCurrentRunningDay] = useState<string | null>(
-    null
-  );
+  const [dayStatuses, setDayStatuses] = useState<Record<string, DayRunState>>({});
+  const [currentRunningDay, setCurrentRunningDay] = useState<string | null>(null);
   const [completedDaysCount, setCompletedDaysCount] = useState<number>(0);
   const [totalDaysToRun, setTotalDaysToRun] = useState<number>(0);
   const abortRunRef = useRef<boolean>(false);
@@ -588,16 +629,17 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   // Cron Config edit state
   const [cfgEnabled, setCfgEnabled] = useState<boolean>(true);
   const [cfgCronTime, setCfgCronTime] = useState<string>('18:05');
+  const [cfgSnapshotMode, setCfgSnapshotMode] = useState<SnapshotScheduleMode>('everyMinutes');
+  const [cfgSnapshotValue, setCfgSnapshotValue] = useState<string>('5');
+  const [cfgSnapshotTime, setCfgSnapshotTime] = useState<string>('00:00');
+  const [cfgSnapshotWeekday, setCfgSnapshotWeekday] = useState<string>('1');
+  const [cfgSnapshotMonthDay, setCfgSnapshotMonthDay] = useState<string>('1');
   const [cfgNotify, setCfgNotify] = useState<boolean>(true);
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
 
   // Detail bottom tab ('logs' | 'snapshots') & filters
-  const [activeBottomTab, setActiveBottomTab] = useState<'logs' | 'snapshots'>(
-    'logs'
-  );
-  const [logStatusFilter, setLogStatusFilter] = useState<
-    'ALL' | 'SUCCESS' | 'FAILED'
-  >('ALL');
+  const [activeBottomTab, setActiveBottomTab] = useState<'logs' | 'snapshots'>('logs');
+  const [logStatusFilter, setLogStatusFilter] = useState<'ALL' | 'SUCCESS' | 'FAILED'>('ALL');
   const [logSearch, setLogSearch] = useState<string>('');
 
   const loadCronDetailData = useCallback(
@@ -605,9 +647,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
       setLoading(true);
       try {
         const limitParam = Math.min(366, Math.max(30, Number(customDaysLimit) || 30));
-        const res = await apiClient.get(
-          `/api/v1/admin/reports/cronjobs?daysLimit=${limitParam}`
-        );
+        const res = await apiClient.get(`/api/v1/admin/reports/cronjobs?daysLimit=${limitParam}`);
         const raw = res.data;
         const payload: CronManagementResponse = raw?.data ?? raw;
         setData(payload);
@@ -619,14 +659,11 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
               ? [payload.config]
               : [];
         const matchedJob =
-          allJobs.find((j) => j.jobKey === normalizedJobKey) ||
-          payload.config ||
-          null;
+          allJobs.find((j) => j.jobKey === normalizedJobKey) || payload.config || null;
 
         if (!preserveInputs) {
           const defaultClosedDate =
-            payload.scheduleInfo?.latestClosedReportDate ||
-            new Date().toISOString().slice(0, 10);
+            payload.scheduleInfo?.latestClosedReportDate || new Date().toISOString().slice(0, 10);
           let urlFrom = '';
           let urlTo = '';
           if (typeof window !== 'undefined') {
@@ -641,13 +678,17 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
           if (matchedJob) {
             setCfgEnabled(Boolean(matchedJob.isEnabled));
             setCfgCronTime(matchedJob.cronTime || '18:05');
+            const parsedSnapshot = parseSnapshotSchedule(matchedJob.cronExpression);
+            setCfgSnapshotMode(parsedSnapshot.mode);
+            setCfgSnapshotValue(parsedSnapshot.value);
+            setCfgSnapshotTime(parsedSnapshot.time);
+            setCfgSnapshotWeekday(parsedSnapshot.weekday);
+            setCfgSnapshotMonthDay(parsedSnapshot.monthDay);
             setCfgNotify(Boolean(matchedJob.notifySuperAdmins));
           }
         }
       } catch (err) {
-        toast.error(
-          formatApiError(err, 'Không thể tải thông tin chi tiết Cronjob')
-        );
+        toast.error(formatApiError(err, 'Không thể tải thông tin chi tiết Cronjob'));
       } finally {
         setLoading(false);
       }
@@ -667,10 +708,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   }, [data]);
 
   const currentJob = useMemo<CronJobConfig | null>(
-    () =>
-      jobList.find((j) => j.jobKey === normalizedJobKey) ||
-      data?.config ||
-      null,
+    () => jobList.find((j) => j.jobKey === normalizedJobKey) || data?.config || null,
     [jobList, normalizedJobKey, data?.config]
   );
 
@@ -690,11 +728,8 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
       | 'LAST_30_DAYS'
   ) => {
     const latestClosed =
-      data?.scheduleInfo?.latestClosedReportDate ||
-      new Date().toISOString().slice(0, 10);
-    const currentOpen =
-      data?.scheduleInfo?.currentOpenReportDate ||
-      shiftDateYmd(latestClosed, 1);
+      data?.scheduleInfo?.latestClosedReportDate || new Date().toISOString().slice(0, 10);
+    const currentOpen = data?.scheduleInfo?.currentOpenReportDate || shiftDateYmd(latestClosed, 1);
 
     setDayStatuses({});
     setLastRerunResult(null);
@@ -815,13 +850,8 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
         }));
 
         if (typeof document !== 'undefined') {
-          const pillEl = document.querySelector(
-            `[data-testid="split-day-pill-${dayStr}"]`
-          );
-          if (
-            pillEl &&
-            typeof (pillEl as HTMLElement).scrollIntoView === 'function'
-          ) {
+          const pillEl = document.querySelector(`[data-testid="split-day-pill-${dayStr}"]`);
+          if (pillEl && typeof (pillEl as HTMLElement).scrollIntoView === 'function') {
             (pillEl as HTMLElement).scrollIntoView({
               block: 'nearest',
               inline: 'nearest'
@@ -833,25 +863,18 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
         let res: any = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            res = await apiClient.post(
-              '/api/v1/admin/reports/cronjobs/rerun',
-              {
-                jobKey: normalizedJobKey,
-                reportDate: dayStr,
-                fromDate: dayStr,
-                toDate: dayStr,
-                triggeredBy: isMultiDayRange ? 'MANUAL_RANGE' : 'MANUAL_RERUN',
-                notifySuperAdmins: isLastDay ? rerunNotify : false
-              }
-            );
+            res = await apiClient.post('/api/v1/admin/reports/cronjobs/rerun', {
+              jobKey: normalizedJobKey,
+              reportDate: dayStr,
+              fromDate: dayStr,
+              toDate: dayStr,
+              triggeredBy: isMultiDayRange ? 'MANUAL_RANGE' : 'MANUAL_RERUN',
+              notifySuperAdmins: isLastDay ? rerunNotify : false
+            });
             break;
           } catch (dayErr: any) {
             const status = dayErr?.response?.status;
-            if (
-              (status === 429 || !status) &&
-              attempt < 3 &&
-              !abortRunRef.current
-            ) {
+            if ((status === 429 || !status) && attempt < 3 && !abortRunRef.current) {
               await new Promise((r) => setTimeout(r, attempt * 1500));
               continue;
             }
@@ -893,13 +916,9 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
               s.reportDate === dayStr
                 ? {
                     ...s,
-                    hubCount: Math.max(
-                      1,
-                      Number(createdLog.upsertedHubRows) || s.hubCount || 20
-                    ),
+                    hubCount: Math.max(1, Number(createdLog.upsertedHubRows) || s.hubCount || 20),
                     triggeredBy: createdLog.triggeredBy || s.triggeredBy,
-                    calculatedAt:
-                      createdLog.finishedAt || new Date().toISOString(),
+                    calculatedAt: createdLog.finishedAt || new Date().toISOString(),
                     inboundCbm: Number(summary.totalInboundCbm) || 0,
                     inboundTons: Number(summary.totalInboundTons) || 0,
                     inboundTrips: Number(summary.totalInboundTrips) || 0,
@@ -924,10 +943,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
       }
 
       if (accProcessedDays > 0) {
-        const finalWindow = computeRangeWindowPreview(
-          orderedFrom,
-          lastSuccessDate
-        ).windowLabel;
+        const finalWindow = computeRangeWindowPreview(orderedFrom, lastSuccessDate).windowLabel;
 
         setLastRerunResult({
           jobKey: normalizedJobKey,
@@ -968,6 +984,16 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   };
 
   const handleSaveCronConfig = async () => {
+    const isFlexibleSnapshot = normalizedJobKey === 'WAREHOUSE_HUB_ORDER_TOTALS';
+    const snapshotCron = isFlexibleSnapshot
+      ? buildSnapshotCron(
+          cfgSnapshotMode,
+          cfgSnapshotValue,
+          cfgSnapshotTime,
+          cfgSnapshotWeekday,
+          cfgSnapshotMonthDay
+        )
+      : undefined;
     if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(cfgCronTime.trim())) {
       toast.error('Giờ chạy hàng ngày phải đúng định dạng HH:mm (ví dụ 18:05)');
       return;
@@ -978,10 +1004,11 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
         jobKey: normalizedJobKey,
         isEnabled: cfgEnabled,
         cronTime: cfgCronTime.trim(),
+        ...(snapshotCron ? { cronExpression: snapshotCron } : {}),
         notifySuperAdmins: cfgNotify
       });
       toast.success(
-        `Đã lưu cấu hình ${normalizedJobKey} (${cfgEnabled ? `Tự động chạy lúc ${cfgCronTime}` : 'Tạm dừng'})`
+        `Đã lưu cấu hình ${normalizedJobKey} (${cfgEnabled ? `Lịch ${snapshotCron || cfgCronTime}` : 'Tạm dừng'})`
       );
       await loadCronDetailData(true);
     } catch (err) {
@@ -1015,17 +1042,15 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
         return false;
       }
       if (q) {
-        const hay = `${log.id} ${log.jobKey} ${log.targetDate} ${log.targetEndDate} ${formatDateVn(log.targetDate)} ${formatDateVn(log.targetEndDate)} ${log.actorEmail || ''} ${log.triggeredBy}`.toLowerCase();
+        const hay =
+          `${log.id} ${log.jobKey} ${log.targetDate} ${log.targetEndDate} ${formatDateVn(log.targetDate)} ${formatDateVn(log.targetEndDate)} ${log.actorEmail || ''} ${log.triggeredBy}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
   }, [jobLogs, logStatusFilter, logSearch]);
 
-  const dailySnapshots = useMemo(
-    () => data?.dailySnapshots || [],
-    [data?.dailySnapshots]
-  );
+  const dailySnapshots = useMemo(() => data?.dailySnapshots || [], [data?.dailySnapshots]);
 
   const populatedDaysCount = useMemo(
     () => dailySnapshots.filter((s) => s.hubCount > 0).length,
@@ -1033,15 +1058,10 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
   );
 
   const progressPercent =
-    totalDaysToRun > 0
-      ? Math.min(100, Math.round((completedDaysCount / totalDaysToRun) * 100))
-      : 0;
+    totalDaysToRun > 0 ? Math.min(100, Math.round((completedDaysCount / totalDaysToRun) * 100)) : 0;
 
   return (
-    <div
-      className='space-y-2 pb-2'
-      data-testid='super-admin-cronjob-detail-page'
-    >
+    <div className='space-y-2 pb-2' data-testid='super-admin-cronjob-detail-page'>
       {/* 1. Header Điều hướng & Định danh Tác vụ Cronjob */}
       <Card className='p-2 border-slate-200 dark:border-slate-800 shadow-2xs'>
         <CardContent className='p-0 space-y-1.5'>
@@ -1063,10 +1083,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 {currentJob?.name || normalizedJobKey}
               </span>
 
-              <Badge
-                variant='outline'
-                className='text-[10px] font-mono px-1.5 py-0'
-              >
+              <Badge variant='outline' className='text-[10px] font-mono px-1.5 py-0'>
                 {normalizedJobKey}
               </Badge>
 
@@ -1088,9 +1105,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
               </span>
               <select
                 value={normalizedJobKey}
-                onChange={(e) =>
-                  router.push(`/dashboard/admin/cronjobs/${e.target.value}`)
-                }
+                onChange={(e) => router.push(`/dashboard/admin/cronjobs/${e.target.value}`)}
                 data-testid='select-switch-cronjob'
                 className='h-7 rounded border border-input bg-background px-2 text-[10px] font-mono font-semibold'
               >
@@ -1115,9 +1130,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
               </strong>{' '}
               • Lần chạy cuối:{' '}
               <strong className='text-foreground'>
-                {currentJob?.lastRunAt
-                  ? formatDateTimeVn(currentJob.lastRunAt)
-                  : 'Chưa chạy'}
+                {currentJob?.lastRunAt ? formatDateTimeVn(currentJob.lastRunAt) : 'Chưa chạy'}
               </strong>
             </span>
           </div>
@@ -1344,14 +1357,14 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
               >
                 <div className='flex flex-wrap items-center justify-between gap-1 text-[10px]'>
                   <span className='font-bold text-slate-700 dark:text-slate-200'>
-                    Danh sách tách nhỏ từng ngày ({rangePreview.daysList.length}{' '}
-                    ngày — chạy tuần tự từ {formatDateVn(rangePreview.orderedFrom)}{' '}
-                    đến {formatDateVn(rangePreview.orderedTo)}):
+                    Danh sách tách nhỏ từng ngày ({rangePreview.daysList.length} ngày — chạy tuần tự
+                    từ {formatDateVn(rangePreview.orderedFrom)} đến{' '}
+                    {formatDateVn(rangePreview.orderedTo)}):
                   </span>
                   {runningKey === 'MAIN_FORM' && currentRunningDay ? (
                     <span className='font-mono font-bold text-blue-700 dark:text-blue-300'>
-                      Đang xử lý ngày {formatDateVn(currentRunningDay)} (
-                      {completedDaysCount}/{totalDaysToRun} • {progressPercent}
+                      Đang xử lý ngày {formatDateVn(currentRunningDay)} ({completedDaysCount}/
+                      {totalDaysToRun} • {progressPercent}
                       %)
                     </span>
                   ) : completedDaysCount > 0 ? (
@@ -1366,15 +1379,14 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 </div>
 
                 {/* Thanh Progress Bar khi đang chạy hoặc vừa chạy xong nhiều ngày */}
-                {(runningKey === 'MAIN_FORM' || completedDaysCount > 0) &&
-                  totalDaysToRun > 1 && (
-                    <div className='w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden'>
-                      <div
-                        className='h-full bg-emerald-600 transition-all duration-150'
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                  )}
+                {(runningKey === 'MAIN_FORM' || completedDaysCount > 0) && totalDaysToRun > 1 && (
+                  <div className='w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden'>
+                    <div
+                      className='h-full bg-emerald-600 transition-all duration-150'
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                )}
 
                 {/* Lưới hiển thị từng ngày được tách ra (cuộn gọn tối đa 28rem) */}
                 <div className='flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5'>
@@ -1386,11 +1398,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                         type='button'
                         disabled={runningKey !== null}
                         onClick={() =>
-                          void handleExecuteRerunRange(
-                            dayYmd,
-                            dayYmd,
-                            `PILL:${dayYmd}`
-                          )
+                          void handleExecuteRerunRange(dayYmd, dayYmd, `PILL:${dayYmd}`)
                         }
                         title={`Bấm để chạy riêng ngày ${formatDateVn(dayYmd)} (Khung 18:00 ${formatDateVn(shiftDateYmd(dayYmd, -1))} → 18:00 ${formatDateVn(dayYmd)})`}
                         data-testid={`split-day-pill-${dayYmd}`}
@@ -1404,9 +1412,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-400'
                         }`}
                       >
-                        <span className='text-muted-foreground'>
-                          {idx + 1}.
-                        </span>
+                        <span className='text-muted-foreground'>{idx + 1}.</span>
                         <span>{formatDateVn(dayYmd)}</span>
                         {st === 'RUNNING' && (
                           <>
@@ -1465,8 +1471,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                     </span>
                   </div>
                   <Badge className='bg-emerald-600 text-white text-[10px] font-mono px-1.5 py-0'>
-                    {lastRerunResult.processedDays} ngày •{' '}
-                    {lastRerunResult.upsertedRows} dòng Hub •{' '}
+                    {lastRerunResult.processedDays} ngày • {lastRerunResult.upsertedRows} dòng Hub •{' '}
                     {lastRerunResult.durationMs} ms
                   </Badge>
                 </div>
@@ -1476,18 +1481,16 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                     <span>
                       Nhập kho:{' '}
                       <strong>
-                        {lastRerunResult.totalInboundCbm} CBM •{' '}
-                        {lastRerunResult.totalInboundTons} tấn •{' '}
-                        {lastRerunResult.totalInboundTrips} chuyến
+                        {lastRerunResult.totalInboundCbm} CBM • {lastRerunResult.totalInboundTons}{' '}
+                        tấn • {lastRerunResult.totalInboundTrips} chuyến
                       </strong>
                     </span>
                     <span>|</span>
                     <span>
                       Xuất kho:{' '}
                       <strong>
-                        {lastRerunResult.totalOutboundCbm} CBM •{' '}
-                        {lastRerunResult.totalOutboundTons} tấn •{' '}
-                        {lastRerunResult.totalOutboundTrips} chuyến
+                        {lastRerunResult.totalOutboundCbm} CBM • {lastRerunResult.totalOutboundTons}{' '}
+                        tấn • {lastRerunResult.totalOutboundTrips} chuyến
                       </strong>
                     </span>
                   </div>
@@ -1526,10 +1529,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                   Cấu hình Lịch chạy Định kỳ
                 </h2>
               </div>
-              <Badge
-                variant='outline'
-                className='text-[10px] font-mono px-1.5 py-0'
-              >
+              <Badge variant='outline' className='text-[10px] font-mono px-1.5 py-0'>
                 {normalizedJobKey}
               </Badge>
             </div>
@@ -1556,9 +1556,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                   </span>
                   <span
                     className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
-                      cfgEnabled
-                        ? 'bg-emerald-600'
-                        : 'bg-slate-300 dark:bg-slate-600'
+                      cfgEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'
                     }`}
                   >
                     <span
@@ -1570,18 +1568,119 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 </button>
               </div>
 
-              <div>
-                <label className='block text-[10px] font-bold uppercase text-muted-foreground mb-1'>
-                  Giờ chạy mỗi ngày (GMT+7)
-                </label>
-                <Input
-                  type='time'
-                  value={cfgCronTime}
-                  onChange={(e) => setCfgCronTime(e.target.value)}
-                  className='h-8 text-xs font-mono font-bold'
-                  data-testid='input-cron-time'
-                />
-              </div>
+              {normalizedJobKey === 'WAREHOUSE_HUB_ORDER_TOTALS' ? (
+                <div className='sm:col-span-2 space-y-1.5 rounded border border-blue-200 bg-blue-50/50 p-1.5 dark:border-blue-900/60 dark:bg-blue-950/20'>
+                  <div className='flex items-center justify-between gap-2'>
+                    <label className='text-[10px] font-bold uppercase text-blue-900 dark:text-blue-200'>
+                      Lịch tự động Snapshot (GMT+7)
+                    </label>
+                    <span className='font-mono text-[10px] text-blue-700 dark:text-blue-300'>
+                      {buildSnapshotCron(
+                        cfgSnapshotMode,
+                        cfgSnapshotValue,
+                        cfgSnapshotTime,
+                        cfgSnapshotWeekday,
+                        cfgSnapshotMonthDay
+                      )}
+                    </span>
+                  </div>
+                  <div className='grid grid-cols-2 gap-1.5 sm:grid-cols-4'>
+                    <select
+                      value={cfgSnapshotMode}
+                      onChange={(e) => setCfgSnapshotMode(e.target.value as SnapshotScheduleMode)}
+                      className='h-8 rounded border border-input bg-background px-1.5 text-[11px]'
+                      aria-label='Kiểu lịch Snapshot'
+                      data-testid='select-snapshot-schedule-mode'
+                    >
+                      <option value='everyMinutes'>Mỗi N phút</option>
+                      <option value='everyHours'>Mỗi N giờ</option>
+                      <option value='daily'>Mỗi ngày</option>
+                      <option value='weekly'>Mỗi tuần</option>
+                      <option value='monthly'>Mỗi tháng</option>
+                      <option value='custom'>Nâng cao</option>
+                    </select>
+                    {cfgSnapshotMode === 'custom' && (
+                      <Input
+                        value={cfgSnapshotValue}
+                        onChange={(e) => setCfgSnapshotValue(e.target.value)}
+                        className='col-span-2 h-8 text-[11px] font-mono font-bold sm:col-span-3'
+                        placeholder='*/5 * * * *'
+                        aria-label='Biểu thức cron nâng cao'
+                        data-testid='input-snapshot-cron-expression'
+                      />
+                    )}
+                    {(cfgSnapshotMode === 'everyMinutes' || cfgSnapshotMode === 'everyHours') && (
+                      <Input
+                        type='number'
+                        min={1}
+                        max={cfgSnapshotMode === 'everyMinutes' ? 59 : 23}
+                        value={cfgSnapshotValue}
+                        onChange={(e) => setCfgSnapshotValue(e.target.value)}
+                        className='h-8 text-[11px] font-mono font-bold'
+                        aria-label='Chu kỳ Snapshot'
+                        data-testid='input-snapshot-interval'
+                      />
+                    )}
+                    {cfgSnapshotMode !== 'everyMinutes' &&
+                      cfgSnapshotMode !== 'everyHours' &&
+                      cfgSnapshotMode !== 'custom' && (
+                        <Input
+                          type='time'
+                          value={cfgSnapshotTime}
+                          onChange={(e) => setCfgSnapshotTime(e.target.value)}
+                          className='h-8 text-[11px] font-mono font-bold'
+                          aria-label='Giờ chạy Snapshot'
+                          data-testid='input-snapshot-time'
+                        />
+                      )}
+                    {cfgSnapshotMode === 'weekly' && (
+                      <select
+                        value={cfgSnapshotWeekday}
+                        onChange={(e) => setCfgSnapshotWeekday(e.target.value)}
+                        className='h-8 rounded border border-input bg-background px-1.5 text-[11px]'
+                        aria-label='Ngày trong tuần'
+                        data-testid='select-snapshot-weekday'
+                      >
+                        <option value='1'>Thứ 2</option>
+                        <option value='2'>Thứ 3</option>
+                        <option value='3'>Thứ 4</option>
+                        <option value='4'>Thứ 5</option>
+                        <option value='5'>Thứ 6</option>
+                        <option value='6'>Thứ 7</option>
+                        <option value='0'>Chủ nhật</option>
+                      </select>
+                    )}
+                    {cfgSnapshotMode === 'monthly' && (
+                      <Input
+                        type='number'
+                        min={1}
+                        max={31}
+                        value={cfgSnapshotMonthDay}
+                        onChange={(e) => setCfgSnapshotMonthDay(e.target.value)}
+                        className='h-8 text-[11px] font-mono font-bold'
+                        aria-label='Ngày trong tháng'
+                        data-testid='input-snapshot-month-day'
+                      />
+                    )}
+                  </div>
+                  <p className='text-[10px] text-blue-800/80 dark:text-blue-200/80'>
+                    Chọn cách chạy; hệ thống tự chuyển thành biểu thức cron chuẩn.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className='block text-[10px] font-bold uppercase text-muted-foreground mb-1'>
+                    Giờ chạy mỗi ngày (GMT+7)
+                  </label>
+                  <Input
+                    type='time'
+                    value={cfgCronTime}
+                    onChange={(e) => setCfgCronTime(e.target.value)}
+                    className='h-8 text-xs font-mono font-bold'
+                    data-testid='input-cron-time'
+                  />
+                </div>
+              )}
 
               <div>
                 <Button
@@ -1655,8 +1754,8 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 }`}
               >
                 <IconCalendarStats className='h-3.5 w-3.5' />
-                Trạng thái dữ liệu 30 ngày ({populatedDaysCount}/
-                {dailySnapshots.length} ngày đã có kết quả)
+                Trạng thái dữ liệu 30 ngày ({populatedDaysCount}/{dailySnapshots.length} ngày đã có
+                kết quả)
               </button>
             </div>
 
@@ -1725,9 +1824,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 data-testid='btn-refresh-cron-detail'
                 className='h-7 px-2 text-[10px] font-semibold cursor-pointer'
               >
-                <IconRefresh
-                  className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`}
-                />
+                <IconRefresh className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
                 Làm mới
               </Button>
             </div>
@@ -1744,9 +1841,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                     <th className='py-1 px-1.5'>Mã lượt</th>
                     <th className='py-1 px-1.5'>Thời điểm chạy</th>
                     <th className='py-1 px-1.5'>Ngày báo cáo mục tiêu</th>
-                    <th className='py-1 px-1.5'>
-                      Khung giờ quét (06:00 D → 05:59 D+1)
-                    </th>
+                    <th className='py-1 px-1.5'>Khung giờ quét (06:00 D → 05:59 D+1)</th>
                     <th className='py-1 px-1.5'>Loại kích hoạt</th>
                     <th className='py-1 px-1.5'>Sản lượng Nhập / Xuất chốt</th>
                     <th className='py-1 px-1.5 text-right'>Số dòng cập nhật</th>
@@ -1758,24 +1853,15 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 <tbody className='divide-y divide-border/60 text-[10px]'>
                   {filteredLogs.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={10}
-                        className='py-4 text-center text-xs text-muted-foreground'
-                      >
-                        Chưa có nhật ký thực thi nào cho tác vụ{' '}
-                        {normalizedJobKey}. Hãy chọn khoảng ngày ở trên và bấm
-                        Chạy để tạo kết quả báo cáo.
+                      <td colSpan={10} className='py-4 text-center text-xs text-muted-foreground'>
+                        Chưa có nhật ký thực thi nào cho tác vụ {normalizedJobKey}. Hãy chọn khoảng
+                        ngày ở trên và bấm Chạy để tạo kết quả báo cáo.
                       </td>
                     </tr>
                   ) : (
                     filteredLogs.map((log) => (
-                      <tr
-                        key={log.id}
-                        className='hover:bg-muted/60 transition-colors'
-                      >
-                        <td className='py-1 px-1.5 font-mono font-bold text-[11px]'>
-                          #{log.id}
-                        </td>
+                      <tr key={log.id} className='hover:bg-muted/60 transition-colors'>
+                        <td className='py-1 px-1.5 font-mono font-bold text-[11px]'>#{log.id}</td>
                         <td className='py-1 px-1.5 font-mono text-muted-foreground'>
                           {formatDateTimeVn(log.startedAt)}
                         </td>
@@ -1786,10 +1872,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                                 ? formatDateVn(log.targetDate)
                                 : `${formatDateVn(log.targetDate)} → ${formatDateVn(log.targetEndDate)}`}
                             </span>
-                            <Badge
-                              variant='outline'
-                              className='text-[10px] font-mono px-1 py-0'
-                            >
+                            <Badge variant='outline' className='text-[10px] font-mono px-1 py-0'>
                               {log.processedDays || 1} ngày
                             </Badge>
                           </div>
@@ -1797,14 +1880,11 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                         <td className='py-1 px-1.5 font-mono text-muted-foreground'>
                           {log.windowLabel}
                         </td>
-                        <td className='py-1 px-1.5'>
-                          {getTriggerBadge(log.triggeredBy)}
-                        </td>
+                        <td className='py-1 px-1.5'>{getTriggerBadge(log.triggeredBy)}</td>
                         <td className='py-1 px-1.5 font-mono'>
-                          Nhập: {log.totalInboundCbm ?? 0} CBM (
-                          {log.totalInboundTrips ?? 0} chuyến) • Xuất:{' '}
-                          {log.totalOutboundCbm ?? 0} CBM (
-                          {log.totalOutboundTrips ?? 0} chuyến)
+                          Nhập: {log.totalInboundCbm ?? 0} CBM ({log.totalInboundTrips ?? 0} chuyến)
+                          • Xuất: {log.totalOutboundCbm ?? 0} CBM ({log.totalOutboundTrips ?? 0}{' '}
+                          chuyến)
                         </td>
                         <td className='py-1 px-1.5 text-right font-mono'>
                           {log.upsertedHubRows} dòng Hub
@@ -1860,18 +1940,10 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                 <thead className='sticky top-0 z-10 bg-slate-100 dark:bg-slate-900 text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 border-b'>
                   <tr>
                     <th className='py-1 px-1.5'>Ngày báo cáo</th>
-                    <th className='py-1 px-1.5'>
-                      Khung giờ chốt (06:00 D → 05:59 D+1)
-                    </th>
-                    <th className='py-1 px-1.5 text-center'>
-                      Trạng thái dữ liệu DB
-                    </th>
-                    <th className='py-1 px-1.5 text-right'>
-                      Nhập kho (CBM / Tấn / Chuyến)
-                    </th>
-                    <th className='py-1 px-1.5 text-right'>
-                      Xuất kho (CBM / Tấn / Chuyến)
-                    </th>
+                    <th className='py-1 px-1.5'>Khung giờ chốt (06:00 D → 05:59 D+1)</th>
+                    <th className='py-1 px-1.5 text-center'>Trạng thái dữ liệu DB</th>
+                    <th className='py-1 px-1.5 text-right'>Nhập kho (CBM / Tấn / Chuyến)</th>
+                    <th className='py-1 px-1.5 text-right'>Xuất kho (CBM / Tấn / Chuyến)</th>
                     <th className='py-1 px-1.5'>Cập nhật lúc</th>
                     <th className='py-1 px-1.5 text-right'>Thao tác</th>
                   </tr>
@@ -1887,10 +1959,7 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                       snap.hubCount > 0 &&
                       (!latestLogForDay || latestLogForDay.status === 'SUCCESS');
                     return (
-                      <tr
-                        key={snap.reportDate}
-                        className='hover:bg-muted/60 transition-colors'
-                      >
+                      <tr key={snap.reportDate} className='hover:bg-muted/60 transition-colors'>
                         <td className='py-1 px-1.5 font-mono font-bold text-[11px] text-[#0F3D62] dark:text-blue-300'>
                           {snap.fullDateLabel}
                         </td>
@@ -1909,17 +1978,15 @@ export function SuperAdminCronjobDetail({ jobKey }: { jobKey: string }) {
                           )}
                         </td>
                         <td className='py-1 px-1.5 text-right font-mono'>
-                          {snap.inboundCbm} CBM • {snap.inboundTons} tấn •{' '}
-                          {snap.inboundTrips} chuyến
+                          {snap.inboundCbm} CBM • {snap.inboundTons} tấn • {snap.inboundTrips}{' '}
+                          chuyến
                         </td>
                         <td className='py-1 px-1.5 text-right font-mono'>
-                          {snap.outboundCbm} CBM • {snap.outboundTons} tấn •{' '}
-                          {snap.outboundTrips} chuyến
+                          {snap.outboundCbm} CBM • {snap.outboundTons} tấn • {snap.outboundTrips}{' '}
+                          chuyến
                         </td>
                         <td className='py-1 px-1.5 font-mono text-muted-foreground'>
-                          {snap.calculatedAt
-                            ? formatDateTimeVn(snap.calculatedAt)
-                            : '—'}
+                          {snap.calculatedAt ? formatDateTimeVn(snap.calculatedAt) : '—'}
                         </td>
                         <td className='py-1 px-1.5 text-right'>
                           <Button
