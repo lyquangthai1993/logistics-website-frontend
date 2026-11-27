@@ -100,6 +100,15 @@ export const navGroups: NavGroup[] = [
         access: { role: 'SUPER_ADMIN,REPORT_VIEWER' }
       },
       {
+        title: 'Hàng đợi chỉnh sửa',
+        url: '/dashboard/admin/edit-queue',
+        icon: 'edit',
+        shortcut: ['e', 'q'],
+        isActive: false,
+        items: [],
+        access: { role: 'SUPER_ADMIN' }
+      },
+      {
         title: 'Theo dõi TRIP theo ngày',
         url: '/dashboard/admin/reports/trips',
         icon: 'trips',
