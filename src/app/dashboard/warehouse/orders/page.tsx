@@ -228,6 +228,11 @@ export default function WarehouseOrdersPage() {
   const [selectedWaybill, setSelectedWaybill] = useState<WaybillDetailData | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+  const openWaybillDetail = useCallback((target: any) => {
+    setSelectedWaybill(target);
+    setIsDetailModalOpen(true);
+  }, []);
+
   // Delete draft handler
   const handleDeleteDraft = async (id: number, code: string) => {
     if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng nháp "${code}" không?`)) return;
@@ -399,9 +404,7 @@ export default function WarehouseOrdersPage() {
           const provinceStr = resolveOrderProvince(item) || resolveOrderProvince(order) || '—';
           const apiRegion = item.destinationRegion || order.destinationRegion;
           const regionStr =
-            apiRegion === 'N/A'
-              ? 'CHƯA PHÂN MIỀN (N/A)'
-              : apiRegion || 'CHƯA PHÂN MIỀN (N/A)';
+            apiRegion === 'N/A' ? 'CHƯA PHÂN MIỀN (N/A)' : apiRegion || 'CHƯA PHÂN MIỀN (N/A)';
 
           const resolvedStatus = (
             resolveDisplayStatus(item) ||
@@ -926,9 +929,7 @@ export default function WarehouseOrdersPage() {
           weightKg: Number(summary.weightKg ?? 0),
           volumeCbm: Number(summary.volumeCbm ?? 0)
         });
-        setAdminTotalsUpdatedAt(
-          summary.calculatedAt ? new Date(summary.calculatedAt) : null
-        );
+        setAdminTotalsUpdatedAt(summary.calculatedAt ? new Date(summary.calculatedAt) : null);
       })
       .catch(() => {
         if (!isCancelled) {
@@ -1404,15 +1405,10 @@ export default function WarehouseOrdersPage() {
                     </tr>
                   ) : (
                     data.map((row, idx) => {
-                      const openDetail = (target: any) => {
-                        setSelectedWaybill(target);
-                        setIsDetailModalOpen(true);
-                      };
-
                       return (
                         <tr
                           key={`${row.orderCode}-${row.id}`}
-                          onClick={() => openDetail(row)}
+                          onClick={() => openWaybillDetail(row)}
                           className='group hover:bg-blue-50/40 dark:hover:bg-slate-800/40 cursor-pointer transition-colors'
                         >
                           <td className='hidden md:table-cell py-1 px-1 w-9 min-w-9 max-w-9 text-center font-mono text-gray-400 text-[10px] md:sticky md:left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-blue-50/60 dark:group-hover:bg-slate-800/60 border-b border-gray-100 dark:border-gray-800'>
@@ -1478,7 +1474,7 @@ export default function WarehouseOrdersPage() {
                             className='py-1 px-1.5 text-center'
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {renderActions(row, openDetail)}
+                            {renderActions(row, openWaybillDetail)}
                           </td>
                         </tr>
                       );

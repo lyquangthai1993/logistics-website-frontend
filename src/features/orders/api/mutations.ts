@@ -110,8 +110,16 @@ export function useAdminOverrideOrderMutation() {
     mutationFn: ({ id, payload }: { id: number; payload: AdminOverrideOrderPayload }) =>
       adminOverrideOrder(id, payload),
     onSuccess: async () => {
-      // orderKeys.all covers list, detail and ledger keys
+      // Refresh every live surface that reads the order contract or its derived metrics.
       await queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'kpi'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-operational-report'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-regional-dispatch-report'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-regional-dispatch-report-table'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-daily-trips-detail'] })
+      ]);
     }
   });
 }

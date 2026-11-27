@@ -149,6 +149,21 @@ function getTripBoardHref(
   return `${boardPath}?${params.toString()}`;
 }
 
+function AdminFieldEditButton({ field, onClick }: { field: string; onClick: () => void }) {
+  return (
+    <button
+      type='button'
+      data-testid={`btn-admin-edit-field-${field}`}
+      aria-label={`Chỉnh sửa ${field}`}
+      title={`Super Admin: chỉnh sửa ${field}`}
+      onClick={onClick}
+      className='inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/70'
+    >
+      <IconPencil className='h-2.5 w-2.5' aria-hidden='true' />
+    </button>
+  );
+}
+
 function TripCodeLink({
   tripCode,
   type,
@@ -305,9 +320,6 @@ export function WarehouseWaybillDetailModal({
     String((user?.role as any)?.name || user?.role || '').toUpperCase() === 'ADMIN' ||
     serverData?.userRole === 'SUPER_ADMIN'
   );
-  const isStoredOrder = ['INBOUND', 'STORED', 'LUU_KHO', 'IN_WAREHOUSE'].includes(
-    String(serverData?.order?.status ?? waybill?.status ?? '').toUpperCase()
-  );
   const adminOverrideOrder = waybill
     ? ({
         ...waybill,
@@ -319,6 +331,8 @@ export function WarehouseWaybillDetailModal({
         updatedAt: String(waybill.updatedAt ?? new Date().toISOString())
       } as Order)
     : null;
+  const adminOverrideHubId =
+    warehouseHubId ?? waybill?.currentHubEntity?.id ?? waybill?.originHubId ?? null;
 
   // Inline quantity edit state for Super Admin (click pencil icon on transaction line)
   const [editingTx, setEditingTx] = useState<{
@@ -950,7 +964,7 @@ export function WarehouseWaybillDetailModal({
               </div>
             </div>
             <div className='ml-auto flex shrink-0 items-center gap-1.5'>
-              {isSuperAdmin && isStoredOrder && warehouseHubId && adminOverrideOrder && (
+              {isSuperAdmin && adminOverrideOrder && (
                 <Button
                   type='button'
                   variant='outline'
@@ -1963,83 +1977,155 @@ export function WarehouseWaybillDetailModal({
                         {waybill.orderCode}
                       </td>
                       <td className='py-2.5 px-3 font-medium text-slate-700 dark:text-slate-300'>
-                        {waybill.pickupAddress || waybill.originHub || 'Kho gửi'}
+                        <span className='inline-flex items-start gap-1'>
+                          {waybill.pickupAddress || waybill.originHub || 'Kho gửi'}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='địa chỉ nhận hàng'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100'>
-                        {waybill.goodsDescription || 'Hàng hóa tổng quan'}
+                        <span className='inline-flex items-start gap-1'>
+                          {waybill.goodsDescription || 'Hàng hóa tổng quan'}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='tên hàng hóa'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100'>
-                        {waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}
+                        <span className='inline-flex items-center justify-end gap-1'>
+                          {waybill.totalQuantity ?? serverData?.order?.totalQuantity ?? 1}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='số kiện'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300'>
-                        {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')} kg
+                        <span className='inline-flex items-center justify-end gap-1'>
+                          {(waybill.totalWeight ?? 0).toLocaleString('vi-VN')} kg
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='khối lượng'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300'>
-                        {waybill.totalVolume ?? 0} CBM
+                        <span className='inline-flex items-center justify-end gap-1'>
+                          {waybill.totalVolume ?? 0} CBM
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='thể tích'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 text-slate-700 dark:text-slate-300'>
-                        {waybill.originalDestination ||
-                          waybill.destinationHub ||
-                          waybill.deliveryAddress ||
-                          'Điểm đích'}
+                        <span className='inline-flex items-start gap-1'>
+                          {waybill.originalDestination ||
+                            waybill.destinationHub ||
+                            waybill.deliveryAddress ||
+                            'Điểm đích'}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='địa chỉ giao hàng'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200'>
-                        {waybill.province ? (
-                          <Badge
-                            variant='outline'
-                            className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 font-bold text-[11px]'
-                          >
-                            {waybill.province}
-                          </Badge>
-                        ) : (
-                          <span className='text-gray-400'>—</span>
-                        )}
+                        <span className='inline-flex items-center gap-1'>
+                          {waybill.province ? (
+                            <Badge
+                              variant='outline'
+                              className='bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 font-bold text-[11px]'
+                            >
+                              {waybill.province}
+                            </Badge>
+                          ) : (
+                            <span className='text-gray-400'>—</span>
+                          )}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='tỉnh thành'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 text-center'>
-                        {waybill.accompanyingDocs &&
-                        waybill.accompanyingDocs.toUpperCase() !== 'KHÔNG CÓ' ? (
-                          <Badge
-                            variant='outline'
-                            className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
-                          >
-                            {waybill.accompanyingDocs}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant='outline'
-                            className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
-                          >
-                            {waybill.accompanyingDocs || 'Không có'}
-                          </Badge>
-                        )}
+                        <span className='inline-flex items-center gap-1'>
+                          {waybill.accompanyingDocs &&
+                          waybill.accompanyingDocs.toUpperCase() !== 'KHÔNG CÓ' ? (
+                            <Badge
+                              variant='outline'
+                              className='bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]'
+                            >
+                              {waybill.accompanyingDocs}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant='outline'
+                              className='bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px]'
+                            >
+                              {waybill.accompanyingDocs || 'Không có'}
+                            </Badge>
+                          )}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='chứng từ'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2.5 px-3 text-center'>
-                        {waybill.destinationHubEntity?.level === 2 ||
-                        waybill.deliveryMode === 'XE_BO' ||
-                        /xe\s*bo/i.test(waybill.destinationHub ?? '') ? (
-                          <Badge
-                            variant='outline'
-                            className='border-purple-500/25 bg-purple-500/15 text-[10px] font-semibold text-purple-700 dark:text-purple-300'
-                          >
-                            Cấp 2 • Trạm Xe Bo
-                          </Badge>
-                        ) : waybill.deliveryMode === 'HUB_L1' ||
-                          waybill.destinationHubEntity?.level === 1 ||
-                          !!waybill.destinationHubId ? (
-                          <Badge
-                            variant='outline'
-                            className='border-blue-500/25 bg-blue-500/15 text-[10px] font-semibold text-blue-700 dark:text-blue-300'
-                          >
-                            Cấp 1 • Hub Chính
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant='outline'
-                            className='bg-slate-50 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                          >
-                            Giao thẳng
-                          </Badge>
-                        )}
+                        <span className='inline-flex items-center gap-1'>
+                          {waybill.destinationHubEntity?.level === 2 ||
+                          waybill.deliveryMode === 'XE_BO' ||
+                          /xe\s*bo/i.test(waybill.destinationHub ?? '') ? (
+                            <Badge
+                              variant='outline'
+                              className='border-purple-500/25 bg-purple-500/15 text-[10px] font-semibold text-purple-700 dark:text-purple-300'
+                            >
+                              Cấp 2 • Trạm Xe Bo
+                            </Badge>
+                          ) : waybill.deliveryMode === 'HUB_L1' ||
+                            waybill.destinationHubEntity?.level === 1 ||
+                            !!waybill.destinationHubId ? (
+                            <Badge
+                              variant='outline'
+                              className='border-blue-500/25 bg-blue-500/15 text-[10px] font-semibold text-blue-700 dark:text-blue-300'
+                            >
+                              Cấp 1 • Hub Chính
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant='outline'
+                              className='bg-slate-50 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                            >
+                              Giao thẳng
+                            </Badge>
+                          )}
+                          {isSuperAdmin && adminOverrideOrder && (
+                            <AdminFieldEditButton
+                              field='hình thức giao'
+                              onClick={() => setIsAdminOverrideOpen(true)}
+                            />
+                          )}
+                        </span>
                       </td>
                     </tr>
                   </tbody>
@@ -2225,7 +2311,7 @@ export function WarehouseWaybillDetailModal({
           order={adminOverrideOrder}
           open={isAdminOverrideOpen}
           onOpenChange={setIsAdminOverrideOpen}
-          warehouseHubId={warehouseHubId}
+          warehouseHubId={adminOverrideHubId}
           onSuccess={() => {
             setIsAdminOverrideOpen(false);
             void reloadData();
