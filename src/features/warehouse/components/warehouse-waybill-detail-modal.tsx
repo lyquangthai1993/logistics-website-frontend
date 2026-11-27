@@ -120,7 +120,7 @@ interface WarehouseWaybillDetailModalProps {
   waybill: WaybillDetailData | null;
   onStartTally?: (waybill: WaybillDetailData) => void;
   onPrintLabel?: (waybill: WaybillDetailData) => void;
-  onSuccess?: () => void;
+  onSuccess?: (updatedOrder?: Partial<WaybillDetailData>) => void;
   warehouseHubId?: number | null;
 }
 
@@ -2312,10 +2312,29 @@ export function WarehouseWaybillDetailModal({
           open={isAdminOverrideOpen}
           onOpenChange={setIsAdminOverrideOpen}
           warehouseHubId={adminOverrideHubId}
-          onSuccess={() => {
+          onSuccess={async (updatedOrder) => {
             setIsAdminOverrideOpen(false);
-            void reloadData();
-            onSuccess?.();
+            await reloadData();
+
+            // The detail modal receives a snapshot row from the list. Re-fetch the
+            // complete order so static fields (description, quantities, addresses,
+            // weight, volume, etc.) update immediately without a full page reload.
+            let latestOrder: Partial<WaybillDetailData> =
+              updatedOrder as unknown as Partial<WaybillDetailData>;
+            try {
+              const token = tokenManager.getAccessToken();
+              const response = await fetch(
+                `/api/v1/orders/${encodeURIComponent(updatedOrder.orderCode)}`,
+                { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+              );
+              if (response.ok) {
+                latestOrder = (await response.json()) as Partial<WaybillDetailData>;
+              }
+            } catch {
+              // Keep the mutation response as a safe immediate fallback.
+            }
+
+            onSuccess?.(latestOrder);
           }}
         />
       )}

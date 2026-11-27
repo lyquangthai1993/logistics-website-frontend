@@ -316,7 +316,12 @@ export default function AdminEditQueuePage() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         waybill={selectedWaybill}
-        onSuccess={fetchQueue}
+        onSuccess={(updatedOrder) => {
+          void fetchQueue();
+          if (updatedOrder) {
+            setSelectedWaybill((current) => (current ? { ...current, ...updatedOrder } : current));
+          }
+        }}
         warehouseHubId={hubId !== 'ALL' ? Number(hubId) : null}
       />
     </PageContainer>
