@@ -1514,7 +1514,14 @@ export default function WarehouseOrdersPage() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           waybill={selectedWaybill}
-          onSuccess={fetchOrders}
+          onSuccess={(updatedOrder) => {
+            void fetchOrders();
+            if (updatedOrder) {
+              setSelectedWaybill((current) =>
+                current ? { ...current, ...updatedOrder } : current
+              );
+            }
+          }}
           warehouseHubId={hubId !== 'ALL' ? Number(hubId) : null}
           onPrintLabel={(w) => {
             setIsDetailModalOpen(false);
